@@ -176,7 +176,6 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
   onToggleMenu: () => void;
   onCloseMenu: () => void;
 }) => {
-  const { theme } = useTheme();
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
   const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
   const imageValue = String(selectedVariantImage || product.image || '').trim();
@@ -225,8 +224,8 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
     normalizedStatus === 'inactive'
       ? { color: '#fca5a5', backgroundColor: 'rgba(153,27,27,0.72)', borderColor: 'rgba(248,113,113,0.75)' }
       : normalizedStatus === 'active'
-        ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
-        : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
+      ? { color: '#86efac', backgroundColor: 'rgba(20,83,45,0.72)', borderColor: 'rgba(74,222,128,0.75)' }
+      : { color: '#c4b5fd', backgroundColor: 'rgba(76,29,149,0.62)', borderColor: 'rgba(167,139,250,0.7)' };
 
   useEffect(() => {
     setSelectedOptions(getInitialVariantSelection(product));
@@ -239,55 +238,20 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
       onClick={() => onView(product)}
-      className={`group relative border transition-all duration-300 flex flex-col h-full cursor-pointer hover:-translate-y-1 ${
-        menuOpen ? 'z-40' : 'z-0'
-      } ${
-        theme === 'dark'
-          ? 'rounded-[32px] bg-[#15093E] border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:border-[#FFCE00]/50'
-          : 'rounded-[32px] bg-white border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.08)] hover:border-[#8B5CF6]/60'
-      }`}
+      className="group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full cursor-pointer"
+      style={{
+        backgroundColor: '#141446',
+        borderColor: '#2D3A90',
+        borderRadius: '20px',
+      }}
     >
-      {/* IMAGE SECTION */}
-      <div
-        className="relative w-full aspect-video overflow-visible border-b"
-        style={{
-          borderColor: colors.border.default,
-          borderTopLeftRadius: '31px',
-          borderTopRightRadius: '31px'
-        }}
-      >
-        <div
-          className="absolute inset-0 overflow-hidden flex items-center justify-center"
-          style={{
-            backgroundColor: theme === 'dark' ? '#0A0A26' : '#ffffff',
-            borderTopLeftRadius: '31px',
-            borderTopRightRadius: '31px'
-          }}
-        >
-          {showImage ? (
-            <img
-              src={imageValue}
-              alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center text-center p-3 opacity-20">
-              <svg className="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span className="text-[11px] font-bold uppercase tracking-widest">No visual</span>
-            </div>
-          )}
-        </div>
-
-        {/* Badges and Buttons */}
+      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#1A1F66' }}>
         <span
-          className="absolute left-4 top-4 z-10 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] backdrop-blur-md"
+          className="absolute left-2.5 top-2.5 z-10 rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.08em]"
           style={statusStyle}
         >
           {statusLabel}
         </span>
-
         <button
           data-product-menu-root="true"
           type="button"
@@ -295,107 +259,109 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
             event.stopPropagation();
             onToggleMenu();
           }}
-          className={`absolute top-4 right-4 z-20 h-10 w-10 rounded-full flex items-center justify-center transition-all backdrop-blur-md border ${
-            theme === 'dark' ? 'bg-black/40 text-white/40 hover:text-white border-white/10' : 'bg-white/60 text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white border-[#8B5CF6]/10'
-          }`}
+          className="absolute right-2.5 top-2.5 z-20 flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
+          style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
+          title="Product actions"
         >
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="12" cy="6" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="18" r="1.8" />
+          <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="6" cy="12" r="2.2" />
+            <circle cx="12" cy="12" r="2.2" />
+            <circle cx="18" cy="12" r="2.2" />
           </svg>
         </button>
-
         {menuOpen && (
           <div
             data-product-menu-root="true"
-            className={`absolute right-4 top-15 z-30 w-44 rounded-2xl border p-1.5 shadow-2xl backdrop-blur-2xl ${
-              theme === 'dark' ? 'bg-[#15093E]/95 border-[#272261] text-white' : 'bg-white/95 border-[#8B5CF6]/20 text-slate-700'
-            }`}
+            className="absolute right-2.5 top-10 z-30 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <button type="button" onClick={() => { onCloseMenu(); onView(product); }} className="w-full px-3 py-2.5 rounded-xl text-left text-[12px] font-bold uppercase tracking-wide hover:bg-black/5 dark:hover:bg-white/5 transition-colors">View Details</button>
-            <button type="button" onClick={() => { onCloseMenu(); onEdit(product); }} className="w-full px-3 py-2.5 rounded-xl text-left text-[12px] font-bold uppercase tracking-wide hover:bg-black/5 dark:hover:bg-white/5 transition-colors">Edit Product</button>
-            <div className="h-px bg-current opacity-5 my-1 mx-2" />
-            <button type="button" onClick={() => { onCloseMenu(); onDelete(product); }} className="w-full px-3 py-2.5 rounded-xl text-left text-[12px] font-black uppercase tracking-widest text-[#BE123C] bg-[#BE123C]/5 border border-[#BE123C]/10 hover:bg-[#BE123C]/10 transition-colors">Delete</button>
+            <button type="button" onClick={() => { onCloseMenu(); onView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
+            <button type="button" onClick={() => { onCloseMenu(); onEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
+            <button type="button" onClick={() => { onCloseMenu(); onDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
+          </div>
+        )}
+        {showImage ? (
+          <img
+            src={imageValue}
+            alt={product.name}
+            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+          />
+        ) : (
+          <div className="flex flex-col items-center justify-center text-center p-3">
+            <svg className="w-12 h-12 mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.border.faint }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            <span className="text-xs" style={{ color: colors.text.muted }}>No image</span>
           </div>
         )}
       </div>
 
-      {/* CONTENT SECTION */}
-      <div className="p-7 flex-1 flex flex-col">
-        <div className="flex flex-col mb-4">
+      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: '#141446' }}>
+        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2" style={{ color: '#F2ECFF' }}>
+          {product.name}
+        </h3>
+        <div className="mt-auto">
           {subcategoryLabel && (
-            <span className="text-[11px] font-black uppercase tracking-[0.2em] opacity-40 mb-1.5" style={{ color: colors.text.muted }}>
+            <p className="mt-1 text-[10px] uppercase tracking-[0.08em]" style={{ color: '#8A8FC4' }}>
               {subcategoryLabel}
-            </span>
+            </p>
           )}
-          <h3 className="font-bold text-[22px] leading-tight tracking-tight line-clamp-2" style={{ color: colors.text.primary }}>
-            {product.name}
-          </h3>
-        </div>
+          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#A78BFA' }}>
+            {product.sku || '-'}
+          </p>
 
-        {/* Metadata List */}
-        <div className="flex flex-col gap-3.5 mb-6">
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-black uppercase tracking-widest opacity-30" style={{ color: colors.text.muted }}>SKU</span>
-            <span className="text-[13px] font-mono font-bold" style={{ color: colors.accent.purple }}>{product.sku || '-'}</span>
-          </div>
-
-          {variantGroups.length > 1 && (
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-black uppercase tracking-widest opacity-30" style={{ color: colors.text.muted }}>Variants</span>
-              <span className="text-[13px] font-bold" style={{ color: colors.text.secondary }}>{colorVariantCount} Total</span>
-            </div>
+          {variantGroups.length > 1 && hasColorVariant && (
+            <p className="mt-2 text-[11px] mb-2.5" style={{ color: '#D2D6F7' }}>
+              Color Variants: {colorVariantCount}
+            </p>
           )}
 
-          {/* Variant Chips */}
-          <div className="flex flex-wrap gap-2 pt-1">
-            {isSingleVariantGroup && singleVariantOptions.length > 0 ? (
-              visibleVariantOptions.map((option) => (
+          {isSingleVariantGroup && singleVariantOptions.length > 0 && (
+            <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
+              {visibleVariantOptions.map((option) => (
                 <span
                   key={`${product.id}-${singleVariantId}-${option.id}`}
-                  className="px-3 py-1.5 text-[10px] font-black uppercase tracking-tight border rounded-lg"
-                  style={{ borderColor: colors.border.default, color: colors.text.secondary }}
+                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
+                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
                 >
                   {option.name}
                 </span>
-              ))
-            ) : variantGroups.length === 0 && (
-              <span className="px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border rounded-lg opacity-20"
-                    style={{ borderColor: colors.border.default, color: colors.text.secondary }}>
-                Standard
+              ))}
+              {hiddenVariantCount > 0 && (
+                <span
+                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
+                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                >
+                  +{hiddenVariantCount}
+                </span>
+              )}
+            </div>
+          )}
+
+          {variantGroups.length === 0 && (
+            <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
+              <span
+                className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
+                style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+              >
+                NO VARIANT
               </span>
-            )}
-            {hiddenVariantCount > 0 && (
-              <span className="px-3 py-1.5 text-[10px] font-black border rounded-lg"
-                    style={{ borderColor: colors.border.default, color: colors.text.secondary }}>
-                +{hiddenVariantCount}
-              </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Price & Stock Footer */}
-        <div className="mt-auto pt-6 flex items-end justify-between border-t border-dashed" style={{ borderColor: colors.border.faint }}>
+        <div className="mt-3 pt-3 flex items-end justify-between border-t" style={{ borderColor: '#2D3A90' }}>
           <div className="flex flex-col">
             {formattedOriginalPrice && (
-              <p className="text-[12px] font-black line-through opacity-30 mb-1" style={{ color: colors.text.muted }}>
+              <p className="text-[11px] leading-none line-through" style={{ color: '#8f94b8' }}>
                 {formattedOriginalPrice}
               </p>
             )}
-            <p className="text-[22px] font-black leading-none tracking-tight" style={{ color: theme === 'dark' ? '#FFCE00' : colors.accent.purple }}>
-              {formattedPrice}
-            </p>
+            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#A78BFA' }}>{formattedPrice}</p>
           </div>
-
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-30 mb-1.5" style={{ color: colors.text.muted }}>Stock</span>
-            <p
-              className="text-[20px] font-black leading-none"
-              style={{ color: overallStock === 0 ? '#f87171' : lowStock ? '#fdba74' : colors.text.primary }}
-            >
-              {overallStock}
-            </p>
-          </div>
+          <p className={`text-[15px] font-semibold ${overallStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
+            Stock: {overallStock}
+          </p>
         </div>
       </div>
     </motion.div>
@@ -408,7 +374,6 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
   colors: ThemeColors;
   onEditProduct: (product: Product) => void;
 }) => {
-  const { theme } = useTheme();
   const [currentImage, setCurrentImage] = useState(0);
   const thumbnailStripRef = useRef<HTMLDivElement | null>(null);
 
@@ -454,135 +419,177 @@ const ProductDetailsModal = ({ product, onClose, colors, onEditProduct }: {
 
   return createPortal(
     <motion.div
-  initial={{ opacity: 0 }}
-  animate={{ opacity: 1 }}
-  exit={{ opacity: 0 }}
-  className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4 backdrop-blur-sm"
-  style={{ backgroundColor: 'rgba(10, 5, 30, 0.4)' }}
-  onClick={onClose}
->
-  <motion.div
-    initial={{ scale: 0.98, opacity: 0 }}
-    animate={{ scale: 1, opacity: 1 }}
-    className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border"
-    style={{ 
-      backgroundColor: theme === 'dark' ? '#15093E' : '#FFFFFF',
-      borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#E5E7EB',
-      fontFamily: "var(--font-outfit), 'Outfit', sans-serif",
-    }}
-    onClick={(e) => e.stopPropagation()}
-  >
-    {/* Clean Header */}
-    <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }}>
-      <h2 className="text-lg font-bold" style={{ color: theme === 'dark' ? '#FFFFFF' : '#111827' }}>Product Details</h2>
-      <button onClick={onClose} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
-      </button>
-    </div>
-
-    <div className="flex flex-col lg:flex-row">
-      {/* Left: Media & Action Sidebar */}
-      <div className="w-full lg:w-[42%] p-6 border-r" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#F3F4F6', backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : '#FAFAFA' }}>
-        <div className="relative aspect-square rounded-xl overflow-hidden border bg-white shadow-inner" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.1)' : '#E5E7EB' }}>
-          {hasGallery ? (
-            <img src={gallery[currentImage]} className="w-full h-full object-contain p-4" alt={product.name} />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-xs font-bold uppercase opacity-20">No Image</div>
-          )}
-          
-          {hasGallery && gallery.length > 1 && (
-            <div className="absolute inset-0 flex items-center justify-between px-2">
-              <button onClick={() => setCurrentImage((i) => (i - 1 + gallery.length) % gallery.length)} className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={3} d="M15 19l-7-7 7-7" /></svg></button>
-              <button onClick={() => setCurrentImage((i) => (i + 1) % gallery.length)} className="w-8 h-8 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeWidth={3} d="M9 5l7 7-7 7" /></svg></button>
-            </div>
-          )}
-        </div>
-
-        {/* Thumbnail Strip */}
-        {hasGallery && gallery.length > 1 && (
-          <div className="flex gap-2 mt-4 overflow-x-auto pb-2 no-scrollbar">
-            {gallery.map((img, idx) => (
-              <button key={idx} onClick={() => setCurrentImage(idx)} className={`w-14 h-14 rounded-lg overflow-hidden border-2 transition-all shrink-0 ${idx === currentImage ? 'border-[#8B5CF6]' : 'border-transparent opacity-60'}`}><img src={img} className="w-full h-full object-cover" /></button>
-            ))}
-          </div>
-        )}
-
-        {/* Brand Action Buttonn */}
-        <button
-          onClick={() => onEditProduct(product)}
-          className="w-full mt-6 py-3 rounded-xl font-bold text-white shadow-lg transition-transform active:scale-[0.98]"
-          style={{ background: 'linear-gradient(90deg, #7C3AED 0%, #DB2777 100%)' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[2147483000]"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+      onClick={onClose}
+    >
+      <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="w-full max-w-4xl rounded-2xl border overflow-hidden"
+          style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+          onClick={(e) => e.stopPropagation()}
         >
-          Edit Product
-        </button>
+          <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+            <h2 className="text-lg font-semibold" style={{ color: colors.text.primary }}>Product Details</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10"
+              style={{ color: colors.text.muted }}
+              title="Close"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0">
+            <div className="p-5 border-b lg:border-b-0 lg:border-r" style={{ borderColor: colors.border.faint }}>
+              <div className="rounded-xl overflow-hidden border relative" style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.elevated, height: 320 }}>
+                {hasGallery ? (
+                  <img src={gallery[currentImage]} alt={product.name} className="w-full h-full object-contain" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-sm" style={{ color: colors.text.muted }}>
+                    No image
+                  </div>
+                )}
+
+                {hasGallery && gallery.length > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentImage((i) => (i - 1 + gallery.length) % gallery.length)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-white"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                    >
+                      <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M15 19l-7-7 7-7" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentImage((i) => (i + 1) % gallery.length)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full text-white"
+                      style={{ backgroundColor: 'rgba(0,0,0,0.45)' }}
+                    >
+                      <svg className="w-5 h-5 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="mt-3 mx-auto w-full" style={{ maxWidth: 312 }}>
+                {hasGallery && gallery.length > 1 && (
+                  <div
+                    ref={thumbnailStripRef}
+                    onWheel={handleThumbnailWheel}
+                    className="overflow-x-scroll pb-1"
+                  >
+                    <div className="flex gap-2 min-w-max">
+                      {gallery.map((img, idx) => (
+                        <button
+                          type="button"
+                          key={`${product.id}-thumb-${idx}`}
+                          onClick={() => setCurrentImage(idx)}
+                          className="w-14 h-14 rounded-lg overflow-hidden border shrink-0"
+                          style={{
+                            borderColor: idx === currentImage ? '#3b82f6' : colors.border.faint,
+                            backgroundColor: colors.bg.elevated,
+                          }}
+                        >
+                          <img src={img} alt={`${product.name} ${idx + 1}`} className="w-full h-full object-cover" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => onEditProduct(product)}
+                  className="mt-3 h-10 w-full rounded-lg text-sm font-semibold text-white"
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
+                >
+                  Edit Product
+                </button>
+              </div>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Name</p>
+                <p className="text-lg font-semibold" style={{ color: colors.text.primary }}>{product.name}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>SKU</p>
+                  <p style={{ color: '#A78BFA' }}>{product.sku || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Category</p>
+                  <p style={{ color: '#A78BFA' }}>{product.category || '-'}</p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Subcategory</p>
+                <p style={{ color: '#A78BFA' }}>{product.subcategory || '-'}</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Price</p>
+                  <p className="font-semibold" style={{ color: '#A78BFA' }}>₱{product.price.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Stock</p>
+                  <p className="font-semibold" style={{ color: colors.text.primary }}>{product.stock}</p>
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Status</p>
+                  <p
+                    className="font-semibold capitalize"
+                    style={{
+                      color:
+                        product.status === 'active'
+                          ? '#22c55e'
+                          : product.status === 'inactive'
+                            ? '#ef4444'
+                            : colors.text.primary,
+                    }}
+                  >
+                    {product.status}
+                  </p>
+                </div>
+              </div>
+              <div className="pt-3 border-t" style={{ borderColor: colors.border.faint }}>
+                <p className="text-xs uppercase tracking-wide mb-1" style={{ color: colors.text.muted }}>Description</p>
+                <div className="max-h-36 overflow-y-auto pr-1">
+                  <p className="text-sm leading-6 whitespace-pre-wrap" style={{ color: '#ffffff' }}>
+                    {product.description || 'No description.'}
+                  </p>
+                </div>
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-wide" style={{ color: colors.text.muted }}>Created</p>
+                <p className="text-sm" style={{ color: colors.text.secondary }}>
+                  {new Date(product.createdAt).toLocaleString()}
+                </p>
+              </div>
+            </div>
+          </div>
+        </motion.div>
       </div>
-
-      {/* Right: Structured Information */}
-      <div className="flex-1 p-8 space-y-8">
-        <section>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: '#8B5CF6' }}>Product Identity</p>
-          <h1 className="text-3xl font-black tracking-tight" style={{ color: theme === 'dark' ? '#FFFFFF' : '#111827' }}>{product.name}</h1>
-        </section>
-
-        <div className="grid grid-cols-2 gap-y-8 gap-x-4">
-          <InfoBlock label="SKU" value={product.sku || '—'} isAccent />
-          <InfoBlock label="Category" value={product.category || '—'} isAccent />
-          <InfoBlock label="Subcategory" value={product.subcategory || '—'} isAccent />
-          <InfoBlock label="Price" value={`₱${product.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`} isAccent />
-          <InfoBlock label="Stock Level" value={product.stock} />
-          <InfoBlock label="Live Status" value={product.status} isStatus />
-        </div>
-
-        <div className="pt-6 border-t" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#F3F4F6' }}>
-          <p
-            className="text-[10px] font-black uppercase tracking-[0.2em] mb-3"
-            style={{ color: theme === 'dark' ? '#9CA3AF' : '#64748B' }}
-          >
-            Detailed Description
-          </p>
-          <p className="text-sm leading-relaxed max-h-32 overflow-y-auto pr-4" style={{ color: theme === 'dark' ? '#D1D5DB' : '#4B5563' }}>
-            {product.description || 'No description provided for this product.'}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 pt-4" style={{ color: theme === 'dark' ? '#9CA3AF' : '#6B7280' }}>
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-          <p className="text-[11px] font-medium">Record Created: {new Date(product.createdAt).toLocaleString()}</p>
-        </div>
-      </div>
-    </div>
-  </motion.div>
-</motion.div>,
+    </motion.div>,
     document.body
-  );
-};
-
-const InfoBlock = ({ label, value, isAccent = false, isStatus = false }: {
-  label: string;
-  value: React.ReactNode;
-  isAccent?: boolean;
-  isStatus?: boolean;
-}) => {
-  const { theme } = useTheme();
-
-  const normalized = String(value || '').toLowerCase();
-  let color = theme === 'dark' ? '#FFFFFF' : '#111827';
-  if (isAccent) color = '#8B5CF6';
-  if (isStatus) {
-    color = normalized === 'active'
-      ? '#22c55e'
-      : normalized === 'inactive'
-        ? '#f43f5e'
-        : (theme === 'dark' ? '#E5E7EB' : '#374151');
-  }
-
-  const labelColor = theme === 'dark' ? '#9CA3AF' : '#64748B';
-
-  return (
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-[0.2em] mb-1" style={{ color: labelColor }}>{label}</p>
-      <p className="text-sm font-bold capitalize" style={{ color }}>{value}</p>
-    </div>
   );
 };
 
@@ -1049,7 +1056,7 @@ export default function ProductsPage() {
   };
 
   return (
-    <div className="dashboard-landing-light space-y-6 [font-family:var(--font-outfit),sans-serif]">
+    <div className="dashboard-landing-light space-y-6">
       {typeof document !== 'undefined' && createPortal(
         <AnimatePresence>
           {productPopup.open && (
@@ -1091,7 +1098,7 @@ export default function ProductsPage() {
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
         <div className="text-center">
           <h1
-            className="text-4xl sm:text-6xl lg:text-[76px] text-[clamp(34px,5vw,56px)] font-black tracking-[-1.8px] leading-[1.06]"
+            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.06]"
             style={{ color: colors.text.primary }}
           >
             My{' '}
@@ -1101,44 +1108,28 @@ export default function ProductsPage() {
               Products
             </span>
           </h1>
-          <p className="mt-6 text-base" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
+          <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
         </div>
 
-        <div
-          className={`m-dashboard-search-shadow mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 transition-all duration-500
-            ${theme === 'dark'
-              ? 'bg-[#141446] border-[#1F1F51] shadow-[0_0_12px_rgba(31,31,81,0.4)] hover:border-[#2a2a6e] focus-within:border-[#3b3b8a]'
-              : 'bg-white/80 backdrop-blur-md border-[#E2E8F0] shadow-[0_0_15px_rgba(139,92,246,0.1),0_0_1px_rgba(139,92,246,0.2)] hover:border-[#8B5CF6]/40 focus-within:border-[#8B5CF6] focus-within:shadow-[0_0_25px_rgba(139,92,246,0.2)]'
-            }
-          `}
-        >
-          <div className="relative">
-            {theme === 'light' && (
-              <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
-            )}
-            <svg
-              viewBox="0 0 20 20"
-              className={`h-4 w-4 shrink-0 relative z-10 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}
-              fill="none"
-            >
-              <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
-            </svg>
-          </div>
+        <div className="m-dashboard-search-shadow mt-6 mb-7 max-w-[860px] mx-auto rounded-2xl border px-5 py-3.5 flex items-center gap-3 bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]">
+          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
           <input
             type="text"
-            placeholder="Search products by name or SKU"
+            placeholder="Search templates, designs, or actions"
             value={searchTerm}
             onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-            className={`w-full bg-transparent outline-none text-sm font-medium ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#120533]/30'}`}
+            className="w-full bg-transparent outline-none text-sm text-white placeholder:text-[#6F70A8]"
           />
         </div>
 
         {blockedAddProductMessage && (
-          <p className="mt-2 text-center text-xs" style={{ color: colors.text.muted }}>{blockedAddProductMessage}</p>
+          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
         )}
 
-        <div className="mt-10 grid grid-cols-2 gap-[16px]">
+        <div className="mt-0 grid grid-cols-2 lg:grid-cols-2 gap-[10px]">
           {PRODUCT_INSIGHT_CARDS.map((card, idx) => {
             const Icon = card.icon;
             const accentColor = card.id === 'active' ? '#22d3a4' : '#ff4f8c';
@@ -1147,58 +1138,21 @@ export default function ProductsPage() {
             return (
               <motion.div
                 key={card.id}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1, ease: [0.23, 1, 0.32, 1] }}
-                className="relative overflow-hidden rounded-3xl border transition-all duration-500 hover:shadow-xl"
-                style={{ 
-                  backgroundColor: colors.bg.card, 
-                  borderColor: `${accentColor}25`, 
-                  minHeight: 100, 
-                  padding: '20px 24px',
-                  boxShadow: '0 4px 20px -12px rgba(0,0,0,0.3)'
-                }}
+                transition={{ delay: idx * 0.06 }}
+                className="rounded-2xl border"
+                style={{ backgroundColor: '#141446', borderColor: '#2D3A90', minHeight: 72, padding: '10px 14px 12px' }}
               >
-                <div 
-                  className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.05] blur-2xl rounded-full"
-                  style={{ backgroundColor: accentColor }}
-                />
-
-                <div className="flex items-center gap-5">
-                  <div 
-                    className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl"
-                    style={{ 
-                      backgroundColor: `${accentColor}10`,
-                      border: `1px solid ${accentColor}20` 
-                    }}
-                  >
-                    <Icon className="w-6 h-6" style={{ color: accentColor }} />
-                  </div>
-
-                  <div className="flex flex-col">
-                    <span 
-                      className="text-[11px] font-black uppercase tracking-[0.2em] mb-1 opacity-60" 
-                      style={{ 
-                        color: colors.text.muted,
-                        fontFamily: 'var(--font-outfit), sans-serif'
-                      }}
-                    >
-                      {card.label}
-                    </span>
-                    <div className="flex items-baseline">
-                      <span 
-                        className="text-3xl font-black leading-none" 
-                        style={{ 
-                          color: colors.text.primary, 
-                          letterSpacing: '-1.5px',
-                          fontFamily: 'var(--font-outfit), sans-serif'
-                        }}
-                      >
-                        {String(value)}
-                      </span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-[7px] mb-1">
+                  <Icon className="w-3 h-3" style={{ color: accentColor }} />
+                  <span className="text-[10px] uppercase tracking-[0.08em]" style={{ color: '#7e72a9', letterSpacing: '0.8px' }}>
+                    {card.label}
+                  </span>
                 </div>
+                <span className="text-2xl font-bold" style={{ color: '#f2ecff', letterSpacing: '-0.8px', lineHeight: 1.2 }}>
+                  {String(value)}
+                </span>
               </motion.div>
             );
           })}
@@ -1211,37 +1165,24 @@ export default function ProductsPage() {
         </section>
       ) : hasProducts ? (
         <>
-          <div id="inventory-section" className="max-w-272.5 mx-auto mb-8">
-            <div className="flex items-center justify-between gap-4 flex-wrap">
-              
-              {/* LEFT SIDE: Category Filter & Add Product */}
-              <div className="flex items-center gap-3 justify-start">
+          <div id="inventory-section" className="max-w-[1090px] mx-auto mb-5">
+            <div className="flex items-center justify-between gap-[10px] flex-wrap">
+              <div className="flex items-center gap-2 justify-start">
                 <div ref={categoryMenuRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setShowCategoryFilterMenu((prev) => !prev)}
-                    className="cursor-pointer h-[48px] px-5 rounded-2xl border text-[13px] font-bold min-w-[180px] flex items-center justify-between gap-3 transition-all duration-300"
-                    style={{ 
-                      backgroundColor: colors.bg.card, 
-                      borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default, 
-                      color: colors.text.primary,
-                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)'
-                    }}
+                    className="h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] pr-9 text-left relative"
+                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ddd1ff' }}
                     title="Filter by subcategory"
                   >
-                    <span className="truncate">{selectedCategoryLabel}</span>
-                    <svg 
-                      className={`w-3.5 h-3.5 transition-transform duration-300 ${showCategoryFilterMenu ? 'rotate-180' : ''}`} 
-                      fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <span className="truncate block">{selectedCategoryLabel}</span>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px]" style={{ color: '#b6abd6' }}>▼</span>
                   </button>
-
                   {showCategoryFilterMenu && (
                     <div
-                      className="absolute left-0 top-full mt-2 w-64 rounded-2xl border p-2 z-30 shadow-2xl"
-                      style={{ backgroundColor: colors.bg.card, borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default }}
+                      className="absolute left-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
+                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
                     >
                       {filterOptions.map((option) => {
                         const checked = selectedCategory === option.value;
@@ -1254,12 +1195,8 @@ export default function ProductsPage() {
                               setCurrentPage(1);
                               setShowCategoryFilterMenu(false);
                             }}
-                            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all
-                              ${checked 
-                                ? (theme === 'dark' ? 'bg-[#FFCE00] text-[#110248]' : 'bg-[#9333ea] text-white')
-                                : 'hover:bg-white/5'
-                              }`}
-                            style={!checked ? { color: colors.text.secondary } : {}}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
+                            style={{ color: '#D2D6F7' }}
                           >
                             <span>{option.label}</span>
                             <span>{checked ? '✓' : ''}</span>
@@ -1274,41 +1211,29 @@ export default function ProductsPage() {
                   type="button"
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
-                  className={`h-12 cursor-pointer px-6 rounded-2xl flex items-center justify-center text-[13px] font-black transition-all duration-300 active:scale-[0.97] 
-                    ${canAddProducts ? 'hover:scale-[1.02] hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                  style={theme === 'dark'
-                    ? { background: '#FFCE00', borderColor: 'transparent', color: '#110248', boxShadow: '0 0 18px 4px rgba(255,206,0,0.45)' }
-                    : { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', borderColor: 'transparent', color: '#ffffff', boxShadow: '0 10px 20px -5px rgba(147,51,234,0.3)' }}
+                  className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', borderColor: 'transparent', color: '#ffffff' }}
                   title="Add product"
                 >
-                  <span className="mr-2 text-lg leading-none">+</span> Add Product
+                  + Add Product
                 </button>
               </div>
 
-              {/* RIGHT SIDE: Status Filter & View Toggle */}
               <div className="flex items-center gap-2 justify-end">
                 <div ref={statusMenuRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                    className="h-[48px] w-[48px] cursor-pointer rounded-2xl border flex items-center justify-center transition-all duration-300 hover:opacity-80"
-                    style={{ 
-                      backgroundColor: colors.bg.card, 
-                      borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
-                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
-                      color: theme === 'dark' ? '#FFCE00' : '#8B5CF6'
-                    }}
+                    className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
+                    style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
                     title="Filter products"
                   >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                    </svg>
+                    <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
                   </button>
-
                   {showStatusFilterMenu && (
                     <div
-                      className="cursor-pointer absolute right-0 top-full mt-2 w-48 rounded-2xl border p-2 z-30 shadow-2xl"
-                      style={{ backgroundColor: colors.bg.card, borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default }}
+                      className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
+                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
                     >
                       {[
                         { value: 'all', label: 'All' },
@@ -1325,12 +1250,8 @@ export default function ProductsPage() {
                               setCurrentPage(1);
                               setShowStatusFilterMenu(false);
                             }}
-                            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-xs font-bold transition-all
-                              ${checked 
-                                ? (theme === 'dark' ? 'text-[#FFCE00] bg-white/5' : 'text-[#8B5CF6] bg-[#8B5CF6]/5')
-                                : 'hover:bg-white/5'
-                              }`}
-                            style={!checked ? { color: colors.text.secondary } : {}}
+                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
+                            style={{ color: '#D2D6F7' }}
                           >
                             <span>{item.label}</span>
                             <span>{checked ? '✓' : ''}</span>
@@ -1344,36 +1265,52 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  className="h-12 w-12 rounded-2xl border flex items-center justify-center transition-all duration-300 hover:opacity-80 cursor-pointer"
-                  style={{ 
-                    backgroundColor: colors.bg.card, 
-                    borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
-                    boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
-                    color: theme === 'dark' ? '#FFCE00' : '#8B5CF6'
-                  }}
+                  className="h-10 w-10 rounded-xl border flex items-center justify-center hover:opacity-90"
+                  style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
                   title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
                 >
                   {viewMode === 'tile' ? (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                    </svg>
+                    <img src="/icons/products/Bulleted%20List.png" alt="List view" className="h-5 w-5" />
                   ) : (
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.2">
-                      <rect x="4" y="4" width="6" height="6" rx="1.5" />
-                      <rect x="14" y="4" width="6" height="6" rx="1.5" />
-                      <rect x="4" y="14" width="6" height="6" rx="1.5" />
-                      <rect x="14" y="14" width="6" height="6" rx="1.5" />
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <rect x="4" y="4" width="6" height="6" rx="1" />
+                      <rect x="14" y="4" width="6" height="6" rx="1" />
+                      <rect x="4" y="14" width="6" height="6" rx="1" />
+                      <rect x="14" y="14" width="6" height="6" rx="1" />
                     </svg>
                   )}
                 </button>
               </div>
             </div>
           </div>
-              
+
+          <div className="mt-4 flex items-center justify-center gap-2" style={{ color: '#D2D6F7' }}>
+            <button type="button" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="h-8 w-8 rounded-full text-sm disabled:opacity-40">‹</button>
+            {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
+              const page = i + 1;
+              const active = page === currentPage;
+              return (
+                <button
+                  key={`page-dot-${page}`}
+                  type="button"
+                  onClick={() => setCurrentPage(page)}
+                  className={`h-8 w-8 rounded-full text-sm ${active ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            {totalPages > 5 && <span className="px-1">...</span>}
+            {totalPages > 5 && (
+              <button type="button" onClick={() => setCurrentPage(totalPages)} className={`h-8 w-8 rounded-full text-sm ${currentPage === totalPages ? 'bg-white/20 text-white' : 'bg-[#1A2165] text-[#BBC1E9]'}`}>{totalPages}</button>
+            )}
+            <button type="button" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="h-8 w-8 rounded-full text-sm disabled:opacity-40">›</button>
+          </div>
+
           {filteredProducts.length > 0 ? (
             <>
               {viewMode === 'tile' ? (
-                <div id="products-grid" className="max-w-[1090px] mx-auto grid gap-3 md:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                <div id="products-grid" className="max-w-[1090px] mx-auto grid gap-3 md:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4">
                   <AnimatePresence>
                     {paginatedProducts.map((product) => (
                       <ProductCard
@@ -1392,248 +1329,122 @@ export default function ProductsPage() {
                   </AnimatePresence>
                 </div>
               ) : (
-                <div className="max-w-[1090px] mx-auto overflow-hidden">
+                <div className="max-w-[1090px] mx-auto overflow-hidden rounded-3xl border" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
                   <div style={{ overflowX: 'auto' }}>
-                    {/* Header: Exact Vibrant Violet Tone */}
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 132px',
+                        gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 56px',
                         gap: 16,
-                        padding: '20px 24px',
+                        padding: '13px 24px',
                         minWidth: 860,
-                        borderRadius: '24px 24px 0 0',
-                       background: theme === 'dark' 
-                          ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)' 
-                          : '#8B5CF6',
-                        color: '#FFFFFF',
-                        fontSize: 10,
-                        fontWeight: 800,
-                        letterSpacing: '0.15em',
+                        borderBottom: '1px solid #2D3A90',
+                        background: '#141446',
+                        color: '#8273a8',
+                        fontSize: 11,
+                        letterSpacing: 0.9,
                         textTransform: 'uppercase',
-                        boxShadow: '0 4px 20px rgba(124, 58, 237, 0.15)'
                       }}
                     >
-                      <span>Product</span>
+                      <span>Product Name</span>
                       <span>SKU</span>
                       <span>Variants</span>
                       <span>Price</span>
-                      <span>Status</span>
-                      <span style={{ justifySelf: 'center' }}>Actions</span>
+                      <span>Inventory</span>
+                      <span />
                     </div>
 
-                    {/* Product Rows Container */}
-                    <div 
-                      className="flex flex-col gap-1 p-2" 
-                      style={{ 
-                        backgroundColor: theme === 'dark' ? 'rgba(21, 9, 62, 0.2)' : '#F9F8FF',
-                        borderRadius: '0 0 24px 24px',
-                        borderLeft: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#EEEAF7'}`,
-                        borderRight: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#EEEAF7'}`,
-                        borderBottom: `1px solid ${theme === 'dark' ? 'rgba(255,255,255,0.05)' : '#EEEAF7'}`,
-                        borderTop: 'none'
-                      }}
-                    >
-                      {paginatedProducts.map((product, index) => {
-                        const image = String(product.image || '').trim();
-                        const showThumb = isImageSource(image);
-                        const variantLabels = getVariantLabelsForList(product);
-                        const inStock = Number(product.stock || 0) > 0;
-
-                        return (
-                          <div
-                            key={`list-${product.id}`}
-                            onClick={() => handleView(product)}
-                            className="group transition-all duration-200"
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 132px',
-                              gap: 16,
-                              padding: '12px 16px',
-                              alignItems: 'center',
-                              minWidth: 860,
-                              borderRadius: '16px',
-                              backgroundColor: 'transparent',
-                              cursor: 'pointer',
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(139, 92, 246, 0.08)' : '#FFFFFF';
-                              e.currentTarget.style.boxShadow = theme === 'dark' 
-                                ? 'none' 
-                                : '0 6px 16px rgba(124, 58, 237, 0.06)';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.backgroundColor = 'transparent';
-                              e.currentTarget.style.boxShadow = 'none';
-                            }}
-                          >
-                            <div className="flex items-center gap-4 min-w-0">
-                              <div className="w-11 h-11 rounded-xl overflow-hidden flex-shrink-0 bg-white border border-violet-100 shadow-sm">
-                                {showThumb ? <img src={image} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-[8px] font-bold opacity-30">NA</div>}
-                              </div>
-                              <p className="font-bold text-[14px] truncate" style={{ color: colors.text.primary }}>{product.name}</p>
+                    {paginatedProducts.map((product, index) => {
+                      const image = String(product.image || '').trim();
+                      const showThumb = isImageSource(image);
+                      const variantLabels = getVariantLabelsForList(product);
+                      const inStock = Number(product.stock || 0) > 0;
+                      return (
+                        <div
+                          key={`list-${product.id}`}
+                          onClick={() => handleView(product)}
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 56px',
+                            gap: 16,
+                            padding: '14px 24px',
+                            alignItems: 'center',
+                            fontSize: 14,
+                            minWidth: 860,
+                            borderBottom: index < paginatedProducts.length - 1 ? '1px solid rgba(255,255,255,0.055)' : 'none',
+                            transition: 'background 0.15s',
+                            cursor: 'pointer',
+                          }}
+                          onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
+                          onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-14 h-14 rounded-md overflow-hidden border flex-shrink-0" style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}>
+                              {showThumb ? (
+                                <img src={image} alt={product.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-[10px]" style={{ color: '#6E78A8' }}>No image</div>
+                              )}
                             </div>
-
-                            <div className="text-[13px] font-medium opacity-50" style={{ color: colors.text.primary }}>{product.sku || '—'}</div>
-
-                            <div className="flex flex-wrap gap-1">
-                              {variantLabels.map((label, idx) => (
-                                <span key={idx} className="px-2.5 py-0.5 text-[9px] font-bold rounded-full border" style={{ borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8', color: '#7C3AED', backgroundColor: theme === 'dark' ? 'transparent' : '#FFF' }}>
-                                  {label}
-                                </span>
-                              ))}
-                            </div>
-
-                            <div className="font-bold text-[14px]" style={{ color: colors.text.primary }}>{formatProductPrice(product)}</div>
-
-                            <div>
-                              <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg ${inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
-                                {inStock ? 'In Stock' : 'Out'}
-                              </span>
-                            </div>
-
-                            <div className="flex items-center justify-center gap-2" style={{ justifySelf: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleView(product);
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.28)' : '#F3E8FF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#8B5CF6' : '#C084FC';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#E9D5FF' : '#6D28D9';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.12)' : '#FFFFFF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#3A4473' : '#E9E2F8';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#C4B5FD' : '#7C3AED';
-                                }}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
-                                style={{
-                                  borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8',
-                                  color: theme === 'dark' ? '#C4B5FD' : '#7C3AED',
-                                  backgroundColor: theme === 'dark' ? 'rgba(124,58,237,0.12)' : '#FFFFFF',
-                                }}
-                                title="View"
-                                aria-label="View product"
-                              >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7S3.732 16.057 2.458 12Z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(product);
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(245,158,11,0.24)' : '#FEF3C7';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#FBBF24' : '#F59E0B';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#FDE68A' : '#92400E';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(245,158,11,0.12)' : '#FFFFFF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#3A4473' : '#E9E2F8';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#FDE68A' : '#B45309';
-                                }}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
-                                style={{
-                                  borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8',
-                                  color: theme === 'dark' ? '#FDE68A' : '#B45309',
-                                  backgroundColor: theme === 'dark' ? 'rgba(245,158,11,0.12)' : '#FFFFFF',
-                                }}
-                                title="Edit"
-                                aria-label="Edit product"
-                              >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.1 2.1 0 1 1 2.97 2.97L8.62 17.67 4 19l1.33-4.62L16.862 3.487Z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 4.85 18.47 7.82" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(product);
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(190,24,93,0.24)' : '#FFE4E6';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(251,113,133,0.7)' : '#FB7185';
-                                  e.currentTarget.style.color = '#BE123C';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(190,24,93,0.12)' : '#FFFFFF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(248,113,113,0.35)' : 'rgba(190,24,93,0.15)';
-                                  e.currentTarget.style.color = '#E11D48';
-                                }}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
-                                style={{
-                                  borderColor: theme === 'dark' ? 'rgba(248,113,113,0.35)' : 'rgba(190,24,93,0.15)',
-                                  color: '#E11D48',
-                                  backgroundColor: theme === 'dark' ? 'rgba(190,24,93,0.12)' : '#FFFFFF',
-                                }}
-                                title="Delete"
-                                aria-label="Delete product"
-                              >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l1 12a1 1 0 0 0 1 .92h4a1 1 0 0 0 1-.92L16 7" />
-                                </svg>
-                              </button>
+                            <div className="min-w-0">
+                              <p className="text-white font-semibold text-[15px] leading-tight truncate">{product.name}</p>
                             </div>
                           </div>
-                        );
-                      })}
-                    </div>
+
+                          <div className="text-sm text-white truncate">{product.sku || '-'}</div>
+
+                          <div className="flex flex-wrap gap-1">
+                            {variantLabels.map((label, idx) => (
+                              <span
+                                key={`${product.id}-list-variant-${idx}`}
+                                className="px-1.5 py-0.5 text-[10px] border text-white rounded-sm"
+                                style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="text-white font-semibold">{formatProductPrice(product)}</div>
+
+                          <div>
+                            <span className="text-sm font-semibold" style={{ color: inStock ? '#86efac' : '#fca5a5' }}>
+                              {inStock ? 'In stock' : 'Out of stock'}
+                            </span>
+                          </div>
+
+                          <div data-product-menu-root="true" className="flex justify-center relative">
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setOpenMenuProductId((prev) => (prev === product.id ? null : product.id));
+                              }}
+                              className="flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
+                              style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
+                              title="Product actions"
+                            >
+                              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                <circle cx="6" cy="12" r="2.2" />
+                                <circle cx="12" cy="12" r="2.2" />
+                                <circle cx="18" cy="12" r="2.2" />
+                              </svg>
+                            </button>
+
+                            {openMenuProductId === product.id && (
+                              <div className="absolute right-2 top-12 z-40 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl" onClick={(event) => event.stopPropagation()}>
+                                <button type="button" onClick={() => { setOpenMenuProductId(null); handleView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
+                                <button type="button" onClick={() => { setOpenMenuProductId(null); handleEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
+                                <button type="button" onClick={() => { setOpenMenuProductId(null); void handleDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
-
-              <div className="mt-10 flex items-center justify-center gap-2">
-                <button 
-                  type="button" 
-                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-                  disabled={currentPage === 1} 
-                  className="h-10 w-10 flex items-center justify-center rounded-2xl border transition-all hover:bg-white/5 disabled:opacity-20"
-                  style={{ borderColor: colors.border.default, color: colors.text.primary }}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                
-                <div className="flex items-center gap-1.5 px-2">
-                  {Array.from({ length: Math.min(5, totalPages) }).map((_, i) => {
-                    const page = i + 1;
-                    const active = page === currentPage;
-                    return (
-                      <button
-                        key={`page-${page}`}
-                        type="button"
-                        onClick={() => setCurrentPage(page)}
-                        className="h-10 w-10 rounded-2xl text-[13px] font-black transition-all duration-300"
-                        style={active
-                          ? { backgroundColor: colors.accent.purple || '#8B5CF6', color: '#ffffff', boxShadow: '0 8px 15px -5px rgba(139,92,246,0.4)' }
-                          : { backgroundColor: 'transparent', color: colors.text.secondary }}
-                      >
-                        {page}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button 
-                  type="button" 
-                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-                  disabled={currentPage === totalPages} 
-                  className="h-10 w-10 flex items-center justify-center rounded-2xl border transition-all hover:bg-white/5 disabled:opacity-20"
-                  style={{ borderColor: colors.border.default, color: colors.text.primary }}
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path d="M9 5l7 7-7 7" /></svg>
-                </button>
-            </div>
             </>
           ) : (
             <section className="max-w-[1090px] mx-auto text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
@@ -1680,7 +1491,7 @@ export default function ProductsPage() {
           </p>
           <button
             type="button"
-            onClick={() => setShowAddModal(true)}
+            onClick={() => setShowAddModal(true)} 
             disabled={!canAddProducts}
             className={`mt-6 mx-auto px-4 py-2.5 rounded-lg text-white font-medium transition-opacity shadow-sm ${canAddProducts ? 'hover:opacity-90' : 'opacity-60 cursor-not-allowed'}`}
             style={canAddProducts ? { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' } : { background: 'linear-gradient(90deg, #c084fc 0%, #f9a8d4 100%)' }}
