@@ -1284,6 +1284,7 @@ export type ClientRow = {
   displayName: string;
   subscriptionPlan: string;
   status: string;
+  suspensionReason?: string;
   createdAt?: string;
   isActive?: boolean;
   storageUsedBytes?: number;
@@ -1316,11 +1317,12 @@ export async function updateClientPlan(
 /** Admin: update client status (Published = active, Suspended, Restricted). */
 export async function updateClientStatus(
   userId: string,
-  status: 'Published' | 'Suspended' | 'Restricted'
+  status: 'Published' | 'Suspended' | 'Restricted',
+  suspensionReason?: string
 ): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
   return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
     `/api/users/${userId}/status`,
-    { method: 'PUT', body: JSON.stringify({ status }) }
+    { method: 'PUT', body: JSON.stringify({ status, suspensionReason }) }
   );
 }
 

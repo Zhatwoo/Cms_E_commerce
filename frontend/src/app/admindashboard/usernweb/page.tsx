@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 import { UserManagement } from './components/userManange';
@@ -15,7 +15,7 @@ const UserWebsiteManagement = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlTab = searchParams.get('tab');
-  const activeTab: TabId = urlTab === 'domains' ? 'domains' : 'clients';
+  const activeTab: TabId = useMemo(() => (urlTab === 'domains' ? 'domains' : 'clients'), [urlTab]);
 
   const handleTabToggle = (tab: TabId) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -24,66 +24,78 @@ const UserWebsiteManagement = () => {
   };
 
   return (
-    <div className="admin-dashboard-shell relative flex h-screen overflow-hidden" suppressHydrationWarning>
-      <div className="relative z-10 flex h-screen w-full">
-        <AdminSidebar
-          forcedActiveItemId="management"
-          forcedActiveChildId={activeTab === 'clients' ? 'user-management' : 'website-management'}
-        />
+    <div className="admin-dashboard-shell flex h-screen overflow-hidden" suppressHydrationWarning>
+      <AdminSidebar
+        forcedActiveItemId="management"
+        forcedActiveChildId={activeTab === 'clients' ? 'user-management' : 'website-management'}
+      />
 
-        <AnimatePresence>
-          {sidebarOpen && (
-            <div className="lg:hidden">
-              <AdminSidebar
-                mobile
-                onClose={() => setSidebarOpen(false)}
-                forcedActiveItemId="management"
-                forcedActiveChildId={activeTab === 'clients' ? 'user-management' : 'website-management'}
-              />
-            </div>
-          )}
-        </AnimatePresence>
-
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="sticky top-0 z-30">
-            <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
+      <AnimatePresence>
+        {sidebarOpen && (
+          <div className="lg:hidden">
+            <AdminSidebar
+              mobile
+              onClose={() => setSidebarOpen(false)}
+              forcedActiveItemId="management"
+              forcedActiveChildId={activeTab === 'clients' ? 'user-management' : 'website-management'}
+            />
           </div>
-          <main className="flex-1 min-h-0 overflow-y-auto">
-            <div className="p-8">
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-[#B13BFF] mb-2">User &amp; Website Management</h1>
-                <p className="text-[#A78BFA] mb-6">Oversee all user accounts and published websites</p>
-              </div>
+        )}
+      </AnimatePresence>
 
-              {/* Tabs */}
-              <div className="inline-flex gap-1.5 mb-8 rounded-[14px] border border-[#D7B5FF] bg-[#EEE7F7] shadow-[0_4px_12px_rgba(177,59,255,0.16)] p-1.5 w-fit">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="space-y-6 p-8">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45 }}
+            >
+              <h1 className="mb-2 text-3xl font-bold text-[#B13BFF] sm:text-4xl">User &amp; Website Management</h1>
+              <p className="text-sm font-medium text-[#A78BFA]">Oversee all user accounts and published websites</p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.08 }}
+              className="flex flex-wrap items-center gap-3"
+            >
+              <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1">
                 <button
+                  type="button"
                   onClick={() => handleTabToggle('clients')}
-                  className={`px-6 py-2.5 text-[1.02rem] font-semibold rounded-[10px] transition-colors ${(
+                  className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
                     activeTab === 'clients'
-                      ? 'bg-[#FFCC00] text-[#422C63] shadow-[0_3px_0_rgba(152,115,0,0.35)]'
-                      : 'text-[#A59BB4] hover:text-[#8F84A0] hover:bg-white/60'
-                  )}`}
+                      ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
+                      : 'text-[#6F657E] hover:text-[#471396]'
+                  }`}
                 >
-                  Client Management
+                  Clients
                 </button>
                 <button
+                  type="button"
                   onClick={() => handleTabToggle('domains')}
-                  className={`px-6 py-2.5 text-[1.02rem] font-semibold rounded-[10px] transition-colors ${(
+                  className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
                     activeTab === 'domains'
-                      ? 'bg-[#FFCC00] text-[#422C63] shadow-[0_3px_0_rgba(152,115,0,0.35)]'
-                      : 'text-[#A59BB4] hover:text-[#8F84A0] hover:bg-white/60'
-                  )}`}
+                      ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
+                      : 'text-[#6F657E] hover:text-[#471396]'
+                  }`}
                 >
-                  Domain Management
+                  Websites
                 </button>
               </div>
+            </motion.div>
 
-              {activeTab === 'clients' && <UserManagement />}
-              {activeTab === 'domains' && <WebManagement />}
+            <div>
+              <AnimatePresence mode="wait">
+                {activeTab === 'clients' && <UserManagement />}
+                {activeTab === 'domains' && <WebManagement />}
+              </AnimatePresence>
             </div>
-          </main>
-        </div>
+          </div>
+        </main>
       </div>
     </div>
   );
