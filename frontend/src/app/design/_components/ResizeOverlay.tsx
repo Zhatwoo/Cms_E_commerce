@@ -174,7 +174,7 @@ type GuideState = {
 export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
 
-  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content"]);
+  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content", "TabContent"]);
   const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 
   const dragRef = useRef<DragState | null>(null);
@@ -302,7 +302,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const position = String(props.position ?? "static").toLowerCase();
       const isAbsoluteLike = position === "absolute" || position === "fixed";
 
-      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame"]);
+      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame", "TabContent", "Tab Content"]);
       const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
       const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
       const parentDisplay = String(parentProps.display ?? "").toLowerCase();

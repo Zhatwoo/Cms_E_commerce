@@ -163,13 +163,13 @@ export function FreeDropPlacementHandler() {
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
-        const isFlexParent =
+        const parentIsFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
           parentDisplayName === "Tab Content" ||
           parentDisplayName === "TabContent" ||
           LAYOUT_LIKE_TYPES.has(parentDisplayName);
-        const forceFlowPlacement = parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
+        const forceFlowPlacement = false;
 
         let left = 0;
         let top = 0;
@@ -203,7 +203,7 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, Math.round(left));
         top = Math.max(0, Math.round(top));
 
-        if (parentIsFlexParent && !parentIsFreeform && !allowFreeformLayout) {
+        if (isFlexParent && !parentIsFreeform) {
           let insertIndex = 0;
           try {
             const parentDom = query.node(parentId).get()?.dom ?? null;
@@ -287,7 +287,7 @@ export function FreeDropPlacementHandler() {
         });
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          const shouldUseAbsolute = !forceFlowPlacement && (!isLayoutLike || allowFreeformLayout);
+          const shouldUseAbsolute = !forceFlowPlacement && !isLayoutLike;
           if (shouldUseAbsolute) {
             props.position = "absolute";
             props.left = `${left}px`;
