@@ -1043,7 +1043,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const lastWheelZoomAtRef = useRef(0);
   const manualCameraControlUntilRef = useRef(0);
   const hasAutoCenteredAfterFrameReadyRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
   const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
@@ -2376,9 +2376,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const result = await autoSavePage(snapshot, projectId);
       if (result.success) {
+        if (saveStatusTimerRef.current) {
+          clearTimeout(saveStatusTimerRef.current);
+          saveStatusTimerRef.current = null;
+        }
         setSaveStatus("saved");
         setSaveError(null);
-        setTimeout(() => setSaveStatus("idle"), 1200);
+        saveStatusTimerRef.current = setTimeout(() => {
+          setSaveStatus("idle");
+          saveStatusTimerRef.current = null;
+        }, 1200);
       } else {
         console.warn("Auto-save warning:", result.error);
         setSaveStatus("error");
@@ -2502,7 +2509,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+        saveStatusTimerRef.current = null;
+      }
+      if (dbSaveTimerRef.current) {
+        clearTimeout(dbSaveTimerRef.current);
+        dbSaveTimerRef.current = null;
+      }
     };
   }, []); // Stable [] array to prevent mismatch
 
