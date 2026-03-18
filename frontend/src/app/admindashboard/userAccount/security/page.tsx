@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
 
@@ -44,6 +45,9 @@ export default function SecurityPage() {
 	const [currentPassword, setCurrentPassword] = useState("");
 	const [newPassword, setNewPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
+	const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+	const [showNewPassword, setShowNewPassword] = useState(false);
+	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 	const [emailVerifying, setEmailVerifying] = useState(false);
 	const [lastPasswordChangeDetail, setLastPasswordChangeDetail] = useState("January 01, 2026, 10:30 AM");
 
@@ -79,15 +83,42 @@ export default function SecurityPage() {
 								<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 									<div>
 										<label htmlFor="currentPassword" className="mb-2 block text-xs font-medium text-[#A78BFA]">Current password</label>
-										<input id="currentPassword" type="password" value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/80 px-4 text-sm text-[#471396] outline-none" />
+										<div className="relative">
+											<input id="currentPassword" type={showCurrentPassword ? "text" : "password"} value={currentPassword} onChange={(event) => setCurrentPassword(event.target.value)} className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/80 px-4 pr-12 text-sm text-[#471396] outline-none" />
+											<button
+												type="button"
+												onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+												className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8A86A4] hover:text-[#471396] transition-colors"
+											>
+												{showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+											</button>
+										</div>
 									</div>
 									<div>
 										<label htmlFor="newPassword" className="mb-2 block text-xs font-medium text-[#A78BFA]">New password</label>
-										<input id="newPassword" type="password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/80 px-4 text-sm text-[#471396] outline-none" />
+										<div className="relative">
+											<input id="newPassword" type={showNewPassword ? "text" : "password"} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/80 px-4 pr-12 text-sm text-[#471396] outline-none" />
+											<button
+												type="button"
+												onClick={() => setShowNewPassword(!showNewPassword)}
+												className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8A86A4] hover:text-[#471396] transition-colors"
+											>
+												{showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+											</button>
+										</div>
 									</div>
 									<div>
 										<label htmlFor="confirmPassword" className="mb-2 block text-xs font-medium text-[#A78BFA]">Confirm new password</label>
-										<input id="confirmPassword" type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/80 px-4 text-sm text-[#471396] outline-none" />
+										<div className="relative">
+											<input id="confirmPassword" type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/80 px-4 pr-12 text-sm text-[#471396] outline-none" />
+											<button
+												type="button"
+												onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+												className="absolute right-4 top-1/2 -translate-y-1/2 text-[#8A86A4] hover:text-[#471396] transition-colors"
+											>
+												{showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+											</button>
+										</div>
 									</div>
 								</div>
 
