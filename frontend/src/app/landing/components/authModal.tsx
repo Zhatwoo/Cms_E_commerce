@@ -135,7 +135,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
           />
 
           {/* Modal */}
@@ -160,7 +160,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
               stiffness: 300,
               damping: 30,
             }}
-            className="fixed z-50 w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            className="fixed z-[110] w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           >
             <div className={`relative overflow-hidden rounded-3xl border p-8 ${
               isDarkMode 
