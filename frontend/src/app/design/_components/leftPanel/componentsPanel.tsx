@@ -79,7 +79,7 @@ export const ComponentsPanel = () => {
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const FLOW_LAYOUT_COMPONENTS = new Set<unknown>([
-    Section, Container, Row, Column, Banner, BadgeComponent, Spacer, pageComponent,
+    Section, Container, Row, Column, Banner, BadgeComponent, Spacer, Tabs, Accordion, pageComponent,
   ]);
 
   const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement => {
@@ -118,7 +118,7 @@ export const ComponentsPanel = () => {
     { label: "Pagination",icon: <ListIcon />,       iconStyle: COMP_STYLES.Pagination.base,hoverColor: COMP_STYLES.Pagination.hoverColor,element: <Pagination /> },
     { label: "Rating",    icon: <Star />,           iconStyle: COMP_STYLES.Rating.base,    hoverColor: COMP_STYLES.Rating.hoverColor,    element: <Rating value={2} /> },
     { label: "Divider",   icon: <Minus />,          iconStyle: COMP_STYLES.Divider.base,   hoverColor: COMP_STYLES.Divider.hoverColor,   element: <Divider /> },
-    { label: "Tabs",      icon: <Layout />,         iconStyle: COMP_STYLES.Tabs.base,      hoverColor: COMP_STYLES.Tabs.hoverColor,      element: <Tabs tabs={[{ id: "tab-1", title: "Tab 1", content: "Tab 1 Content" }]} activeTabId="tab-1" /> },
+    { label: "Tabs",      icon: <Layout />,         iconStyle: COMP_STYLES.Tabs.base,      hoverColor: COMP_STYLES.Tabs.hoverColor,      element: <Element is={Tabs} tabs={[{ id: "tab-1", title: "Tab 1", content: "tab-content-tab-1" }]} activeTabId="tab-1" canvas /> },
     { label: "Accordion", icon: <ChevronDown />,    iconStyle: COMP_STYLES.Accordion.base, hoverColor: COMP_STYLES.Accordion.hoverColor, element: <Accordion /> },
     { label: "New Page",  icon: <LayoutTemplate />, iconStyle: COMP_STYLES["New Page"].base, hoverColor: COMP_STYLES["New Page"].hoverColor, isNewPage: true, dragElement: <Element is={pageComponent} canvas /> },
   ], [pageComponent]);

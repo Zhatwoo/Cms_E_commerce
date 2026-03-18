@@ -26,6 +26,45 @@ function hasAddToCartButton(nodeId: string, nodes: Record<string, CleanNode>): b
   return childIds.some((id) => hasAddToCartButton(id, nodes));
 }
 
+/** Find product data from sibling nodes in the same parent container as a button node. */
+function findProductDataFromSiblings(
+  buttonNodeId: string,
+  nodes: Record<string, CleanNode>,
+): { name: string; price: number; image?: string } | null {
+  // Find parent node that contains this button
+  const parentEntry = Object.entries(nodes).find(([, n]) =>
+    (n.children ?? []).includes(buttonNodeId)
+  );
+  if (!parentEntry) return null;
+  const [, parent] = parentEntry;
+  const siblings = (parent.children ?? []).map((id) => nodes[id]).filter(Boolean);
+
+  let name = "";
+  let price = 0;
+  let image: string | undefined;
+
+  for (const sib of siblings) {
+    if (!sib) continue;
+    const sibType = (sib.type as string).toLowerCase();
+    if (sibType === "image" && !image) {
+      image = (sib.props?.src as string) || undefined;
+    }
+    if (sibType === "text") {
+      const text = String(sib.props?.text ?? "").trim();
+      // Detect price: starts with currency symbol or is a number
+      if (!price && /^[₱$€£¥]/.test(text)) {
+        const num = parseFloat(text.replace(/[^0-9.]/g, ""));
+        if (!isNaN(num)) price = num;
+      } else if (!name && text && text.length < 120 && !/add to cart/i.test(text)) {
+        name = text;
+      }
+    }
+  }
+
+  if (!name) return null;
+  return { name, price, image };
+}
+
 /** Default links for common nav/CTA labels so the storefront viewport is functional without editing each button. */
 function getDefaultLinkForLabel(label: string): string {
   const t = label.trim().toLowerCase();
@@ -2502,6 +2541,38 @@ function RenderNode({
       );
       if (interactiveClick) {
         return wrapWithAnimation(content, animation);
+      }
+      // Add to Cart button: wire up storeContext.addToCart when available
+      const isAddToCartBtn = labelStr.trim().toLowerCase().includes("add to cart");
+      if (isAddToCartBtn && storeContext) {
+        const productData = nodeId
+          ? findProductDataFromSiblings(nodeId, nodes)
+          : null;
+        const handleAddToCart = () => {
+          if (productData) {
+            // Use a stable id derived from name
+            storeContext.addToCart({
+              id: productData.name.toLowerCase().replace(/\s+/g, "-"),
+              name: productData.name,
+              price: productData.price,
+              image: productData.image,
+            });
+          } else if (storeContext.products.length > 0) {
+            // Fallback: add first product
+            const p = storeContext.products[0];
+            storeContext.addToCart({ id: p.id, name: p.name, price: p.price, image: p.images?.[0] });
+          }
+        };
+        return wrap(
+          <button
+            type="button"
+            data-fluid-space="true"
+            onClick={handleAddToCart}
+            style={{ all: "unset", display: isPercentWidth || isNarrowPreview ? "block" : "inline-block", width: isPercentWidth || isNarrowPreview ? width : undefined, cursor: "pointer" }}
+          >
+            {content}
+          </button>
+        );
       }
       if (internalTargetSlug && onPrototypeAction) {
         return wrap(

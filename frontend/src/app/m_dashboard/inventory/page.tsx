@@ -306,19 +306,28 @@ const GhostBtn = ({
 
 // ENHANCED: pill now has a subtle border for better legibility
 const StatusPill = ({ stock, lowThreshold }: { stock: number; lowThreshold: number }) => {
+  const { theme } = useTheme();
   const outOfStock = stock <= 0;
   const lowStock = !outOfStock && stock < lowThreshold;
-  const { color, bg, border, label } = outOfStock
-    ? { color: T.red, bg: T.redBg, border: T.redBorder, label: 'Out of Stock' }
-    : lowStock
-      ? { color: T.yellow, bg: T.yellowBg, border: T.yellowBorder, label: 'Low Stock' }
-      : { color: T.green, bg: T.greenBg, border: T.greenBorder, label: '✦ In Stock' };
+  
+  let label = 'In Stock';
+  let className = '';
+  
+  if (outOfStock) {
+    label = 'Out of Stock';
+    className = theme === 'dark' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-rose-50 text-rose-600';
+  } else if (lowStock) {
+    label = 'Low Stock';
+    className = theme === 'dark' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-600';
+  } else {
+    label = 'In Stock';
+    className = theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-600';
+  }
+
   return (
-    <span style={{
-      background: bg, border: `1px solid ${border}`, color,
-      padding: '3px 10px', borderRadius: 20, fontSize: 11,
-      fontWeight: 600, display: 'inline-block',
-    }}>{label}</span>
+    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg ${className}`}>
+      {label}
+    </span>
   );
 };
 
@@ -1664,9 +1673,17 @@ export default function InventoryPage() {
             {/* Header */}
             <div style={{
               display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
-              gap: 16, padding: '13px 24px', minWidth: 760,
-              borderBottom: `1px solid ${T.cardBorder}`,
-              background: T.card, color: T.textMuted, fontSize: 11, letterSpacing: 0.9, textTransform: 'uppercase',
+              gap: 16, padding: '20px 24px', minWidth: 760,
+              background: theme === 'dark' 
+                ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)' 
+                : '#803BED',
+              color: '#FFFFFF',
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              boxShadow: '0 4px 20px rgba(124, 58, 237, 0.15)',
+              borderRadius: '24px 24px 0 0'
             }}>
               <span>Product</span><span>SKU</span><span>Stock</span>
               <span>Pre Orders</span><span>Stock Status</span><span>Product Status</span>
@@ -1702,10 +1719,24 @@ export default function InventoryPage() {
                         display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
                         gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
                         borderBottom: i < filteredItems.length - 1 ? `1px solid ${T.cardBorder}` : 'none',
-                        transition: 'background 0.15s',
+                        transition: 'all 0.2s ease',
+                        backgroundColor: 'transparent',
+                        cursor: 'pointer',
+                        borderRadius: '16px',
+                        margin: '0 4px',
                       }}
-                      onMouseEnter={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.018)')}
-                      onMouseLeave={(e) => ((e.currentTarget as HTMLDivElement).style.background = 'transparent')}
+                      onMouseEnter={(e) => {
+                        const target = e.currentTarget as HTMLDivElement;
+                        target.style.backgroundColor = theme === 'dark' ? 'rgba(139, 92, 246, 0.08)' : '#FFFFFF';
+                        target.style.boxShadow = theme === 'dark' 
+                          ? 'none' 
+                          : '0 6px 16px rgba(124, 58, 237, 0.06)';
+                      }}
+                      onMouseLeave={(e) => {
+                        const target = e.currentTarget as HTMLDivElement;
+                        target.style.backgroundColor = 'transparent';
+                        target.style.boxShadow = 'none';
+                      }}
                     >
                       <span style={{ color: T.text, fontWeight: 500, display: 'flex', flexDirection: 'column' }}>
                         {product.name || 'Untitled Product'}
