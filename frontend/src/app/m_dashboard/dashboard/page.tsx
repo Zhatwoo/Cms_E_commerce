@@ -8,12 +8,16 @@ import {
   deleteProject,
   restoreProject,
   permanentDeleteProject,
+  createProject,
+  getStoredUser,
   type Project,
 } from '@/lib/api';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
+import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { span } from 'framer-motion/m';
 
 const INDUSTRIES = [
@@ -100,6 +104,58 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createIndustry, setCreateIndustry] = useState('');
+  const [createSubdomain, setCreateSubdomain] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setCreating(true);
+      const title = createTitle.trim() || 'Untitled Project';
+      const industry = createIndustry.trim();
+      const subdomain = createSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+      if (!industry) {
+        showAlert('Please select your store industry first.');
+        return;
+      }
+
+      const res = await createProject({
+        title,
+        industry,
+        subdomain: subdomain || undefined,
+      });
+
+      if (!res.success || !res.project) {
+        showAlert('Failed to create project. Please try again.');
+        return;
+      }
+
+      const user = getStoredUser();
+      const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
+
+      setCreateModalOpen(false);
+      setCreateTitle('');
+      setCreateIndustry('');
+      setCreateSubdomain('');
+      
+      router.push(`/design?projectId=${res.project.id}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('404')) {
+        showAlert('Project API not found. Make sure the backend is running.');
+      } else {
+        showAlert('Failed to create project. Please try again.');
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -592,7 +648,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                   <button
                     type="button"
-                    onClick={() => router.push('/design')}
+                    onClick={() => setCreateModalOpen(true)}
                     className={`
                       cursor-pointer group relative flex flex-col items-center justify-center gap-6
                       w-full min-h-60 sm:min-h-65 p-4 sm:p-5
@@ -605,12 +661,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       }
                     `}
                   >
-                    {/* The Plus Icon Corner Decoration - Subtler and better placed */}
-                    <div className={`absolute top-8 right-8 transition-opacity duration-500 group-hover:opacity-100 opacity-20 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7 0V14M0 7H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
-                    </div>
 
                     {/* Main Action Icon */}
                     <div className="relative">
@@ -1028,6 +1078,112 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </div>
       )}
+
+      {/* Create Project Modal */}
+      <AnimatePresence>
+        {createModalOpen && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setCreateModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md rounded-[32px] border shadow-[0_32px_80px_rgba(0,0,0,0.5)] overflow-hidden"
+              style={{ 
+                backgroundColor: theme === 'dark' ? '#15093E' : '#FFFFFF', 
+                borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB' 
+              }}
+            >
+              <div className="p-8 border-b" style={{ borderColor: theme === 'dark' ? '#280E59' : '#F3F4F6' }}>
+                <h3 className="text-2xl font-black tracking-tight" style={{ color: theme === 'dark' ? '#FFFFFF' : '#120533' }}>Create New Project</h3>
+                <p className="text-sm mt-2 font-medium opacity-60" style={{ color: theme === 'dark' ? '#A78BFA' : '#616170' }}>
+                  Launch your next stunning storefront. Select an industry to load the best optimized tools.
+                </p>
+              </div>
+
+              <form onSubmit={handleCreateProject} className="p-8 space-y-5">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-2 opacity-50" style={{ color: theme === 'dark' ? '#A78BFA' : '#120533' }}>Project Title</label>
+                  <input
+                    type="text"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="e.g. My Awesome Store"
+                    required
+                    className="w-full px-5 py-3.5 rounded-2xl border bg-transparent font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/50"
+                    style={{ 
+                      borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB', 
+                      color: theme === 'dark' ? '#FFFFFF' : '#120533',
+                      backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-2 opacity-50" style={{ color: theme === 'dark' ? '#A78BFA' : '#120533' }}>Industry / Store Type</label>
+                  <select
+                    value={createIndustry}
+                    onChange={(e) => setCreateIndustry(e.target.value)}
+                    required
+                    className="w-full px-5 py-3.5 rounded-2xl border bg-transparent font-medium appearance-none transition-all focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/50"
+                    style={{ 
+                      borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB', 
+                      color: theme === 'dark' ? '#FFFFFF' : '#120533',
+                      backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    <option value="" disabled className={theme === 'dark' ? 'bg-[#15093E]' : 'bg-white'}>Select Industry</option>
+                    {INDUSTRY_OPTIONS.map((item) => (
+                      <option key={item.key} value={item.key} className={theme === 'dark' ? 'bg-[#15093E]' : 'bg-white'}>{item.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-2 opacity-50" style={{ color: theme === 'dark' ? '#A78BFA' : '#120533' }}>Preferred Subdomain</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={createSubdomain}
+                      onChange={(e) => setCreateSubdomain(e.target.value)}
+                      placeholder="myshop"
+                      className="w-full px-5 py-3.5 rounded-2xl border bg-transparent font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/50"
+                      style={{ 
+                        borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB', 
+                        color: theme === 'dark' ? '#FFFFFF' : '#120533',
+                        backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+                      }}
+                    />
+                  </div>
+                  <p className="text-[10px] mt-2 font-bold opacity-40 uppercase tracking-tighter" style={{ color: theme === 'dark' ? '#A78BFA' : '#616170' }}>
+                    Result: {createSubdomain.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'myshop'}.mycentric.shop
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-4 pt-6">
+                  <button 
+                    type="button" 
+                    onClick={() => setCreateModalOpen(false)} 
+                    className="px-6 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-70" 
+                    style={{ color: theme === 'dark' ? '#A78BFA' : '#616170' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={creating} 
+                    className={`px-8 py-3 rounded-2xl text-sm font-black text-white transition-all transform active:scale-95 disabled:opacity-50 shadow-lg ${
+                      theme === 'dark' ? 'bg-[#FFCE00] !text-[#121241]' : 'bg-gradient-to-r from-[#8B5CF6] to-[#D946EF]'
+                    }`}
+                  >
+                    {creating ? 'Creating…' : 'Create & Design'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <style jsx>{`
         .template-pan-img,
         .template-pan-img-slow {
