@@ -100,7 +100,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       if (!event.ctrlKey && !event.metaKey) {
         try {
           const nodes = query.getState().nodes;
-          const selectableGroupNames = new Set(["Container", "Section", "Row", "Column", "Frame", "Banner"]);
+          const selectableGroupNames = new Set(["Container", "Section", "Row", "Column", "Frame", "Banner", "TabContent", "Tab Content"]);
           let cursor: string | undefined = id;
           let groupAncestorId: string | null = null;
 
@@ -112,7 +112,10 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
             const isCanvas = parentNode?.data?.isCanvas === true;
             const isPageLike = displayName === "Page" || displayName === "Viewport";
 
-            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike) {
+            const currentlySelectedIds = selectedToIds(selectedRaw);
+            const isParentAlreadySelected = currentlySelectedIds.includes(parentId);
+
+            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike && !isParentAlreadySelected) {
               groupAncestorId = parentId;
               break;
             }
