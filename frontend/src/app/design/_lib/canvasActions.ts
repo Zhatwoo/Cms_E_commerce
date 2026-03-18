@@ -746,16 +746,7 @@ export function ungroupSelection(
     if (childIds.length === 0) return [];
 
     const parentNode = state.nodes[parentId];
-    const parentDisplayName = parentNode?.data?.displayName as string | undefined;
     const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
-    const parentDisplay = String(parentProps.display ?? "").toLowerCase();
-    const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
-    const parentIsFreeform =
-      parentProps.isFreeform === true ||
-      parentDisplayName === "Page" ||
-      parentDisplayName === "Viewport" ||
-      (!parentIsFlexOrGrid && parentDisplayName === "Frame");
-
     const groupProps = (groupNode.data?.props ?? {}) as Record<string, unknown>;
     const groupLeft = parsePxValue(groupProps.left);
     const groupTop = parsePxValue(groupProps.top);
@@ -765,7 +756,7 @@ export function ungroupSelection(
     const parentScale = getRenderedScale(parentDom);
 
     const childPositions = new Map<string, { left: number; top: number }>();
-    if (parentIsFreeform && parentRect) {
+    if (parentRect) {
       childIds.forEach((id) => {
         const childDom = query.node(id).get()?.dom ?? null;
         if (childDom) {
@@ -800,7 +791,14 @@ export function ungroupSelection(
       }
     }
 
-    if (parentIsFreeform) {
+    if (movedIds.length > 0 && childPositions.size > 0) {
+      actions.setProp(parentId, (props: Record<string, unknown>) => {
+        const parentPosition = String(props.position ?? "static");
+        if (!parentPosition || parentPosition === "static") {
+          props.position = "relative";
+        }
+      });
+
       movedIds.forEach((id) => {
         const pos = childPositions.get(id);
         if (!pos) return;

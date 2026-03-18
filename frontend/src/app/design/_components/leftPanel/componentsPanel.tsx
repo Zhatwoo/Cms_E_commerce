@@ -86,7 +86,10 @@ export const ComponentsPanel = () => {
     const maybeCraftComponent = (element.props as { is?: unknown } | undefined)?.is ?? element.type;
     if (FLOW_LAYOUT_COMPONENTS.has(maybeCraftComponent)) return element;
     return React.cloneElement<any>(element as React.ReactElement<any>, {
-      position: "absolute", top: "0px", left: "0px", ...(element.props ?? {}),
+      ...(element.props ?? {}),
+      position: "absolute",
+      top: "0px",
+      left: "0px",
     } as any);
   };
 
@@ -105,7 +108,7 @@ export const ComponentsPanel = () => {
       ),
     },
     { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
-    { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" position="relative" /> },
+    { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" /> },
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
     { label: "Spacer",    icon: <Maximize />,       iconStyle: COMP_STYLES.Spacer.base,    hoverColor: COMP_STYLES.Spacer.hoverColor,    element: <Spacer /> },
