@@ -1418,99 +1418,12 @@ export default function ProductsPage() {
                             ))}
                           </div>
 
-                            <div className="flex items-center justify-center gap-2" style={{ justifySelf: 'center' }}>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleView(product);
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.28)' : '#F3E8FF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#803BED' : '#C084FC';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#E9D5FF' : '#6D28D9';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(124,58,237,0.12)' : '#FFFFFF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#3A4473' : '#E9E2F8';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#C4B5FD' : '#7C3AED';
-                                }}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
-                                style={{
-                                  borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8',
-                                  color: theme === 'dark' ? '#C4B5FD' : '#7C3AED',
-                                  backgroundColor: theme === 'dark' ? 'rgba(124,58,237,0.12)' : '#FFFFFF',
-                                }}
-                                title="View"
-                                aria-label="View product"
-                              >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5s8.268 2.943 9.542 7c-1.274 4.057-5.065 7-9.542 7S3.732 16.057 2.458 12Z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.5A3.5 3.5 0 1 0 12 8.5a3.5 3.5 0 0 0 0 7Z" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleEdit(product);
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(245,158,11,0.24)' : '#FEF3C7';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#FBBF24' : '#F59E0B';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#FDE68A' : '#92400E';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(245,158,11,0.12)' : '#FFFFFF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? '#3A4473' : '#E9E2F8';
-                                  e.currentTarget.style.color = theme === 'dark' ? '#FDE68A' : '#B45309';
-                                }}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
-                                style={{
-                                  borderColor: theme === 'dark' ? '#3A4473' : '#E9E2F8',
-                                  color: theme === 'dark' ? '#FDE68A' : '#B45309',
-                                  backgroundColor: theme === 'dark' ? 'rgba(245,158,11,0.12)' : '#FFFFFF',
-                                }}
-                                title="Edit"
-                                aria-label="Edit product"
-                              >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.1 2.1 0 1 1 2.97 2.97L8.62 17.67 4 19l1.33-4.62L16.862 3.487Z" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.5 4.85 18.47 7.82" />
-                                </svg>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDelete(product);
-                                }}
-                                onMouseEnter={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(190,24,93,0.24)' : '#FFE4E6';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(251,113,133,0.7)' : '#FB7185';
-                                  e.currentTarget.style.color = '#BE123C';
-                                }}
-                                onMouseLeave={(e) => {
-                                  e.currentTarget.style.backgroundColor = theme === 'dark' ? 'rgba(190,24,93,0.12)' : '#FFFFFF';
-                                  e.currentTarget.style.borderColor = theme === 'dark' ? 'rgba(248,113,113,0.35)' : 'rgba(190,24,93,0.15)';
-                                  e.currentTarget.style.color = '#E11D48';
-                                }}
-                                className="flex h-9 w-9 items-center justify-center rounded-xl border transition-all hover:-translate-y-0.5"
-                                style={{
-                                  borderColor: theme === 'dark' ? 'rgba(248,113,113,0.35)' : 'rgba(190,24,93,0.15)',
-                                  color: '#E11D48',
-                                  backgroundColor: theme === 'dark' ? 'rgba(190,24,93,0.12)' : '#FFFFFF',
-                                }}
-                                title="Delete"
-                                aria-label="Delete product"
-                              >
-                                <svg className="h-4.5 w-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7l1 12a1 1 0 0 0 1 .92h4a1 1 0 0 0 1-.92L16 7" />
-                                </svg>
-                              </button>
-                            </div>
+                          <div className="text-sm font-medium" style={{ color: '#A78BFA' }}>
+                            {formatProductPrice(product)}
+                          </div>
+
+                          <div className={`text-sm font-semibold ${Number(product.stock) === 0 ? 'text-red-400' : isLowStock(product) ? 'text-orange-300' : 'text-white'}`}>
+                            {Number(product.stock ?? 0)}
                           </div>
 
                           <div data-product-menu-root="true" className="flex justify-center relative">
@@ -1524,13 +1437,12 @@ export default function ProductsPage() {
                               style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
                               title="Product actions"
                             >
-                              <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                                 <circle cx="6" cy="12" r="2.2" />
                                 <circle cx="12" cy="12" r="2.2" />
                                 <circle cx="18" cy="12" r="2.2" />
                               </svg>
                             </button>
-
                             {openMenuProductId === product.id && (
                               <div className="absolute right-2 top-12 z-40 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl" onClick={(event) => event.stopPropagation()}>
                                 <button type="button" onClick={() => { setOpenMenuProductId(null); handleView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
