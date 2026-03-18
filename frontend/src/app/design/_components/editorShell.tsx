@@ -22,6 +22,8 @@ import { Badge } from "../_designComponents/Badge/badge";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
+import { Tabs } from "../_designComponents/Tabs/Tabs";
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasPasteHandler } from "./CanvasPasteHandler";
@@ -167,6 +169,10 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   viewport: asComponent(Viewport),
   Accordion: asComponent(Accordion),
   accordion: asComponent(Accordion),
+  Tabs: asComponent(Tabs),
+  tabs: asComponent(Tabs),
+  TabContent: asComponent(TabContent),
+  tabcontent: asComponent(TabContent),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -2489,6 +2495,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.TEXT = asComponent(Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
+
+    // Explicitly ensure Tabs and TabContent are in the resolver
+    base.Tabs = asComponent(CRAFT_RESOLVER.Tabs ?? Tabs);
+    base.tabs = asComponent(CRAFT_RESOLVER.tabs ?? Tabs);
+    base.TabContent = asComponent(CRAFT_RESOLVER.TabContent ?? TabContent);
+    base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
+
     return withResolverFallback(base);
   }, []);
 
