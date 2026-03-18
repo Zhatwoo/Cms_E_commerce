@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import {
   getDomainsManagement,
   setClientDomainStatus,
@@ -21,7 +20,7 @@ const ChevronDownIcon = () => (
 );
 
 const ExternalLinkIcon = () => (
-  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
   </svg>
 );
@@ -35,9 +34,28 @@ const StorageIcon = () => (
   </svg>
 );
 
-const USER_AVATAR_ICON = '/admin-dashboard/icons/user-avatar-1.png';
-const PADLOCK_ICON = '/admin-dashboard/icons/padlock-1.png';
-const TRASH_BIN_ICON = '/admin-dashboard/icons/trash-bin-1.png';
+const ManageIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.12 17.804A11.953 11.953 0 0112 15.75c2.517 0 4.854.778 6.88 2.104M15 9a3 3 0 11-6 0 3 3 0 016 0z" />
+    <circle cx="12" cy="12" r="9" strokeWidth={2} />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
+  </svg>
+);
 
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -328,7 +346,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [stats, setStats] = useState({ total: 0, live: 0, underReview: 0, flagged: 0 });
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [planFilter, setPlanFilter] = useState('');
@@ -349,7 +366,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
         if (cancelled) return;
         if (res.success) {
           setWebsites(Array.isArray(res.data) ? res.data : []);
-          if (res.stats) setStats(res.stats);
         } else {
           setWebsites([]);
         }
@@ -408,6 +424,15 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     if (pagedWebsites.length === 0) return false;
     return pagedWebsites.every((w) => selectedIds.has(`${w.userId}::${w.id}`));
   }, [pagedWebsites, selectedIds]);
+
+  const selectedRows = useMemo(() => {
+    return visibleWebsites.filter((w) => selectedIds.has(`${w.userId}::${w.id}`));
+  }, [visibleWebsites, selectedIds]);
+
+  const allSelectedSuspended = useMemo(() => {
+    if (selectedRows.length === 0) return false;
+    return selectedRows.every((w) => (w.status || '').toLowerCase() === 'suspended');
+  }, [selectedRows]);
 
   const pageItems = useMemo(() => {
     const items: Array<number | 'ellipsis'> = [];
@@ -495,6 +520,54 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const handleBulkSuspend = async () => {
+    if (selectedRows.length === 0) return;
+    const shouldUnsuspend = allSelectedSuspended;
+    const nextApiStatus = shouldUnsuspend ? 'published' : 'suspended';
+    const nextUiStatus = shouldUnsuspend ? 'Live' : 'Suspended';
+    let done = 0;
+    let failed = 0;
+    for (const row of selectedRows) {
+      try {
+        const res = await setClientDomainStatus(row.userId, row.id, nextApiStatus);
+        if (res.success) done += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setWebsites((prev) => prev.map((row) =>
+      selectedIds.has(`${row.userId}::${row.id}`) ? { ...row, status: nextUiStatus } : row
+    ));
+    setSelectedIds(new Set());
+    const actionLabel = shouldUnsuspend ? 'Unsuspended' : 'Suspended';
+    setToast(failed > 0 ? `${actionLabel} ${done}, failed ${failed}` : `${actionLabel} ${done} website(s)`);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRows.length === 0) return;
+    let done = 0;
+    let failed = 0;
+    for (const row of selectedRows) {
+      try {
+        const res = await setClientDomainStatus(row.userId, row.id, 'flagged');
+        if (res.success) done += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setWebsites((prev) => prev.map((row) =>
+      selectedIds.has(`${row.userId}::${row.id}`) ? { ...row, status: 'Flagged' } : row
+    ));
+    setSelectedIds(new Set());
+    setToast(failed > 0 ? `Deleted ${done}, failed ${failed}` : `Deleted ${done} website(s)`);
+    setTimeout(() => setToast(null), 2500);
   };
 
   return (
@@ -646,10 +719,37 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               </div>
             </div>
           </div>
+
+          {selectedRows.length > 0 && (
+            <div className="mt-4 flex items-center gap-3 border-t border-[#EBDDFF] pt-3">
+              <span className="text-sm font-medium text-[#6F657E]">{selectedRows.length} selected</span>
+              <button
+                type="button"
+                onClick={handleBulkSuspend}
+                className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100"
+              >
+                {allSelectedSuspended ? 'Unsuspend' : 'Suspend'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds(new Set())}
+                className="text-sm text-[#7E4FB4] hover:text-[#5D2CA7]"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] table-fixed">
+        <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
+          <table className="w-full min-w-[1020px] table-fixed border-collapse">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
                 <th className="w-12 px-3 py-4 text-left">
@@ -661,11 +761,11 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                     className="h-5 w-5 rounded-none border-2 border-[#B13BFF] bg-transparent accent-[#B13BFF]"
                   />
                 </th>
-                <th className="w-[28%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Domain</th>
-                <th className="w-[25%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Owner</th>
-                <th className="w-[20%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="w-[17%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="w-[10%] px-3 py-4 text-right text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="w-[27%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Domain</th>
+                <th className="w-[23%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Owner</th>
+                <th className="w-[18%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
+                <th className="w-[16%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
+                <th className="w-[14%] px-3 py-4 text-right text-[1.2rem] font-semibold text-[#462596]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -737,15 +837,15 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                         </div>
                       </td>
                       <td className="px-3 py-4 text-right">
-                        <div className="inline-flex items-center gap-2 justify-end text-[#5A2AA8]">
+                        <div className="inline-flex items-center gap-3 justify-end text-[#5A2AA8]">
                           <Tooltip label="Manage website details">
                             <button
                               type="button"
                               onClick={() => onManage(w)}
-                              className="p-1 hover:text-[#3D1C87] transition-colors"
+                              className="p-1.5 hover:text-[#3D1C87] transition-colors"
                               aria-label="Manage website"
                             >
-                              <Image src={USER_AVATAR_ICON} alt="Manage website" width={18} height={18} className="object-contain" />
+                              <ManageIcon />
                             </button>
                           </Tooltip>
                           <Tooltip label={(w.status || '').toLowerCase() === 'suspended' ? 'Reactivate website' : 'Suspend website'}>
@@ -753,20 +853,20 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                               type="button"
                               onClick={() => handleToggleSuspend(w)}
                               disabled={busy}
-                              className="p-1 hover:text-[#3D1C87] disabled:opacity-50 transition-colors"
+                              className="p-1.5 hover:text-[#3D1C87] disabled:opacity-50 transition-colors"
                               aria-label="Toggle website suspension"
                             >
-                              <Image src={PADLOCK_ICON} alt="Toggle suspension" width={18} height={18} className="object-contain" />
+                              <LockIcon />
                             </button>
                           </Tooltip>
                           <button
                             type="button"
                             onClick={() => handleFlag(w)}
                             disabled={busy}
-                            className="p-1 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
+                            className="p-1.5 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
                             aria-label="Flag website"
                           >
-                            <Image src={TRASH_BIN_ICON} alt="Flag website" width={18} height={18} className="object-contain" />
+                            <TrashIcon />
                           </button>
                           {viewUrl !== '#' && (
                             <Tooltip label="Open website in new tab">
@@ -774,10 +874,10 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                                 href={viewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="p-1 hover:text-[#3D1C87] transition-colors"
+                                className="p-1.5 hover:text-[#3D1C87] transition-colors"
                                 aria-label="Open website"
                               >
-                                <ExternalLinkIcon />
+                                <span className="inline-flex h-6 w-6 items-center justify-center"><ExternalLinkIcon /></span>
                               </a>
                             </Tooltip>
                           )}

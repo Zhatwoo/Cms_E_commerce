@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import Image from 'next/image';
 import {
   getClients,
   updateClientPlan,
@@ -31,9 +30,28 @@ const StorageIcon = () => (
   </svg>
 );
 
-const USER_AVATAR_ICON = '/admin-dashboard/icons/user-avatar-1.png';
-const PADLOCK_ICON = '/admin-dashboard/icons/padlock-1.png';
-const TRASH_BIN_ICON = '/admin-dashboard/icons/trash-bin-1.png';
+const ManageIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.12 17.804A11.953 11.953 0 0112 15.75c2.517 0 4.854.778 6.88 2.104M15 9a3 3 0 11-6 0 3 3 0 016 0z" />
+    <circle cx="12" cy="12" r="9" strokeWidth={2} />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
+  </svg>
+);
 
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -223,6 +241,15 @@ export function UserManagement() {
     return pagedClients.every((c) => selectedClientIds.has(c.id));
   }, [pagedClients, selectedClientIds]);
 
+  const selectedClients = useMemo(() => {
+    return filtered.filter((c) => selectedClientIds.has(c.id));
+  }, [filtered, selectedClientIds]);
+
+  const allSelectedSuspended = useMemo(() => {
+    if (selectedClients.length === 0) return false;
+    return selectedClients.every((c) => (c.status || '').toLowerCase() === 'suspended');
+  }, [selectedClients]);
+
   const pageItems = useMemo(() => {
     const items: Array<number | 'ellipsis'> = [];
     if (totalPages <= 7) {
@@ -361,6 +388,51 @@ export function UserManagement() {
     } finally {
       setActionLoadingId(null);
     }
+  };
+
+  const handleBulkSuspend = async () => {
+    if (selectedClients.length === 0) return;
+    const shouldUnsuspend = allSelectedSuspended;
+    const nextStatus = shouldUnsuspend ? 'Published' : 'Suspended';
+    let done = 0;
+    let failed = 0;
+    for (const client of selectedClients) {
+      try {
+        const res = await updateClientStatus(client.id, nextStatus);
+        if (res.success) done += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setClients((prev) => prev.map((c) => selectedClientIds.has(c.id)
+      ? { ...c, status: nextStatus, isActive: nextStatus.toLowerCase() !== 'suspended' }
+      : c));
+    setSelectedClientIds(new Set());
+    const actionLabel = shouldUnsuspend ? 'Unsuspended' : 'Suspended';
+    setToast(failed > 0 ? `${actionLabel} ${done}, failed ${failed}` : `${actionLabel} ${done} client(s)`);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedClients.length === 0) return;
+    let done = 0;
+    let failed = 0;
+    for (const client of selectedClients) {
+      try {
+        const res = await deleteClient(client.id);
+        if (res.success) done += 1;
+        else failed += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+
+    setClients((prev) => prev.filter((c) => !selectedClientIds.has(c.id)));
+    setSelectedClientIds(new Set());
+    setToast(failed > 0 ? `Deleted ${done}, failed ${failed}` : `Deleted ${done} client(s)`);
+    setTimeout(() => setToast(null), 2500);
   };
 
   return (
@@ -511,6 +583,33 @@ export function UserManagement() {
               </div>
             </div>
           </div>
+
+          {selectedClients.length > 0 && (
+            <div className="mt-4 flex items-center gap-3 border-t border-[#EBDDFF] pt-3">
+              <span className="text-sm font-medium text-[#6F657E]">{selectedClients.length} selected</span>
+              <button
+                type="button"
+                onClick={handleBulkSuspend}
+                className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100"
+              >
+                {allSelectedSuspended ? 'Unsuspend' : 'Suspend'}
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkDelete}
+                className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+              >
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedClientIds(new Set())}
+                className="text-sm text-[#7E4FB4] hover:text-[#5D2CA7]"
+              >
+                Clear
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Delete confirmation modal */}
@@ -539,7 +638,7 @@ export function UserManagement() {
           </div>
         )}
 
-        <div className="overflow-x-auto">
+        <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
           <table className="w-full min-w-[920px]">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
@@ -558,7 +657,7 @@ export function UserManagement() {
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="px-3 py-4 text-right text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -642,15 +741,15 @@ export function UserManagement() {
                       <td className={`px-3 py-4 text-[1rem] font-semibold ${active ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>
                         {statusLabel}
                       </td>
-                      <td className="px-3 py-4 text-right">
-                        <div className="inline-flex items-center gap-2 flex-wrap justify-end text-[#5A2AA8]">
+                      <td className="px-3 py-4 text-center">
+                        <div className="inline-flex items-center gap-2 flex-wrap justify-center text-[#5A2AA8]">
                           <Tooltip label="Client profile">
                             <button
                               type="button"
                               className="p-1 hover:text-[#3D1C87] transition-colors"
                               aria-label="Client profile"
                             >
-                              <Image src={USER_AVATAR_ICON} alt="Client profile" width={18} height={18} className="object-contain" />
+                              <ManageIcon />
                             </button>
                           </Tooltip>
                           <Tooltip label={active ? 'Suspend client' : 'Activate client'}>
@@ -663,7 +762,7 @@ export function UserManagement() {
                               {busy ? (
                                 <span className="text-xs text-[#7A52BD]">…</span>
                               ) : (
-                                <Image src={PADLOCK_ICON} alt={active ? 'Suspend client' : 'Activate client'} width={18} height={18} className="object-contain" />
+                                <LockIcon />
                               )}
                             </button>
                           </Tooltip>
@@ -674,7 +773,7 @@ export function UserManagement() {
                               className="p-1 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
                               aria-label="Delete client"
                             >
-                              <Image src={TRASH_BIN_ICON} alt="Delete client" width={18} height={18} className="object-contain" />
+                              <TrashIcon />
                             </button>
                           </Tooltip>
                         </div>
