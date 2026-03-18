@@ -406,9 +406,9 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
                         )}
                         <svg
-                          className={`h-4 w-4 shrink-0 relative z-10 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}
-                          fill="none"
                           viewBox="0 0 20 20"
+                          className={`h-4 w-4 shrink-0 relative z-10 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`}
+                          fill="none"
                         >
                           <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                           <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />

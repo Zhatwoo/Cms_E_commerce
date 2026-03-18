@@ -1451,13 +1451,11 @@ export default function InventoryPage() {
         >
           <svg
             viewBox="0 0 20 20"
-            width="16"
-            height="16"
+            className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`}
             fill="none"
-            style={{ color: T.yellow, flexShrink: 0 }}
           >
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
           </svg>
           <input
             type="text"
