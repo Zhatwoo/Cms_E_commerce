@@ -42,4 +42,10 @@ router.get('/unionbank/callback', async (req, res) => {
   }
 });
 
+const paypalService = require('../services/paypalService');
+
+// PayPal is now linked via manual email entry (via User Profile API). 
+// The client (frontend) calls updateProfile with a PayPal method.
+// These routes are no longer needed for linking.
+
 module.exports = router;
