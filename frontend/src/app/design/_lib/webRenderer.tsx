@@ -4519,7 +4519,7 @@ export function WebPreview({
 
   const pageContent = (
     <>
-      {(Array.isArray(currentPage.children) ? (currentPage?.children : []) ?? []).map((id) => {
+      {(Array.isArray(currentPage?.children) ? currentPage.children : []).map((id) => {
         const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
