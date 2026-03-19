@@ -15,13 +15,14 @@ type PlanItem = {
   id: PlanId;
   name: string;
   price: string;
-  priceNote?: string;
+  period: string;
   tagline: string;
   features: string[];
   limitSummary: string;
   accent: string;
   glow: string;
   badge?: string;
+  isPremium?: boolean;
 };
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -32,45 +33,47 @@ const PLANS: PlanItem[] = [
   {
     id: 'free',
     name: 'Starter',
-    price: '₱0',
-    tagline: 'Risk-free first month',
-    features: ['1 custom domain', 'Up to 100 products', 'Visual canvas editor', 'Community support'],
+    price: '0',
+    period: '/first month',
+    tagline: 'Try Centric completely risk-free for 30 days.',
+    features: ['1 Free Custom Domain', 'Up to 100 Products', 'Visual Canvas Editor', 'Community Support'],
     limitSummary: `${SUBSCRIPTION_LIMITS.free.projects} projects · ${SUBSCRIPTION_LIMITS.free.domains} domain`,
-    accent: '#4F7CFF',
-    glow: 'rgba(79,124,255,0.18)',
+    accent: '#9333ea',
+    glow: 'rgba(147,51,234,0.15)',
   },
   {
     id: 'basic',
     name: 'Standard',
-    price: '₱199',
-    priceNote: '/mo',
-    tagline: 'Small teams & starters',
-    badge: 'Popular',
-    features: ['1 custom domain', 'Up to 500 products', 'Basic analytics', '24/7 email support'],
+    price: '199',
+    period: '/month',
+    tagline: 'Perfect for starters and small teams.',
+    features: ['1 Custom Domain', 'Up to 500 Products', 'Code Editor Access', 'Priority 24/7 Support'],
     limitSummary: `${SUBSCRIPTION_LIMITS.basic.projects} projects · ${SUBSCRIPTION_LIMITS.basic.domains} domain`,
-    accent: '#A64CD9',
-    glow: 'rgba(166,76,217,0.2)',
+    accent: '#9333ea',
+    glow: 'rgba(147,51,234,0.15)',
   },
   {
     id: 'pro',
     name: 'Premium',
-    price: '₱499',
-    priceNote: '/mo',
-    tagline: 'Growing businesses',
-    features: ['Unlimited domains', 'Unlimited products', 'Advanced analytics', 'Priority 24/7 support', 'API & webhooks'],
+    price: '499',
+    period: '/month',
+    tagline: 'For growing businesses needing more power.',
+    features: ['Unlimited Domains', 'Unlimited Products', 'Priority 24/7 Support', 'Code Editor Access'],
     limitSummary: 'Unlimited projects · Unlimited domains',
-    accent: '#FFCE00',
-    glow: 'rgba(255,206,0,0.18)',
+    accent: '#d946ef',
+    glow: 'rgba(217,70,239,0.15)',
+    isPremium: true,
   },
   {
     id: 'custom',
     name: 'Enterprise',
     price: 'Custom',
-    tagline: 'Advanced teams & orgs',
-    features: ['Custom limits', 'Dedicated manager', 'SLA guarantee', 'Custom integrations', 'White-label'],
+    period: '',
+    tagline: 'Tailored for advanced teams & organizations.',
+    features: ['Custom Limits', 'Dedicated Manager', 'SLA Guarantee', 'Custom Integrations', 'White-Label'],
     limitSummary: 'Tailored to your scale',
-    accent: '#22D3EE',
-    glow: 'rgba(34,211,238,0.18)',
+    accent: '#9333ea',
+    glow: 'rgba(147,51,234,0.15)',
   },
 ];
 
@@ -104,17 +107,6 @@ function actionFor(target: PlanId, current: PlanId): 'current' | 'upgrade' | 'do
   return getPlanRank(target) > getPlanRank(current) ? 'upgrade' : 'downgrade';
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function CheckIcon({ color }: { color: string }) {
-  return (
-    <svg viewBox="0 0 12 12" className="h-3 w-3 flex-shrink-0 mt-0.5" fill="none">
-      <circle cx="6" cy="6" r="5.5" stroke={color} strokeOpacity="0.3" />
-      <path d="M3.5 6l1.8 1.8 3-3.6" stroke={color} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SubscriptionPage() {
@@ -126,6 +118,8 @@ export default function SubscriptionPage() {
   const currentPlanData = getPlan(currentPlan);
 
   const [confirmTarget, setConfirmTarget] = React.useState<PlanId | null>(null);
+
+  const isDark = theme === 'dark';
 
   const handleAction = (targetId: PlanId) => {
     const action = actionFor(targetId, currentPlan);
@@ -156,28 +150,21 @@ export default function SubscriptionPage() {
 
   return (
     <div
-      className="dashboard-landing-light relative mx-auto w-full max-w-[1240px] 2xl:max-w-[1320px] px-1 sm:px-2 pb-12"
+      className="relative mx-auto w-full px-4 sm:px-6 pb-16"
       style={{ fontFamily: "var(--font-outfit), 'Outfit', sans-serif" }}
     >
-      {/* Ambient glows */}
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="absolute left-[10%] top-[60px] h-[360px] w-[360px] rounded-full opacity-[0.18] blur-[80px]"
-          style={{ backgroundColor: colors.accent.purpleDeep }} />
-        <div className="absolute right-[8%] top-[100px] h-[280px] w-[280px] rounded-full opacity-[0.15] blur-[80px]"
-          style={{ backgroundColor: colors.accent.yellow }} />
-      </div>
-
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section className="mb-8 text-center">
+      <section className="mb-10 text-center pt-4">
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-[42px] sm:text-[58px] lg:text-[76px] font-extrabold leading-[0.95] tracking-tight"
+          className="text-[36px] sm:text-[48px] font-black leading-[1.08] tracking-[-0.02em]"
+          style={{ color: isDark ? '#fff' : '#120533' }}
         >
-          <span className="block" style={{ color: theme === 'dark' ? colors.text.primary : '#120533' }}>Choose Your</span>
+          Choose Your{' '}
           <span
-            className={`block w-fit mx-auto text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+            className="bg-gradient-to-r from-[#8b3dff] to-[#c026d3] bg-clip-text text-transparent"
           >
             Scale
           </span>
@@ -187,8 +174,8 @@ export default function SubscriptionPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.12, duration: 0.4 }}
-          className="mx-auto mt-3 max-w-xl text-sm sm:text-base"
-          style={{ color: colors.text.secondary }}
+          className="mx-auto mt-3 max-w-xl text-[15px]"
+          style={{ color: isDark ? 'rgba(255,255,255,0.55)' : '#616170' }}
         >
           Start free, upgrade as you grow — no lock-ins, no surprises.
         </motion.p>
@@ -201,7 +188,7 @@ export default function SubscriptionPage() {
           className="mt-5 inline-flex items-center gap-2.5 rounded-full border px-5 py-2 text-xs font-semibold"
           style={{
             borderColor: `${currentPlanData.accent}55`,
-            backgroundColor: `${currentPlanData.glow}`,
+            backgroundColor: isDark ? `${currentPlanData.glow}` : `${currentPlanData.accent}12`,
             color: currentPlanData.accent,
           }}
         >
@@ -226,18 +213,58 @@ export default function SubscriptionPage() {
       </section>
 
       {/* ── PLAN CARDS ─────────────────────────────────────────────────────── */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 mb-8">
         {PLANS.map((plan, idx) => {
           const action = actionFor(plan.id, currentPlan);
           const isCurrent = action === 'current';
-          const isHighlighted = plan.id === 'basic';
+          const isPremium = plan.isPremium;
 
-          const ctaStyles: Record<typeof action, React.CSSProperties> = {
-            current: { backgroundColor: `${plan.accent}20`, color: plan.accent, border: `1px solid ${plan.accent}55`, cursor: 'default' },
-            upgrade: { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#fff', border: 'none' },
-            downgrade: { backgroundColor: 'transparent', color: colors.text.muted, border: `1px solid ${colors.border.faint}` },
-            contact: { background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#fff', border: 'none' },
-          };
+          // Border: match landing page style
+          const borderStyle = isCurrent
+            ? `3px solid ${plan.accent}`
+            : isPremium
+              ? isDark ? '3px solid #f5c400' : '3px solid #d946ef'
+              : isDark ? '1px solid #3d2a93' : '1px solid #c1c1cd';
+
+          // Background: white in light, dark card in dark
+          const cardBg = isDark ? '#111058' : '#ffffff';
+          const cardShadow = isDark
+            ? '8px 10px 20px rgba(5,3,39,0.55)'
+            : '8px 10px 12px rgba(20,20,50,0.06)';
+
+          // Title color
+          const titleColor = isPremium
+            ? isDark ? '#f0bb00' : '#d946ef'
+            : isDark ? '#a78bfa' : '#9333ea';
+
+          // Check color
+          const checkColor = isPremium
+            ? isDark ? '#f5c400' : '#d946ef'
+            : isDark ? '#a855f7' : '#9333ea';
+
+          // CTA button
+          let btnBg = '';
+          let btnColor = '';
+          let btnBorder = '';
+
+          if (isCurrent) {
+            btnBg = isDark ? 'rgba(147,51,234,0.15)' : '#f0f0f4';
+            btnColor = isDark ? '#a78bfa' : '#120533';
+            btnBorder = isDark ? '1px solid rgba(147,51,234,0.3)' : '1px solid #c1c1cd';
+          } else if (action === 'upgrade' || action === 'contact') {
+            if (isPremium) {
+              btnBg = isDark ? '#f5c400' : 'linear-gradient(90deg,#9333ea 0%,#ec4899 100%)';
+              btnColor = isDark ? '#1c1d2b' : '#fff';
+            } else {
+              btnBg = 'linear-gradient(90deg,#9333ea 0%,#ec4899 100%)';
+              btnColor = '#fff';
+            }
+          } else {
+            // downgrade
+            btnBg = isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f4';
+            btnColor = isDark ? 'rgba(255,255,255,0.6)' : '#616170';
+            btnBorder = isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #c1c1cd';
+          }
 
           const ctaLabels: Record<typeof action, string> = {
             current: '✓ Current Plan',
@@ -249,61 +276,92 @@ export default function SubscriptionPage() {
           return (
             <motion.article
               key={plan.id}
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 0, y: 28 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: idx * 0.07, duration: 0.45 }}
-              className="relative overflow-hidden rounded-[26px] border flex flex-col"
+              transition={{ delay: idx * 0.08, duration: 0.45 }}
+              className="relative rounded-[2rem] flex flex-col overflow-hidden"
               style={{
-                borderColor: isCurrent ? `${plan.accent}66` : isHighlighted ? `${colors.accent.yellow}44` : colors.border.faint,
-                background: theme === 'dark'
-                  ? `linear-gradient(160deg, ${colors.bg.card} 0%, rgba(10, 3, 50, 0.9) 100%)`
-                  : `linear-gradient(160deg, ${colors.bg.card} 0%, ${colors.bg.searchBar} 100%)`,
+                border: borderStyle,
+                backgroundColor: cardBg,
                 boxShadow: isCurrent
-                  ? `0 0 0 2px ${plan.accent}44, 0 20px 48px ${plan.glow}`
-                  : theme === 'dark'
-                    ? `0 12px 36px rgba(6,3,30,0.5)`
-                    : `0 10px 30px rgba(21,9,62,0.10)`,
+                  ? `0 0 0 0px transparent, ${cardShadow}`
+                  : cardShadow,
               }}
             >
-              {/* Accent glow blob */}
-              <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full blur-2xl opacity-40"
-                style={{ backgroundColor: plan.accent }} />
-
               {/* Badge */}
               {plan.badge && (
-                <div className="absolute top-3 right-3 rounded-full px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider"
-                  style={{ backgroundColor: `${colors.accent.yellow}22`, color: colors.accent.yellow }}>
+                <div
+                  className="absolute top-4 right-4 rounded-full px-2.5 py-0.5 text-[9px] font-extrabold uppercase tracking-wider"
+                  style={{ backgroundColor: '#f5c40022', color: '#ca8a04' }}
+                >
                   {plan.badge}
                 </div>
               )}
 
-              <div className="p-5 flex flex-col flex-1">
-                {/* Name + tagline */}
-                <div className="mb-4">
-                  <h2 className="text-xl font-extrabold" style={{ color: colors.text.primary }}>{plan.name}</h2>
-                  <p className="text-[11px] mt-0.5" style={{ color: colors.text.muted }}>{plan.tagline}</p>
-                </div>
+              <div className="p-7 md:p-8 flex flex-col flex-1">
+                {/* Name */}
+                <h2
+                  className="text-[28px] sm:text-[32px] font-extrabold leading-none"
+                  style={{ color: titleColor }}
+                >
+                  {plan.name}
+                </h2>
 
                 {/* Price */}
-                <div className="mb-4 flex items-end gap-1">
-                  <span className="text-[36px] font-extrabold leading-none" style={{ color: colors.text.primary }}>
-                    {plan.price}
-                  </span>
-                  {plan.priceNote && (
-                    <span className="mb-1 text-xs" style={{ color: colors.text.muted }}>{plan.priceNote}</span>
+                <div className="mt-3 flex items-end gap-1 leading-none">
+                  {plan.price !== 'Custom' ? (
+                    <>
+                      <span
+                        className="mb-1 text-[22px] font-bold"
+                        style={{ color: isDark ? '#fff' : '#1a1a27' }}
+                      >
+                        ₱
+                      </span>
+                      <span
+                        className="text-[50px] font-extrabold tracking-tight"
+                        style={{ color: isDark ? '#fff' : '#1a1a27' }}
+                      >
+                        {plan.price}
+                      </span>
+                      <span
+                        className="mb-1 text-[14px] font-medium"
+                        style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#b4aecd' }}
+                      >
+                        {plan.period}
+                      </span>
+                    </>
+                  ) : (
+                    <span
+                      className="text-[42px] font-extrabold tracking-tight"
+                      style={{ color: isDark ? '#fff' : '#1a1a27' }}
+                    >
+                      Custom
+                    </span>
                   )}
                 </div>
 
-                {/* Limit summary */}
-                <p className="mb-4 text-[10px] font-semibold uppercase tracking-[0.1em]" style={{ color: plan.accent }}>
-                  {plan.limitSummary}
+                {/* Tagline */}
+                <p
+                  className="mt-4 text-[14px] leading-[1.35] min-h-[40px]"
+                  style={{ color: isDark ? 'rgba(255,255,255,0.55)' : '#a6a0c0' }}
+                >
+                  {plan.tagline}
                 </p>
 
                 {/* Features */}
-                <ul className="mb-6 space-y-2 flex-1">
+                <ul
+                  className="mt-5 space-y-3 text-[14px] flex-1"
+                  style={{ color: isDark ? 'rgba(255,255,255,0.85)' : '#303044' }}
+                >
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-xs" style={{ color: colors.text.secondary }}>
-                      <CheckIcon color={plan.accent} />
+                    <li key={feature} className="flex items-start gap-2.5">
+                      <span
+                        className="mt-0.5 text-sm font-bold flex-shrink-0"
+                        style={{ color: checkColor }}
+                        aria-hidden
+                      >
+                        ✓
+                      </span>
                       {feature}
                     </li>
                   ))}
@@ -314,8 +372,12 @@ export default function SubscriptionPage() {
                   type="button"
                   disabled={isCurrent}
                   onClick={() => handleAction(plan.id)}
-                  className="w-full rounded-xl px-4 py-2.5 text-xs font-bold transition-all duration-200 hover:opacity-90 active:scale-[0.97]"
-                  style={ctaStyles[action]}
+                  className="mt-8 w-full rounded-full px-6 py-3 text-[14px] font-extrabold leading-none transition-all duration-200 hover:brightness-110 active:scale-[0.97] disabled:cursor-default"
+                  style={{
+                    background: btnBg,
+                    color: btnColor,
+                    border: btnBorder || 'none',
+                  }}
                 >
                   {ctaLabels[action]}
                 </button>
@@ -330,31 +392,54 @@ export default function SubscriptionPage() {
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.38 }}
-        className="rounded-[26px] border overflow-hidden"
+        className="rounded-[2rem] border overflow-hidden"
         style={{
-          borderColor: colors.border.faint,
-          background: theme === 'dark'
-            ? `linear-gradient(180deg, ${colors.bg.card} 0%, rgba(8,2,40,0.9) 100%)`
-            : `linear-gradient(180deg, ${colors.bg.card} 0%, ${colors.bg.searchBar} 100%)`,
+          borderColor: isDark ? '#3d2a93' : '#e2e2ea',
+          backgroundColor: isDark ? '#111058' : '#ffffff',
+          boxShadow: isDark ? '8px 10px 20px rgba(5,3,39,0.55)' : '8px 10px 12px rgba(20,20,50,0.06)',
         }}
       >
-        <div className="px-5 sm:px-6 pt-5 pb-2 flex items-center justify-between">
-          <h3 className="text-base font-bold" style={{ color: colors.text.primary }}>Feature Comparison</h3>
-          <span className="text-[11px]" style={{ color: colors.text.muted }}>All prices monthly</span>
+        <div className="px-6 sm:px-8 pt-6 pb-2 flex items-center justify-between">
+          <h3
+            className="text-base font-bold"
+            style={{ color: isDark ? '#fff' : '#120533' }}
+          >
+            Feature Comparison
+          </h3>
+          <span
+            className="text-[11px]"
+            style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#a6a0c0' }}
+          >
+            All prices monthly
+          </span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] text-xs">
+          <table className="w-full min-w-[600px] text-sm">
             <thead>
-              <tr style={{ borderBottom: `1px solid ${colors.border.faint}` }}>
-                <th className="py-3 px-5 sm:px-6 text-left font-medium w-[28%]" style={{ color: colors.text.muted }}>Feature</th>
+              <tr style={{ borderBottom: `1px solid ${isDark ? '#3d2a93' : '#e2e2ea'}` }}>
+                <th
+                  className="py-3 px-6 sm:px-8 text-left font-medium w-[28%]"
+                  style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#a6a0c0' }}
+                >
+                  Feature
+                </th>
                 {PLANS.map((plan) => (
-                  <th key={plan.id} className="py-3 px-3 text-left font-bold w-[18%]"
-                    style={{ color: currentPlan === plan.id ? plan.accent : colors.text.secondary }}>
+                  <th
+                    key={plan.id}
+                    className="py-3 px-3 text-left font-bold w-[18%]"
+                    style={{
+                      color: currentPlan === plan.id
+                        ? plan.accent
+                        : isDark ? 'rgba(255,255,255,0.75)' : '#303044',
+                    }}
+                  >
                     {plan.name}
                     {currentPlan === plan.id && (
-                      <span className="ml-1.5 inline-block rounded-full w-1.5 h-1.5 align-middle"
-                        style={{ backgroundColor: plan.accent }} />
+                      <span
+                        className="ml-1.5 inline-block rounded-full w-1.5 h-1.5 align-middle"
+                        style={{ backgroundColor: plan.accent }}
+                      />
                     )}
                   </th>
                 ))}
@@ -362,19 +447,39 @@ export default function SubscriptionPage() {
             </thead>
             <tbody>
               {COMPARISON_ROWS.map((row, rowIdx) => (
-                <tr key={row.label}
-                  style={{ borderBottom: rowIdx < COMPARISON_ROWS.length - 1 ? `1px solid ${colors.border.faint}` : undefined }}>
-                  <td className="py-3 px-5 sm:px-6" style={{ color: colors.text.secondary }}>{row.label}</td>
+                <tr
+                  key={row.label}
+                  style={{
+                    borderBottom: rowIdx < COMPARISON_ROWS.length - 1
+                      ? `1px solid ${isDark ? '#3d2a93' : '#e2e2ea'}`
+                      : undefined,
+                  }}
+                >
+                  <td
+                    className="py-3 px-6 sm:px-8"
+                    style={{ color: isDark ? 'rgba(255,255,255,0.65)' : '#616170' }}
+                  >
+                    {row.label}
+                  </td>
                   {row.values.map((val, colIdx) => {
                     const plan = PLANS[colIdx];
                     const isCurrent = plan.id === currentPlan;
                     const isPositive = val !== '—';
                     return (
-                      <td key={plan.id} className="py-3 px-3 font-medium"
+                      <td
+                        key={plan.id}
+                        className="py-3 px-3 font-semibold"
                         style={{
-                          color: !isPositive ? colors.text.muted : isCurrent ? plan.accent : val === 'Unlimited' || val === '✓' ? '#86EFAC' : colors.text.primary,
-                          opacity: !isPositive ? 0.45 : 1,
-                        }}>
+                          color: !isPositive
+                            ? isDark ? 'rgba(255,255,255,0.25)' : '#c1c1cd'
+                            : isCurrent
+                              ? plan.accent
+                              : val === 'Unlimited' || val === '✓'
+                                ? isDark ? '#86EFAC' : '#16a34a'
+                                : isDark ? 'rgba(255,255,255,0.85)' : '#303044',
+                          opacity: !isPositive ? 0.6 : 1,
+                        }}
+                      >
                         {val}
                       </td>
                     );
@@ -400,7 +505,10 @@ export default function SubscriptionPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-50 flex items-center justify-center p-4"
-              style={{ backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)', backdropFilter: 'blur(6px)' }}
+              style={{
+                backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)',
+                backdropFilter: 'blur(6px)',
+              }}
               onClick={() => setConfirmTarget(null)}
             >
               <motion.div
@@ -409,43 +517,54 @@ export default function SubscriptionPage() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.92, y: 16 }}
                 transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                className="relative w-full max-w-sm rounded-[24px] border p-6"
+                className="relative w-full max-w-sm rounded-[2rem] p-7"
                 style={{
-                  borderColor: `${target.accent}55`,
-                  backgroundColor: colors.bg.card,
-                  boxShadow: `0 30px 80px ${target.glow}`,
+                  border: `3px solid ${target.accent}`,
+                  backgroundColor: isDark ? '#111058' : '#ffffff',
+                  boxShadow: isDark
+                    ? '0 30px 80px rgba(147,51,234,0.3)'
+                    : '8px 10px 40px rgba(20,20,50,0.12)',
                 }}
                 onClick={(e) => e.stopPropagation()}
               >
-                <div className="pointer-events-none absolute -right-6 -top-6 h-24 w-24 rounded-full blur-2xl opacity-50"
-                  style={{ backgroundColor: target.accent }} />
-
-                <p className="text-[11px] font-bold uppercase tracking-widest mb-1"
-                  style={{ color: isDowngrade ? '#fbbf24' : target.accent }}>
+                <p
+                  className="text-[11px] font-bold uppercase tracking-widest mb-1"
+                  style={{ color: isDowngrade ? '#ca8a04' : target.accent }}
+                >
                   {isDowngrade ? 'Confirm Downgrade' : 'Confirm Upgrade'}
                 </p>
-                <h4 className="text-xl font-extrabold mb-1" style={{ color: colors.text.primary }}>
+                <h4
+                  className="text-xl font-extrabold mb-1"
+                  style={{ color: isDark ? '#fff' : '#120533' }}
+                >
                   Switch to {target.name}
                 </h4>
-                <p className="text-xs mb-5" style={{ color: colors.text.muted }}>
+                <p
+                  className="text-[13px] mb-6 leading-relaxed"
+                  style={{ color: isDark ? 'rgba(255,255,255,0.55)' : '#a6a0c0' }}
+                >
                   {isDowngrade
                     ? `Moving from ${getPlan(currentPlan).name} to ${target.name} will reduce your feature access. This takes effect at the end of your billing cycle.`
                     : `You'll gain access to all ${target.name} features immediately after confirming.`}
                 </p>
 
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     type="button"
                     onClick={() => setConfirmTarget(null)}
-                    className="flex-1 rounded-xl px-4 py-2.5 text-xs font-bold"
-                    style={{ backgroundColor: colors.bg.elevated, color: colors.text.muted, border: `1px solid ${colors.border.faint}` }}
+                    className="flex-1 rounded-full px-4 py-3 text-[14px] font-extrabold transition-all hover:brightness-95"
+                    style={{
+                      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f4',
+                      color: isDark ? 'rgba(255,255,255,0.6)' : '#616170',
+                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #c1c1cd',
+                    }}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
                     onClick={confirmAction}
-                    className="flex-1 rounded-xl px-4 py-2.5 text-xs font-bold transition-opacity hover:opacity-85"
+                    className="flex-1 rounded-full px-4 py-3 text-[14px] font-extrabold transition-all hover:brightness-110"
                     style={{
                       background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
                       color: '#fff',
