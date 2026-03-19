@@ -12,6 +12,7 @@ import { WebPreview } from "../_lib/webRenderer";
 import {
   PREVIEW_MOBILE_BREAKPOINT,
   PREVIEW_MOBILE_VIEWPORT_WIDTH,
+  PREVIEW_TABLET_BREAKPOINT,
   PREVIEW_TABLET_VIEWPORT_WIDTH,
 } from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
@@ -508,7 +509,7 @@ function PreviewContent() {
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
-  const useBuilderParityMode = false;
+  const useBuilderParityMode = previewViewport === "desktop";
 
   useEffect(() => {
     getMe().then((res: any) => {
@@ -891,6 +892,11 @@ function PreviewContent() {
     const targetPage = idx >= 0 ? cleanDoc.pages[idx] : cleanDoc.pages[0];
     return toPxNumber(targetPage?.props?.width) ?? 1920;
   }, [cleanDoc, previewPages, selectedPreviewPageSlug]);
+
+  const desktopEffectiveViewportWidth = useMemo(
+    () => Math.max(desktopResponsiveViewportWidth ?? 1920, PREVIEW_TABLET_BREAKPOINT + 1),
+    [desktopResponsiveViewportWidth]
+  );
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -1390,13 +1396,13 @@ function PreviewContent() {
                   storeContext={previewStoreContext}
                   simulatedWidth={
                     previewViewport === "desktop"
-                      ? (desktopResponsiveViewportWidth ?? 1920)
+                      ? undefined
                       : previewViewport === "tablet"
                         ? PREVIEW_TABLET_VIEWPORT_WIDTH
                         : PREVIEW_MOBILE_VIEWPORT_WIDTH
                   }
                   responsiveViewportWidth={
-                    previewViewport === "desktop" ? (desktopResponsiveViewportWidth ?? 1920) : undefined
+                    previewViewport === "desktop" ? desktopEffectiveViewportWidth : undefined
                   }
                 />
               </div>
