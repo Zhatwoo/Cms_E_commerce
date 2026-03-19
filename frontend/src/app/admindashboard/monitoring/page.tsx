@@ -401,7 +401,7 @@ function MonitoringPageContent() {
                     ) : uniqueFilteredWebsites.length === 0 ? (
                       <p className="text-sm text-[#82788F]">No approved websites found.</p>
                     ) : (
-                      <div className="grid grid-cols-1 min-[1760px]:grid-cols-[513px_513px] min-[1760px]:justify-center gap-y-4 min-[1760px]:gap-x-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
                         {uniqueFilteredWebsites.map((w) => {
                           const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
@@ -410,10 +410,19 @@ function MonitoringPageContent() {
                           return (
                             <article
                               key={`${w.userId}::${w.id}`}
-                              className="w-full max-w-[513px] h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
+                              className="w-full h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
                             >
                               <div className="relative h-[170px]">
-                                <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill className="object-cover" />
+                                {w.thumbnail ? (
+                                  <img
+                                    src={w.thumbnail}
+                                    alt={w.domainName}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill sizes="513px" className="object-cover" />
+                                )}
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-semibold text-gray-900">
                                   <span className={`h-4 w-4 rounded-full ${status.dotClass}`} />
                                   {status.label}
@@ -456,34 +465,41 @@ function MonitoringPageContent() {
               )}
 
               {activeTab === 'products' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                   {loading ? (
                     <p className="text-sm text-[#82788F]">Loading approved products...</p>
                   ) : filteredProducts.length === 0 ? (
                     <p className="text-sm text-[#82788F]">No approved products found.</p>
                   ) : (
                     filteredProducts.map((p) => (
-                      <article key={`${p.id}-${p.subdomain || 'site'}`} className="rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden">
-                        <div className="relative h-56">
-                          <Image src={PRODUCT_CARD_IMAGE} alt={p.name || 'Product'} fill className="object-contain p-4" />
-                          <span className="absolute left-3 top-3 rounded-full bg-yellow-400 px-2.5 py-1 text-[11px] font-semibold text-gray-900">
+                      <article key={`${p.id}-${p.subdomain || 'site'}`} className="w-[324px] h-[365px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden flex flex-col">
+                        <div className="relative h-[256px] bg-[#EBECEE] flex items-center justify-center overflow-hidden">
+                          <Image
+                            src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
+                            alt={p.name || 'Product'}
+                            fill
+                            sizes="324px"
+                            className="object-contain p-2 scale-110"
+                            unoptimized={Array.isArray(p.images) && !!p.images[0]}
+                          />
+                          <span className="absolute left-2 top-2 rounded-full bg-yellow-400 px-2.5 py-1 text-[10px] font-semibold text-gray-900 z-10">
                             {p.subdomain || 'example-site.com'}
                           </span>
-                          <span className="absolute left-3 bottom-3 rounded-full bg-white/90 px-2 py-0.5 text-[11px] text-[#4E4A70]">
+                          <span className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] text-[#4E4A70] z-10">
                             {productIndustry(p)}
                           </span>
                         </div>
 
-                        <div className="bg-[#B13BFF] px-4 py-3 text-white">
-                          <div className="mb-1 flex items-center gap-2">
-                            <p className="text-2xl font-semibold leading-none truncate">{p.name || 'Product Name'}</p>
-                            <span className="rounded-full bg-[#6C2CD7] px-2 py-0.5 text-[11px]">{p.subcategory || 'Jeans'}</span>
+                        <div className="bg-[#B13BFF] px-2.5 py-1.5 text-white flex-1 flex flex-col">
+                          <div className="flex items-start gap-1 flex-wrap">
+                            <p className="text-sm font-semibold leading-tight truncate flex-1">{p.name || 'Product Name'}</p>
+                            <span className="rounded-full bg-[#6C2CD7] px-1.5 py-0.5 text-[9px] whitespace-nowrap">{p.subcategory || 'General'}</span>
                           </div>
-                          <p className="text-xs text-white/85 mb-2">SKU: {p.sku || '123456'}</p>
-                          <div className="flex items-center gap-2">
-                            <button type="button" className="rounded-xl bg-[#6C2CD7] px-4 py-1.5 text-sm font-medium">View</button>
-                            <button type="button" className="rounded-xl bg-[#FF4A43] px-4 py-1.5 text-sm font-medium">Dismiss</button>
-                            <span className="ml-auto text-xs text-white/85">{formatMoney(p.finalPrice ?? p.price)}</span>
+                          <p className="text-sm text-white/85 truncate">SKU: {p.sku || 'N/A'}</p>
+                          <div className="flex items-center gap-1 mt-auto">
+                            <button type="button" className="rounded-lg bg-[#6C2CD7] px-2 py-0.5 text-xs font-medium">View</button>
+                            <button type="button" className="rounded-lg bg-[#FF4A43] px-2 py-0.5 text-xs font-medium">Dismiss</button>
+                            <span className="ml-auto text-xs text-white/85 whitespace-nowrap">{formatMoney(p.finalPrice ?? p.price)}</span>
                           </div>
                         </div>
                       </article>
