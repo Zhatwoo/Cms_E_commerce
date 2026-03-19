@@ -1001,6 +1001,8 @@ export const FigmaStyleDragHandler = () => {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
 
+      setSnapGuidesRef.current([]);
+
       document.removeEventListener("mousedown", handleMouseDown, true);
       document.removeEventListener("mousemove", handleMouseMove, true);
       document.removeEventListener("mouseup", handleMouseUp, true);

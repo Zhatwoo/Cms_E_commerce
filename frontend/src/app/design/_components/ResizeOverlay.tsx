@@ -350,6 +350,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       window.removeEventListener("scroll", scrollUpdate, true);
       window.removeEventListener("resize", scrollUpdate);
       clearInterval(interval);
+      // Clear guides on unmount to prevent stale markers after deletion/deselection
+      setSnapGuidesRef.current([]);
     };
   }, [dom]);
 
