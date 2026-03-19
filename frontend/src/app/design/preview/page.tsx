@@ -9,7 +9,11 @@ import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
-import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
+import {
+  PREVIEW_MOBILE_BREAKPOINT,
+  PREVIEW_MOBILE_VIEWPORT_WIDTH,
+  PREVIEW_TABLET_VIEWPORT_WIDTH,
+} from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -504,7 +508,7 @@ function PreviewContent() {
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
-  const useBuilderParityMode = true;
+  const useBuilderParityMode = false;
 
   useEffect(() => {
     getMe().then((res: any) => {
@@ -1369,9 +1373,9 @@ function PreviewContent() {
                   previewViewport === "desktop"
                     ? desktopPreviewStyle
                     : previewViewport === "tablet"
-                      ? { width: 768, maxWidth: "100%" }
+                      ? { width: PREVIEW_TABLET_VIEWPORT_WIDTH, maxWidth: "100%" }
                       : previewViewport === "mobile"
-                        ? { width: 390, maxWidth: "100%" }
+                        ? { width: PREVIEW_MOBILE_VIEWPORT_WIDTH, maxWidth: "100%" }
                         : undefined
                 }
               >
@@ -1388,13 +1392,32 @@ function PreviewContent() {
                     previewViewport === "desktop"
                       ? (desktopResponsiveViewportWidth ?? 1920)
                       : previewViewport === "tablet"
-                        ? 768
-                        : 390
+                        ? PREVIEW_TABLET_VIEWPORT_WIDTH
+                        : PREVIEW_MOBILE_VIEWPORT_WIDTH
                   }
                   responsiveViewportWidth={
                     previewViewport === "desktop" ? (desktopResponsiveViewportWidth ?? 1920) : undefined
                   }
                 />
+              </div>
+            ) : craftPreviewData ? (
+              <div
+                ref={previewRef}
+                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
+                  ? "min-h-[calc(100vh-200px)] mx-auto"
+                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                  }`}
+                style={
+                  previewViewport === "desktop"
+                    ? { ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle, overflow: "hidden" }
+                    : previewViewport === "tablet"
+                      ? { width: PREVIEW_TABLET_VIEWPORT_WIDTH, maxWidth: "100%" }
+                      : previewViewport === "mobile"
+                        ? { width: PREVIEW_MOBILE_VIEWPORT_WIDTH, maxWidth: "100%" }
+                        : undefined
+                }
+              >
+                <CraftCanvasPreview data={craftPreviewData} />
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">

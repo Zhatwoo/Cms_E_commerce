@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -84,7 +84,7 @@ const WEBSITE_CARD_IMAGE = '/images/template-saas.jpg';
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
 const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'websitelink';
 
-export default function WebsiteProductMonitoringPage() {
+function MonitoringPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -523,5 +523,13 @@ export default function WebsiteProductMonitoringPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function WebsiteProductMonitoringPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+      <MonitoringPageContent />
+    </Suspense>
   );
 }
