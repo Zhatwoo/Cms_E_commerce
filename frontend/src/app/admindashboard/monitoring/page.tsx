@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, Suspense } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -8,7 +8,6 @@ import { AnimatePresence } from 'framer-motion';
 import { getDomainsManagement, listProducts, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
-import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -52,17 +51,8 @@ function websiteViewUrl(domainName: string): string {
   return normalized;
 }
 
-function productCategory(product: ApiProduct): string {
-  return product.subcategory || product.subCategory || product.sub_category || product.category || 'General';
-}
-
 function productIndustry(product: ApiProduct): string {
-  const rawIndustry = String(product.projectIndustry || '').trim();
-  if (!rawIndustry) return 'General';
-
-  const normalizedKey = normalizeIndustryKey(rawIndustry);
-  const option = INDUSTRY_OPTIONS.find((item) => item.key === normalizedKey);
-  return option?.label || rawIndustry;
+  return product.category || product.subcategory || product.subCategory || product.sub_category || 'General';
 }
 
 function chartBarHeightClass(value: number): string {
@@ -82,9 +72,8 @@ function subdomainFromDomain(domainName: string): string {
 
 const WEBSITE_CARD_IMAGE = '/images/template-saas.jpg';
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'websitelink';
 
-export default function WebsiteProductMonitoringPage() {
+function MonitoringPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -432,13 +421,7 @@ export default function WebsiteProductMonitoringPage() {
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <Image
-                                    src={WEBSITE_CARD_IMAGE}
-                                    alt={w.domainName}
-                                    fill
-                                    sizes="(max-width: 767px) 100vw, (max-width: 1536px) 50vw, 33vw"
-                                    className="object-cover"
-                                  />
+                                  <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill sizes="513px" className="object-cover" />
                                 )}
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-semibold text-gray-900">
                                   <span className={`h-4 w-4 rounded-full ${status.dotClass}`} />
@@ -482,41 +465,34 @@ export default function WebsiteProductMonitoringPage() {
               )}
 
               {activeTab === 'products' && (
-                <div className="flex flex-wrap gap-4 justify-center md:justify-start">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                   {loading ? (
                     <p className="text-sm text-[#82788F]">Loading approved products...</p>
                   ) : filteredProducts.length === 0 ? (
                     <p className="text-sm text-[#82788F]">No approved products found.</p>
                   ) : (
                     filteredProducts.map((p) => (
-                      <article key={`${p.id}-${p.subdomain || 'site'}`} className="w-[324px] h-[365px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden flex flex-col">
-                        <div className="relative h-[256px] bg-[#EBECEE] flex items-center justify-center overflow-hidden">
-                          <Image
-                            src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
-                            alt={p.name || 'Product'}
-                            fill
-                            sizes="324px"
-                            className="object-contain p-2 scale-110"
-                            unoptimized={Array.isArray(p.images) && !!p.images[0]}
-                          />
-                          <span className="absolute left-2 top-2 rounded-full bg-yellow-400 px-2.5 py-1 text-[10px] font-semibold text-gray-900 z-10">
+                      <article key={`${p.id}-${p.subdomain || 'site'}`} className="rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden">
+                        <div className="relative h-56">
+                          <Image src={PRODUCT_CARD_IMAGE} alt={p.name || 'Product'} fill className="object-contain p-4" />
+                          <span className="absolute left-3 top-3 rounded-full bg-yellow-400 px-2.5 py-1 text-[11px] font-semibold text-gray-900">
                             {p.subdomain || 'example-site.com'}
                           </span>
-                          <span className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] text-[#4E4A70] z-10">
+                          <span className="absolute left-3 bottom-3 rounded-full bg-white/90 px-2 py-0.5 text-[11px] text-[#4E4A70]">
                             {productIndustry(p)}
                           </span>
                         </div>
 
-                        <div className="bg-[#B13BFF] px-2.5 py-1.5 text-white flex-1 flex flex-col">
-                          <div className="flex items-start gap-1 flex-wrap">
-                            <p className="text-sm font-semibold leading-tight truncate flex-1">{p.name || 'Product Name'}</p>
-                            <span className="rounded-full bg-[#6C2CD7] px-1.5 py-0.5 text-[9px] whitespace-nowrap">{productCategory(p)}</span>
+                        <div className="bg-[#B13BFF] px-4 py-3 text-white">
+                          <div className="mb-1 flex items-center gap-2">
+                            <p className="text-2xl font-semibold leading-none truncate">{p.name || 'Product Name'}</p>
+                            <span className="rounded-full bg-[#6C2CD7] px-2 py-0.5 text-[11px]">{p.subcategory || 'Jeans'}</span>
                           </div>
-                          <p className="text-sm text-white/85 truncate">SKU: {p.sku || 'N/A'}</p>
-                          <div className="flex items-center gap-1 mt-auto">
-                            <button type="button" className="rounded-lg bg-[#6C2CD7] px-2 py-0.5 text-xs font-medium">View</button>
-                            <button type="button" className="rounded-lg bg-[#FF4A43] px-2 py-0.5 text-xs font-medium">Dismiss</button>
-                            <span className="ml-auto text-xs text-white/85 whitespace-nowrap">{formatMoney(p.finalPrice ?? p.price)}</span>
+                          <p className="text-xs text-white/85 mb-2">SKU: {p.sku || '123456'}</p>
+                          <div className="flex items-center gap-2">
+                            <button type="button" className="rounded-xl bg-[#6C2CD7] px-4 py-1.5 text-sm font-medium">View</button>
+                            <button type="button" className="rounded-xl bg-[#FF4A43] px-4 py-1.5 text-sm font-medium">Dismiss</button>
+                            <span className="ml-auto text-xs text-white/85">{formatMoney(p.finalPrice ?? p.price)}</span>
                           </div>
                         </div>
                       </article>
@@ -529,5 +505,13 @@ export default function WebsiteProductMonitoringPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function WebsiteProductMonitoringPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><p>Loading...</p></div>}>
+      <MonitoringPageContent />
+    </Suspense>
   );
 }

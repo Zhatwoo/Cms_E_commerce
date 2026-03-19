@@ -666,6 +666,8 @@ export const FilesPanel = () => {
             if (dragRef.current?.activated) return;
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
+            
+            // State update in transition
             startTransition(() => {
               if (isMulti) {
                 const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
@@ -675,7 +677,12 @@ export const FilesPanel = () => {
                 actions.selectNode(next.size === 0 ? undefined : Array.from(next));
               } else {
                 actions.selectNode(nodeId);
-                // Scroll canvas to center the selected node, accounting for zoom/transform
+              }
+            });
+            
+            // DOM operations outside transition (next frame)
+            requestAnimationFrame(() => {
+              if (!isMulti) {
                 try {
                   const selectedNode = query.node(nodeId).get();
                   const selectedDisplayName = selectedNode?.data?.displayName ?? "";

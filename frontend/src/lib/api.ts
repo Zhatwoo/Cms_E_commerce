@@ -656,9 +656,6 @@ export async function removeCustomDomain(
 export type ApiProduct = {
   id: string;
   name: string;
-  userId?: string;
-  projectId?: string | null;
-  projectIndustry?: string | null;
   sku?: string;
   category?: string;
   subcategory?: string;
@@ -1279,7 +1276,6 @@ export type WebsiteManagementRow = {
   status: string;
   plan: string;
   domainType: string;
-  thumbnail?: string | null;
 };
 
 export type WebsiteManagementStats = {
