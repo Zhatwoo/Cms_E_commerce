@@ -16,7 +16,6 @@ export default function AdminRegisterPage() {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,7 +177,7 @@ export default function AdminRegisterPage() {
           <div className="mt-6 flex items-center justify-between gap-8 text-sm">
             <p className="whitespace-nowrap text-[#A63DFF]">
               Already have an account?{' '}
-              <Link href="/admindashboard/login" className="font-semibold text-[#ffcc00] underline decoration-[#ffcc00]/70 underline-offset-2 hover:opacity-80">
+              <Link href="/adminauth/login" className="font-semibold text-[#ffcc00] underline decoration-[#ffcc00]/70 underline-offset-2 hover:opacity-80">
                 Login
               </Link>
             </p>
