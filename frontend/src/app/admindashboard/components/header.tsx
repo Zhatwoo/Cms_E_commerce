@@ -328,7 +328,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:-translate-y-0.5"
                         aria-label="Notifications"
                     >
-                        <Image src="/admin-dashboard/icons/notification.png" alt="Notifications" width={20} height={20} className="object-contain" />
+                        <Image src="/admin-dashboard/icons/notification.png" alt="Notifications" width={20} height={20} className="object-contain w-auto h-auto" />
                     </button>
 
                     <button
