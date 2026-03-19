@@ -455,12 +455,9 @@ const MIN_PANEL_WIDTH = 200;
 const MAX_PANEL_WIDTH = 600;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
-<<<<<<< Updated upstream
 const INFINITE_CANVAS_WIDTH_VW = 4000;
 const INFINITE_CANVAS_HEIGHT_VH = 4000;
 const INFINITE_CANVAS_PADDING_PX = 30000;
-=======
->>>>>>> Stashed changes
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -1111,7 +1108,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     startWidth: number;
   } | null>(null);
   const [isPanelDragging, setIsPanelDragging] = useState(false);
-<<<<<<< Updated upstream
 
   const handleToolChange = useCallback((tool: CanvasTool) => {
     console.log(`[EditorShell] Tool changed: ${tool}`);
@@ -1160,22 +1156,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       window.removeEventListener("mouseup", onUp);
     };
   }, [isPanelDragging]);
-=======
->>>>>>> Stashed changes
 
   // Sync saveStatus to ref for safe use in beforeunload effect
   useEffect(() => {
     saveStatusRef.current = saveStatus;
   }, [saveStatus]);
 
-<<<<<<< Updated upstream
-=======
-  const infiniteCanvasWidthVw = INFINITE_CANVAS_WIDTH_VW;
-  const infiniteCanvasHeightVh = INFINITE_CANVAS_HEIGHT_VH;
-  const infiniteCanvasPaddingPx = INFINITE_CANVAS_PADDING_PX;
-  const sidePanelCanvasGapPx = 0;
-
->>>>>>> Stashed changes
   // Per-project UI state key so zoom, panels, and last page persist across reloads
   const uiStateStorageKey = React.useMemo(
     () => (projectId ? `${UI_STATE_KEY_PREFIX}_${projectId}` : UI_STATE_KEY_PREFIX),
@@ -1885,7 +1871,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         return safePrev > fitScale ? fitScale : safePrev;
       });
 
-<<<<<<< Updated upstream
       // Recenter after width/scale settle so page never appears "lost" off-screen.
       requestAnimationFrame(() => {
         centerCanvasInView();
@@ -1900,63 +1885,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       }, 220);
     });
   }, [canvasHeight, centerCanvasInView]);
-=======
-      const thisPanelGap = sidePanelCanvasGapPx;
-      const maxAllowedByCanvas = Math.floor(
-        window.innerWidth - MIN_CANVAS_VIEWPORT_WIDTH - otherPanelOccupied - thisPanelGap
-      );
-
-      const sideMax = Math.max(sideMin, Math.min(sideBaseMax, maxAllowedByCanvas));
-      return Math.min(sideMax, Math.max(sideMin, value));
-    },
-    [leftPanelOpen, leftPanelWidth, rightPanelOpen, rightPanelWidth, sidePanelCanvasGapPx]
-  );
-
-  const startPanelDrag = useCallback(
-    (side: "left" | "right", event: React.MouseEvent<HTMLDivElement>) => {
-      if (event.button !== 0) return;
-
-      panelDragRef.current = {
-        side,
-        startX: event.clientX,
-        startWidth: side === "left" ? leftPanelWidth : rightPanelWidth,
-      };
-      setIsPanelDragging(true);
-
-      document.body.style.userSelect = "none";
-      document.body.style.cursor = "ew-resize";
-
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    [leftPanelWidth, rightPanelWidth]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      const drag = panelDragRef.current;
-      if (!drag) return;
-
-      const deltaX = event.clientX - drag.startX;
-      const nextWidth = drag.side === "left"
-        ? clampPanelWidthWithCanvasRoom("left", drag.startWidth + deltaX)
-        : clampPanelWidthWithCanvasRoom("right", drag.startWidth - deltaX);
-
-      if (drag.side === "left") {
-        setLeftPanelWidth(nextWidth);
-      } else {
-        setRightPanelWidth(nextWidth);
-      }
-    };
-
-    const stopPanelDrag = () => {
-      if (!panelDragRef.current) return;
-      panelDragRef.current = null;
-      setIsPanelDragging(false);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
->>>>>>> Stashed changes
 
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -2943,7 +2871,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         onRender={RenderNode}
         onNodesChange={(query) => requestAnimationFrame(() => handleNodesChangeRef.current?.(query))}
       >
-<<<<<<< Updated upstream
         <QueryStasher onQuery={(q) => { editorQueryRef.current = q; }} />
         <CollabSyncHandler />
         <ImportedComponentsProvider>
@@ -2999,67 +2926,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       />
                     )}
                     {/* Canvas Area — Infinite Scroll Area */}
-=======
-        <QueryStasher onQuery={(q) => { lastQueryRef.current = q; }} />
-        <PrototypeTabProvider isActive={rightPanelTab === "prototype"}>
-          <CanvasToolProvider value={activeTool}>
-            <TransformModeProvider>
-              <InlineTextEditProvider>
-                <KeyboardShortcuts />
-                <CanvasSelectionHandler />
-                <BoxSelectionHandler />
-                <CanvasContextMenu />
-                <FigmaStyleDragHandler />
-                <NewPageDropPlacementHandler />
-                <DoubleClickTransformHandler />
-                <PrototypeFlowLines />
-                {/* Top Panel */}
-                {panelsReady && (
-                  <TopPanel
-                    scale={scale}
-                    onScaleChange={handleScaleChange}
-                    onRotateCanvas={handleRotateCanvas}
-                    onFitToCanvas={handleFitToCanvas}
-                    onAddButton={handleAddButton}
-                    canvasWidth={canvasWidth}
-                    canvasHeight={canvasHeight}
-                    onDevicePresetSelect={handleDevicePresetSelect}
-                    showDualView={showDualView}
-                    onDualViewToggle={() => setShowDualView((v) => !v)}
-                  />
-                )}
-                {/* Canvas Area (Background) — when dual view: leave room for phone preview on the right */}
-                <div
-                  ref={containerRef}
-                  data-canvas-container
-                  className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
-                  style={{
-                    top: `${TOP_PANEL_HEIGHT_PX}px`,
-                    left: panelsReady && leftPanelOpen ? `${leftPanelWidth}px` : "0px",
-                    right: panelsReady && rightPanelOpen ? `${rightPanelWidth}px` : "0px",
-                    bottom: "0px",
-                    cursor:
-                      canPanWithPointerDrag
-                        ? isPanning
-                          ? "grabbing"
-                          : "grab"
-                        : "default",
-                  }}
-                  onMouseDown={handleMouseDown}
-                  onMouseUp={handleMouseUp}
-                  onMouseLeave={handleMouseUp}
-                  onMouseMove={handleMouseMove}
-                >
-                  {/* Inner Content - Infinite Canvas */}
-                  <div
-                    className="flex items-center justify-center"
-                    style={{
-                      minWidth: `${infiniteCanvasWidthVw}vw`,
-                      minHeight: `${infiniteCanvasHeightVh}vh`,
-                      padding: `${infiniteCanvasPaddingPx}px`,
-                    }}
-                  >
->>>>>>> Stashed changes
                     <div
                       ref={containerRef}
                       data-canvas-container
@@ -3086,7 +2952,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                           Opening project...
                         </div>
                       )}
-<<<<<<< Updated upstream
                       <div
                         className="flex items-start justify-start relative"
                         style={{
@@ -3098,45 +2963,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                           transform: `scale(${scale})`,
                           willChange: "transform",
                         }}
-=======
-                    </div>
-                  </div>
-                </div>
-                {/* Docked Panels */}
-                {/* Right Panel Reopen Fallback */}
-                {panelsReady && !rightPanelOpen && (
-                  <button
-                    type="button"
-                    onClick={() => setRightPanelOpen(true)}
-                    className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
-                    title="Show Configs panel"
-                  >
-                    <PanelRight className="w-5 h-5 text-brand-light" />
-                  </button>
-                )}
-                {/* Left Panel */}
-                {panelsReady && (
-                  <div
-                    className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
-                  >
-                    <div
-                      className="h-full flex items-start pointer-events-auto relative"
-                    >
-                      <div
-                        onMouseDown={(event) => startPanelDrag("left", event)}
-                        className={`absolute top-0 -right-2 h-full w-4 cursor-ew-resize ${leftPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
-                        data-no-panel-drag="true"
-                        aria-hidden
-                      />
-                      {leftPanelOpen && (
-                        <div className="absolute top-0 right-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
-                      )}
-                      <div
-                        className={`h-full origin-left ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${leftPanelOpen
-                          ? "translate-x-0 opacity-100 pointer-events-auto"
-                          : "-translate-x-full opacity-0 pointer-events-none"
-                          }`}
->>>>>>> Stashed changes
                       >
                         {initialJson === undefined ? null : (
                           <SafeFrame
@@ -3159,53 +2985,18 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     {/* Right Panel Reopen Fallback */}
                     {panelsReady && !rightPanelOpen && permission !== "viewer" && (
                       <button
-<<<<<<< Updated upstream
                         type="button"
                         onClick={() => setRightPanelOpen(true)}
                         className="absolute top-14 right-4 z-[60] p-3 bg-builder-surface/80 backdrop-blur-lg rounded-3xl border border-builder-border hover:bg-builder-surface-3 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
                         title="Show Configs panel"
-=======
-                        onClick={() => setLeftPanelOpen((open) => !open)}
-                        className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
-                          }`}
-                        title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
->>>>>>> Stashed changes
                       >
                         <PanelRight className="w-5 h-5 text-brand-light" />
                       </button>
-<<<<<<< Updated upstream
                     )}
                     {/* Left Panel */}
                     {panelsReady && permission !== "viewer" && (
                       <div
                         className="absolute top-12 left-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
-=======
-                    </div>
-                  </div>
-                )}
-                {/* Right Panel */}
-                {panelsReady && (
-                  <div
-                    className="absolute top-12 right-0 z-50 h-[calc(100vh-3rem)] flex items-start pointer-events-none"
-                  >
-                    <div
-                      className="h-full flex items-start justify-end pointer-events-auto relative"
-                    >
-                      <div
-                        onMouseDown={(event) => startPanelDrag("right", event)}
-                        className={`absolute top-0 -left-2 h-full w-4 cursor-ew-resize ${rightPanelOpen ? "pointer-events-auto" : "pointer-events-none"}`}
-                        data-no-panel-drag="true"
-                        aria-hidden
-                      />
-                      {rightPanelOpen && (
-                        <div className="absolute top-0 left-0 h-full w-px bg-white/10 pointer-events-none" aria-hidden />
-                      )}
-                      <div
-                        className={`h-full origin-right ${isPanelDragging ? "transition-none" : "transition-[transform,opacity,width] duration-300 ease-out"} will-change-transform ${rightPanelOpen
-                          ? 'translate-x-0 opacity-100 pointer-events-auto'
-                          : 'translate-x-full opacity-0 pointer-events-none'
-                          }`}
->>>>>>> Stashed changes
                       >
                         <div
                           className="h-full flex items-start pointer-events-auto relative"
