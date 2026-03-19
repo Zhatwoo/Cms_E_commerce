@@ -294,7 +294,7 @@ export function PanelDropFreePlacementHandler() {
       for (const nodeId of rootNewIds) {
         try {
           const latest = query.getState();
-          const latestNodes = (latest?.nodes ?? {}) as Record<string, { data?: { parent?: string; displayName?: string; nodes?: string[] } }>;
+          const latestNodes = (latest?.nodes ?? {}) as Record<string, { data?: { parent?: string; displayName?: string; nodes?: string[]; props?: Record<string, unknown> } }>;
           let parentId = latestNodes[nodeId]?.data?.parent;
           if (!parentId) continue;
           const nodeDisplayName = latestNodes[nodeId]?.data?.displayName;

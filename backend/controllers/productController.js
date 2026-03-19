@@ -44,10 +44,12 @@ exports.getAll = async (req, res) => {
   try {
     const { status, search, page, limit, subdomain } = req.query;
     const headerProjectId = String(req.headers['x-project-id'] || '').trim();
-    const filters = { userId: req.user.id };
+    const normalizedRole = String(req.user.role || '').trim().toLowerCase();
+    const isAdmin = normalizedRole === 'admin' || normalizedRole === 'super_admin';
+    const filters = isAdmin ? {} : { userId: req.user.id };
     if (status) filters.status = status;
     if (search) filters.search = search;
-    if (!subdomain && headerProjectId) {
+    if (!isAdmin && !subdomain && headerProjectId) {
       const selectedProject = await Project.get(req.user.id, headerProjectId);
       const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
       if (selectedProjectSubdomain) {
@@ -58,13 +60,19 @@ exports.getAll = async (req, res) => {
       }
     }
     if (subdomain) {
+      if (isAdmin) {
+        filters.subdomain = Product.normalizeSubdomain(subdomain);
+      } else {
       const owned = await resolveOwnedDomain(req.user.id, subdomain);
       if (owned.error) {
         return res.status(400).json({ success: false, message: owned.error });
       }
       filters.subdomain = owned.subdomain;
+      }
     }
-    const result = await Product.findAllForUser(filters, { page, limit });
+    const result = isAdmin
+      ? await Product.findAllForAdmin({ ...filters, includeProjectIndustry: true }, { page, limit })
+      : await Product.findAllForUser(filters, { page, limit });
     res.status(200).json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
