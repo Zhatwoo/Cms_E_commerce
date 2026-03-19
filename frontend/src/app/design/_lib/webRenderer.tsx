@@ -6,7 +6,7 @@ import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
-import { PREVIEW_MOBILE_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
+import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -51,10 +51,17 @@ function toNumber(value: unknown, fallback: number): number {
 function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number, defaultBreakpoint: number = PREVIEW_MOBILE_BREAKPOINT): boolean {
   const breakpoint = toNumber(props.mobileBreakpoint, defaultBreakpoint);
   const isMobile = viewportWidth <= breakpoint;
+  const isTablet = viewportWidth > breakpoint && viewportWidth <= PREVIEW_TABLET_BREAKPOINT;
+  const isDesktop = viewportWidth > PREVIEW_TABLET_BREAKPOINT;
   const showOn = (props.showOn as string | undefined)?.toLowerCase();
 
+  // Handle showOn property - support mobile, tablet, desktop, or mobile+tablet
   if (showOn === "mobile") return isMobile;
-  if (showOn === "desktop") return !isMobile;
+  if (showOn === "tablet") return isTablet;
+  if (showOn === "desktop") return isDesktop;
+  if (showOn === "mobile-tablet" || showOn === "mobile,tablet") return isMobile || isTablet;
+  if (showOn === "tablet-desktop" || showOn === "tablet,desktop") return isTablet || isDesktop;
+  
   return true;
 }
 
@@ -250,6 +257,12 @@ const frameResponsiveStyles = (
         max-width: 100% !important;
       }
 
+      .frame-responsive-inner.frame-fluid [data-node-id][style*="display: grid"],
+      .frame-responsive-inner.frame-fluid [data-node-id][style*="display:grid"] {
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+
       .frame-responsive-inner.frame-fluid [data-fluid-grid="true"] {
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
       }
@@ -258,6 +271,43 @@ const frameResponsiveStyles = (
         from { opacity: 0.96; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
+
+      @container (min-width: 641px) and (max-width: 950px) {
+        /* Tablet-optimized spacing and typography */
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+          font-size: clamp(14px, var(--fluid-font-cqw, 3.6cqw), var(--fluid-font-max, 48px)) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+          padding-top: clamp(12px, 2.2cqw, 24px) !important;
+          padding-bottom: clamp(12px, 2.2cqw, 24px) !important;
+          padding-left: clamp(12px, 2.8cqw, 24px) !important;
+          padding-right: clamp(12px, 2.8cqw, 24px) !important;
+          column-gap: clamp(12px, 2.6cqw, 28px) !important;
+          row-gap: clamp(12px, 2.6cqw, 28px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
+          padding-left: clamp(14px, 2.4cqw, 28px) !important;
+          padding-right: clamp(14px, 2.4cqw, 28px) !important;
+          padding-top: clamp(10px, 1.8cqw, 14px) !important;
+          padding-bottom: clamp(10px, 1.8cqw, 14px) !important;
+          gap: clamp(8px, 1.8cqw, 16px) !important;
+          font-size: clamp(14px, 3.2cqw, 16px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
+          width: clamp(18px, 3.8cqw, 32px) !important;
+          height: clamp(18px, 3.8cqw, 32px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
+          border-radius: clamp(8px, 2.6cqw, 16px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+          gap: clamp(12px, 2.4cqw, 20px) !important;
+        }
+      }
+
       @container (max-width: 960px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
           font-size: clamp(12px, var(--fluid-font-cqw, 3.2cqw), var(--fluid-font-max, 48px)) !important;
@@ -278,11 +328,109 @@ const frameResponsiveStyles = (
           height: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
         }
       }
+
+      @container (min-width: 641px) and (max-width: 950px) {
+        /* Re-apply tablet tuning after generic <=960 rules so tablet does not inherit mobile-tight spacing. */
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+          font-size: clamp(14px, var(--fluid-font-cqw, 3.6cqw), var(--fluid-font-max, 48px)) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+          padding-top: clamp(12px, 2.2cqw, 24px) !important;
+          padding-bottom: clamp(12px, 2.2cqw, 24px) !important;
+          padding-left: clamp(12px, 2.8cqw, 24px) !important;
+          padding-right: clamp(12px, 2.8cqw, 24px) !important;
+          column-gap: clamp(12px, 2.6cqw, 28px) !important;
+          row-gap: clamp(12px, 2.6cqw, 28px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
+          padding-left: clamp(14px, 2.4cqw, 28px) !important;
+          padding-right: clamp(14px, 2.4cqw, 28px) !important;
+          padding-top: clamp(10px, 1.8cqw, 14px) !important;
+          padding-bottom: clamp(10px, 1.8cqw, 14px) !important;
+          gap: clamp(8px, 1.8cqw, 16px) !important;
+          font-size: clamp(14px, 3.2cqw, 16px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
+          width: clamp(18px, 3.8cqw, 32px) !important;
+          height: clamp(18px, 3.8cqw, 32px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
+          border-radius: clamp(8px, 2.6cqw, 16px) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
+          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+        }
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+          gap: clamp(12px, 2.4cqw, 20px) !important;
+        }
+      }
       @container (max-width: 900px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
           grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: grid"][style*="grid-template-columns"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:grid"][style*="grid-template-columns"] {
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+        }
       }
+
+      @container (max-width: 950px) {
+        /* Balanced tablet pass: keep components intact while improving responsiveness. */
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+          flex-wrap: wrap !important;
+          align-items: stretch !important;
+          gap: clamp(10px, 2.2cqw, 18px) !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+          flex: 1 1 min(320px, 100%) !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
+          max-width: 100% !important;
+          min-width: 0 !important;
+          white-space: normal !important;
+          overflow-wrap: break-word !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+          max-width: 100% !important;
+          min-width: 0 !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu > * {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+      }
+
+      @container (max-width: 760px) {
+        /* Strong stack mode only for smaller mobile/tablet widths. */
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+          flex: 1 1 100% !important;
+          align-self: stretch !important;
+        }
+      }
+
       @container (max-width: 640px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
           padding-left: clamp(10px, 3.2cqw, 16px) !important;
@@ -389,9 +537,20 @@ const frameResponsiveStyles = (
           grid-template-columns: minmax(0, 1fr) !important;
         }
 
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: grid"][style*="grid-template-columns"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:grid"][style*="grid-template-columns"] {
+          grid-template-columns: minmax(0, 1fr) !important;
+        }
+
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
           max-width: 100% !important;
           min-width: 0 !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="overflow-x: scroll"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="overflow-x:scroll"] {
+          overflow-x: auto !important;
+          -webkit-overflow-scrolling: touch;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
@@ -1195,13 +1354,22 @@ function getResponsiveTypographySpec(
   };
 }
 
+function getDeviceMode(viewportWidth: number, builderParityMode?: boolean, mobileBreakpoint?: number): "mobile" | "tablet" | "desktop" {
+  if (builderParityMode) return "desktop";
+  const effectiveMobileBreakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+  if (viewportWidth <= effectiveMobileBreakpoint) return "mobile";
+  if (viewportWidth <= PREVIEW_TABLET_BREAKPOINT) return "tablet";
+  return "desktop";
+}
+
 function normalizePreviewWidth(
   widthValue: unknown,
   viewportWidth: number,
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
 ): string | undefined {
-  const isNarrow = !builderParityMode && viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+  const deviceMode = getDeviceMode(viewportWidth, builderParityMode, mobileBreakpoint);
+  const isNarrow = deviceMode !== "desktop";
   if (typeof widthValue === "number") {
     if (!isNarrow) return `${widthValue}px`;
     return `min(100%, ${Math.max(1, widthValue)}px)`;
@@ -1335,7 +1503,8 @@ function isNarrowResponsivePreview(
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
   const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
-  return viewportWidth <= breakpoint;
+  const effectiveTabletBreakpoint = Math.max(breakpoint, PREVIEW_TABLET_BREAKPOINT);
+  return viewportWidth <= effectiveTabletBreakpoint;
 }
 
 function parsePixelValue(value: unknown): number | null {
@@ -2028,11 +2197,20 @@ function RenderNode({
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
-        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
         gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
-        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
-        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+        columnGap:
+          displayVal === "grid"
+            ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
+            : displayVal === "flex"
+              ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
+              : undefined,
+        rowGap:
+          displayVal === "grid"
+            ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
+            : displayVal === "flex"
+              ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
+              : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
         overflow: props.overflow as string,
@@ -3889,8 +4067,8 @@ export function WebPreview({
         key={currentPageSlug}
         className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
         style={{
-          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : width),
-          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : undefined),
+          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : "100%"),
+          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : "100%"),
           minHeight,
           backgroundColor: background,
           margin: fillViewport ? 0 : "0 auto",
@@ -3986,20 +4164,20 @@ export function LiveSite({
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
   const { ref, width: measuredWidth } = useContainerWidth();
-  const isPhoneSize = measuredWidth <= mobileBreakpoint;
-  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+  const isConstrainedViewport = measuredWidth < pageWidthPx;
+  const viewportWidth = !isConstrainedViewport ? pageWidthPx : measuredWidth;
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (isPhoneSize && liveSiteWrapperRef.current) {
+    if (isConstrainedViewport && liveSiteWrapperRef.current) {
       liveSiteWrapperRef.current.removeAttribute("data-nav-preview-done");
       const t = setTimeout(() => {
         if (liveSiteWrapperRef.current) enhanceNavInPreview(liveSiteWrapperRef.current);
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isPhoneSize, currentPageSlug]);
+  }, [isConstrainedViewport, currentPageSlug]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4103,22 +4281,22 @@ export function LiveSite({
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
-      {isPhoneSize && frameResponsiveStyles}
+      {isConstrainedViewport && frameResponsiveStyles}
       <div
         key={currentPageSlug}
         ref={ref}
         style={{
-          width: isPhoneSize ? "100%" : width,
-          maxWidth: isPhoneSize ? "100%" : undefined,
+          width: isConstrainedViewport ? "100%" : width,
+          maxWidth: isConstrainedViewport ? "100%" : undefined,
           minHeight,
           backgroundColor: background,
-          margin: isPhoneSize ? 0 : "0 auto",
+          margin: isConstrainedViewport ? 0 : "0 auto",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",
           ...transitionStyle,
         }}
       >
-        {isPhoneSize ? (
+        {isConstrainedViewport ? (
           <div
             ref={liveSiteWrapperRef}
             className="frame-responsive-inner frame-fluid frame-mobile"

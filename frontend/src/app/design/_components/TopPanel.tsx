@@ -27,6 +27,7 @@ import { ShareModal } from "./ShareModal";
 import { getStoredUser, getProjectStorage } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
 import { HardDrive } from "lucide-react";
+import { PREVIEW_MOBILE_VIEWPORT_WIDTH, PREVIEW_TABLET_VIEWPORT_WIDTH } from "../_lib/viewportConstants";
 
 export type DevicePreset = {
   name: string;
@@ -37,7 +38,7 @@ export type DevicePreset = {
 
 const MOBILE_PRESET: DevicePreset = {
   name: "Phone",
-  width: 390,
+  width: PREVIEW_MOBILE_VIEWPORT_WIDTH,
   height: 844,
   icon: <Smartphone className="w-4 h-4" />,
 };
@@ -53,7 +54,7 @@ const DEVICE_PRESETS: DevicePreset[] = [
   MOBILE_PRESET,
   {
     name: "Tablet Portrait",
-    width: 768,
+    width: PREVIEW_TABLET_VIEWPORT_WIDTH,
     height: 1024,
     icon: <Tablet className="w-4 h-4" />,
   },
