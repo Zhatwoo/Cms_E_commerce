@@ -186,7 +186,7 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
   const isVisible = (id: string) => visibleBlocks.includes(id);
 
   return (
-    <section className={`relative min-h-screen overflow-hidden px-4 pb-0 pt-24 md:px-8 md:pt-32 2xl:px-12 ${
+    <section id="home" className={`relative min-h-screen overflow-hidden px-4 pb-0 pt-24 md:px-8 md:pt-32 2xl:px-12 ${
       isDarkMode ? 'bg-[#0a0141] text-white' : 'bg-white text-[#120533]'
     }`}>
       {/* Ambient bg glows */}
