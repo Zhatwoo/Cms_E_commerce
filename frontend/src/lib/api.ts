@@ -462,6 +462,7 @@ export async function permanentDeleteProject(id: string): Promise<{ success: boo
   });
 }
 
+<<<<<<< Updated upstream
 /** Upload media file for web builder. Returns the public URL. */
 export async function uploadMediaApi(
   projectId: string,
@@ -548,6 +549,8 @@ export async function updateDomainSubdomain(
   });
 }
 
+=======
+>>>>>>> Stashed changes
 /** Unpublish (take down) a published project. Site will no longer be accessible until published again. */
 export async function unpublishProject(projectId: string): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
   return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>('/api/domains/unpublish', {

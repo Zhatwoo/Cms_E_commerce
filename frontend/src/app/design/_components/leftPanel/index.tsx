@@ -458,6 +458,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   return (
     <div
       data-panel="left"
+<<<<<<< Updated upstream
       className="bg-builder-surface flex flex-col h-full border-r border-builder-border overflow-hidden transition-[width] duration-300 ease-out"
       style={{ width: `${width}px` }}
     >
@@ -495,6 +496,30 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   />
                 </button>
               )}
+=======
+      className="bg-brand-dark flex flex-col h-full border-r border-white/10 overflow-hidden transition-[width] duration-300 ease-out"
+      style={{ width: `${width}px` }}
+    >
+      <div className="flex flex-col gap-4 shrink-0 px-4 pt-4">
+      {/* Header + Title + Tabs: fixed at top, do not scroll */}
+      <div className="flex flex-col gap-4 shrink-0">
+      {/* Left Panel Header */}
+      <div className="flex items-start justify-between mb-2 gap-2">
+        {/* Project dropdown trigger */}
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
+          >
+            <h3 className="text-brand-lighter font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
+              {websiteName ?? "Project Title"}
+            </h3>
+            <ChevronDown
+              className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""
+                }`}
+            />
+          </button>
+>>>>>>> Stashed changes
 
               {/* Dropdown menu */}
               {menuOpen && (
@@ -615,9 +640,14 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
           </button>
         </div>
       </div>
+      </div>
 
       {/* Panel content: scrollable; Files/Assets/Templates show scrollbar for full layer access */}
+<<<<<<< Updated upstream
       <div className={`editor-panel-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${activePanel === "components" ? "no-scrollbar" : "px-4 pb-4 mt-4"} overscroll-contain`}>
+=======
+      <div className={`editor-panel-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden mt-4 px-4 pb-4 overscroll-contain ${activePanel === "components" ? "no-scrollbar" : ""}`}>
+>>>>>>> Stashed changes
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "media" && (

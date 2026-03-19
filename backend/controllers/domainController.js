@@ -267,6 +267,7 @@ exports.publish = async (req, res) => {
 exports.unpublish = async (req, res) => {
   try {
     const { projectId } = req.body;
+<<<<<<< Updated upstream
     const trimmedProjectId = projectId ? String(projectId).trim() : '';
     if (!trimmedProjectId) {
       return res.status(400).json({ success: false, message: 'projectId is required' });
@@ -296,6 +297,25 @@ exports.unpublish = async (req, res) => {
     if (rtdb) {
       try {
         const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${trimmedProjectId}`);
+=======
+    if (!projectId || !String(projectId).trim()) {
+      return res.status(400).json({ success: false, message: 'projectId is required' });
+    }
+    const userId = req.user.id;
+    const project = await Project.get(userId, String(projectId).trim());
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+    const data = await Domain.unpublishForClient(userId, String(projectId).trim());
+    if (!data) {
+      return res.status(400).json({ success: false, message: 'Domain not found or already in draft' });
+    }
+    await Project.update(userId, projectId, { status: 'draft' });
+    const rtdb = getRealtimeDb();
+    if (rtdb) {
+      try {
+        const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`);
+>>>>>>> Stashed changes
         await rtdbRef.update({ status: 'draft' });
       } catch (e) {
         console.warn('unpublish: Realtime DB sync failed:', e.message);
@@ -307,6 +327,7 @@ exports.unpublish = async (req, res) => {
   }
 };
 
+<<<<<<< Updated upstream
 // Update subdomain for an existing published project
 exports.updateSubdomain = async (req, res) => {
   try {
@@ -357,6 +378,8 @@ exports.updateSubdomain = async (req, res) => {
   }
 };
 
+=======
+>>>>>>> Stashed changes
 // Schedule publish: set a date when current draft will go live (must have published at least once)
 exports.schedulePublish = async (req, res) => {
   try {
