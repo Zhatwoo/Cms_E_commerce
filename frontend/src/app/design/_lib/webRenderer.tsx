@@ -576,6 +576,12 @@ const frameResponsiveStyles = (
         max-width: 100% !important;
       }
 
+      .frame-responsive-inner.frame-fluid [data-node-id][style*="display: grid"][style*="grid-template-columns"],
+      .frame-responsive-inner.frame-fluid [data-node-id][style*="display:grid"][style*="grid-template-columns"] {
+        grid-auto-flow: row dense;
+        grid-auto-rows: minmax(0, auto);
+      }
+
       .frame-responsive-inner.frame-fluid [data-fluid-grid="true"] {
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
       }
@@ -589,6 +595,8 @@ const frameResponsiveStyles = (
         /* Tablet-optimized spacing and typography */
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
           font-size: clamp(14px, var(--fluid-font-cqw, 3.6cqw), var(--fluid-font-max, 48px)) !important;
+          max-inline-size: 100% !important;
+          overflow-wrap: anywhere !important;
         }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
           padding-top: clamp(12px, 2.2cqw, 24px) !important;
@@ -614,16 +622,44 @@ const frameResponsiveStyles = (
           border-radius: clamp(8px, 2.6cqw, 16px) !important;
         }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
         }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: grid"][style*="grid-template-columns"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:grid"][style*="grid-template-columns"] {
+          grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)) !important;
+          gap: clamp(10px, 2.2cqw, 18px) !important;
+        }
+
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
           gap: clamp(12px, 2.4cqw, 20px) !important;
         }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+          flex: 1 1 clamp(240px, 46%, 420px) !important;
+          min-width: min(240px, 100%) !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: auto !important;
+          transform: none !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
       }
 
-      @container (max-width: 960px) {
+      @container (max-width: 640px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
           font-size: clamp(12px, var(--fluid-font-cqw, 3.2cqw), var(--fluid-font-max, 48px)) !important;
+          max-inline-size: 100% !important;
+          hyphens: auto;
         }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
           padding-top: clamp(4px, 1.4cqw, 18px) !important;
@@ -642,41 +678,6 @@ const frameResponsiveStyles = (
         }
       }
 
-      @container (min-width: 641px) and (max-width: 950px) {
-        /* Re-apply tablet tuning after generic <=960 rules so tablet does not inherit mobile-tight spacing. */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          font-size: clamp(14px, var(--fluid-font-cqw, 3.6cqw), var(--fluid-font-max, 48px)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-top: clamp(12px, 2.2cqw, 24px) !important;
-          padding-bottom: clamp(12px, 2.2cqw, 24px) !important;
-          padding-left: clamp(12px, 2.8cqw, 24px) !important;
-          padding-right: clamp(12px, 2.8cqw, 24px) !important;
-          column-gap: clamp(12px, 2.6cqw, 28px) !important;
-          row-gap: clamp(12px, 2.6cqw, 28px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          padding-left: clamp(14px, 2.4cqw, 28px) !important;
-          padding-right: clamp(14px, 2.4cqw, 28px) !important;
-          padding-top: clamp(10px, 1.8cqw, 14px) !important;
-          padding-bottom: clamp(10px, 1.8cqw, 14px) !important;
-          gap: clamp(8px, 1.8cqw, 16px) !important;
-          font-size: clamp(14px, 3.2cqw, 16px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
-          width: clamp(18px, 3.8cqw, 32px) !important;
-          height: clamp(18px, 3.8cqw, 32px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          border-radius: clamp(8px, 2.6cqw, 16px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
-          gap: clamp(12px, 2.4cqw, 20px) !important;
-        }
-      }
       @container (max-width: 900px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
           grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -811,6 +812,7 @@ const frameResponsiveStyles = (
           display: flex !important;
           width: 100% !important;
           max-width: 100% !important;
+          min-height: clamp(38px, 10cqw, 52px) !important;
           justify-content: center !important;
         }
 
@@ -2297,9 +2299,6 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
-  if (prototype?.interactions?.length) {
-    console.log("[Prototype] Node", nodeId, "type:", type, "has prototype:", JSON.stringify(prototype));
-  }
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
@@ -4391,15 +4390,6 @@ export function WebPreview({
     [doc]
   );
 
-  React.useEffect(() => {
-    const nodesWithPrototype = Object.entries(safeNodes).filter(
-      ([, n]) => n?.props?.prototype && (n.props.prototype as PrototypeConfig).interactions?.length > 0
-    );
-    console.log("[WebPreview] Pages:", safePages.map((p, i) => ({ id: p.id, name: p.name, slug: getPageSlug(p, i) })));
-    console.log("[WebPreview] Nodes with prototype:", nodesWithPrototype.map(([id, n]) => ({ id, type: n.type, prototype: n.props.prototype })));
-    console.log("[WebPreview] Total nodes:", Object.keys(safeNodes).length);
-  }, [safePages, safeNodes]);
-
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
@@ -4419,13 +4409,9 @@ export function WebPreview({
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
-      console.log("[Prototype] Action fired:", JSON.stringify(interaction));
-      console.log("[Prototype] Available pages:", JSON.stringify(pageMeta));
-      console.log("[Prototype] Current page:", currentPageSlug);
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
         const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
-        console.log("[Prototype] Resolved slug:", internalSlug, "from destination:", interaction.destination);
         if (internalSlug) {
           setHistory((h) => [...h, currentPageSlug]);
           const trans = interaction.transition ?? "dissolve";
