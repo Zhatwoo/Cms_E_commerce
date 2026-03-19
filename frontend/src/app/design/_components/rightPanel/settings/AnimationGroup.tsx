@@ -205,8 +205,13 @@ function asNumber(value: unknown): number {
 }
 
 function getDomXY(el: HTMLElement): { x: number; y: number } {
+  const view = el.ownerDocument?.defaultView ?? window;
   const rect = el.getBoundingClientRect();
-  return { x: rect.left + window.scrollX, y: rect.top + window.scrollY };
+  return { x: rect.left + view.scrollX, y: rect.top + view.scrollY };
+}
+
+function countMids(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
 }
 
 function applyScrollPreviewIndicator(element: HTMLElement): () => void {
@@ -355,15 +360,72 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           const start = scrollConfig.freeMove?.start;
           const end = scrollConfig.freeMove?.end;
           if (!start || !end) return;
+
+          const mids = (scrollConfig.freeMove?.mids ?? []) as Array<{ x: number; y: number }>;
+          const points: Array<{ x: number; y: number }> = [start, ...mids, end];
+
+          const view = element.ownerDocument?.defaultView ?? window;
           const rect = element.getBoundingClientRect();
-          from = {
-            x: (start.x - rect.left) * scrollConfig.speed,
-            y: (start.y - rect.top) * scrollConfig.speed,
-          };
-          to = {
-            x: (end.x - rect.left) * scrollConfig.speed,
-            y: (end.y - rect.top) * scrollConfig.speed,
-          };
+          const pageLeft = rect.left + view.scrollX;
+          const pageTop = rect.top + view.scrollY;
+          const baseX = Number(gsap.getProperty(element, "x")) || 0;
+          const baseY = Number(gsap.getProperty(element, "y")) || 0;
+          const toOffset = (p: { x: number; y: number }) => ({
+            // FreeMove should be exact regardless of Speed/Intensity.
+            x: baseX + (p.x - pageLeft),
+            y: baseY + (p.y - pageTop),
+          });
+
+          const offsets = points.map(toOffset);
+          from = offsets[0] ?? {};
+          to = offsets[offsets.length - 1] ?? {};
+
+          // Simulated smooth preview (Start -> ... -> End -> Back to Start)
+          const baseDuration = 0.8;
+          const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
+
+          const restoreIndicator = applyScrollPreviewIndicator(element);
+          restoreScrollIndicatorRef.current = restoreIndicator;
+
+          const timeline = gsap.timeline({
+            defaults: { ease: simulatedEase },
+            onComplete: () => {
+              gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
+              if (restoreScrollIndicatorRef.current) {
+                restoreScrollIndicatorRef.current();
+                restoreScrollIndicatorRef.current = null;
+              }
+              timeline.kill();
+              if (scrollPreviewTimelineRef.current === timeline) {
+                scrollPreviewTimelineRef.current = null;
+              }
+            },
+          });
+
+          // Sample along path for a smoother preview (more points = smoother).
+          const samples = Math.max(12, points.length * 6);
+          const go: Array<{ x: number; y: number }> = [];
+          for (let i = 0; i <= samples; i++) {
+            const alpha = i / samples;
+            const seg = alpha * (offsets.length - 1);
+            const idx = Math.floor(seg);
+            const localT = seg - idx;
+            const p1 = offsets[Math.min(offsets.length - 1, idx)];
+            const p2 = offsets[Math.min(offsets.length - 1, idx + 1)];
+            go.push({
+              x: (p1?.x as number ?? 0) + ((p2?.x as number ?? 0) - (p1?.x as number ?? 0)) * localT,
+              y: (p1?.y as number ?? 0) + ((p2?.y as number ?? 0) - (p1?.y as number ?? 0)) * localT,
+            });
+          }
+
+          timeline.set(element, { x: go[0]?.x ?? 0, y: go[0]?.y ?? 0, force3D: true }, 0);
+          for (let i = 1; i < go.length; i++) {
+            timeline.to(element, { ...go[i], force3D: true, duration: baseDuration / (go.length - 1) }, (i - 1) * (baseDuration / (go.length - 1)));
+          }
+          timeline.to(element, { x: go[0]?.x ?? 0, y: go[0]?.y ?? 0, force3D: true, duration: baseDuration * 0.5 }, baseDuration);
+
+          scrollPreviewTimelineRef.current = timeline;
+          return;
         } else {
           const range = getScrollEffectRange(scrollConfig);
           from = range.from;
@@ -455,17 +517,16 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
 
   const freeMoveStatus = useMemo(() => {
     const start = animation.scrollEffect.freeMove?.start;
-    const mid = animation.scrollEffect.freeMove?.mid;
     const end = animation.scrollEffect.freeMove?.end;
+    const mids = animation.scrollEffect.freeMove?.mids;
     return {
       hasStart: !!start,
-      hasMid: !!mid,
       hasEnd: !!end,
       start,
-      mid,
       end,
+      midCount: countMids(mids),
     };
-  }, [animation.scrollEffect.freeMove?.start, animation.scrollEffect.freeMove?.mid, animation.scrollEffect.freeMove?.end]);
+  }, [animation.scrollEffect.freeMove?.start, animation.scrollEffect.freeMove?.end, animation.scrollEffect.freeMove?.mids]);
 
   return (
     <div className="flex flex-col pb-4">
@@ -931,17 +992,17 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             {!freeMoveStatus.hasStart
                               ? "1) Drag the element to START, then click Set Start."
                               : !freeMoveStatus.hasEnd
-                                ? "2) Drag the element to END, then click Set End. (Mid is optional)"
-                                : freeMoveStatus.hasMid
-                                  ? "Done. 3 keyframes (Start → Mid → End). Scroll to see it."
-                                  : "Done. 2 keyframes (Start → End). Scroll to see it."}
+                                ? "2) Add Mid(s) if needed, then drag to END and click Set End."
+                                : freeMoveStatus.midCount > 0
+                                  ? `Done. Path: Start → ${freeMoveStatus.midCount} Mid(s) → End. Scroll to see it.`
+                                  : "Done. Path: Start → End. Scroll to see it."}
                           </span>
                         </div>
                         <button
                           type="button"
                           className="text-xs px-2 py-1 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors"
                           onClick={() => {
-                            update("scrollEffect.freeMove", { start: undefined, mid: undefined, end: undefined });
+                            update("scrollEffect.freeMove", { start: undefined, mids: [], end: undefined, keyframes: undefined });
                             schedulePreview("scrollEffect");
                           }}
                         >
@@ -967,8 +1028,9 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             if (!freeMoveStatus.hasStart) {
                               const xy = getDomXY(el);
                               update("scrollEffect.freeMove.start", xy);
-                              update("scrollEffect.freeMove.mid", undefined);
+                              update("scrollEffect.freeMove.mids", []);
                               update("scrollEffect.freeMove.end", undefined);
+                              update("scrollEffect.freeMove.keyframes", undefined);
                               return;
                             }
 
@@ -976,15 +1038,20 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             if (!start) return;
                             const xy = getDomXY(el);
                             update("scrollEffect.freeMove.end", xy);
+                            update("scrollEffect.freeMove.keyframes", undefined);
 
                             // Snap back to Start immediately after setting End.
-                            gsap.set(el, { clearProps: "transform" });
+                            // IMPORTANT: don't clear transforms; just offset from current pose.
+                            const view = el.ownerDocument?.defaultView ?? window;
                             const rect = el.getBoundingClientRect();
-                            const pageLeft = rect.left + window.scrollX;
-                            const pageTop = rect.top + window.scrollY;
+                            const pageLeft = rect.left + view.scrollX;
+                            const pageTop = rect.top + view.scrollY;
+                            const baseX = Number(gsap.getProperty(el, "x")) || 0;
+                            const baseY = Number(gsap.getProperty(el, "y")) || 0;
                             gsap.set(el, {
-                              x: (start.x - pageLeft) * animation.scrollEffect.speed,
-                              y: (start.y - pageTop) * animation.scrollEffect.speed,
+                              x: baseX + (start.x - pageLeft),
+                              y: baseY + (start.y - pageTop),
+                              force3D: true,
                             });
                           }}
                         >
@@ -1005,36 +1072,40 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             }
                             if (!el) return;
 
-                            if (freeMoveStatus.hasMid) {
-                              update("scrollEffect.freeMove.mid", undefined);
-                              return;
-                            }
-
                             const xy = getDomXY(el);
-                            update("scrollEffect.freeMove.mid", xy);
-
-                            // Snap back to Start after setting Mid.
-                            const start = animation.scrollEffect.freeMove?.start;
-                            if (!start) return;
-                            gsap.set(el, { clearProps: "transform" });
-                            const rect = el.getBoundingClientRect();
-                            const pageLeft = rect.left + window.scrollX;
-                            const pageTop = rect.top + window.scrollY;
-                            gsap.set(el, {
-                              x: (start.x - pageLeft) * animation.scrollEffect.speed,
-                              y: (start.y - pageTop) * animation.scrollEffect.speed,
-                            });
+                            const existing = (animation.scrollEffect.freeMove?.mids ?? []) as Array<{
+                              x: number;
+                              y: number;
+                            }>;
+                            update("scrollEffect.freeMove.mids", [...existing, { x: xy.x, y: xy.y }]);
+                            update("scrollEffect.freeMove.keyframes", undefined);
                           }}
-                          title="Optional middle keyframe (50%)"
+                          title="Add another mid point"
                         >
-                          {freeMoveStatus.hasMid ? "Clear Mid" : "Add Mid"}
+                          Add Mid
+                        </button>
+
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-2 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={!freeMoveStatus.hasStart || freeMoveStatus.hasEnd || freeMoveStatus.midCount === 0}
+                          onClick={() => {
+                            const existing = (animation.scrollEffect.freeMove?.mids ?? []) as Array<{ x: number; y: number }>;
+                            if (existing.length === 0) return;
+                            update("scrollEffect.freeMove.mids", existing.slice(0, -1));
+                            update("scrollEffect.freeMove.keyframes", undefined);
+                          }}
+                          title="Undo last mid point"
+                        >
+                          Undo
                         </button>
                       </div>
 
                       <div className="flex items-center justify-between">
                         <span className={subLabelClass}>
-                          Start: {freeMoveStatus.hasStart ? "set" : "not set"} · Mid:{" "}
-                          {freeMoveStatus.hasMid ? "set" : "off"} · End: {freeMoveStatus.hasEnd ? "set" : "not set"}
+                          Start: {freeMoveStatus.hasStart ? "set" : "not set"} · Mid(s):{" "}
+                          {freeMoveStatus.midCount} · End:{" "}
+                          {freeMoveStatus.hasEnd ? "set" : "not set"}
                         </span>
                         <button
                           type="button"

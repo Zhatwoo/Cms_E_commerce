@@ -114,8 +114,13 @@ export interface ScrollEffectConfig {
   end: string;
   freeMove?: {
     start?: { x: number; y: number };
-    mid?: { x: number; y: number };
+    mids?: Array<{ x: number; y: number }>;
     end?: { x: number; y: number };
+    /**
+     * Multi-keyframe path. Each keyframe is in page coordinates (x/y) with progress t in [0..1].
+     * When present, this takes precedence over start/mid/end.
+     */
+    keyframes?: Array<{ t: number; x: number; y: number }>;
   };
 }
 

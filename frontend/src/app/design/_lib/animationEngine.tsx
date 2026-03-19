@@ -217,75 +217,193 @@ function useGsapScrollEffect(
     const el = ref.current;
     if (!el) return;
 
+    const view = el.ownerDocument?.defaultView ?? window;
+
     const getPageRect = () => {
       const rect = el.getBoundingClientRect();
       return {
-        left: rect.left + window.scrollX,
-        top: rect.top + window.scrollY,
+        left: rect.left + view.scrollX,
+        top: rect.top + view.scrollY,
       };
     };
 
-    const computeFreeMoveKeyframes = (): Array<{ at: 0 | 0.5 | 1; x: number; y: number }> => {
+    const catmullRom = (p0: number, p1: number, p2: number, p3: number, t: number) => {
+      const t2 = t * t;
+      const t3 = t2 * t;
+      return 0.5 * (
+        (2 * p1) +
+        (-p0 + p2) * t +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+      );
+    };
+
+    const sampleSpline = (
+      points: Array<{ x: number; y: number }>,
+      t: number
+    ): { x: number; y: number } => {
+      const n = points.length;
+      if (n === 0) return { x: 0, y: 0 };
+      if (n === 1) return points[0];
+      const clamped = Math.min(1, Math.max(0, t));
+      const scaled = clamped * (n - 1);
+      const i = Math.floor(scaled);
+      const localT = scaled - i;
+
+      const p0 = points[Math.max(0, i - 1)];
+      const p1 = points[i];
+      const p2 = points[Math.min(n - 1, i + 1)];
+      const p3 = points[Math.min(n - 1, i + 2)];
+
+      return {
+        x: catmullRom(p0.x, p1.x, p2.x, p3.x, localT),
+        y: catmullRom(p0.y, p1.y, p2.y, p3.y, localT),
+      };
+    };
+
+    const computeFreeMoveKeyframes = (): Array<{ at: number; x: number; y: number }> => {
+      const direct = config.freeMove?.keyframes;
       const start = config.freeMove?.start;
-      const mid = config.freeMove?.mid;
+      const mids = config.freeMove?.mids;
       const end = config.freeMove?.end;
-      if (!start || !end) return [];
+
+      const raw: Array<{ t: number; x: number; y: number }> =
+        Array.isArray(direct) && direct.length >= 2
+          ? direct
+          : start && end
+            ? (() => {
+              const midPoints = Array.isArray(mids) ? mids : [];
+              const points: Array<{ x: number; y: number }> = [start, ...midPoints, end];
+              if (points.length < 2) return [];
+              const last = points.length - 1;
+              return points.map((p, idx) => ({
+                t: last === 0 ? 0 : idx / last,
+                x: p.x,
+                y: p.y,
+              }));
+            })()
+            : [];
+
+      if (raw.length < 2) return [];
 
       // Compute transform offsets relative to the element's layout position (page coords).
       // At scroll start (progress 0) the element will appear at captured "start".
       const page = getPageRect();
+      const baseX = Number(gsap.getProperty(el, "x")) || 0;
+      const baseY = Number(gsap.getProperty(el, "y")) || 0;
       const toOffset = (p: { x: number; y: number }) => ({
-        x: (p.x - page.left) * config.speed,
-        y: (p.y - page.top) * config.speed,
+        // FreeMove should be exact regardless of Speed/Intensity.
+        // Speed is still used by other scroll effects, but FreeMove uses 1:1 mapping.
+        // IMPORTANT: preserve any existing transform set by the builder by adding deltas
+        // instead of overwriting absolute x/y.
+        x: baseX + (p.x - page.left),
+        y: baseY + (p.y - page.top),
       });
 
-      const frames: Array<{ at: 0 | 0.5 | 1; x: number; y: number }> = [
-        { at: 0, ...toOffset(start) },
-        ...(mid ? [{ at: 0.5 as const, ...toOffset(mid) }] : []),
-        { at: 1, ...toOffset(end) },
-      ];
-      return frames;
-    };
+      const frames = raw
+        .map((k) => ({
+          at: Math.min(1, Math.max(0, k.t)),
+          ...toOffset({ x: k.x, y: k.y }),
+        }))
+        .sort((a, b) => a.at - b.at);
 
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: el,
-        start: config.start,
-        end: config.end,
-        scrub: config.scrub ? 1 : false,
-        invalidateOnRefresh: true,
-      },
-    });
+      // Ensure we have distinct progress points
+      const dedup: Array<{ at: number; x: number; y: number }> = [];
+      for (const f of frames) {
+        if (dedup.length === 0 || Math.abs(dedup[dedup.length - 1].at - f.at) > 1e-6) {
+          dedup.push(f);
+        } else {
+          dedup[dedup.length - 1] = f;
+        }
+      }
+      return dedup.length >= 2 ? dedup : [];
+    };
 
     if (config.type === "freeMove") {
       const frames = computeFreeMoveKeyframes();
       if (frames.length >= 2) {
-        const first = frames[0];
-        tl.set(el, { x: first.x, y: first.y }, 0);
+        // Use smooth spline sampling over scroll progress (no sharp corners).
+        const points = frames.map((f) => ({ x: f.x, y: f.y }));
+        const first = points[0];
 
-        for (let i = 1; i < frames.length; i++) {
-          const f = frames[i];
-          tl.to(
-            el,
-            { x: f.x, y: f.y, ease: "none", duration: (f.at - frames[i - 1].at) as number },
-            frames[i - 1].at
-          );
-        }
+        gsap.set(el, {
+          x: first.x,
+          y: first.y,
+          force3D: true,
+        });
+
+        const speed = typeof config.speed === "number" && Number.isFinite(config.speed) ? config.speed : 1;
+        const speedAbs = Math.max(0, Math.min(2, Math.abs(speed)));
+        // IMPORTANT: In FreeMove, speed must NOT change distance.
+        // We use it only to control responsiveness/smoothing (how fast it follows scroll).
+        // Higher speed => larger follow factor => less lag.
+        // IMPORTANT: We apply this even if Scrub is OFF so the slider always "feels" different.
+        // Speed 0 => very laggy/smooth, Speed 2 => very snappy.
+        const follow = (() => {
+          if (speedAbs <= 0.05) return 0.02;
+          if (speedAbs >= 1.95) return 1;
+          return Math.max(0.02, Math.min(0.75, 0.05 + speedAbs * 0.35));
+        })();
+
+        let targetProgress = 0;
+        let currentProgress = 0;
+        let tickerAdded = false;
+        const tick = () => {
+          // When smoothing disabled, jump immediately.
+          if (follow >= 1) {
+            currentProgress = targetProgress;
+          } else {
+            currentProgress += (targetProgress - currentProgress) * follow;
+          }
+          const p = sampleSpline(points, currentProgress);
+          gsap.set(el, { x: p.x, y: p.y, force3D: true });
+        };
+
+        const st = ScrollTrigger.create({
+          trigger: el,
+          start: config.start,
+          end: config.end,
+          scrub: false,
+          invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            targetProgress = speed < 0 ? 1 - self.progress : self.progress;
+
+            if (!tickerAdded) {
+              tickerAdded = true;
+              gsap.ticker.add(tick);
+            }
+          },
+        });
+
+        return () => {
+          if (tickerAdded) gsap.ticker.remove(tick);
+          st.kill();
+        };
       }
+      return;
     } else {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: el,
+          start: config.start,
+          end: config.end,
+          scrub: config.scrub ? 1 : false,
+          invalidateOnRefresh: true,
+        },
+      });
       const { from, to } = getScrollEffectRange(config);
       tl.fromTo(el, from, {
         ...to,
         ease: "none",
       });
-    }
 
-    return () => {
-      tl.kill();
-      ScrollTrigger.getAll().forEach((t) => {
-        if (t.trigger === el) t.kill();
-      });
-    };
+      return () => {
+        tl.kill();
+        ScrollTrigger.getAll().forEach((t) => {
+          if (t.trigger === el) t.kill();
+        });
+      };
+    }
   }, [
     ref,
     config.enabled,
@@ -297,10 +415,10 @@ function useGsapScrollEffect(
     config.end,
     config.freeMove?.start?.x,
     config.freeMove?.start?.y,
-    config.freeMove?.mid?.x,
-    config.freeMove?.mid?.y,
     config.freeMove?.end?.x,
     config.freeMove?.end?.y,
+    config.freeMove?.mids,
+    config.freeMove?.keyframes,
   ]);
 }
 
