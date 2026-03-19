@@ -1,39 +1,22 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   getDomainsManagement,
   setClientDomainStatus,
   type WebsiteManagementRow,
 } from '@/lib/api';
 import { useGDriveSelection } from './useGDriveSelection';
-
-const SearchIcon = () => (
-  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
-const ChevronDownIcon = () => (
-  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-  </svg>
-);
-
-const ExternalLinkIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-  </svg>
-);
-
-const StorageIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-    <circle cx="6" cy="6" r="1" fill="currentColor" />
-    <circle cx="6" cy="12" r="1" fill="currentColor" />
-    <circle cx="6" cy="18" r="1" fill="currentColor" />
-  </svg>
-);
+import {
+  ChevronDownIcon,
+  ExternalLinkIcon,
+  SearchIcon,
+  StorageIcon,
+  TrashOutlineIcon,
+} from '@/lib/icons/adminIcons';
+import { getPlanPillClasses } from '@/lib/config/planConfig';
+import { getStatusBadgeClasses, getStatusLabel } from '@/lib/utils/adminStatus';
 
 const ManageIcon = () => (
   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -45,16 +28,6 @@ const ManageIcon = () => (
 const LockIcon = () => (
   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" />
-  </svg>
-);
-
-const TrashIcon = () => (
-  <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
   </svg>
 );
 
@@ -83,13 +56,6 @@ function getViewWebsiteUrl(domainName: string): string {
     return `http://${subdomain}.localhost:${port}`;
   }
   return `https://${subdomain}.${BASE_DOMAIN}`;
-}
-
-function planPillClasses(plan: string): string {
-  const p = (plan || 'free').toLowerCase();
-  if (p === 'basic') return 'bg-[#FFCC00] text-[#2A1A47]';
-  if (p === 'pro') return 'bg-[#0A8F2F] text-white';
-  return 'bg-[#3D49DD] text-white';
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -294,12 +260,9 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
               <div>
                 <p className="text-sm text-gray-600 mb-1">Status</p>
                 <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                  status === 'Live' || status === 'published' ? 'bg-green-100 text-green-800' :
-                  status === 'Suspended' || status === 'suspended' ? 'bg-red-100 text-red-800' :
-                  status === 'Flagged' || status === 'flagged' ? 'bg-red-100 text-red-800' :
-                  'bg-yellow-100 text-yellow-800'
+                  getStatusBadgeClasses(status)
                 }`}>
-                  {status === 'published' || status === 'Live' ? 'Live' : status === 'suspended' || status === 'Suspended' ? 'Suspended' : status}
+                  {getStatusLabel(status)}
                 </span>
               </div>
               <div>
@@ -352,6 +315,10 @@ type ActionModalState = {
 };
 
 function DomainManagementContent({ onManage }: DomainManagementContentProps) {
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get('search') || '';
+  const focusedWebsiteId = searchParams.get('websiteId') || '';
+  const focusedWebsiteUserId = searchParams.get('websiteUserId') || '';
   const PAGE_SIZE = 20;
   type SortOption = 'recent' | 'az' | 'za';
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
@@ -403,8 +370,15 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    setSearch(urlSearch);
+    setCurrentPage(1);
+  }, [urlSearch, focusedWebsiteId, focusedWebsiteUserId]);
+
   const filtered = useMemo(() => {
     return websites.filter((w) => {
+      const matchFocusedWebsite = !focusedWebsiteId
+        || (w.id === focusedWebsiteId && (!focusedWebsiteUserId || w.userId === focusedWebsiteUserId));
       const matchSearch = !search ||
         w.domainName.toLowerCase().includes(search.toLowerCase()) ||
         w.owner.toLowerCase().includes(search.toLowerCase());
@@ -413,9 +387,9 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
       const matchStatus = !statusFilter || status === statusFilter.toLowerCase();
       const matchPlan = !planFilter || plan === planFilter.toLowerCase();
       const matchType = !domainTypeFilter || (w.domainType || '').toLowerCase() === domainTypeFilter.toLowerCase();
-      return matchSearch && matchStatus && matchPlan && matchType;
+      return matchFocusedWebsite && matchSearch && matchStatus && matchPlan && matchType;
     });
-  }, [websites, search, statusFilter, planFilter, domainTypeFilter]);
+  }, [websites, focusedWebsiteId, focusedWebsiteUserId, search, statusFilter, planFilter, domainTypeFilter]);
 
   const visibleWebsites = useMemo(() => {
     const seen = new Set<string>();
@@ -1024,7 +998,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                             </div>
                           )}
 
-                          <span className={`inline-flex min-w-[90px] justify-center px-3 py-1 text-[0.9rem] font-semibold rounded-full ${planPillClasses(w.plan || 'free')}`}>
+                          <span className={`inline-flex min-w-[90px] justify-center px-3 py-1 text-[0.9rem] font-semibold rounded-full ${getPlanPillClasses(w.plan || 'free')}`}>
                             {w.plan || 'Free'}
                           </span>
                         </div>
@@ -1059,7 +1033,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                             className="p-1.5 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
                             aria-label="Flag website"
                           >
-                            <TrashIcon />
+                            <TrashOutlineIcon />
                           </button>
                           {viewUrl !== '#' && (
                             <Tooltip label="Open website in new tab">
