@@ -328,14 +328,15 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            <div className="admin-dashboard-panel flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5">
-                <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
+            <div className="admin-dashboard-panel flex h-full w-full flex-col overflow-hidden rounded-[28px]">
+                {/* Logo header — fixed height so nav never shifts vertically */}
+                <div className="flex h-[85px] w-full shrink-0 items-center justify-center">
                     <Link href="/admindashboard" aria-label="Dashboard Home">
-                        <Image src="/images/logo.svg" alt="CMS E-commerce" width={56} height={56} className="object-contain" />
+                        <img src="/images/logo.svg" alt="CMS E-commerce" className="h-9 w-auto max-w-[36px] object-contain" />
                     </Link>
                 </div>
 
-                <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
+                <nav className="flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-2 pb-2 pt-11">
                     {navItems.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
@@ -349,17 +350,38 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         onClick={() => isHovered && toggleDropdown(item.id)}
                                         aria-label={item.label}
                                         suppressHydrationWarning
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
+                                        {/* Fixed-width icon slot so icon never shifts */}
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                         </span>
-                                        <span className={`admin-dashboard-purple ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            {item.label}
-                                        </span>
-                                        <span className={`admin-dashboard-purple mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            <ChevronDownIcon isOpen={isOpen} />
-                                        </span>
+                                        <AnimatePresence>
+                                            {isHovered && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -10 }}
+                                                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                                                    className="admin-dashboard-purple ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold"
+                                                >
+                                                    {item.label}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
+                                        <AnimatePresence>
+                                            {isHovered && (
+                                                <motion.span
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="admin-dashboard-purple mr-1"
+                                                >
+                                                    <ChevronDownIcon isOpen={isOpen} />
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
                                         {isActive ? (
                                             <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
                                         ) : null}
@@ -368,14 +390,25 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                     <Link
                                         href={item.href}
                                         aria-label={item.label}
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
+                                        {/* Fixed-width icon slot so icon never shifts */}
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                         </span>
-                                        <span className={`admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            {item.label}
-                                        </span>
+                                        <AnimatePresence>
+                                            {isHovered && (
+                                                <motion.span
+                                                    initial={{ opacity: 0, x: -10 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    exit={{ opacity: 0, x: -10 }}
+                                                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                                                    className="admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold"
+                                                >
+                                                    {item.label}
+                                                </motion.span>
+                                            )}
+                                        </AnimatePresence>
                                         {isActive ? (
                                             <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
                                         ) : null}
@@ -412,20 +445,33 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     })}
                 </nav>
 
-                <button
-                    type="button"
-                    suppressHydrationWarning
-                    className={`admin-dashboard-logout mt-auto shrink-0 flex items-center rounded-2xl ${isHovered ? 'w-full px-2 py-2 justify-start' : 'justify-center py-2'}`}
-                    aria-label="Log out"
-                    title="Log out"
-                >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
-                        <LogoutIcon />
-                    </span>
-                    <span className={`admin-dashboard-purple whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'ml-3 opacity-100' : 'opacity-0'}`}>
-                        Log out
-                    </span>
-                </button>
+                <div className="shrink-0 px-2 pb-2">
+                    <button
+                        type="button"
+                        suppressHydrationWarning
+                        className="admin-dashboard-logout flex w-full items-center rounded-2xl px-2 py-2"
+                        aria-label="Log out"
+                        title="Log out"
+                    >
+                        {/* Fixed-width icon slot so logout icon never shifts */}
+                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
+                            <LogoutIcon />
+                        </span>
+                        <AnimatePresence>
+                            {isHovered && (
+                                <motion.span
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -10 }}
+                                    transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                                    className="admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold"
+                                >
+                                    Log out
+                                </motion.span>
+                            )}
+                        </AnimatePresence>
+                    </button>
+                </div>
             </div>
         </motion.aside>
     );
