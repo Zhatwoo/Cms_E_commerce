@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
+import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -21,29 +22,6 @@ type NotificationSetting = {
 	email: boolean;
 	push: boolean;
 };
-
-const CheckIcon = () => (
-	<svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.5 8.5L6.5 11.5L12.5 4.5" />
-	</svg>
-);
-
-const TrashIcon = () => (
-	<svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
-	</svg>
-);
-
-const RestoreIcon = () => (
-	<svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor">
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M5 5H2.75V2.75" />
-		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M2.75 5a5.25 5.25 0 109.45 3.15" />
-	</svg>
-);
 
 function ModalShell({
 	children,
@@ -293,7 +271,7 @@ function NotificationsPageContent() {
 													<ActionButton onClick={handleMarkAsRead} disabled={selectedIds.length === 0} icon={<CheckIcon />}>
 														Mark as Read
 													</ActionButton>
-													<ActionButton onClick={handleDelete} disabled={selectedIds.length === 0} icon={<TrashIcon />}>
+													<ActionButton onClick={handleDelete} disabled={selectedIds.length === 0} icon={<TrashOutlineIcon />}>
 														Delete
 													</ActionButton>
 												</div>
@@ -393,7 +371,7 @@ function NotificationsPageContent() {
 															<ActionButton onClick={() => setShowRestoreModal(true)} disabled={trashSelectedIds.length === 0} icon={<RestoreIcon />}>
 																Restore
 															</ActionButton>
-															<ActionButton onClick={() => setShowPermanentDeleteModal(true)} disabled={trashSelectedIds.length === 0} icon={<TrashIcon />}>
+															<ActionButton onClick={() => setShowPermanentDeleteModal(true)} disabled={trashSelectedIds.length === 0} icon={<TrashOutlineIcon />}>
 																Delete Permanently
 															</ActionButton>
 														</div>

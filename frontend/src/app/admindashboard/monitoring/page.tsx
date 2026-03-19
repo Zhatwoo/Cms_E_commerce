@@ -6,6 +6,8 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { getDomainsManagement, listProducts, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
+import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
+import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -49,17 +51,6 @@ function websiteViewUrl(domainName: string): string {
   return normalized;
 }
 
-function websiteStatusMeta(status: string): { label: string; dotClass: string } {
-  const s = normalize(status);
-  if (s === 'published' || s === 'active' || s === 'live') {
-    return { label: 'Published', dotClass: 'bg-green-600' };
-  }
-  if (s === 'offline' || s === 'suspended') {
-    return { label: 'Offline', dotClass: 'bg-red-600' };
-  }
-  return { label: 'Draft', dotClass: 'bg-yellow-500' };
-}
-
 function productIndustry(product: ApiProduct): string {
   return product.category || product.subcategory || product.subCategory || product.sub_category || 'General';
 }
@@ -87,6 +78,8 @@ export default function WebsiteProductMonitoringPage() {
   const searchParams = useSearchParams();
 
   const tabParam = searchParams.get('tab');
+  const urlSearch = searchParams.get('search') || '';
+  const focusedProductId = searchParams.get('productId') || '';
   const [activeTab, setActiveTab] = useState<MonitoringTab>(() => (tabParam === 'products' ? 'products' : 'websites'));
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -96,6 +89,14 @@ export default function WebsiteProductMonitoringPage() {
   const [industryFilter, setIndustryFilter] = useState('');
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [products, setProducts] = useState<ApiProduct[]>([]);
+
+  useEffect(() => {
+    setActiveTab(tabParam === 'products' ? 'products' : 'websites');
+  }, [tabParam]);
+
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,13 +164,14 @@ export default function WebsiteProductMonitoringPage() {
     const q = normalize(search);
     return approvedProducts.filter(
       (p) => {
+        const matchFocusedProduct = !focusedProductId || p.id === focusedProductId;
         const matchSearch = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q) || normalize(p.subdomain).includes(q);
         const matchStatus = !statusFilter || normalize(p.status) === statusFilter;
         const matchIndustry = !industryFilter || normalize(productIndustry(p)) === industryFilter;
-        return matchSearch && matchStatus && matchIndustry;
+        return matchFocusedProduct && matchSearch && matchStatus && matchIndustry;
       }
     );
-  }, [approvedProducts, search, statusFilter, industryFilter]);
+  }, [approvedProducts, focusedProductId, search, statusFilter, industryFilter]);
 
   const industryOptions = useMemo(() => {
     const items = new Set<string>();
@@ -268,9 +270,7 @@ export default function WebsiteProductMonitoringPage() {
                   className="h-12 w-12 rounded-full bg-yellow-400 text-gray-900 flex items-center justify-center shadow-sm"
                   aria-label="Search"
                 >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M21 21l-4.35-4.35m1.35-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  <SearchIcon className="h-6 w-6" strokeWidth={2.3} />
                 </button>
 
                 <div className="w-full max-w-[320px]">
@@ -297,9 +297,9 @@ export default function WebsiteProductMonitoringPage() {
                     <option value="live">Live</option>
                     <option value="active">Active</option>
                   </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#605D78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#605D78]">
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </span>
                 </div>
 
                 <div className="relative">
@@ -315,9 +315,9 @@ export default function WebsiteProductMonitoringPage() {
                       <option key={industry} value={normalize(industry)}>{industry}</option>
                     ))}
                   </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#605D78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#605D78]">
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </span>
                 </div>
 
                 <button
@@ -403,7 +403,7 @@ export default function WebsiteProductMonitoringPage() {
                     ) : (
                       <div className="grid grid-cols-1 min-[1760px]:grid-cols-[513px_513px] min-[1760px]:justify-center gap-y-4 min-[1760px]:gap-x-4">
                         {uniqueFilteredWebsites.map((w) => {
-                          const status = websiteStatusMeta(w.status);
+                          const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
                           const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
 
