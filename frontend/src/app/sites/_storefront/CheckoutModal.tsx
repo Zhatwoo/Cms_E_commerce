@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import type { CartItem } from './StorefrontContext';
 
-type PaymentMethod = 'card' | 'gcash' | 'maya' | 'stripe';
+type PaymentMethod = 'card' | 'gcash' | 'maya' | 'stripe' | 'paypal';
 
 type CheckoutModalProps = {
   open: boolean;
@@ -37,7 +37,7 @@ export function CheckoutModal({
   const [streetAddress, setStreetAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
+  const [paymentMethod, setPaymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [error, setError] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
@@ -245,7 +245,7 @@ export function CheckoutModal({
               <div className="mt-5 border-t border-zinc-200 pt-3">
                 <p className="text-start text-xl font-medium text-zinc-900">Payment Method</p>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {(['stripe', 'gcash', 'maya', 'card'] as const).map((m) => (
+                  {(['paypal', 'stripe', 'gcash', 'maya', 'card'] as const).map((m) => (
                     <label
                       key={m}
                       className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
@@ -262,7 +262,7 @@ export function CheckoutModal({
                         onChange={() => setPaymentMethod(m)}
                         className="sr-only"
                       />
-                      {m === 'gcash' ? 'GCash' : m === 'maya' ? 'Maya' : m === 'stripe' ? 'Stripe (Card)' : 'PayMongo Card'}
+                      {m === 'paypal' ? 'PayPal' : m === 'gcash' ? 'GCash' : m === 'maya' ? 'Maya' : m === 'stripe' ? 'Stripe (Card)' : 'PayMongo Card'}
                     </label>
                   ))}
                 </div>

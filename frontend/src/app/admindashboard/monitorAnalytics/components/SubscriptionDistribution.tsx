@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import { getPlanDotClass, getPlanLabel, getPlanSolidColor } from '@/lib/config/planConfig';
 
 const polarToCartesian = (cx: number, cy: number, r: number, angle: number) => {
     const rad = ((angle - 90) * Math.PI) / 180;
@@ -27,9 +28,9 @@ type Props = {
 
 export default function SubscriptionDistribution({ distribution, loading }: Props) {
     const raw = [
-        { label: 'Free', value: distribution?.free ?? 0, color: '#BFAAFF', dotClass: 'bg-[#BFAAFF]' },
-        { label: 'Basic', value: distribution?.basic ?? 0, color: '#8A78FF', dotClass: 'bg-[#8A78FF]' },
-        { label: 'Pro', value: distribution?.pro ?? 0, color: '#FFCC00', dotClass: 'bg-[#FFCC00]' },
+        { label: getPlanLabel('free'), value: distribution?.free ?? 0, color: getPlanSolidColor('free'), dotClass: getPlanDotClass('free') },
+        { label: getPlanLabel('basic'), value: distribution?.basic ?? 0, color: getPlanSolidColor('basic'), dotClass: getPlanDotClass('basic') },
+        { label: getPlanLabel('pro'), value: distribution?.pro ?? 0, color: getPlanSolidColor('pro'), dotClass: getPlanDotClass('pro') },
     ];
     const totalSubscriptions = raw.reduce((sum, item) => sum + item.value, 0);
     const subscriptionData = totalSubscriptions > 0

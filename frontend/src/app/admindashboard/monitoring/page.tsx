@@ -6,6 +6,9 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { getDomainsManagement, listProducts, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
+import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
+import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
+import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -49,19 +52,17 @@ function websiteViewUrl(domainName: string): string {
   return normalized;
 }
 
-function websiteStatusMeta(status: string): { label: string; dotClass: string } {
-  const s = normalize(status);
-  if (s === 'published' || s === 'active' || s === 'live') {
-    return { label: 'Published', dotClass: 'bg-green-600' };
-  }
-  if (s === 'offline' || s === 'suspended') {
-    return { label: 'Offline', dotClass: 'bg-red-600' };
-  }
-  return { label: 'Draft', dotClass: 'bg-yellow-500' };
+function productCategory(product: ApiProduct): string {
+  return product.subcategory || product.subCategory || product.sub_category || product.category || 'General';
 }
 
 function productIndustry(product: ApiProduct): string {
-  return product.category || product.subcategory || product.subCategory || product.sub_category || 'General';
+  const rawIndustry = String(product.projectIndustry || '').trim();
+  if (!rawIndustry) return 'General';
+
+  const normalizedKey = normalizeIndustryKey(rawIndustry);
+  const option = INDUSTRY_OPTIONS.find((item) => item.key === normalizedKey);
+  return option?.label || rawIndustry;
 }
 
 function chartBarHeightClass(value: number): string {
@@ -81,12 +82,15 @@ function subdomainFromDomain(domainName: string): string {
 
 const WEBSITE_CARD_IMAGE = '/images/template-saas.jpg';
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
+const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'websitelink';
 
 function MonitoringPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const tabParam = searchParams.get('tab');
+  const urlSearch = searchParams.get('search') || '';
+  const focusedProductId = searchParams.get('productId') || '';
   const [activeTab, setActiveTab] = useState<MonitoringTab>(() => (tabParam === 'products' ? 'products' : 'websites'));
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -96,6 +100,14 @@ function MonitoringPageContent() {
   const [industryFilter, setIndustryFilter] = useState('');
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [products, setProducts] = useState<ApiProduct[]>([]);
+
+  useEffect(() => {
+    setActiveTab(tabParam === 'products' ? 'products' : 'websites');
+  }, [tabParam]);
+
+  useEffect(() => {
+    setSearch(urlSearch);
+  }, [urlSearch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -163,13 +175,14 @@ function MonitoringPageContent() {
     const q = normalize(search);
     return approvedProducts.filter(
       (p) => {
+        const matchFocusedProduct = !focusedProductId || p.id === focusedProductId;
         const matchSearch = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q) || normalize(p.subdomain).includes(q);
         const matchStatus = !statusFilter || normalize(p.status) === statusFilter;
         const matchIndustry = !industryFilter || normalize(productIndustry(p)) === industryFilter;
-        return matchSearch && matchStatus && matchIndustry;
+        return matchFocusedProduct && matchSearch && matchStatus && matchIndustry;
       }
     );
-  }, [approvedProducts, search, statusFilter, industryFilter]);
+  }, [approvedProducts, focusedProductId, search, statusFilter, industryFilter]);
 
   const industryOptions = useMemo(() => {
     const items = new Set<string>();
@@ -268,9 +281,7 @@ function MonitoringPageContent() {
                   className="h-12 w-12 rounded-full bg-yellow-400 text-gray-900 flex items-center justify-center shadow-sm"
                   aria-label="Search"
                 >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M21 21l-4.35-4.35m1.35-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
+                  <SearchIcon className="h-6 w-6" strokeWidth={2.3} />
                 </button>
 
                 <div className="w-full max-w-[320px]">
@@ -297,9 +308,9 @@ function MonitoringPageContent() {
                     <option value="live">Live</option>
                     <option value="active">Active</option>
                   </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#605D78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#605D78]">
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </span>
                 </div>
 
                 <div className="relative">
@@ -315,9 +326,9 @@ function MonitoringPageContent() {
                       <option key={industry} value={normalize(industry)}>{industry}</option>
                     ))}
                   </select>
-                  <svg className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#605D78]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[#605D78]">
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </span>
                 </div>
 
                 <button
@@ -403,7 +414,7 @@ function MonitoringPageContent() {
                     ) : (
                       <div className="grid grid-cols-1 min-[1760px]:grid-cols-[513px_513px] min-[1760px]:justify-center gap-y-4 min-[1760px]:gap-x-4">
                         {uniqueFilteredWebsites.map((w) => {
-                          const status = websiteStatusMeta(w.status);
+                          const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
                           const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
 
@@ -413,7 +424,16 @@ function MonitoringPageContent() {
                               className="w-full max-w-[513px] h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
                             >
                               <div className="relative h-[170px]">
-                                <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill className="object-cover" />
+                                {w.thumbnail ? (
+                                  <img
+                                    src={w.thumbnail}
+                                    alt={w.domainName}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill sizes="513px" className="object-cover" />
+                                )}
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-semibold text-gray-900">
                                   <span className={`h-4 w-4 rounded-full ${status.dotClass}`} />
                                   {status.label}
@@ -456,34 +476,41 @@ function MonitoringPageContent() {
               )}
 
               {activeTab === 'products' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                   {loading ? (
                     <p className="text-sm text-[#82788F]">Loading approved products...</p>
                   ) : filteredProducts.length === 0 ? (
                     <p className="text-sm text-[#82788F]">No approved products found.</p>
                   ) : (
                     filteredProducts.map((p) => (
-                      <article key={`${p.id}-${p.subdomain || 'site'}`} className="rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden">
-                        <div className="relative h-56">
-                          <Image src={PRODUCT_CARD_IMAGE} alt={p.name || 'Product'} fill className="object-contain p-4" />
-                          <span className="absolute left-3 top-3 rounded-full bg-yellow-400 px-2.5 py-1 text-[11px] font-semibold text-gray-900">
+                      <article key={`${p.id}-${p.subdomain || 'site'}`} className="w-[324px] h-[365px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden flex flex-col">
+                        <div className="relative h-[256px] bg-[#EBECEE] flex items-center justify-center overflow-hidden">
+                          <Image
+                            src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
+                            alt={p.name || 'Product'}
+                            fill
+                            sizes="324px"
+                            className="object-contain p-2 scale-110"
+                            unoptimized={Array.isArray(p.images) && !!p.images[0]}
+                          />
+                          <span className="absolute left-2 top-2 rounded-full bg-yellow-400 px-2.5 py-1 text-[10px] font-semibold text-gray-900 z-10">
                             {p.subdomain || 'example-site.com'}
                           </span>
-                          <span className="absolute left-3 bottom-3 rounded-full bg-white/90 px-2 py-0.5 text-[11px] text-[#4E4A70]">
+                          <span className="absolute right-2 bottom-2 rounded-full bg-white/90 px-2 py-0.5 text-[10px] text-[#4E4A70] z-10">
                             {productIndustry(p)}
                           </span>
                         </div>
 
-                        <div className="bg-[#B13BFF] px-4 py-3 text-white">
-                          <div className="mb-1 flex items-center gap-2">
-                            <p className="text-2xl font-semibold leading-none truncate">{p.name || 'Product Name'}</p>
-                            <span className="rounded-full bg-[#6C2CD7] px-2 py-0.5 text-[11px]">{p.subcategory || 'Jeans'}</span>
+                        <div className="bg-[#B13BFF] px-2.5 py-1.5 text-white flex-1 flex flex-col">
+                          <div className="flex items-start gap-1 flex-wrap">
+                            <p className="text-sm font-semibold leading-tight truncate flex-1">{p.name || 'Product Name'}</p>
+                            <span className="rounded-full bg-[#6C2CD7] px-1.5 py-0.5 text-[9px] whitespace-nowrap">{productCategory(p)}</span>
                           </div>
-                          <p className="text-xs text-white/85 mb-2">SKU: {p.sku || '123456'}</p>
-                          <div className="flex items-center gap-2">
-                            <button type="button" className="rounded-xl bg-[#6C2CD7] px-4 py-1.5 text-sm font-medium">View</button>
-                            <button type="button" className="rounded-xl bg-[#FF4A43] px-4 py-1.5 text-sm font-medium">Dismiss</button>
-                            <span className="ml-auto text-xs text-white/85">{formatMoney(p.finalPrice ?? p.price)}</span>
+                          <p className="text-sm text-white/85 truncate">SKU: {p.sku || 'N/A'}</p>
+                          <div className="flex items-center gap-1 mt-auto">
+                            <button type="button" className="rounded-lg bg-[#6C2CD7] px-2 py-0.5 text-xs font-medium">View</button>
+                            <button type="button" className="rounded-lg bg-[#FF4A43] px-2 py-0.5 text-xs font-medium">Dismiss</button>
+                            <span className="ml-auto text-xs text-white/85 whitespace-nowrap">{formatMoney(p.finalPrice ?? p.price)}</span>
                           </div>
                         </div>
                       </article>

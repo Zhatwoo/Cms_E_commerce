@@ -90,7 +90,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
     : ['bg-[#ff6b6b]', 'bg-[#ffd166]', 'bg-[#6bcb77]'];
 
   return (
-    <section className={`relative overflow-hidden px-4 pb-24 pt-16 md:px-8 md:pb-32 md:pt-24 ${sectionClass} ${isDarkMode ? '-mt-px' : ''}`}>
+    <section id="about" className={`relative overflow-hidden px-4 pb-24 pt-16 md:px-8 md:pb-32 md:pt-24 ${sectionClass} ${isDarkMode ? '-mt-px' : ''}`}>
       {/* Background glow accents — dark only */}
       {isDarkMode && (
         <>

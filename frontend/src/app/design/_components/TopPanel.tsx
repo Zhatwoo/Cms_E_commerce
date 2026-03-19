@@ -5,7 +5,7 @@ import { useEditor } from "@craftjs/core";
 import Link from "next/link";
 import {
   ArrowLeft,
-  ZoomIn,
+  ZoomIn,    
   ZoomOut,
   RotateCw,
   Maximize2,

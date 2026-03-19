@@ -3,141 +3,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-
-const LogoutIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-    </svg>
-);
-
-const CloseIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-);
-
-const ChevronDownIcon = ({ isOpen }: { isOpen: boolean }) => (
-    <svg
-        className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`}
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-    >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-    </svg>
-);
-
-type NavChild = {
-    id: string;
-    label: string;
-    href: string;
-    match: (pathname: string) => boolean;
-};
-
-type NavItem = {
-    id: string;
-    label: string;
-    href: string;
-    iconSrc: string;
-    iconAlt: string;
-    match: (pathname: string) => boolean;
-    children?: NavChild[];
-};
-
-const navItems: NavItem[] = [
-    {
-        id: 'home',
-        label: 'Home',
-        href: '/admindashboard',
-        iconSrc: '/admin-dashboard/icons/home-icon.png',
-        iconAlt: 'Home',
-        match: (pathname) => pathname === '/admindashboard',
-    },
-    {
-        id: 'analytics',
-        label: 'Analytics',
-        href: '/admindashboard/monitorAnalytics',
-        iconSrc: '/admin-dashboard/icons/analytic-icon.png',
-        iconAlt: 'Analytics',
-        match: (pathname) => pathname.includes('/monitorAnalytics'),
-    },
-    {
-        id: 'management',
-        label: 'Management',
-        href: '/admindashboard/usernweb',
-        iconSrc: '/admin-dashboard/icons/management-icon.png',
-        iconAlt: 'Management',
-        match: (pathname) => pathname.includes('/usernweb'),
-        children: [
-            {
-                id: 'user-management',
-                label: 'User Management',
-                href: '/admindashboard/usernweb?tab=clients',
-                match: (pathname) => pathname.includes('/usernweb'),
-            },
-            {
-                id: 'website-management',
-                label: 'Website Management',
-                href: '/admindashboard/usernweb?tab=domains',
-                match: (pathname) => pathname.includes('/usernweb'),
-            },
-        ],
-    },
-    {
-        id: 'templates',
-        label: 'Templates',
-        href: '/admindashboard/templatesnassets',
-        iconSrc: '/admin-dashboard/icons/templates-icon.svg',
-        iconAlt: 'Templates',
-        match: (pathname) => pathname.includes('/templatesnassets'),
-        children: [
-            {
-                id: 'builtin-templates',
-                label: 'Built-In Templates',
-                href: '/admindashboard/templatesnassets?tab=builtin',
-                match: (pathname) => pathname.includes('/templatesnassets'),
-            },
-            {
-                id: 'user-templates',
-                label: 'User Templates',
-                href: '/admindashboard/templatesnassets?tab=user',
-                match: (pathname) => pathname.includes('/templatesnassets'),
-            },
-        ],
-    },
-    {
-        id: 'monitoring',
-        label: 'Monitoring',
-        href: '/admindashboard/monitoring?tab=websites',
-        iconSrc: '/admin-dashboard/icons/monitoring-icon.png',
-        iconAlt: 'Monitoring',
-        match: (pathname) => pathname.includes('/monitoring'),
-        children: [
-            {
-                id: 'website-monitoring',
-                label: 'Website Monitoring',
-                href: '/admindashboard/monitoring?tab=websites',
-                match: (pathname) => pathname.includes('/monitoring'),
-            },
-            {
-                id: 'product-monitoring',
-                label: 'Product Monitoring',
-                href: '/admindashboard/monitoring?tab=products',
-                match: (pathname) => pathname.includes('/monitoring'),
-            },
-        ],
-    },
-    {
-        id: 'moderation',
-        label: 'Moderation',
-        href: '/admindashboard/moderationCompliance',
-        iconSrc: '/admin-dashboard/icons/moderation-icon.png',
-        iconAlt: 'Moderation',
-        match: (pathname) => pathname.includes('/moderationCompliance'),
-    },
-];
+import { logout } from '@/lib/api';
+import { ADMIN_NAV_ITEMS, isAdminNavItemMatch } from '@/lib/config/adminNavigation';
+import { ChevronDownIcon, CloseIcon, LogoutIcon } from '@/lib/icons/adminIcons';
 
 interface AdminSidebarProps {
     mobile?: boolean;
@@ -146,13 +16,32 @@ interface AdminSidebarProps {
     forcedActiveChildId?: string;
 }
 
+function isChildPathMatch(pathname: string, matchIncludes: string): boolean {
+    return pathname.includes(matchIncludes);
+}
+
 let desktopSidebarExpandedMemory = false;
 
 export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forcedActiveChildId }: AdminSidebarProps) {
     const [isHovered, setIsHovered] = useState(() => (!mobile && desktopSidebarExpandedMemory));
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const pathname = usePathname();
+    const router = useRouter();
+
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+        try {
+            await logout();
+        } finally {
+            onClose?.();
+            router.replace('/adminauth/login');
+            router.refresh();
+            setIsLoggingOut(false);
+        }
+    };
 
     useEffect(() => {
         if (!mobile) {
@@ -194,8 +83,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         };
     }, []);
 
-    const matchedActiveItem = navItems.find(
-        (item) => item.match(pathname) || (item.children?.some((c) => c.match(pathname)) ?? false)
+    const matchedActiveItem = ADMIN_NAV_ITEMS.find(
+        (item) => isAdminNavItemMatch(pathname, item)
     )?.id;
     const activeItem = forcedActiveItemId ?? matchedActiveItem;
     const COLLAPSED_WIDTH = 104;
@@ -237,7 +126,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                         </div>
 
                         <nav className="flex-1 space-y-1 overflow-y-auto">
-                            {navItems.map((item) => {
+                            {ADMIN_NAV_ITEMS.map((item) => {
                                 const isActive = activeItem === item.id;
                                 const hasChildren = !!(item.children?.length);
                                 const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
@@ -255,7 +144,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                     <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                                 </span>
                                                 <span className="flex-1 text-left text-sm font-medium">{item.label}</span>
-                                                <ChevronDownIcon isOpen={isOpen} />
+                                                <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                             </button>
                                         ) : (
                                             <Link
@@ -280,7 +169,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 >
                                                     <div className="mt-1 flex flex-col gap-0.5 pl-6">
                                                         {(item.children ?? []).map((child) => {
-                                                            const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : child.match(pathname);
+                                                            const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
                                                             return (
                                                                 <Link
                                                                     key={child.id}
@@ -304,13 +193,15 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                         <div className="pt-4">
                             <button
                                 type="button"
+                                onClick={handleLogout}
+                                disabled={isLoggingOut}
                                 suppressHydrationWarning
                                 className="admin-dashboard-logout flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-medium"
                             >
                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
                                     <LogoutIcon />
                                 </span>
-                                <span>Log out</span>
+                                <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
                             </button>
                         </div>
                     </div>
@@ -336,7 +227,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                 </div>
 
                 <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
-                    {navItems.map((item) => {
+                    {ADMIN_NAV_ITEMS.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
                         const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
@@ -358,7 +249,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                             {item.label}
                                         </span>
                                         <span className={`admin-dashboard-purple mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            <ChevronDownIcon isOpen={isOpen} />
+                                            <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                         </span>
                                         {isActive ? (
                                             <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
@@ -392,7 +283,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         >
                                             <div className="mt-1 flex flex-col gap-0.5 pl-4">
                                                 {(item.children ?? []).map((child) => {
-                                                    const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : child.match(pathname);
+                                                    const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
                                                     return (
                                                         <Link
                                                             key={child.id}
@@ -414,16 +305,18 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
 
                 <button
                     type="button"
+                    onClick={handleLogout}
+                    disabled={isLoggingOut}
                     suppressHydrationWarning
-                    className="admin-dashboard-logout mt-auto shrink-0 flex w-full items-center rounded-2xl px-2 py-2"
+                    className={`admin-dashboard-logout mt-auto shrink-0 flex items-center rounded-2xl ${isHovered ? 'w-full px-2 py-2 justify-start' : 'justify-center py-2'}`}
                     aria-label="Log out"
                     title="Log out"
                 >
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                         <LogoutIcon />
                     </span>
-                    <span className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                        Log out
+                    <span className={`admin-dashboard-purple whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'ml-3 opacity-100' : 'opacity-0'}`}>
+                        {isLoggingOut ? 'Logging out...' : 'Log out'}
                     </span>
                 </button>
             </div>

@@ -2,33 +2,14 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import {
+    ADMIN_CHART_SERIES,
+    ADMIN_NOTIFICATIONS,
+    ADMIN_RECENT_USER_ACTIONS,
+    ADMIN_STATS,
+} from '@/lib/config/adminDashboardMocks';
 
 // ─── Data ────────────────────────────────────────────────────────────────────
-
-const adminStats = [
-    { title: 'ACTIVE USERS', value: '56', liveLabel: 'Live' },
-    { title: 'PUBLISHED WEBSITES', value: '56', liveLabel: 'Live' },
-    { title: 'ACTIVE DOMAINS', value: '56', liveLabel: 'Live' },
-    { title: 'PENDING WEBSITES', value: '56', liveLabel: 'Live' },
-] as const;
-
-const chartSeries = [
-    { label: '2020', color: '#8A78FF', points: [36, 62] },
-    { label: '2021', color: '#FF9A8B', points: [76, 28] },
-    { label: '2022', color: '#69D7F7', points: [74, 40] },
-] as const;
-
-const recentUserActions = [
-    {
-        title: 'example-site.com',
-        action: 'Action: Removed',
-        meta: 'By: Admin user on 2026-01-28',
-    },
-] as const;
-
-const adminNotifications = [
-    { title: 'User Notification', date: 'January 01, 2026' },
-] as const;
 
 // ─── DashboardPanel ──────────────────────────────────────────────────────────
 
@@ -211,21 +192,21 @@ export function AdminDashboard() {
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    {adminStats.map((metric, index) => (
+                    {ADMIN_STATS.map((metric, index) => (
                         <DashboardStatCard
                             key={metric.title}
                             title={metric.title}
                             value={metric.value}
                             liveLabel={metric.liveLabel}
-                            series={chartSeries}
+                            series={ADMIN_CHART_SERIES}
                             index={index}
                         />
                     ))}
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
-                    <DashboardActivityPanel items={recentUserActions} />
-                    <DashboardNotificationsPanel items={adminNotifications} />
+                    <DashboardActivityPanel items={ADMIN_RECENT_USER_ACTIONS} />
+                    <DashboardNotificationsPanel items={ADMIN_NOTIFICATIONS} />
                 </div>
             </div>
         </main>

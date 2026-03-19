@@ -315,9 +315,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   };
 
   const renderProjectPreview = (project: Project | null) => {
-    if (project?.thumbnail) {
-      return <img src={project.thumbnail} alt={project.title || 'Recent'} className="h-full w-full object-cover" loading="lazy" />;
-    }
     if (project?.id) {
       return (
         <DraftPreviewThumbnail
@@ -343,12 +340,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-8 pt-1">
           <h1
-            className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.2] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
           >
             <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               What{' '}
               <span
                 className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 website
               </span>{' '}
@@ -358,6 +356,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               you{' '}
               <span
                 className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 build?
               </span>
@@ -763,16 +762,12 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       {/* Content Area */}
                       <div role="button" onClick={() => router.push(`/design?projectId=${project.id}`)}>
                         <div className={`relative w-full aspect-video overflow-hidden ${theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white'}`}>
-                          {project.thumbnail ? (
-                            <img src={project.thumbnail} alt={project.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                          ) : (
-                            <DraftPreviewThumbnail
-                              projectId={project.id}
-                              borderColor="transparent"
-                              bgColor="transparent"
-                              className="w-full h-full aspect-16/10! rounded-none!"
-                            />
-                          )}
+                          <DraftPreviewThumbnail
+                            projectId={project.id}
+                            borderColor="transparent"
+                            bgColor="transparent"
+                            className="w-full h-full aspect-16/10! rounded-none!"
+                          />
                           {/* Subtle Violet Wash on Image */}
                           <div className={`absolute inset-0 opacity-10 ${theme === 'light' ? 'bg-[#8B5CF6]' : 'bg-transparent'}`} />
                         </div>

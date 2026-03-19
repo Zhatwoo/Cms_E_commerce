@@ -528,6 +528,11 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
+      const clickedDisplayName = state.nodes[nodeIdFromTarget]?.data?.displayName as string | undefined;
+      if (clickedDisplayName === "Section") {
+        return;
+      }
+
       const node = nodesMap[nodeIdFromTarget];
       const locked = node?.data?.props?.locked === true;
       if (locked) return;

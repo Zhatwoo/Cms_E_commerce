@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Editor, Frame } from "@craftjs/core";
-import { deserializeCleanToCraft } from "../_lib/serializer";
+import { deserializeCleanToCraft, serializeCraftToClean } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
@@ -719,6 +719,18 @@ function PreviewContent() {
     return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
+  // If draft is still Craft RAW (ROOT-based), convert it so WebPreview can run Prototype interactions.
+  const effectiveCleanDoc = useMemo(() => {
+    if (cleanDoc) return cleanDoc;
+    if (!rawJson) return null;
+    if (!looksLikeCraftRawSnapshot(rawJson)) return null;
+    try {
+      return serializeCraftToClean(rawJson);
+    } catch {
+      return null;
+    }
+  }, [cleanDoc, rawJson]);
+
   const craftPreviewData = useMemo(() => {
     if (!rawJson) return null;
     if (!looksLikeCraftRawSnapshot(rawJson)) return null;
@@ -1350,7 +1362,7 @@ function PreviewContent() {
           </div>
         ) : viewMode === "Web-Preview" ? (
           <div className={`py-6 h-full ${previewViewport === "desktop" ? "overflow-x-auto" : "flex justify-center"}`}>
-            {cleanDoc ? (
+            {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
                 className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
@@ -1368,8 +1380,8 @@ function PreviewContent() {
                 }
               >
                 <WebPreview
-                  key={selectedPreviewPage?.slug ?? "default-page"}
-                  doc={cleanDoc}
+                  key="preview-web"
+                  doc={effectiveCleanDoc}
                   pageIndex={selectedPreviewPageIndex}
                   initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}

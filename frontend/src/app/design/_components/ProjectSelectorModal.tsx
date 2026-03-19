@@ -406,9 +406,9 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                           <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
                         )}
                         <svg
-                          className={`h-4 w-4 shrink-0 relative z-10 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}
-                          fill="none"
                           viewBox="0 0 20 20"
+                          className={`h-4 w-4 shrink-0 relative z-10 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`}
+                          fill="none"
                         >
                           <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                           <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
@@ -621,12 +621,8 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                             ) : (
                               <div role="button" tabIndex={0} onClick={() => projectTab === 'active' && openProject(project.id)} className={`${projectTab === 'trash' ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'list' ? 'flex flex-row items-center w-full h-full' : 'w-full text-left flex flex-col h-full'}`}>
                                 <div className={`${viewMode === 'list' ? 'w-40 h-full border-r border-[#2A2A60] shrink-0' : `${asPage ? 'w-full aspect-video' : 'w-full aspect-[16/10] border-b border-[#2A2A60]'}`} overflow-hidden ${asPage ? (theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white') : 'bg-[#0A0826]'} ${projectTab === 'trash' ? 'grayscale opacity-75' : ''}`}>
-                                  {/* Project thumbnail: shows a saved screenshot, or auto-generates a draft preview */}
-                                  {project.thumbnail ? (
-                                    <img src={project.thumbnail} alt={project.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                                  ) : (
-                                    <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
-                                  )}
+                                  {/* Project thumbnail: live draft preview — always shows current content */}
+                                  <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
                                 </div>
                                 <div className={`${viewMode === 'list' ? 'px-6 py-4 flex-1 flex flex-row items-center justify-between min-w-0' : `${asPage ? 'p-6' : 'px-5 py-4'} flex flex-col flex-1`}`}>
                                   {/* Project info: title, status badge (Published/Draft/Shared), and metadata */}

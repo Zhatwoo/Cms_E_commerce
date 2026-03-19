@@ -256,7 +256,7 @@ exports.updateUserRole = async (req, res) => {
 // @access  Private/Admin
 exports.updateUserStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { status, suspensionReason } = req.body;
     if (!['Published', 'Restricted', 'Suspended'].includes(status)) {
       return res.status(400).json({
         success: false,
@@ -272,9 +272,11 @@ exports.updateUserStatus = async (req, res) => {
       });
     }
 
+    const reason = typeof suspensionReason === 'string' ? suspensionReason.trim() : '';
     const updated = await User.update(req.params.id, {
       status,
-      isActive: status === 'Published'
+      isActive: status === 'Published',
+      suspensionReason: status === 'Suspended' ? reason : ''
     });
     res.status(200).json({
       success: true,

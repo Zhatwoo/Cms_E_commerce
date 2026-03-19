@@ -80,24 +80,23 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   }));
   const suppressPassiveHover = name === "Page";
 
-  const { isActive, actions, query, selectedRaw } = useEditor((state, query) => ({
+  const { isActive, actions, query } = useEditor((state, query) => ({
     isActive: query.getEvent('selected').contains(id),
-    selectedRaw: state.events.selected,
   }));
-
-  const selectedToIds = (raw: unknown): string[] => {
-    if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === "string");
-    if (raw instanceof Set) return Array.from(raw).filter((v): v is string => typeof v === "string");
-    if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
-    return [];
-  };
 
   const [isDomHovered, setIsDomHovered] = useState(false);
   const pendingSelectTimerRef = useRef<number | null>(null);
   const isHandTool = activeTool === "hand";
   const isDrawingTool = activeTool === "text" || activeTool === "shape";
   const isTextNode = name === "Text";
-  const canShowResizeOverlay = !isHandTool && !isDrawingTool && isActive && dom && (!isTextNode || editingTextNodeId !== id);
+  const isSectionNode = name === "Section";
+  const canShowResizeOverlay =
+    !isHandTool &&
+    !isDrawingTool &&
+    !isSectionNode &&
+    isActive &&
+    dom &&
+    (!isTextNode || editingTextNodeId !== id);
 
   useEffect(() => {
     if (!dom) return;
@@ -142,6 +141,19 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     if (!dom) return;
     if (id === "ROOT" || name === "Viewport") return;
 
+    const findDeepestNodeId = (element: HTMLElement | null): string | null => {
+      if (!element) return null;
+      const selfId = element.getAttribute("data-node-id");
+      if (selfId) return selfId;
+      let current: HTMLElement | null = element;
+      while (current && current !== document.body) {
+        const nodeId = current.getAttribute("data-node-id");
+        if (nodeId) return nodeId;
+        current = current.parentElement;
+      }
+      return null;
+    };
+
     const onMouseDownCapture = (event: MouseEvent) => {
       if (isHandTool) return;
       if (event.button !== 0) return;
@@ -149,6 +161,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       if (document.body.dataset.canvasPan === "true") return;
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.boxSelecting === "true") return;
+      if (document.body.dataset.boxSelectingIntent === "true") return;
 
       const target = event.target as HTMLElement | null;
       if (!target) return;
@@ -159,6 +172,25 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         try {
           const nodes = query.getState().nodes;
           const selectableGroupNames = new Set(["Container", "Section", "Row", "Column", "Frame", "Banner", "TabContent", "Tab Content"]);
+          const clickedNodeId = findDeepestNodeId(target);
+          if (clickedNodeId && clickedNodeId !== id) return;
+
+          const clickedNode = nodes[id];
+          const clickedDisplayName = clickedNode?.data?.displayName as string | undefined;
+          const clickedIsCanvas = clickedNode?.data?.isCanvas === true;
+          const clickedIsPageLike = clickedDisplayName === "Page" || clickedDisplayName === "Viewport";
+          const clickedIsGroup = clickedIsCanvas || (clickedDisplayName && selectableGroupNames.has(clickedDisplayName));
+
+          if (clickedIsGroup && !clickedIsPageLike) {
+            if (event.cancelable) event.preventDefault();
+            event.stopPropagation();
+            if (typeof event.stopImmediatePropagation === "function") {
+              event.stopImmediatePropagation();
+            }
+            actions.selectNode(id);
+            return;
+          }
+
           let cursor: string | undefined = id;
           let groupAncestorId: string | null = null;
 
@@ -169,11 +201,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
             const displayName = parentNode?.data?.displayName as string | undefined;
             const isCanvas = parentNode?.data?.isCanvas === true;
             const isPageLike = displayName === "Page" || displayName === "Viewport";
-
-            const currentlySelectedIds = selectedToIds(selectedRaw);
-            const isParentAlreadySelected = currentlySelectedIds.includes(parentId);
-
-            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike && !isParentAlreadySelected) {
+            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike) {
               groupAncestorId = parentId;
               break;
             }
@@ -216,7 +244,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     return () => {
       dom.removeEventListener("mousedown", onMouseDownCapture, true);
     };
-  }, [actions, dom, id, name, isHandTool]);
+  }, [actions, dom, id, name, isHandTool, query]);
 
   const [rect, setRect] = useState<DOMRect | null>(null);
 
@@ -251,11 +279,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     };
   }, [dom]);
 
-  // Don't render overlays for ROOT/Viewport shells only
-  if (id === "ROOT" || name === "Viewport") {
-    return <>{render}</>;
-  }
-
   const isLabelVisible = !isHandTool && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
   const numberedLabel = useMemo(() => {
     if (!isLabelVisible) return name;
@@ -270,6 +293,11 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       return name;
     }
   }, [isLabelVisible, query, id, name]);
+
+  // Don't render overlays for ROOT/Viewport shells only
+  if (id === "ROOT" || name === "Viewport") {
+    return <>{render}</>;
+  }
 
   return (
     <>
