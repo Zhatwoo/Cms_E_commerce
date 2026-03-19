@@ -110,11 +110,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
       <div
         ref={panelRef}
         data-panel="configs"
-<<<<<<< Updated upstream
         className="bg-builder-surface h-full border-l border-builder-border transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
-=======
-        className="bg-brand-darker h-full border-l border-white/10 transition-[width,transform,opacity] duration-300 ease-out overflow-hidden flex flex-col"
->>>>>>> Stashed changes
         style={{
           width: `${width}px`,
         }}
@@ -302,11 +298,7 @@ export const RightPanel: React.FC<RightPanelProps> = (props) => {
     return (
       <div
         data-panel="configs"
-<<<<<<< Updated upstream
         className="bg-builder-surface p-4 h-full overflow-y-auto border-l border-builder-border transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-builder-text-muted"
-=======
-        className="bg-brand-darker p-4 h-full overflow-y-auto border-l border-white/10 transition-[width,opacity] duration-300 ease-out flex items-center justify-center text-xs text-brand-light/60"
->>>>>>> Stashed changes
         style={{ width: `${props.width ?? RIGHT_PANEL_DEFAULT_WIDTH}px` }}
       >
         Loading inspector…

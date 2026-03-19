@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { useProject } from '../components/context/project-context';
-<<<<<<< Updated upstream
 import { useAlert } from '../components/context/alert-context';
 import {
   listProjects, getSchedule, getPublishHistory, unpublishProject,
@@ -21,26 +20,6 @@ import {
   Globe, Plus, Search, ExternalLink, Copy, Pencil, Check, Clock, X,
   Calendar, FileText, ArrowDownToLine, ChevronDown, ChevronUp,
   Link2, Unlink, ShieldCheck, AlertTriangle, Loader2, LayoutGrid, List,
-=======
-import { listProjects, getSchedule, getPublishHistory, unpublishProject, type Project, type PublishHistoryEntry } from '@/lib/api';
-import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
-import {
-  Globe,
-  Plus,
-  Search,
-  ExternalLink,
-  Copy,
-  Settings,
-  Trash2,
-  Check,
-  AlertCircle,
-  Clock,
-  TrendingUp,
-  X,
-  Calendar,
-  FileText,
-  ArrowDownToLine
->>>>>>> Stashed changes
 } from 'lucide-react';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
@@ -161,7 +140,6 @@ export default function DomainsPage() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [publishHistory, setPublishHistory] = useState<PublishHistoryEntry[]>([]);
   const [unpublishingId, setUnpublishingId] = useState<string | null>(null);
-<<<<<<< Updated upstream
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [addModalProjectId, setAddModalProjectId] = useState('');
@@ -190,8 +168,6 @@ export default function DomainsPage() {
     : domainsList;
 
   // ── Handlers ──────────────────────────────────────────────────────────────
-=======
->>>>>>> Stashed changes
 
   const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
     e?.stopPropagation?.();
@@ -202,7 +178,6 @@ export default function DomainsPage() {
         const res2 = await listProjects();
         if (res2.success && res2.projects) setProjects(res2.projects);
         if (selectedDomain?.project.id === projectId) {
-<<<<<<< Updated upstream
           const updated = res2.projects?.find(p => p.id === projectId);
           setSelectedDomain(updated ? { project: updated, subdomain: selectedDomain.subdomain } : null);
         }
@@ -232,18 +207,6 @@ export default function DomainsPage() {
     const res = await listProjects();
     if (res.success && res.projects) setProjects(res.projects);
   };
-=======
-          const updated = res2.projects?.find((p) => p.id === projectId);
-          setSelectedDomain(updated ? { project: updated, subdomain: selectedDomain.subdomain } : null);
-        }
-      }
-    } catch {
-      // silent fail; could add toast
-    } finally {
-      setUnpublishingId(null);
-    }
-  };
->>>>>>> Stashed changes
 
   useEffect(() => {
     let cancelled = false;
@@ -457,7 +420,6 @@ export default function DomainsPage() {
                   value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                   className="m-dashboard-search-shadow w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
                   style={{
-<<<<<<< Updated upstream
                     background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.bg.searchBar,
                     border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${colors.border.faint}`,
                     color: colors.text.primary,
@@ -472,63 +434,6 @@ export default function DomainsPage() {
                   </button>
                 ))}
               </div>
-=======
-                    backgroundColor: colors.bg.card,
-                    borderColor: colors.border.faint,
-                  }}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium truncate" style={{ color: colors.text.primary }}>{project.title}</p>
-                    <p className="text-xs mt-0.5 font-mono truncate" style={{ color: colors.text.secondary }}>
-                      {subdomain ? getSiteDisplayUrl(subdomain, origin) : 'Empty'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span
-                      className="text-xs px-2 py-1 rounded-full capitalize"
-                      style={{
-                        backgroundColor: isPublished ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)',
-                        color: isPublished ? 'rgb(22,163,74)' : 'rgb(220,38,38)',
-                      }}
-                    >
-                      {isPublished ? 'Published' : 'Draft'}
-                    </span>
-                    <a
-                      href={subdomain ? getSubdomainSiteUrl(subdomain, origin) : `/design?projectId=${project.id}`}
-                      target={subdomain ? "_blank" : "_self"}
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0"
-                      style={{
-                        backgroundColor: colors.text.primary,
-                        color: colors.bg.primary,
-                      }}
-                    >
-                      <ExternalLink size={14} />
-                      {subdomain ? 'Continue to website' : 'Publish to go live'}
-                    </a>
-                    {isPublished && (
-                      <button
-                        type="button"
-                        onClick={(e) => handleUnpublish(project.id, e)}
-                        disabled={unpublishingId === project.id}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors shrink-0 border"
-                        style={{
-                          borderColor: 'rgba(239,68,68,0.5)',
-                          color: 'rgb(239,68,68)',
-                          backgroundColor: 'transparent',
-                        }}
-                      >
-                        <ArrowDownToLine size={14} />
-                        {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-                  );
-                })()
-              ))}
->>>>>>> Stashed changes
             </div>
 
             {filtered.length === 0 ? (
@@ -743,10 +648,7 @@ export default function DomainsPage() {
                         </button>
                       )}
                     </div>
-<<<<<<< Updated upstream
                   </SidebarRow>
-
-                  {/* Custom domain */}
                   {isPublished(selectedDomain.project.status) && (
                     <div className="pt-3.5 space-y-2.5" style={{ borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : `1px solid ${colors.border.faint}` }}>
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em]"
@@ -810,63 +712,7 @@ export default function DomainsPage() {
                           <Link2 size={13} /> Connect custom domain
                         </button>
                       )}
-=======
-                    <a
-                      href={siteUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 text-sm font-medium break-all hover:underline"
-                      style={{ color: colors.text.primary }}
-                    >
-                      {siteUrl}
-                      <ExternalLink size={14} className="shrink-0" />
-                    </a>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Status</div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className="text-xs px-2 py-1 rounded-full capitalize"
-                        style={{
-                          backgroundColor: selectedDomain.project.status === 'published' ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)',
-                          color: selectedDomain.project.status === 'published' ? 'rgb(22,163,74)' : 'rgb(180,83,9)',
-                        }}
-                      >
-                        {selectedDomain.project.status || 'draft'}
-                      </span>
-                      {isPublishedStatus(selectedDomain.project.status) && (
-                        <button
-                          type="button"
-                          onClick={() => handleUnpublish(selectedDomain.project.id)}
-                          disabled={unpublishingId === selectedDomain.project.id}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors"
-                          style={{
-                            borderColor: 'rgba(239,68,68,0.5)',
-                            color: 'rgb(239,68,68)',
-                            backgroundColor: 'transparent',
-                          }}
-                        >
-                          <ArrowDownToLine size={14} />
-                          {unpublishingId === selectedDomain.project.id ? 'Taking down…' : 'Take down'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {selectedDomain.project.createdAt && (
-                    <div>
-                      <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Created</div>
-                      <p className="text-sm" style={{ color: colors.text.primary }}>
-                        {new Date(selectedDomain.project.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  )}
-                  {selectedDomain.project.updatedAt && (
-                    <div>
-                      <div className="text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>Last updated</div>
-                      <p className="text-sm" style={{ color: colors.text.primary }}>
-                        {new Date(selectedDomain.project.updatedAt).toLocaleString()}
-                      </p>
->>>>>>> Stashed changes
+
                     </div>
                   )}
 
