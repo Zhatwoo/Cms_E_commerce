@@ -89,7 +89,14 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const isHandTool = activeTool === "hand";
   const isDrawingTool = activeTool === "text" || activeTool === "shape";
   const isTextNode = name === "Text";
-  const canShowResizeOverlay = !isHandTool && !isDrawingTool && isActive && dom && (!isTextNode || editingTextNodeId !== id);
+  const isSectionNode = name === "Section";
+  const canShowResizeOverlay =
+    !isHandTool &&
+    !isDrawingTool &&
+    !isSectionNode &&
+    isActive &&
+    dom &&
+    (!isTextNode || editingTextNodeId !== id);
 
   useEffect(() => {
     if (!dom) return;
@@ -154,6 +161,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       if (document.body.dataset.canvasPan === "true") return;
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.boxSelecting === "true") return;
+      if (document.body.dataset.boxSelectingIntent === "true") return;
 
       const target = event.target as HTMLElement | null;
       if (!target) return;
@@ -271,11 +279,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
     };
   }, [dom]);
 
-  // Don't render overlays for ROOT/Viewport shells only
-  if (id === "ROOT" || name === "Viewport") {
-    return <>{render}</>;
-  }
-
   const isLabelVisible = !isHandTool && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
   const numberedLabel = useMemo(() => {
     if (!isLabelVisible) return name;
@@ -290,6 +293,11 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       return name;
     }
   }, [isLabelVisible, query, id, name]);
+
+  // Don't render overlays for ROOT/Viewport shells only
+  if (id === "ROOT" || name === "Viewport") {
+    return <>{render}</>;
+  }
 
   return (
     <>
