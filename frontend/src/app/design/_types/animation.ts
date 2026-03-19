@@ -70,11 +70,11 @@ export type ScrollEffectType =
   | "rotate"
   | "blur"
   | "horizontalMove"
+  | "freeMove"
   | "skew"
   | "reveal"
   | "zoom"
-  | "tilt3d"
-  | "customMove";
+  | "tilt3d";
 
 export type TriggerType = "onLoad" | "onScroll" | "onHover" | "onClick";
 
@@ -112,10 +112,11 @@ export interface ScrollEffectConfig {
   scrub: boolean;
   start: string;
   end: string;
-  fromX?: number;
-  fromY?: number;
-  toX?: number;
-  toY?: number;
+  freeMove?: {
+    start?: { x: number; y: number };
+    mid?: { x: number; y: number };
+    end?: { x: number; y: number };
+  };
 }
 
 export interface TriggerConfig {
@@ -168,10 +169,6 @@ export const DEFAULT_SCROLL_EFFECT: ScrollEffectConfig = {
   scrub: true,
   start: "top bottom",
   end: "bottom top",
-  fromX: 0,
-  fromY: 0,
-  toX: 0,
-  toY: 200,
 };
 
 export const DEFAULT_TRIGGER: TriggerConfig = {
@@ -257,11 +254,11 @@ export const SCROLL_EFFECT_LABELS: Record<ScrollEffectType, string> = {
   rotate: "Rotate on Scroll",
   blur: "Blur on Scroll",
   horizontalMove: "Horizontal Move",
+  freeMove: "Free Move (Capture)",
   skew: "Skew on Scroll",
   reveal: "Reveal on Scroll",
   zoom: "Zoom on Scroll",
   tilt3d: "3D Tilt on Scroll",
-  customMove: "Free Move",
 };
 
 export const TRIGGER_LABELS: Record<TriggerType, string> = {

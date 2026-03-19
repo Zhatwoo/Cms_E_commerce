@@ -217,7 +217,35 @@ function useGsapScrollEffect(
     const el = ref.current;
     if (!el) return;
 
-    const { from, to } = getScrollEffectRange(config);
+    const getPageRect = () => {
+      const rect = el.getBoundingClientRect();
+      return {
+        left: rect.left + window.scrollX,
+        top: rect.top + window.scrollY,
+      };
+    };
+
+    const computeFreeMoveKeyframes = (): Array<{ at: 0 | 0.5 | 1; x: number; y: number }> => {
+      const start = config.freeMove?.start;
+      const mid = config.freeMove?.mid;
+      const end = config.freeMove?.end;
+      if (!start || !end) return [];
+
+      // Compute transform offsets relative to the element's layout position (page coords).
+      // At scroll start (progress 0) the element will appear at captured "start".
+      const page = getPageRect();
+      const toOffset = (p: { x: number; y: number }) => ({
+        x: (p.x - page.left) * config.speed,
+        y: (p.y - page.top) * config.speed,
+      });
+
+      const frames: Array<{ at: 0 | 0.5 | 1; x: number; y: number }> = [
+        { at: 0, ...toOffset(start) },
+        ...(mid ? [{ at: 0.5 as const, ...toOffset(mid) }] : []),
+        { at: 1, ...toOffset(end) },
+      ];
+      return frames;
+    };
 
     const tl = gsap.timeline({
       scrollTrigger: {
@@ -229,10 +257,28 @@ function useGsapScrollEffect(
       },
     });
 
-    tl.fromTo(el, from, {
-      ...to,
-      ease: "none",
-    });
+    if (config.type === "freeMove") {
+      const frames = computeFreeMoveKeyframes();
+      if (frames.length >= 2) {
+        const first = frames[0];
+        tl.set(el, { x: first.x, y: first.y }, 0);
+
+        for (let i = 1; i < frames.length; i++) {
+          const f = frames[i];
+          tl.to(
+            el,
+            { x: f.x, y: f.y, ease: "none", duration: (f.at - frames[i - 1].at) as number },
+            frames[i - 1].at
+          );
+        }
+      }
+    } else {
+      const { from, to } = getScrollEffectRange(config);
+      tl.fromTo(el, from, {
+        ...to,
+        ease: "none",
+      });
+    }
 
     return () => {
       tl.kill();
@@ -249,10 +295,12 @@ function useGsapScrollEffect(
     config.scrub,
     config.start,
     config.end,
-    config.fromX,
-    config.fromY,
-    config.toX,
-    config.toY,
+    config.freeMove?.start?.x,
+    config.freeMove?.start?.y,
+    config.freeMove?.mid?.x,
+    config.freeMove?.mid?.y,
+    config.freeMove?.end?.x,
+    config.freeMove?.end?.y,
   ]);
 }
 
@@ -311,6 +359,19 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
       to.x = h;
       break;
     }
+    case "freeMove": {
+      const start = config.freeMove?.start;
+      const end = config.freeMove?.end;
+      if (start && end) {
+        const dx = (end.x - start.x) * speed;
+        const dy = (end.y - start.y) * speed;
+        from.x = 0;
+        from.y = 0;
+        to.x = dx;
+        to.y = dy;
+      }
+      break;
+    }
     case "skew": {
       const sk = speed * 25;
       if (isVertical) {
@@ -345,15 +406,10 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
       to.transformPerspective = 1200;
       break;
     }
-    case "customMove": {
-      from.x = (config.fromX ?? 0) * speed;
-      from.y = (config.fromY ?? 0) * speed;
-      to.x = (config.toX ?? 0) * speed;
-      to.y = (config.toY ?? 0) * speed;
-      break;
-    }
   }
 
+  // Backward-compat: if persisted configs still contain the old "customMove" type,
+  // treat it as "none" by returning empty tween vars.
   return { from, to };
 }
 
