@@ -88,7 +88,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
     )?.id;
     const activeItem = forcedActiveItemId ?? matchedActiveItem;
     const COLLAPSED_WIDTH = 104;
-    const EXPANDED_WIDTH = 322;
+    const EXPANDED_WIDTH = 312;
 
     if (mobile) {
         return (
@@ -125,7 +125,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                             </div>
                         </div>
 
-                        <nav className="flex-1 space-y-1 overflow-y-auto">
+                        <nav className="flex-1 space-y-3 overflow-y-auto">
                             {ADMIN_NAV_ITEMS.map((item) => {
                                 const isActive = activeItem === item.id;
                                 const hasChildren = !!(item.children?.length);
@@ -140,8 +140,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 suppressHydrationWarning
                                                 className={`admin-dashboard-purple flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                             >
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
-                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/55">
+                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={18} height={18} className="h-[18px] w-[18px] object-contain" />
                                                 </span>
                                                 <span className="flex-1 text-left text-sm font-medium">{item.label}</span>
                                                 <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
@@ -150,10 +150,10 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                             <Link
                                                 href={item.href}
                                                 onClick={() => onClose?.()}
-                                                className={`admin-dashboard-purple flex items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                className={`admin-dashboard-purple flex items-center gap-3 rounded-[18px] px-[18px] py-[18px] transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                             >
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
-                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/55">
+                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={18} height={18} className="h-[18px] w-[18px] object-contain" />
                                                 </span>
                                                 <span className="text-sm font-medium">{item.label}</span>
                                             </Link>
@@ -223,12 +223,12 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                 {/* Logo header — fixed height so nav never shifts vertically */}
                 <div className="flex h-[85px] w-full shrink-0 items-center justify-center">
                     <Link href="/admindashboard" aria-label="Dashboard Home">
-                        <img src="/images/logo.svg" alt="CMS E-commerce" className="h-9 w-auto max-w-[36px] object-contain" />
+                        <img src="/images/logo.svg" alt="CMS E-commerce" className="h-9 w-auto max-w-[48px] object-contain" />
                     </Link>
                 </div>
 
-                <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
-                    {navItems.map((item) => {
+                <nav className="mt-20 flex min-h-0 w-full flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden px-1">
+                    {ADMIN_NAV_ITEMS.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
                         const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
@@ -241,31 +241,31 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         onClick={() => isHovered && toggleDropdown(item.id)}
                                         aria-label={item.label}
                                         suppressHydrationWarning
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className={`group relative flex w-full items-center rounded-[22px] px-4 py-4 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
                                         {/* Fixed-width icon slot so icon never shifts */}
-                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
-                                            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/55">
+                                            <Image src={item.iconSrc} alt={item.iconAlt} width={16} height={16} className="h-4 w-4 object-contain" />
                                         </span>
                                         <span className={`admin-dashboard-purple ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
                                             {item.label}
                                         </span>
                                         <span className={`admin-dashboard-purple mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            <ChevronDownIcon isOpen={isOpen} />
+                                            <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                         </span>
                                         {isActive ? (
-                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
+                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-8 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
                                         ) : null}
                                     </button>
                                 ) : (
                                     <Link
                                         href={item.href}
                                         aria-label={item.label}
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className={`group relative flex w-full items-center rounded-[22px] px-4 py-4 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
                                         {/* Fixed-width icon slot so icon never shifts */}
-                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
-                                            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/55">
+                                            <Image src={item.iconSrc} alt={item.iconAlt} width={16} height={16} className="h-4 w-4 object-contain" />
                                         </span>
                                         <AnimatePresence>
                                             {isHovered && (
@@ -281,7 +281,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                             )}
                                         </AnimatePresence>
                                         {isActive ? (
-                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
+                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-12 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
                                         ) : null}
                                     </Link>
                                 )}
@@ -316,20 +316,24 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     })}
                 </nav>
 
-                <button
-                    type="button"
-                    suppressHydrationWarning
-                    className={`admin-dashboard-logout mt-auto shrink-0 flex items-center rounded-2xl ${isHovered ? 'w-full px-2 py-2 justify-start' : 'justify-center py-2'}`}
-                    aria-label="Log out"
-                    title="Log out"
-                >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
-                        <LogoutIcon />
-                    </span>
-                    <span className={`admin-dashboard-purple whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'ml-3 opacity-100' : 'opacity-0'}`}>
-                        Log out
-                    </span>
-                </button>
+                <div className="mt-auto flex shrink-0 flex-col gap-4 border-t border-gray-100/50 p-4 px-1 pb-10">
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={isLoggingOut}
+                        suppressHydrationWarning
+                        className={`admin-dashboard-logout w-full flex items-center rounded-[22px] ${isHovered ? 'px-4 py-3 justify-start' : 'justify-center py-4'}`}
+                        aria-label="Log out"
+                        title="Log out"
+                    >
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/55">
+                            <LogoutIcon className="h-4 w-4" />
+                        </span>
+                        <span className={`admin-dashboard-purple whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'ml-3 opacity-100' : 'opacity-0'}`}>
+                            {isLoggingOut ? 'Logging out...' : 'Log out'}
+                        </span>
+                    </button>
+                </div>
             </div>
         </motion.aside>
     );
