@@ -81,7 +81,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
   const frameAddSrc  = isDarkMode ? 'border-white/10 hover:border-white/20 hover:bg-white/5' : 'border-[#d0d0dc] hover:border-[#888899] hover:bg-[#f8f8fb] text-[#888899]';
 
   return (
-    <section className={`relative overflow-hidden border-t px-4 pb-24 pt-12 md:px-8 md:pb-28 md:pt-16 ${section}`}>
+    <section id="company" className={`relative overflow-hidden border-t px-4 pb-24 pt-12 md:px-8 md:pb-28 md:pt-16 ${section}`}>
 
       {/* Ambient glows — dark mode only */}
       {isDarkMode && (

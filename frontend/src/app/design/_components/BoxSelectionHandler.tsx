@@ -30,6 +30,11 @@ type DragState = {
   currentY: number;
 };
 
+type SelectableNode = {
+  id: string;
+  dom: HTMLElement;
+};
+
 function rectsIntersect(a: Rect, b: Rect): boolean {
   return !(a.left > b.right || a.right < b.left || a.top > b.bottom || a.bottom < b.top);
 }
@@ -45,6 +50,10 @@ export const BoxSelectionHandler = () => {
   const actionsRef = useRef(actions);
   const queryRef = useRef(query);
   const activeToolRef = useRef(activeTool);
+  const animationFrameRef = useRef<number | null>(null);
+  const selectableNodesRef = useRef<SelectableNode[]>([]);
+  const highlightedIdsRef = useRef<Set<string>>(new Set());
+  const marqueeRectRef = useRef<MarqueeRect | null>(null);
 
   const clearPreviewHighlights = () => {
     const highlighted = document.querySelectorAll("[data-box-preview-selected='true']");
@@ -53,6 +62,7 @@ export const BoxSelectionHandler = () => {
       delete element.dataset.boxPreviewSelected;
       element.classList.remove("component-selected");
     });
+    highlightedIdsRef.current.clear();
   };
 
   useEffect(() => {
@@ -66,8 +76,14 @@ export const BoxSelectionHandler = () => {
 
   useEffect(() => {
     const clearMarqueeState = () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
       dragRef.current = null;
       startedOnEmptyRef.current = false;
+      selectableNodesRef.current = [];
+      marqueeRectRef.current = null;
       setMarqueeRect(null);
       clearPreviewHighlights();
       delete document.body.dataset[BOX_SELECTING_FLAG];
@@ -75,34 +91,37 @@ export const BoxSelectionHandler = () => {
       document.body.style.userSelect = "";
     };
 
-    const getIntersectingNodeIds = (selectionRect: Rect): string[] => {
+    const buildSelectableNodes = (): SelectableNode[] => {
       try {
         const state = queryRef.current.getState();
         const nodes = state.nodes;
-        const nodeIds = Object.keys(nodes).filter((id) => {
-          if (id === "ROOT" || !nodes[id]) return false;
+        return Object.keys(nodes).flatMap((id) => {
+          if (id === "ROOT" || !nodes[id]) return [];
           const displayName = (nodes[id]?.data?.displayName as string | undefined) ?? "";
-          if (displayName === "Viewport" || displayName === "Page") return false;
-          return true;
-        });
-
-        const intersecting: string[] = [];
-        for (const nodeId of nodeIds) {
+          if (displayName === "Viewport" || displayName === "Page" || displayName === "Section") return [];
           try {
-            const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
-            if (!dom) continue;
-            const rect = dom.getBoundingClientRect();
-            if (rectsIntersect(selectionRect, { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom })) {
-              intersecting.push(nodeId);
-            }
+            const dom = queryRef.current.node(id).get()?.dom ?? null;
+            if (!dom || !dom.isConnected) return [];
+            return [{ id, dom }];
           } catch {
-            // ignore bad node refs
+            return [];
           }
-        }
-        return intersecting;
+        });
       } catch {
         return [];
       }
+    };
+
+    const getIntersectingNodeIds = (selectionRect: Rect): string[] => {
+      const intersecting: string[] = [];
+      for (const candidate of selectableNodesRef.current) {
+        const rect = candidate.dom.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) continue;
+        if (rectsIntersect(selectionRect, { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom })) {
+          intersecting.push(candidate.id);
+        }
+      }
+      return intersecting;
     };
 
     const mergeSelection = (
@@ -134,6 +153,7 @@ export const BoxSelectionHandler = () => {
         target.closest("SELECT") ||
         target.closest("[contenteditable=true]")
       ) return;
+      if (target.closest("[data-section-drag-handle='true']")) return;
       const isResizeOverlay = !!target.closest("[data-panel='resize-overlay']");
       if (target.closest("[data-panel]") && !isResizeOverlay) return;
       if (target.closest("[data-resize-handle]")) return;
@@ -184,6 +204,7 @@ export const BoxSelectionHandler = () => {
             const displayName = (node?.data?.displayName as string | undefined) ?? "";
             const isCanvasBackground =
               node?.data?.isCanvas === true ||
+              displayName === "Section" ||
               displayName === "Page" ||
               displayName === "Viewport" ||
               displayName === "Tab Content";
@@ -203,6 +224,7 @@ export const BoxSelectionHandler = () => {
       // can drag nodes (including multi-drag) when starting on a node
       if (startedOnEmptyRef.current) {
         document.body.dataset[BOX_SELECTING_INTENT_FLAG] = "true";
+        selectableNodesRef.current = buildSelectableNodes();
       }
       dragRef.current = {
         active: true,
@@ -217,14 +239,11 @@ export const BoxSelectionHandler = () => {
       };
     };
 
-    const handleMouseMove = (e: MouseEvent) => {
+    const updateMarqueeFrame = () => {
+      animationFrameRef.current = null;
       const dragState = dragRef.current;
       if (!dragState || !dragState.active) return;
-      // Only show marquee when started on empty — when started on node, let drag handler work
       if (!startedOnEmptyRef.current) return;
-
-      dragState.currentX = e.clientX;
-      dragState.currentY = e.clientY;
 
       const distance = Math.hypot(dragState.currentX - dragState.startX, dragState.currentY - dragState.startY);
       if (distance < MARQUEE_THRESHOLD) return;
@@ -232,23 +251,38 @@ export const BoxSelectionHandler = () => {
       document.body.dataset[BOX_SELECTING_FLAG] = "true";
       document.body.style.userSelect = "none";
 
-      setMarqueeRect({
+      const nextRect = {
         left: Math.min(dragState.startX, dragState.currentX),
         top: Math.min(dragState.startY, dragState.currentY),
         width: Math.abs(dragState.currentX - dragState.startX),
         height: Math.abs(dragState.currentY - dragState.startY),
-      });
+      };
 
-      const left = Math.min(dragState.startX, dragState.currentX);
-      const right = Math.max(dragState.startX, dragState.currentX);
-      const top = Math.min(dragState.startY, dragState.currentY);
-      const bottom = Math.max(dragState.startY, dragState.currentY);
-      const selectionRect: Rect = { left, top, right, bottom };
+      const previousRect = marqueeRectRef.current;
+      marqueeRectRef.current = nextRect;
+      if (
+        !previousRect ||
+        previousRect.left !== nextRect.left ||
+        previousRect.top !== nextRect.top ||
+        previousRect.width !== nextRect.width ||
+        previousRect.height !== nextRect.height
+      ) {
+        setMarqueeRect(nextRect);
+      }
+
+      const selectionRect: Rect = {
+        left: nextRect.left,
+        top: nextRect.top,
+        right: nextRect.left + nextRect.width,
+        bottom: nextRect.top + nextRect.height,
+      };
       const intersecting = getIntersectingNodeIds(selectionRect);
       const mergedPreview = mergeSelection(dragState.mode, dragState.initialSelection, intersecting);
       const nextHighlighted = new Set(mergedPreview);
+      const previousHighlighted = highlightedIdsRef.current;
 
-      for (const nodeId of mergedPreview) {
+      for (const nodeId of nextHighlighted) {
+        if (previousHighlighted.has(nodeId)) continue;
         try {
           const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
           if (!dom) continue;
@@ -259,24 +293,53 @@ export const BoxSelectionHandler = () => {
         }
       }
 
-      const currentlyHighlighted = document.querySelectorAll("[data-box-preview-selected='true']");
-      currentlyHighlighted.forEach((el) => {
-        const element = el as HTMLElement;
-        const id = element.getAttribute("data-node-id");
-        if (!id || !nextHighlighted.has(id)) {
-          delete element.dataset.boxPreviewSelected;
-          element.classList.remove("component-selected");
+      for (const nodeId of previousHighlighted) {
+        if (nextHighlighted.has(nodeId)) continue;
+        try {
+          const dom = queryRef.current.node(nodeId).get()?.dom ?? null;
+          if (!dom) continue;
+          delete dom.dataset.boxPreviewSelected;
+          dom.classList.remove("component-selected");
+        } catch {
+          // ignore
         }
-      });
+      }
+
+      highlightedIdsRef.current = nextHighlighted;
+    };
+
+    const scheduleMarqueeUpdate = () => {
+      if (animationFrameRef.current !== null) return;
+      animationFrameRef.current = window.requestAnimationFrame(updateMarqueeFrame);
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const dragState = dragRef.current;
+      if (!dragState || !dragState.active) return;
+      if (!startedOnEmptyRef.current) return;
+      if ((e.buttons & 1) === 0) return;
+
+      dragState.currentX = e.clientX;
+      dragState.currentY = e.clientY;
+      scheduleMarqueeUpdate();
     };
 
     const handleMouseUp = () => {
       const dragState = dragRef.current;
       const startedOnEmpty = startedOnEmptyRef.current;
-      clearMarqueeState();
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
 
-      if (!startedOnEmpty) return;
-      if (!dragState || !dragState.active) return;
+      if (!startedOnEmpty) {
+        clearMarqueeState();
+        return;
+      }
+      if (!dragState || !dragState.active) {
+        clearMarqueeState();
+        return;
+      }
 
       const left = Math.min(dragState.startX, dragState.currentX);
       const right = Math.max(dragState.startX, dragState.currentX);
@@ -294,6 +357,7 @@ export const BoxSelectionHandler = () => {
             // ignore
           }
         }
+        clearMarqueeState();
         return;
       }
 
@@ -313,6 +377,8 @@ export const BoxSelectionHandler = () => {
       } catch {
         // ignore
       }
+
+      clearMarqueeState();
     };
 
     const handleKeyOrBlur = (e: KeyboardEvent | FocusEvent | Event) => {

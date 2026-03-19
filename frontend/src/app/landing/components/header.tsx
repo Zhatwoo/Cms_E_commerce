@@ -30,9 +30,9 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
   }, []);
 
   const navLinks = [
-    { label: 'Home', href: '#' },
-    { label: 'About', href: '#' },
-    { label: 'Company', href: '#' },
+    { label: 'Home',    href: '#home' },
+    { label: 'About',   href: '#about' },
+    { label: 'Company', href: '#company' },
   ];
 
   return (
@@ -43,7 +43,7 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
         }`}
       >
         <div
-          className={`mx-auto flex h-14 w-full max-w-6xl items-center justify-between rounded-full border px-3 transition-all duration-500 ease-out sm:px-5 md:px-6 ${
+          className={`mx-auto flex h-14 w-full max-w-7xl items-center justify-between rounded-full border px-3 transition-all duration-500 ease-out sm:px-5 md:px-6 ${
             scrolled
               ? 'border-white/15 bg-[#0d0548]/75 shadow-[0_8px_32px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-xl backdrop-saturate-150'
               : 'border-white/10 bg-[#190765]/90 shadow-[0_4px_24px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-md'
@@ -131,7 +131,7 @@ export function LandingHeader({ onAuthClick, isDarkMode = false, onThemeToggle, 
 
         {/* Mobile dropdown */}
         <div
-          className={`mx-auto mt-2 w-full max-w-6xl overflow-hidden rounded-2xl border shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-300 ease-out md:hidden ${
+          className={`mx-auto mt-2 w-full max-w-7xl overflow-hidden rounded-2xl border shadow-[0_12px_40px_rgba(0,0,0,0.5)] backdrop-blur-xl transition-all duration-300 ease-out md:hidden ${
             mobileOpen ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'
           } border-white/10 bg-[#0d0548]/85`}
           style={{ WebkitBackdropFilter: 'blur(20px)' }}

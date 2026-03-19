@@ -173,6 +173,16 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   tabs: asComponent(Tabs),
   TabContent: asComponent(TabContent),
   tabcontent: asComponent(TabContent),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
+  "Boolean Field": asComponent(BooleanField),
+  "boolean field": asComponent(BooleanField),
+  Checkbox: asComponent(BooleanField),
+  checkbox: asComponent(BooleanField),
+  CheckBox: asComponent(BooleanField),
+  Radio: asComponent(BooleanField),
+  radio: asComponent(BooleanField),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -618,7 +628,93 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
   // Always run through validator so component type names are canonicalized
   // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
-  return validateCraftData(jsonString);
+  const validated = validateCraftData(jsonString);
+  if (!validated.valid || !validated.data) {
+    return { valid: false };
+  }
+
+  try {
+    // Round-trip through the clean document schema to strip malformed node metadata
+    // that can still survive direct validation and later crash Craft Frame mounts.
+    const cleanDoc = serializeCraftToClean(validated.data);
+    const roundTripped = deserializeCleanToCraft(cleanDoc);
+    const revalidated = validateCraftData(roundTripped);
+    if (revalidated.valid && revalidated.data) {
+      return revalidated;
+    }
+  } catch {
+    // Fall back to the directly validated payload below.
+  }
+
+  return validated;
+}
+
+function ensureFrameDataResolverCompatibility(
+  jsonString: string,
+  resolver: Record<string, React.ComponentType<any>>,
+): string {
+  try {
+    const parsed = JSON.parse(jsonString) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object") return jsonString;
+
+    const booleanResolverCandidates = [
+      "BooleanField",
+      "booleanfield",
+      "BOOLEANFIELD",
+      "Boolean Field",
+      "boolean field",
+      "Checkbox",
+      "checkbox",
+      "CheckBox",
+      "Radio",
+      "radio",
+    ];
+
+    const resolvedBooleanType =
+      booleanResolverCandidates.find((name) => name in resolver) ??
+      ("Container" in resolver ? "Container" : "container");
+
+    let changed = false;
+    Object.keys(parsed).forEach((id) => {
+      const node = parsed[id];
+      if (!node || typeof node !== "object") return;
+      const current = typeof node?.type === "string"
+        ? node.type
+        : typeof node?.type?.resolvedName === "string"
+          ? node.type.resolvedName
+          : "";
+      if (!current) return;
+
+      const lowered = current.trim().toLowerCase();
+      if (!(lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio"))) {
+        return;
+      }
+
+      if (typeof node.type === "string") {
+        if (node.type !== resolvedBooleanType) {
+          node.type = resolvedBooleanType;
+          changed = true;
+        }
+      } else if (node.type && typeof node.type === "object") {
+        if (node.type.resolvedName !== resolvedBooleanType) {
+          node.type.resolvedName = resolvedBooleanType;
+          changed = true;
+        }
+      } else {
+        node.type = { resolvedName: resolvedBooleanType };
+        changed = true;
+      }
+
+      if (node.displayName !== resolvedBooleanType) {
+        node.displayName = resolvedBooleanType;
+        changed = true;
+      }
+    });
+
+    return changed ? JSON.stringify(parsed) : jsonString;
+  } catch {
+    return jsonString;
+  }
 }
 
 // Suppress known @craftjs/core React 19 compatibility warnings.
@@ -873,7 +969,7 @@ const CollabSyncHandler = () => {
       console.log("[CollabSync] Received remote change, type:", data.type, "hasJson:", !!data.json);
       if (data.type !== "nodes_change" || !data.json) return;
       try {
-        const validated = validateCraftData(data.json);
+        const validated = prepareFrameData(data.json);
         if (validated.valid && validated.data) {
           console.log("[CollabSync] Applying remote deserialization");
           isApplyingRemoteRef.current = true;
@@ -965,7 +1061,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const lastWheelZoomAtRef = useRef(0);
   const manualCameraControlUntilRef = useRef(0);
   const hasAutoCenteredAfterFrameReadyRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
   const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
@@ -1136,8 +1232,31 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           return prev === next ? prev : next;
         });
       }
-      if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(permission === "viewer" ? false : parsed.leftPanelOpen);
-      if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(permission === "viewer" ? false : parsed.rightPanelOpen);
+
+      // If panels were previously saved as both closed, they can look like the editor UI broke.
+      // Auto-restore both panels for non-viewer permissions.
+      const nextLeftPanelOpen =
+        permission === "viewer"
+          ? false
+          : typeof parsed.leftPanelOpen === "boolean"
+            ? parsed.leftPanelOpen
+            : true;
+      const nextRightPanelOpen =
+        permission === "viewer"
+          ? false
+          : typeof parsed.rightPanelOpen === "boolean"
+            ? parsed.rightPanelOpen
+            : true;
+
+      const bothClosed = nextLeftPanelOpen === false && nextRightPanelOpen === false;
+      if (bothClosed) {
+        setLeftPanelOpen(true);
+        setRightPanelOpen(true);
+      } else {
+        setLeftPanelOpen(nextLeftPanelOpen);
+        setRightPanelOpen(nextRightPanelOpen);
+      }
+
       if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
       if (typeof parsed.showDualView === "boolean") setShowDualView(parsed.showDualView);
       if (parsed.currentPageId) setCurrentPageId(parsed.currentPageId);
@@ -1168,9 +1287,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   // Prevents stale hidden state from making the panel appear missing.
   useEffect(() => {
     if (!panelsReady || hasForcedRightPanelOpenRef.current || permission === "viewer") return;
+    // If both panels are hidden, restore both so TopPanel + BottomPanel tools are visible.
+    if (leftPanelOpen === false && rightPanelOpen === false) {
+      hasForcedRightPanelOpenRef.current = true;
+      setLeftPanelOpen(true);
+      setRightPanelOpen(true);
+      return;
+    }
     hasForcedRightPanelOpenRef.current = true;
     setRightPanelOpen(true);
-  }, [panelsReady, permission]);
+  }, [panelsReady, permission, leftPanelOpen, rightPanelOpen]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -1191,33 +1317,62 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     }
   }, []);
 
+  const updatePagesDocument = useCallback((
+    updater: (doc: BuilderDocument) => BuilderDocument | null
+  ): string | null => {
+    if (!initialJson) return null;
+    try {
+      const parsed = JSON.parse(initialJson);
+      let doc: BuilderDocument;
+
+      if (parsed?.version !== undefined && Array.isArray(parsed?.pages) && parsed?.nodes && typeof parsed.nodes === "object") {
+        doc = parsed as BuilderDocument;
+      } else {
+        doc = serializeCraftToClean(initialJson);
+      }
+
+      const nextDoc = updater(doc);
+      if (!nextDoc) return null;
+
+      const craftJson = deserializeCleanToCraft(nextDoc);
+      const prepared = prepareFrameData(craftJson);
+      if (!prepared.valid || !prepared.data) return null;
+
+      loadPages(JSON.stringify(nextDoc));
+      return prepared.data;
+    } catch {
+      return null;
+    }
+  }, [initialJson, loadPages]);
+
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
     try {
       const id = `page-${Date.now()}`;
-      const newPage = {
-        id,
-        name: `Page ${pages.length + 1}`,
-        props: { width: "100%", height: "auto" },
-        children: [],
-      };
-      const parsed = JSON.parse(initialJson);
-      if (!Array.isArray(parsed.pages)) parsed.pages = [];
-      parsed.pages.push(newPage);
-      const updated = JSON.stringify(parsed);
+      const updated = updatePagesDocument((doc) => ({
+        ...doc,
+        pages: [
+          ...(Array.isArray(doc.pages) ? doc.pages : []),
+          {
+            id,
+            name: `Page ${pages.length + 1}`,
+            slug: `page-${pages.length}`,
+            props: { width: "1920px", height: "1200px" },
+            children: [],
+          },
+        ],
+      }));
+      if (!updated) throw new Error("Failed to update page document");
       const storageKey = getStorageKey(projectId);
-      // Save to sessionStorage for persistence across refreshes
       safeSessionSet(storageKey, updated);
-      // Optionally, also save to localStorage for backup (uncomment if needed)
-      // localStorage.setItem(storageKey, updated);
-      loadPages(updated);
+      safeLocalSet(getPersistentStorageKey(projectId), updated);
       setCurrentPageId(id);
       setInitialJson(updated);
     } catch (error) {
       console.error("Failed to add page:", error);
       showAlert("Failed to add page", "error");
     }
-  }, [initialJson, pages, projectId, loadPages, showAlert]);
+  }, [initialJson, pages, projectId, showAlert, updatePagesDocument]);
 
   /** Sync pages list when a new page is added to the canvas via Craft (Add Page button / FAB) */
   const handlePageAdded = useCallback((id: string, name: string) => {
@@ -1232,40 +1387,46 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const handleDeletePage = useCallback((pageId: string) => {
     if (!initialJson || pages.length <= 1) return;
     try {
-      const parsed = JSON.parse(initialJson);
-      parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
-      const updated = JSON.stringify(parsed);
+      const updated = updatePagesDocument((doc) => ({
+        ...doc,
+        pages: (Array.isArray(doc.pages) ? doc.pages : []).filter((p) => p.id !== pageId),
+      }));
+      if (!updated) throw new Error("Failed to update page document");
       const storageKey = getStorageKey(projectId);
       safeSessionSet(storageKey, updated);
-      loadPages(updated);
-      if (currentPageId === pageId && parsed.pages.length > 0) {
-        setCurrentPageId(parsed.pages[0].id);
+      safeLocalSet(getPersistentStorageKey(projectId), updated);
+      const doc = serializeCraftToClean(updated);
+      if (currentPageId === pageId && doc.pages.length > 0) {
+        setCurrentPageId(doc.pages[0].id);
       }
       setInitialJson(updated);
     } catch (error) {
       console.error("Failed to delete page:", error);
       showAlert("Failed to delete page", "error");
     }
-  }, [initialJson, currentPageId, pages, projectId, loadPages, showAlert]);
+  }, [initialJson, currentPageId, pages, projectId, showAlert, updatePagesDocument]);
 
   const handleRenamePage = useCallback((pageId: string, newName: string) => {
     if (!initialJson) return;
     try {
-      const parsed = JSON.parse(initialJson);
-      const page = (parsed.pages || []).find((p: any) => p.id === pageId);
-      if (page) {
-        page.name = newName;
-        const updated = JSON.stringify(parsed);
-        const storageKey = getStorageKey(projectId);
-        safeSessionSet(storageKey, updated);
-        loadPages(updated);
-        setInitialJson(updated);
-      }
+      const updated = updatePagesDocument((doc) => ({
+        ...doc,
+        pages: (Array.isArray(doc.pages) ? doc.pages : []).map((page) =>
+          page.id === pageId
+            ? { ...page, name: newName }
+            : page
+        ),
+      }));
+      if (!updated) throw new Error("Failed to update page document");
+      const storageKey = getStorageKey(projectId);
+      safeSessionSet(storageKey, updated);
+      safeLocalSet(getPersistentStorageKey(projectId), updated);
+      setInitialJson(updated);
     } catch (error) {
       console.error("Failed to rename page:", error);
       showAlert("Failed to rename page", "error");
     }
-  }, [initialJson, projectId, loadPages, showAlert]);
+  }, [initialJson, projectId, showAlert, updatePagesDocument]);
 
   const mousePosRef = useRef({ x: 0, y: 0 });
 
@@ -1972,7 +2133,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             if (!parsed || typeof parsed !== "object") return null;
 
             if (parsed.ROOT && Array.isArray(parsed.ROOT?.nodes)) {
-              const validated = validateCraftData(JSON.stringify(parsed));
+              const validated = prepareFrameData(JSON.stringify(parsed));
               return validated.valid && validated.data ? validated.data : null;
             }
             if (
@@ -1982,7 +2143,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
               typeof parsed.nodes === "object"
             ) {
               const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
-              const validated = validateCraftData(craftJson);
+              const validated = prepareFrameData(craftJson);
               return validated.valid && validated.data ? validated.data : null;
             }
             return null;
@@ -2105,6 +2266,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
   }, [frameReady]);
+
+  // Fail-safe: if the frame mounted but panelsReady never flips to true (rare),
+  // re-enable panels after a short delay so the editor tools/shortcuts come back.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (permission === "viewer") return;
+    if (panelsReady) return;
+    const t = window.setTimeout(() => setPanelsReady(true), 2500);
+    return () => window.clearTimeout(t);
+  }, [panelsReady, permission, initialJson, frameReady]);
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
@@ -2298,9 +2469,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const result = await autoSavePage(snapshot, projectId);
       if (result.success) {
+        if (saveStatusTimerRef.current) {
+          clearTimeout(saveStatusTimerRef.current);
+          saveStatusTimerRef.current = null;
+        }
         setSaveStatus("saved");
         setSaveError(null);
-        setTimeout(() => setSaveStatus("idle"), 1200);
+        saveStatusTimerRef.current = setTimeout(() => {
+          setSaveStatus("idle");
+          saveStatusTimerRef.current = null;
+        }, 1200);
       } else {
         console.warn("Auto-save warning:", result.error);
         setSaveStatus("error");
@@ -2424,7 +2602,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+        saveStatusTimerRef.current = null;
+      }
+      if (dbSaveTimerRef.current) {
+        clearTimeout(dbSaveTimerRef.current);
+        dbSaveTimerRef.current = null;
+      }
     };
   }, []); // Stable [] array to prevent mismatch
 
@@ -2502,6 +2687,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.TabContent = asComponent(CRAFT_RESOLVER.TabContent ?? TabContent);
     base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
 
+    // Force BooleanField aliases after all spreads so legacy snapshots always resolve.
+    const booleanFieldComp = asComponent(CRAFT_RESOLVER.BooleanField ?? BooleanField);
+    base.BooleanField = booleanFieldComp;
+    base.booleanfield = booleanFieldComp;
+    base.Booleanfield = booleanFieldComp;
+    base.BOOLEANFIELD = booleanFieldComp;
+    base["Boolean Field"] = booleanFieldComp;
+    base["boolean field"] = booleanFieldComp;
+    base.Checkbox = booleanFieldComp;
+    base.checkbox = booleanFieldComp;
+    base.CheckBox = booleanFieldComp;
+    base.Radio = booleanFieldComp;
+    base.radio = booleanFieldComp;
+
     return withResolverFallback(base);
   }, []);
 
@@ -2510,12 +2709,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
       const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
-      const validated = validateCraftData(raw);
-      return validated.valid && validated.data ? validated.data : null;
+      const validated = prepareFrameData(raw);
+      return validated.valid && validated.data
+        ? ensureFrameDataResolverCompatibility(validated.data, resolver)
+        : null;
     } catch {
       return null;
     }
-  }, [initialJson]);
+  }, [initialJson, resolver]);
 
   return (
     <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
@@ -2768,6 +2969,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <FloatingMobilePreview
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
+                        activePageId={currentPageId}
                         canvasWidth={canvasWidth}
                         canvasHeight={canvasHeight}
                       />

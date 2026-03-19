@@ -5,7 +5,7 @@ import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayou
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import type { ContainerProps, SetProp } from "../../_types/components";
+import type { SectionProps, SetProp } from "../../_types/components";
 
 export const SectionSettings = () => {
   const {
@@ -14,11 +14,11 @@ export const SectionSettings = () => {
     marginLeft, marginRight, marginTop, marginBottom,
     width, height,
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
-    borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
+    radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
+    contentWidth, contentMaxWidth,
     boxShadow, opacity, overflow,
-    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp },
   } = useNode((node) => ({
     background: node.data.props.background,
@@ -37,7 +37,6 @@ export const SectionSettings = () => {
     backgroundPosition: node.data.props.backgroundPosition,
     backgroundRepeat: node.data.props.backgroundRepeat,
     backgroundOverlay: node.data.props.backgroundOverlay,
-    borderRadius: node.data.props.borderRadius,
     radiusTopLeft: node.data.props.radiusTopLeft,
     radiusTopRight: node.data.props.radiusTopRight,
     radiusBottomRight: node.data.props.radiusBottomRight,
@@ -51,20 +50,14 @@ export const SectionSettings = () => {
     alignItems: node.data.props.alignItems,
     justifyContent: node.data.props.justifyContent,
     gap: node.data.props.gap,
+    contentWidth: node.data.props.contentWidth,
+    contentMaxWidth: node.data.props.contentMaxWidth,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
-    toggleTarget: node.data.props.toggleTarget,
-    triggerAction: node.data.props.triggerAction,
-    collapsibleKey: node.data.props.collapsibleKey,
-    defaultOpen: node.data.props.defaultOpen,
-    defaultOpenMobile: node.data.props.defaultOpenMobile,
-    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
-    showOn: node.data.props.showOn,
-    mobileBreakpoint: node.data.props.mobileBreakpoint,
   }));
 
-  const typedSetProp = setProp as SetProp<ContainerProps>;
+  const typedSetProp = setProp as SetProp<SectionProps>;
 
   return (
     <div className="flex flex-col pb-4">
@@ -77,6 +70,42 @@ export const SectionSettings = () => {
           gap={gap}
           setProp={typedSetProp}
         />
+      </DesignSection>
+
+      <DesignSection title="Content Layout">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
+            <select
+              value={contentWidth || "constrained"}
+              onChange={(e) =>
+                typedSetProp((props) => {
+                  props.contentWidth = e.target.value as SectionProps["contentWidth"];
+                })
+              }
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+            >
+              <option value="constrained">Constrained</option>
+              <option value="full">Full Width</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
+            <input
+              type="text"
+              value={contentMaxWidth || "1200px"}
+              onChange={(e) =>
+                typedSetProp((props) => {
+                  props.contentMaxWidth = e.target.value;
+                })
+              }
+              placeholder="1200px"
+              disabled={(contentWidth || "constrained") === "full"}
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
+            />
+          </div>
+        </div>
       </DesignSection>
 
       <DesignSection title="Size & Spacing">

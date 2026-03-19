@@ -11,18 +11,31 @@ const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Paid', 'Shipped
 const THUMBNAILS = ['/images/template-saas.jpg', '/images/template-fashion.jpg', '/images/template-portfolio.jpg'];
 
 // ─── Payment mode config ─────────────────────────────────────────────────────
-type PaymentMode = 'COD' | 'Bank Transfer';
-const PAYMENT_MODES: PaymentMode[] = ['COD', 'Bank Transfer'];
-
+type PaymentMode = 'COD' | 'Bank Transfer' | 'Stripe' | 'PayPal' | 'GCash' | 'Maya';
 const PAYMENT_ICONS: Record<PaymentMode, { icon: string; bg: string; color: string }> = {
-  COD: { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
-  'Bank Transfer': { icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
+  COD:           { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
+  'Bank Transfer':{ icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
+  Stripe:        { icon: '💳', bg: '#635BFF22', color: '#635BFF' },
+  PayPal:        { icon: '🅿', bg: '#003087' + '22', color: '#009CDE' },
+  GCash:         { icon: '📱', bg: '#007DFF22', color: '#007DFF' },
+  Maya:          { icon: '💚', bg: '#00C27722', color: '#00C277' },
 };
 
-// Deterministic mock payment mode from order id
-function mockPaymentMode(orderId: string): PaymentMode {
-  const charSum = orderId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return PAYMENT_MODES[charSum % PAYMENT_MODES.length];
+// Map the stored payment_method string from the DB to a display PaymentMode
+function resolvePaymentMode(order: ApiPublishedOrder): PaymentMode {
+  const raw = String(
+    (order as any).paymentMethod ||
+    (order as any).payment_method ||
+    ''
+  ).toLowerCase().trim();
+  if (raw === 'stripe') return 'Stripe';
+  if (raw === 'paypal') return 'PayPal';
+  if (raw === 'gcash') return 'GCash';
+  if (raw === 'maya') return 'Maya';
+  if (raw === 'cod') return 'COD';
+  if (raw === 'bank_transfer' || raw === 'bank transfer') return 'Bank Transfer';
+  // Fallback: no payment method stored yet → show COD
+  return 'COD';
 }
 
 type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
@@ -280,15 +293,17 @@ export default function OrdersPage() {
 
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
-        <h1 className="text-[38px] max-[390px]:text-[34px] sm:text-5xl md:text-7xl lg:text-[78px] font-extrabold leading-[0.96] tracking-tight">
-          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Track Buyer</span>
+        <h1 className="text-[44px] sm:text-[58px] lg:text-[76px] 2xl:text-[84px] font-extrabold leading-[1.15] tracking-tight">
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Customer </span>
           <span
-            className="block w-fit mx-auto text-transparent bg-clip-text"
+            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
             style={{
               backgroundImage: theme === 'dark'
                 ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)'
                 : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
-              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)'
+              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
+              paddingBottom: '0.1em',
+              marginBottom: '-0.1em'
             }}
           >
             Checkouts
@@ -327,9 +342,13 @@ export default function OrdersPage() {
 
         {/* Search */}
         <div className={`m-dashboard-search-shadow mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
-          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+          <svg 
+            viewBox="0 0 20 20" 
+            className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`} 
+            fill="none"
+          >
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
           </svg>
           <input
             value={search}
@@ -458,7 +477,7 @@ export default function OrdersPage() {
 
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const paymentMode = mockPaymentMode(order.id);
+            const paymentMode = resolvePaymentMode(order);
             const isExpanded = expandedOrderId === order.id;
             const isEditing = editingOrderId === order.id;
 
@@ -665,7 +684,7 @@ export default function OrdersPage() {
         <section className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const paymentMode = mockPaymentMode(order.id);
+            const paymentMode = resolvePaymentMode(order);
             const paymentCfg = PAYMENT_ICONS[paymentMode];
             const isExpanded = expandedOrderId === order.id;
             const isEditing = editingOrderId === order.id;

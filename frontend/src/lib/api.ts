@@ -39,6 +39,30 @@ export type AuthResponse = {
 
 export type ApiError = { success: false; message: string; error?: string };
 
+export function getApiErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message || '';
+  if (typeof error === 'string') return error;
+  return '';
+}
+
+export function isBackendUnavailableError(error: unknown): boolean {
+  return getApiErrorMessage(error).includes('Backend is unreachable');
+}
+
+export function isAccountDeactivatedError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return message.includes('account has been deactivated') || message.includes('your account has been deactivated');
+}
+
+export function isQuietAuthError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return (
+    isAccountDeactivatedError(error) ||
+    message.includes('not authorized') ||
+    message.includes('no token')
+  );
+}
+
 /** Token is in HttpOnly cookie only; not readable from JS. */
 export function getToken(): string | null {
   return null;
@@ -311,6 +335,10 @@ export async function createStripeSetupIntent(): Promise<{ success: boolean; cli
 
 export async function getUnionBankLink(): Promise<{ success: boolean; url: string }> {
   return apiFetch<{ success: boolean; url: string }>('/api/payments/unionbank/link');
+}
+
+export async function getPayPalLink(): Promise<{ success: boolean; url: string }> {
+  return apiFetch<{ success: boolean; url: string }>('/api/payments/paypal/link');
 }
 
 /** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
@@ -1284,6 +1312,7 @@ export type ClientRow = {
   displayName: string;
   subscriptionPlan: string;
   status: string;
+  suspensionReason?: string;
   createdAt?: string;
   isActive?: boolean;
   storageUsedBytes?: number;
@@ -1316,11 +1345,12 @@ export async function updateClientPlan(
 /** Admin: update client status (Published = active, Suspended, Restricted). */
 export async function updateClientStatus(
   userId: string,
-  status: 'Published' | 'Suspended' | 'Restricted'
+  status: 'Published' | 'Suspended' | 'Restricted',
+  suspensionReason?: string
 ): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
   return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
     `/api/users/${userId}/status`,
-    { method: 'PUT', body: JSON.stringify({ status }) }
+    { method: 'PUT', body: JSON.stringify({ status, suspensionReason }) }
   );
 }
 

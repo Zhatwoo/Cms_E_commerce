@@ -15,6 +15,23 @@ export type StoreContext = {
   addToCart: (product: { id: string; name: string; price: number; image?: string }) => void;
 };
 
+type StoreProduct = StoreContext["products"][number];
+
+type ProductBindingField = "name" | "price" | "description" | "image" | "addToCart";
+
+type ProductBinding = {
+  rootNodeId: string;
+  product: StoreProduct;
+  productIndex: number;
+  roles: {
+    imageNodeId: string | null;
+    nameNodeId: string | null;
+    priceNodeId: string | null;
+    descriptionNodeId: string | null;
+    buttonNodeIds: Set<string>;
+  };
+};
+
 function hasAddToCartButton(nodeId: string, nodes: Record<string, CleanNode>): boolean {
   const node = nodes[nodeId];
   if (!node) return false;
@@ -24,6 +41,302 @@ function hasAddToCartButton(nodeId: string, nodes: Record<string, CleanNode>): b
   }
   const childIds = node.children ?? [];
   return childIds.some((id) => hasAddToCartButton(id, nodes));
+}
+
+function looksLikeAddToCartLabel(label: string): boolean {
+  return label.trim().toLowerCase().includes("add to cart");
+}
+
+function normalizeStoreProductField(value: unknown): ProductBindingField | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "name" || normalized === "title" || normalized === "product-name" || normalized === "productname") return "name";
+  if (normalized === "price" || normalized === "product-price" || normalized === "productprice") return "price";
+  if (normalized === "description" || normalized === "details" || normalized === "product-description" || normalized === "productdescription") return "description";
+  if (normalized === "image" || normalized === "product-image" || normalized === "productimage") return "image";
+  if (normalized === "addtocart" || normalized === "add-to-cart" || normalized === "cart" || normalized === "cta") return "addToCart";
+  return null;
+}
+
+function getExplicitProductField(props: Record<string, unknown>): ProductBindingField | null {
+  return (
+    normalizeStoreProductField(props.productField) ||
+    normalizeStoreProductField(props.storeField) ||
+    normalizeStoreProductField(props.bindingField) ||
+    normalizeStoreProductField(props.contentRole)
+  );
+}
+
+function collectSubtreeNodeIds(rootNodeId: string, nodes: Record<string, CleanNode>): string[] {
+  const ordered: string[] = [];
+  const queue: string[] = [rootNodeId];
+  const seen = new Set<string>();
+
+  while (queue.length > 0) {
+    const currentId = queue.shift();
+    if (!currentId || seen.has(currentId)) continue;
+    seen.add(currentId);
+    const current = nodes[currentId];
+    if (!current) continue;
+    ordered.push(currentId);
+    for (const childId of current.children ?? []) {
+      queue.push(childId);
+    }
+  }
+
+  return ordered;
+}
+
+function looksLikePriceText(text: string): boolean {
+  const normalized = text.trim().toLowerCase();
+  return /(php|₱|p\s?\d|price)/i.test(normalized) || /\d[\d,]*(\.\d{1,2})?/.test(normalized);
+}
+
+function looksLikeBadgeText(text: string): boolean {
+  const normalized = text.trim();
+  if (!normalized) return false;
+  const lower = normalized.toLowerCase();
+  if (/(off|sale|new arrival|best seller|editor'?s pick|limited|promo)/i.test(lower)) return true;
+  return normalized.length <= 24 && normalized === normalized.toUpperCase();
+}
+
+function toFontWeightScore(value: unknown): number {
+  if (typeof value === "number") return value;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+    if (value.toLowerCase() === "bold") return 700;
+    if (value.toLowerCase() === "semibold") return 600;
+  }
+  return 400;
+}
+
+function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, CleanNode>): ProductBinding["roles"] {
+  const subtreeIds = collectSubtreeNodeIds(rootNodeId, nodes);
+  const textCandidates: Array<{
+    id: string;
+    text: string;
+    fontSize: number;
+    fontWeight: number;
+    explicitField: ProductBindingField | null;
+  }> = [];
+  const imageCandidates: Array<{ id: string; explicitField: ProductBindingField | null }> = [];
+  const buttonNodeIds = new Set<string>();
+
+  for (const id of subtreeIds) {
+    const current = nodes[id];
+    if (!current) continue;
+    const currentType = String(current.type || "").toLowerCase();
+    const currentProps = (current.props ?? {}) as Record<string, unknown>;
+    const explicitField = getExplicitProductField(currentProps);
+
+    if (currentType === "image") {
+      imageCandidates.push({ id, explicitField });
+      continue;
+    }
+
+    if (currentType === "button") {
+      const label = String(currentProps.label ?? "").trim();
+      if (explicitField === "addToCart" || looksLikeAddToCartLabel(label)) {
+        buttonNodeIds.add(id);
+      }
+      continue;
+    }
+
+    if (currentType === "text") {
+      const text = String(currentProps.text ?? "").trim();
+      if (!text) continue;
+      textCandidates.push({
+        id,
+        text,
+        fontSize: parsePixelValue(currentProps.fontSize) ?? toNumber(currentProps.fontSize, 16),
+        fontWeight: toFontWeightScore(currentProps.fontWeight),
+        explicitField,
+      });
+    }
+  }
+
+  const imageNodeId =
+    imageCandidates.find((candidate) => candidate.explicitField === "image")?.id ??
+    imageCandidates[0]?.id ??
+    null;
+
+  const priceNodeId =
+    textCandidates
+      .map((candidate) => {
+        let score = 0;
+        if (candidate.explicitField === "price") score += 1000;
+        if (looksLikePriceText(candidate.text)) score += 180;
+        score += Math.min(50, candidate.fontWeight / 20);
+        if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
+        return { id: candidate.id, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.score > 0
+      ? textCandidates
+          .map((candidate) => {
+            let score = 0;
+            if (candidate.explicitField === "price") score += 1000;
+            if (looksLikePriceText(candidate.text)) score += 180;
+            score += Math.min(50, candidate.fontWeight / 20);
+            if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
+            return { id: candidate.id, score };
+          })
+          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+      : null;
+
+  const remainingTextCandidates = textCandidates.filter((candidate) => candidate.id !== priceNodeId);
+
+  const nameNodeId =
+    remainingTextCandidates
+      .map((candidate) => {
+        let score = 0;
+        const lower = candidate.text.toLowerCase();
+        if (candidate.explicitField === "name") score += 1000;
+        if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
+        if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
+        if (candidate.fontWeight >= 600) score += 35;
+        if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
+        if (candidate.text.length <= 40) score += 10;
+        if (looksLikeBadgeText(candidate.text)) score -= 150;
+        return { id: candidate.id, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.score > 0
+      ? remainingTextCandidates
+          .map((candidate) => {
+            let score = 0;
+            const lower = candidate.text.toLowerCase();
+            if (candidate.explicitField === "name") score += 1000;
+            if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
+            if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
+            if (candidate.fontWeight >= 600) score += 35;
+            if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
+            if (candidate.text.length <= 40) score += 10;
+            if (looksLikeBadgeText(candidate.text)) score -= 150;
+            return { id: candidate.id, score };
+          })
+          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+      : null;
+
+  const descriptionNodeId =
+    remainingTextCandidates
+      .filter((candidate) => candidate.id !== nameNodeId)
+      .map((candidate) => {
+        let score = 0;
+        const lower = candidate.text.toLowerCase();
+        if (candidate.explicitField === "description") score += 1000;
+        if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
+        if (candidate.text.length >= 24) score += 60;
+        if (candidate.fontSize <= 14) score += 25;
+        if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
+        return { id: candidate.id, score };
+      })
+      .sort((a, b) => b.score - a.score)[0]?.score > 0
+      ? remainingTextCandidates
+          .filter((candidate) => candidate.id !== nameNodeId)
+          .map((candidate) => {
+            let score = 0;
+            const lower = candidate.text.toLowerCase();
+            if (candidate.explicitField === "description") score += 1000;
+            if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
+            if (candidate.text.length >= 24) score += 60;
+            if (candidate.fontSize <= 14) score += 25;
+            if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
+            return { id: candidate.id, score };
+          })
+          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+      : null;
+
+  return {
+    imageNodeId,
+    nameNodeId,
+    priceNodeId,
+    descriptionNodeId,
+    buttonNodeIds,
+  };
+}
+
+function resolveExplicitProduct(
+  props: Record<string, unknown>,
+  storeContext: StoreContext,
+): StoreProduct | null {
+  const explicitId =
+    [props.productId, props.boundProductId, props.storeProductId, props.product_id]
+      .find((value) => typeof value === "string" && value.trim()) as string | undefined;
+  if (explicitId) {
+    const normalized = explicitId.trim().toLowerCase();
+    const matched =
+      storeContext.products.find((product) => String(product.id).trim().toLowerCase() === normalized) ??
+      storeContext.products.find((product) => String((product as { slug?: string }).slug ?? "").trim().toLowerCase() === normalized);
+    if (matched) return matched;
+  }
+
+  const explicitIndex = toNumber(props.productIndex, NaN);
+  if (Number.isFinite(explicitIndex) && explicitIndex >= 0) {
+    return storeContext.products[Math.min(storeContext.products.length - 1, Math.floor(explicitIndex))] ?? null;
+  }
+
+  return null;
+}
+
+function hasExplicitProductReference(props: Record<string, unknown>): boolean {
+  const explicitId = [props.productId, props.boundProductId, props.storeProductId, props.product_id]
+    .some((value) => typeof value === "string" && value.trim());
+  if (explicitId) return true;
+
+  const explicitIndex = toNumber(props.productIndex, NaN);
+  return Number.isFinite(explicitIndex) && explicitIndex >= 0;
+}
+
+function createProductBinding(
+  rootNodeId: string,
+  fallbackProductIndex: number,
+  nodes: Record<string, CleanNode>,
+  storeContext: StoreContext,
+): ProductBinding | null {
+  const rootNode = nodes[rootNodeId];
+  if (!rootNode || storeContext.products.length === 0) return null;
+  const rootProps = (rootNode.props ?? {}) as Record<string, unknown>;
+  const explicit = resolveExplicitProduct(rootProps, storeContext);
+  if (hasExplicitProductReference(rootProps) && !explicit) {
+    return null;
+  }
+  const product =
+    explicit ??
+    storeContext.products[Math.min(storeContext.products.length - 1, Math.max(0, fallbackProductIndex))] ??
+    null;
+  if (!product) return null;
+  const resolvedProductIndex = storeContext.products.findIndex((candidate) => candidate.id === product.id);
+
+  return {
+    rootNodeId,
+    product,
+    productIndex: resolvedProductIndex >= 0 ? resolvedProductIndex : fallbackProductIndex,
+    roles: analyzeProductCardTemplate(rootNodeId, nodes),
+  };
+}
+
+function resolveProductFieldForNode(
+  nodeId: string | undefined,
+  type: ComponentType,
+  props: Record<string, unknown>,
+  productBinding?: ProductBinding | null,
+): ProductBindingField | null {
+  if (!productBinding || !nodeId) return null;
+  const explicitField = getExplicitProductField(props);
+  if (explicitField) return explicitField;
+  if (type === "Image" && productBinding.roles.imageNodeId === nodeId) return "image";
+  if (type === "Button" && productBinding.roles.buttonNodeIds.has(nodeId)) return "addToCart";
+  if (type === "Text") {
+    if (productBinding.roles.priceNodeId === nodeId) return "price";
+    if (productBinding.roles.nameNodeId === nodeId) return "name";
+    if (productBinding.roles.descriptionNodeId === nodeId) return "description";
+  }
+  return null;
+}
+
+function formatStorePrice(price: number): string {
+  return `PHP ${price.toFixed(2)}`;
 }
 
 /** Default links for common nav/CTA labels so the storefront viewport is functional without editing each button. */
@@ -195,6 +508,26 @@ const frameResponsiveStyles = (
         word-break: break-word;
       }
 
+      .frame-responsive-inner [data-smooth="true"] {
+        transition:
+          width 180ms ease,
+          height 180ms ease,
+          padding 180ms ease,
+          margin 180ms ease,
+          transform 180ms ease,
+          opacity 180ms ease,
+          box-shadow 180ms ease,
+          background-color 180ms ease,
+          border-color 180ms ease,
+          color 180ms ease;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .frame-responsive-inner [data-smooth="true"] {
+          transition: none !important;
+        }
+      }
+
       .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
         object-fit: cover !important;
         width: 100%;
@@ -248,6 +581,14 @@ const frameResponsiveStyles = (
           padding-bottom: clamp(10px, 3cqw, 18px) !important;
         }
 
+        /* Force mobile-first flow: all top-level children stack and fill width. */
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          gap: clamp(10px, 2.8cqw, 16px) !important;
+        }
+
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * {
           width: 100% !important;
           max-width: 100% !important;
@@ -261,12 +602,20 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
           flex-direction: column !important;
           align-items: stretch !important;
+          height: auto !important;
+          min-height: 0 !important;
         }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           flex: 1 1 100% !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+          height: auto !important;
+          min-height: 0 !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-mobile-font-scale="true"] {
@@ -324,6 +673,51 @@ const frameResponsiveStyles = (
           grid-template-columns: minmax(0, 1fr) !important;
         }
 
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
+          max-width: 100% !important;
+          min-width: 0 !important;
+          width: 100% !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+          white-space: pre-wrap !important;
+          overflow-wrap: anywhere !important;
+          word-break: break-word !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[data-fluid-space="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button[data-fluid-space="true"] {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: auto !important;
+          transform: none !important;
+          width: 100% !important;
+          max-width: 100% !important;
+          min-width: 0 !important;
+        }
+
         /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
@@ -348,10 +742,10 @@ const frameResponsiveStyles = (
       }
 
       @container (max-width: 520px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="position:fixed"] {
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -381,12 +775,14 @@ const frameResponsiveStyles = (
 );
 
 /** Responsive Navigation Component - converts nav bars to hamburger menu on mobile */
-function ResponsiveNav({ children, containerStyle, onClick, className, dataMobileOverflow }: {
+function ResponsiveNav({ children, containerStyle, onClick, className, dataMobileOverflow, nodeId, nodeType }: {
   children: React.ReactNode;
   containerStyle: React.CSSProperties;
   onClick?: () => void;
   className?: string;
   dataMobileOverflow?: "true";
+  nodeId?: string;
+  nodeType?: string;
 }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const navRef = React.useRef<HTMLDivElement>(null);
@@ -409,6 +805,8 @@ function ResponsiveNav({ children, containerStyle, onClick, className, dataMobil
       ref={navRef}
       data-nav-container
       data-fluid-space="true"
+      data-node-id={nodeId}
+      data-node-type={nodeType}
       data-mobile-overflow={dataMobileOverflow}
       className={className}
       style={{ ...containerStyle, position: "relative" }}
@@ -688,6 +1086,8 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 0,
+    contentWidth: "constrained",
+    contentMaxWidth: "1200px",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -1170,6 +1570,52 @@ function normalizeLayoutHeightForNarrow(
   return undefined;
 }
 
+function normalizeSpacerDimension(
+  value: unknown,
+  axis: "width" | "height",
+  isNarrow: boolean,
+  builderParityMode?: boolean,
+): string {
+  if (typeof value === "number") {
+    if (!isNarrow || builderParityMode) return `${value}px`;
+    if (axis === "width") return `min(100%, ${Math.max(1, value)}px)`;
+    const max = Math.max(4, value);
+    const min = Math.max(4, Math.round(max * 0.4));
+    return `clamp(${min}px, 5cqw, ${max}px)`;
+  }
+
+  if (typeof value === "string") {
+    const raw = value.trim();
+    if (!raw) return axis === "width" ? "100%" : "20px";
+    if (!isNarrow || builderParityMode) return raw;
+
+    const normalized = raw.toLowerCase();
+    if (normalized === "auto") return raw;
+    if (
+      normalized.endsWith("%") ||
+      normalized.includes("vw") ||
+      normalized.startsWith("min(") ||
+      normalized.startsWith("max(") ||
+      normalized.startsWith("clamp(") ||
+      normalized.startsWith("calc(")
+    ) {
+      return raw;
+    }
+
+    if (normalized.endsWith("px")) {
+      const parsed = Number(normalized.slice(0, -2));
+      if (Number.isFinite(parsed) && parsed > 0) {
+        if (axis === "width") return `min(100%, ${parsed}px)`;
+        const max = Math.max(4, parsed);
+        const min = Math.max(4, Math.round(max * 0.4));
+        return `clamp(${min}px, 5cqw, ${max}px)`;
+      }
+    }
+  }
+
+  return axis === "width" ? "100%" : "20px";
+}
+
 function isNarrowResponsivePreview(
   viewportWidth: number,
   builderParityMode?: boolean,
@@ -1219,6 +1665,7 @@ function normalizeResponsivePosition(
   if (!isNarrow) return position;
   if (position === "absolute" || position === "fixed") {
     if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
+    return "relative";
   }
   return position;
 }
@@ -1308,55 +1755,91 @@ function isNavContainer(
   return (isHorizontal && navItemCount >= 2) || navItemCount >= 3;
 }
 
-function wrapWithPrototype(
-  element: React.ReactElement,
-  prototype: PrototypeConfig | undefined,
-  onPrototypeAction: ((interaction: Interaction) => void) | undefined
-): React.ReactElement {
-  if (!onPrototypeAction || !prototype?.interactions?.length) return element;
-  const interactions = prototype.interactions;
+function PrototypeWrapper({
+  children,
+  interactions,
+  onPrototypeAction,
+}: {
+  children: React.ReactElement;
+  interactions: Interaction[];
+  onPrototypeAction: (interaction: Interaction) => void;
+}) {
+  const run = React.useCallback(
+    (trigger: Interaction["trigger"]) => {
+      const i = interactions.find((x) => x.trigger === trigger);
+      if (i) onPrototypeAction(i);
+    },
+    [interactions, onPrototypeAction]
+  );
 
-  const run = (trigger: Interaction["trigger"]) => {
-    const i = interactions.find((x) => x.trigger === trigger);
-    if (i) onPrototypeAction(i);
-  };
+  const hasClick = interactions.some((x) => x.trigger === "click");
+  const hasDblClick = interactions.some((x) => x.trigger === "doubleClick");
+  const hasHover = interactions.some((x) => x.trigger === "hover");
+  const hasMouseLeave = interactions.some((x) => x.trigger === "mouseLeave");
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     run("click");
-  };
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  }, [run]);
+
+  const handleDblClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     run("doubleClick");
-  };
+  }, [run]);
 
-  const handlers: Record<string, unknown> = {};
-  if (interactions.some((x) => x.trigger === "click")) {
-    handlers.onClickCapture = handleClick;
+  const isDomElement = typeof children.type === "string";
+
+  if (isDomElement) {
+    const existingStyle =
+      (children.props as Record<string, unknown>)?.style as React.CSSProperties | undefined;
+    return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+      ...(hasClick ? { onClick: handleClick } : {}),
+      ...(hasDblClick ? { onDoubleClick: handleDblClick } : {}),
+      ...(hasHover ? { onMouseEnter: () => run("hover") } : {}),
+      ...(hasMouseLeave ? { onMouseLeave: () => run("mouseLeave") } : {}),
+      style: { ...existingStyle, cursor: "pointer" },
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          run("click");
+        }
+      },
+      role: "button",
+      tabIndex: 0,
+    });
   }
-  if (interactions.some((x) => x.trigger === "doubleClick")) {
-    handlers.onDoubleClickCapture = handleDoubleClick;
-  }
-  if (interactions.some((x) => x.trigger === "hover")) handlers.onMouseEnter = () => run("hover");
-  if (interactions.some((x) => x.trigger === "mouseLeave")) handlers.onMouseLeave = () => run("mouseLeave");
 
   return (
     <div
       style={{ display: "contents", cursor: "pointer" }}
       role="button"
       tabIndex={0}
+      {...(hasClick ? { onClickCapture: handleClick } : {})}
+      {...(hasDblClick ? { onDoubleClickCapture: handleDblClick } : {})}
+      {...(hasHover ? { onMouseEnter: () => run("hover") } : {})}
+      {...(hasMouseLeave ? { onMouseLeave: () => run("mouseLeave") } : {})}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           run("click");
         }
       }}
-      {...handlers}
     >
-      {element}
+      {children}
     </div>
+  );
+}
+
+function wrapWithPrototype(
+  element: React.ReactElement,
+  prototype: PrototypeConfig | undefined,
+  onPrototypeAction: ((interaction: Interaction) => void) | undefined
+): React.ReactElement {
+  if (!onPrototypeAction || !prototype?.interactions?.length) return element;
+  return (
+    <PrototypeWrapper interactions={prototype.interactions} onPrototypeAction={onPrototypeAction}>
+      {element}
+    </PrototypeWrapper>
   );
 }
 
@@ -1393,9 +1876,16 @@ function PreviewTabs({
   const br = (props.borderRadius ?? 0) as number;
   const borderColor = (props.borderColor as string) || "transparent";
   const borderWidth = (props.borderWidth ?? 0) as number;
+  const narrowTabsPreview = isNarrowResponsivePreview(
+    toNumber(props.viewportWidth, 1200),
+    Boolean(props.builderParityMode),
+    toNumber(props.mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT),
+  );
 
   return (
     <div
+      data-fluid-space="true"
+      data-layout="column"
       className="tabs-component w-full flex flex-col"
       style={{
         backgroundColor: (props.background as string) || "transparent",
@@ -1413,6 +1903,7 @@ function PreviewTabs({
         className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
         style={{
           borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
+          flexWrap: narrowTabsPreview ? "wrap" : "nowrap",
           justifyContent:
             props.tabAlignment === "center"
               ? "center"
@@ -1442,8 +1933,11 @@ function PreviewTabs({
                 borderTop: "none",
                 borderLeft: "none",
                 borderRight: "none",
-                padding: "16px 24px",
+                padding: narrowTabsPreview ? "10px 12px" : "16px 24px",
+                fontSize: narrowTabsPreview ? "13px" : undefined,
                 cursor: "pointer",
+                maxWidth: narrowTabsPreview ? "100%" : undefined,
+                minWidth: narrowTabsPreview ? "0" : undefined,
               }}
             >
               {tab.title}
@@ -1451,22 +1945,37 @@ function PreviewTabs({
           );
         })}
       </div>
-      {/* Children here are per-tab content nodes rendered by RenderNode; we simply show/hide via CSS */}
-      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-hidden">
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          const fallbackId = `tab-content-${tab.id}`;
+      {/* Tab content: render actual child nodes from linkedNodes (via linkedSlotMap + childNodeMap) */}
+      <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-visible">
+        {(() => {
+          const activeIndex = tabs.findIndex((tab) => tab?.id === activeTabId);
+          const safeIndex = activeIndex >= 0 ? activeIndex : 0;
+          const active = tabs[safeIndex] ?? tabs[0];
+          if (!active) return <span />;
+
+          const fallbackId = `tab-content-${active.id}`;
           const candidateId =
-            typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
+            typeof active?.content === "string" && active.content.trim() ? active.content.trim() : fallbackId;
+          const slotKey = `tab-content-${active.id}`;
+          const linkedContentNodeId = linkedSlotMap[slotKey];
+          const indexedChildId = Array.isArray(childNodeIds) ? childNodeIds[safeIndex] : undefined;
+          const candidates = [linkedContentNodeId, candidateId, fallbackId, indexedChildId].filter(
+            (v): v is string => typeof v === "string" && !!v.trim(),
+          );
           const contentNodeId =
-            props.nodes && props.nodes[candidateId] ? candidateId : fallbackId;
+            candidates.find((id) => Boolean(props.nodes && props.nodes[id])) || fallbackId;
+
           return (
-            <div
-              key={tab.id}
-              className={`w-full h-full transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isActive ? "opacity-100 translate-y-0 relative" : "opacity-0 -translate-y-2 absolute inset-0 pointer-events-none"}`}
-            >
-              <div className="w-full h-full min-h-[100px] p-6 flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {/* Render tab content canvas as nodes */}
+            <div className="w-full min-h-[100px] transition-all duration-300 ease-out opacity-100 translate-y-0 relative">
+              <div
+                className="w-full min-h-[100px] flex flex-col text-sm whitespace-pre-wrap text-gray-800 leading-relaxed"
+                style={{
+                  padding: narrowTabsPreview ? "12px" : "24px",
+                  maxWidth: "100%",
+                  minWidth: 0,
+                  overflow: "visible",
+                }}
+              >
                 {props.nodes && props.nodes[contentNodeId] ? (
                   <RenderNode
                     node={props.nodes[contentNodeId]}
@@ -1487,6 +1996,8 @@ function PreviewTabs({
                     preserveAuthoredPositioning={props.preserveAuthoredPositioning}
                     layoutReferenceWidth={props.layoutReferenceWidth}
                     layoutReferenceHeight={props.layoutReferenceHeight}
+                    parentType={"Tabs" as ComponentType}
+                    insideTabsContext
                   />
                 ) : (
                   <span />
@@ -1494,7 +2005,7 @@ function PreviewTabs({
               </div>
             </div>
           );
-        })}
+        })()}
       </div>
     </div>
   );
@@ -1516,9 +2027,10 @@ function RenderNode({
   enableFormInputs,
   builderParityMode,
   renderAllNodes,
-  preserveAuthoredPositioning: _preserveAuthoredPositioning,
-  layoutReferenceWidth: _layoutReferenceWidth,
-  layoutReferenceHeight: _layoutReferenceHeight,
+  productBinding,
+  preserveAuthoredPositioning,
+  layoutReferenceWidth,
+  layoutReferenceHeight,
   parentType,
   insideTabsContext,
 }: {
@@ -1537,14 +2049,18 @@ function RenderNode({
   enableFormInputs?: boolean;
   builderParityMode?: boolean;
   renderAllNodes?: boolean;
+  productBinding?: ProductBinding | null;
   preserveAuthoredPositioning?: boolean;
   layoutReferenceWidth?: number;
   layoutReferenceHeight?: number;
   parentType?: ComponentType;
   insideTabsContext?: boolean;
 }): React.ReactElement {
+  void preserveAuthoredPositioning;
+  void layoutReferenceWidth;
+  void layoutReferenceHeight;
   // Normalize legacy lowercase node types so published and preview payloads render identically.
-  const rawType = node.type as string;
+  const rawType = typeof node.type === "string" && node.type.trim() ? node.type : "Container";
   const normalizedTypeMap: Record<string, ComponentType> = {
     text: "Text",
     container: "Container",
@@ -1586,15 +2102,36 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
+  if (prototype?.interactions?.length) {
+    console.log("[Prototype] Node", nodeId, "type:", type, "has prototype:", JSON.stringify(prototype));
+  }
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
-  const children = childIds.map((id) => {
+  const directProductTemplateIds =
+    storeContext && !productBinding
+      ? childIds.filter((id) => {
+          const childNode = nodes[id];
+          return Boolean(childNode) &&
+            String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
+            hasAddToCartButton(id, nodes);
+        })
+      : [];
+  const productTemplateIdSet = new Set(directProductTemplateIds);
+  const hasExplicitTemplateBinding = directProductTemplateIds.some((id) =>
+    hasExplicitProductReference((nodes[id]?.props ?? {}) as Record<string, unknown>)
+  );
+
+  const renderChildNode = (
+    id: string,
+    childProductBinding?: ProductBinding | null,
+    renderKey?: string,
+  ) => {
     const n = nodes[id];
     if (!n) return null;
     const renderedNode = (
       <RenderNode
-        key={id}
+        key={renderKey ?? id}
         node={n}
         nodes={nodes}
         pages={pages}
@@ -1612,14 +2149,50 @@ function RenderNode({
         renderAllNodes={renderAllNodes}
         parentType={type}
         insideTabsContext={nextInsideTabsContext}
+        productBinding={childProductBinding ?? productBinding}
       />
     );
     childNodeMap[id] = renderedNode;
     return renderedNode;
-  });
+  };
+
+  const children = directProductTemplateIds.length > 0
+    ? childIds.flatMap((id) => {
+        if (!productTemplateIdSet.has(id)) {
+          const rendered = renderChildNode(id);
+          return rendered ? [rendered] : [];
+        }
+        if (hasExplicitTemplateBinding) {
+          const fallbackProductIndex = Math.max(0, directProductTemplateIds.indexOf(id));
+          const binding = createProductBinding(id, fallbackProductIndex, nodes, storeContext!);
+          const rendered = renderChildNode(id, binding);
+          return rendered ? [rendered] : [];
+        }
+        if (id !== directProductTemplateIds[0]) return [];
+
+        return storeContext!.products.map((_, productIndex) => {
+          const templateId = directProductTemplateIds[
+            Math.min(productIndex, directProductTemplateIds.length - 1)
+          ] ?? directProductTemplateIds[0];
+          const binding = createProductBinding(templateId, productIndex, nodes, storeContext!);
+          return renderChildNode(templateId, binding, `${templateId}::product-${productIndex}`);
+        });
+      })
+    : childIds.map((id) => renderChildNode(id));
+
+  const withNodeMeta = (el: React.ReactElement): React.ReactElement => {
+    if (!nodeId) return el;
+    if (typeof el.type !== "string") return el;
+    const current = (el.props ?? {}) as Record<string, unknown>;
+    if (current["data-node-id"]) return el;
+    return React.cloneElement(el as React.ReactElement<Record<string, unknown>>, {
+      "data-node-id": nodeId,
+      "data-node-type": type,
+    });
+  };
 
   const wrap = (el: React.ReactElement) =>
-    wrapWithPrototype(wrapWithAnimation(el, animation), prototype, onPrototypeAction);
+    wrapWithAnimation(wrapWithPrototype(withNodeMeta(el), prototype, onPrototypeAction), animation);
 
   switch (type) {
     case "Container": {
@@ -1632,7 +2205,9 @@ function RenderNode({
         (props.display as React.CSSProperties["display"] | undefined) ?? "block";
       const isProductSlot =
         storeContext &&
+        !productBinding &&
         storeContext.products.length > 0 &&
+        directProductTemplateIds.length === 0 &&
         hasAddToCartButton(nodeId ?? "", nodes);
       if (isProductSlot) {
         // Product slots skip animation wrapping for simplicity
@@ -1662,6 +2237,8 @@ function RenderNode({
         return (
           <div
             id="products"
+            data-node-id={nodeId}
+            data-node-type={type}
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
               backgroundColor: props.background as string,
@@ -1787,7 +2364,14 @@ function RenderNode({
         builderParityMode,
       );
       const mobileOverflowLikely = !builderParityMode && isNarrowPreview && isLikelyOverflowingNarrowViewport(props, viewportWidth);
-      const resolvedContainerHeight = normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px");
+      const shouldClearNarrowOffsets =
+        !builderParityMode &&
+        isNarrowPreview &&
+        ((props.position as React.CSSProperties["position"]) === "absolute" ||
+          (props.position as React.CSSProperties["position"]) === "fixed");
+      const resolvedContainerHeight = builderParityMode
+        ? normalizeContainerHeight(normalizedHeight ?? (props.height as string) ?? "240px")
+        : (isNarrowPreview ? "auto" : (normalizedHeight ?? (props.height as string) ?? "auto"));
 
       const containerStyle: React.CSSProperties = {
         backgroundColor: props.background as string,
@@ -1828,10 +2412,10 @@ function RenderNode({
         opacity: props.opacity as number,
         overflow: props.overflow as string,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
-        top: props.top as React.CSSProperties["top"],
-        right: props.right as React.CSSProperties["right"],
-        bottom: props.bottom as React.CSSProperties["bottom"],
-        left: props.left as React.CSSProperties["left"],
+        top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+        right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+        bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+        left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
       };
 
       const containerContent = isNav ? (
@@ -1840,6 +2424,8 @@ function RenderNode({
           onClick={interactiveClick}
           className={((props.customClassName as string) || "").trim() || undefined}
           dataMobileOverflow={mobileOverflowLikely ? "true" : undefined}
+          nodeId={nodeId}
+          nodeType={type}
         >
           {children}
         </ResponsiveNav>
@@ -1885,6 +2471,11 @@ function RenderNode({
         builderParityMode,
       );
       const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const sectionContentWidth = (props.contentWidth as string | undefined) === "full" ? "full" : "constrained";
+      const sectionContentMaxWidth =
+        sectionContentWidth === "constrained"
+          ? ((props.contentMaxWidth as string | undefined)?.trim() || "1200px")
+          : "none";
       return wrap(
         <section
           data-fluid-space="true"
@@ -1906,20 +2497,17 @@ function RenderNode({
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
-            height: normalizedHeight ?? (props.height as string),
+            minHeight: normalizedHeight && normalizedHeight !== "auto" ? normalizedHeight : undefined,
+            height: normalizedHeight === "auto" ? "auto" : undefined,
             containerType: "inline-size",
+            position: "relative",
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
               ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
               : sectionBorderDecl
                 ? { border: sectionBorderDecl }
                 : {}),
-            display: "flex",
-            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
-            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
-            alignItems: props.alignItems as string,
-            justifyContent: props.justifyContent as string,
-            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
+            display: "block",
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -1927,7 +2515,38 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {children}
+          <div
+            data-section-shell="true"
+            style={{
+              width: "100%",
+              maxWidth: "100%",
+              minWidth: 0,
+              marginLeft: "auto",
+              marginRight: "auto",
+            }}
+          >
+            <div
+              data-section-content="true"
+              data-layout={(props.flexDirection as string) === "row" ? "row" : "column"}
+              style={{
+                width: "100%",
+                maxWidth: sectionContentMaxWidth,
+                minWidth: 0,
+                marginLeft: "auto",
+                marginRight: "auto",
+                boxSizing: "border-box",
+                position: "relative",
+                display: (props.display as React.CSSProperties["display"]) ?? "flex",
+                flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+                flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
+                alignItems: props.alignItems as string,
+                justifyContent: props.justifyContent as string,
+                gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
+              }}
+            >
+              {children}
+            </div>
+          </div>
         </section>
       );
     }
@@ -1990,6 +2609,8 @@ function RenderNode({
           containerStyle={rowStyle}
           onClick={interactiveClick}
           className={((props.customClassName as string) || "").trim() || undefined}
+          nodeId={nodeId}
+          nodeType={type}
         >
           {children}
         </ResponsiveNav>
@@ -2080,7 +2701,16 @@ function RenderNode({
       const pb = (props.paddingBottom ?? p) as number;
       const pl = (props.paddingLeft ?? p) as number;
       const pr = (props.paddingRight ?? p) as number;
-      const textContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
+      const fallbackTextContent = (props.text != null && props.text !== "") ? String(props.text) : ((DEFAULTS["Text"]?.text as string) ?? "Edit me!");
+      const resolvedProductField = resolveProductFieldForNode(nodeId, type, props, productBinding);
+      const textContent =
+        resolvedProductField === "name" && productBinding?.product.name
+          ? productBinding.product.name
+          : resolvedProductField === "price"
+            ? formatStorePrice(typeof productBinding?.product.price === "number" ? productBinding.product.price : 0)
+            : resolvedProductField === "description" && productBinding?.product.description
+              ? productBinding.product.description
+              : fallbackTextContent;
       const normalizedTextWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedTextHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const rawTextFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Text"]?.fontSize, 16));
@@ -2177,6 +2807,11 @@ function RenderNode({
     }
 
     case "Image": {
+      const resolvedProductField = resolveProductFieldForNode(nodeId, type, props, productBinding);
+      const productImageUrl =
+        resolvedProductField === "image"
+          ? productBinding?.product.images?.[0]
+          : undefined;
       const imgRot = toNumber(props.rotation, 0);
       const imgFlipH = props.flipHorizontal === true;
       const imgFlipV = props.flipVertical === true;
@@ -2200,8 +2835,8 @@ function RenderNode({
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
       return wrap(
         <img
-          src={(props.src as string) || "https://placehold.co/600x400?text=Photo"}
-          alt={(props.alt as string) || "Image"}
+          src={productImageUrl || (props.src as string) || "https://placehold.co/600x400?text=Photo"}
+          alt={(resolvedProductField === "image" ? productBinding?.product.name : undefined) || (props.alt as string) || "Image"}
           data-fluid-space="true"
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
@@ -2225,7 +2860,9 @@ function RenderNode({
     }
 
     case "BooleanField": {
-      const controlType = (props.controlType as string) === "radio" ? "radio" : "checkbox";
+      const controlTypeRaw = String(props.controlType ?? "checkbox").trim().toLowerCase();
+      const controlType = controlTypeRaw === "radio" ? "radio" : "checkbox";
+      const isRadio = controlType === "radio";
       const disabled = props.disabled === true;
       const labelColor = (props.labelColor as string) || "#000000";
       const gap = toNumber(props.gap, 10);
@@ -2234,6 +2871,7 @@ function RenderNode({
       const fontFamily = (props.fontFamily as string) || "Outfit";
       const fontWeight = (props.fontWeight as string) || "500";
       const showLabels = props.showLabels !== false;
+      const controlSize = isNarrowPreview ? 18 : 16;
       const baseOptions = Array.isArray(props.options) && props.options.length > 0
         ? props.options
         : [
@@ -2254,6 +2892,7 @@ function RenderNode({
           isNarrowPreview,
           builderParityMode,
         ) || "fit-content";
+      const resolvedBooleanWidth = isNarrowPreview ? "100%" : normalizedWidth;
 
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
@@ -2268,9 +2907,11 @@ function RenderNode({
 
       return wrap(
         <div
+          data-fluid-space="true"
+          data-fluid-text="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            width: normalizedWidth,
+            width: resolvedBooleanWidth,
             height: (props.height as string) || "fit-content",
             paddingTop: `${pt}px`,
             paddingRight: `${pr}px`,
@@ -2293,7 +2934,7 @@ function RenderNode({
         >
           {baseOptions.map((opt: any, idx: number) => {
             const checked =
-              controlType === "radio"
+              isRadio
                 ? Boolean(opt.checked) && !baseOptions.some((o: any, i: number) => i < idx && o.checked)
                 : Boolean(opt.checked);
 
@@ -2301,11 +2942,14 @@ function RenderNode({
               <label
                 key={opt.id || `opt-${idx}`}
                 style={{
-                  display: "inline-flex",
-                  alignItems: "center",
+                  display: "flex",
+                  alignItems: "flex-start",
                   gap: `${gap}px`,
                   cursor: disabled ? "not-allowed" : "pointer",
+                  width: isNarrowPreview ? "100%" : "auto",
                   maxWidth: "100%",
+                  minWidth: 0,
+                  flexWrap: "nowrap",
                 }}
               >
                 <input
@@ -2314,18 +2958,28 @@ function RenderNode({
                   defaultChecked={checked}
                   readOnly={!enableFormInputs}
                   className="h-4 w-4 accent-brand-blue"
+                  style={{
+                    flexShrink: 0,
+                    width: `${controlSize}px`,
+                    height: `${controlSize}px`,
+                    minWidth: `${controlSize}px`,
+                    minHeight: `${controlSize}px`,
+                    marginTop: isNarrowPreview ? "2px" : undefined,
+                  }}
                 />
                 {showLabels && (
                   <span
                     style={{
                       color: labelColor,
-                      fontSize: `${fontSize}px`,
+                      fontSize: fluidFont(fontSize, isNarrowPreview ? 13 : 12, isNarrowPreview ? 3.6 : 3, useFixedPx),
                       fontFamily,
                       fontWeight,
-                      lineHeight: 1.2,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      lineHeight: 1.35,
+                      minWidth: 0,
+                      maxWidth: "100%",
+                      whiteSpace: isNarrowPreview ? "normal" : "nowrap",
+                      overflowWrap: isNarrowPreview ? "anywhere" : "normal",
+                      wordBreak: isNarrowPreview ? "break-word" : "normal",
                     }}
                     title={opt.label || `Option ${idx + 1}`}
                   >
@@ -2450,6 +3104,8 @@ function RenderNode({
       const mb = (props.marginBottom ?? m) as number;
       const ml = (props.marginLeft ?? m) as number;
       const labelStr = (props.label as string) ?? "Button";
+      const resolvedProductField = resolveProductFieldForNode(nodeId, type, props, productBinding);
+      const boundAddToCart = resolvedProductField === "addToCart" && productBinding && storeContext;
       const explicitLink = (props.link as string) || "";
       const link =
         explicitLink ||
@@ -2466,6 +3122,7 @@ function RenderNode({
           data-fluid-space="true"
           data-fluid-button="true"
           data-fluid-text="true"
+          data-smooth="true"
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
@@ -2497,6 +3154,7 @@ function RenderNode({
             whiteSpace: isNarrowPreview ? "normal" : "nowrap",
             overflowWrap: isNarrowPreview ? "break-word" : "normal",
             wordBreak: isNarrowPreview ? "break-word" : "keep-all",
+            transition: "background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease, opacity 180ms ease",
             ["--fluid-font-cqw" as any]: "3cqw",
             ["--mobile-source-font-size" as any]: `${rawButtonFontSize}px`,
             ["--fluid-font-max" as any]: `${rawButtonFontSize}px`,
@@ -2508,6 +3166,32 @@ function RenderNode({
       );
       if (interactiveClick) {
         return wrapWithAnimation(content, animation);
+      }
+      if (boundAddToCart) {
+        return wrap(
+          <button
+            type="button"
+            data-fluid-space="true"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              storeContext.addToCart({
+                id: productBinding.product.id,
+                name: productBinding.product.name,
+                price: typeof productBinding.product.price === "number" ? productBinding.product.price : 0,
+                image: productBinding.product.images?.[0],
+              });
+            }}
+            style={{
+              all: "unset",
+              display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
+              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              cursor: "pointer",
+            }}
+          >
+            {content}
+          </button>
+        );
       }
       if (internalTargetSlug && onPrototypeAction) {
         return wrap(
@@ -2561,23 +3245,12 @@ function RenderNode({
             { title: "Item 2", content: "Accordion content" },
           ];
 
-      const LEGACY_LIGHT_HEADER_BG = /^#(f8fbff|ffffff|f1f5f9)$/i;
-      const LEGACY_LIGHT_CONTENT_BG = /^#(ffffff|f8fafc)$/i;
-      const LEGACY_LIGHT_TEXT = /^#(10213f|334155|1e293b)$/i;
-      const LEGACY_LIGHT_BORDER = /^#(d4dfef|e2e8f0)$/i;
-      const orDark = (val: unknown, dark: string, isBg = false, isText = false, isBorder = false) => {
-        const s = String(val ?? "").trim();
-        if (!s) return dark;
-        if (isBg && (LEGACY_LIGHT_HEADER_BG.test(s) || LEGACY_LIGHT_CONTENT_BG.test(s))) return dark;
-        if (isText && LEGACY_LIGHT_TEXT.test(s)) return dark;
-        if (isBorder && LEGACY_LIGHT_BORDER.test(s)) return dark;
-        return s;
-      };
-      const headerBg = orDark(props.headerBg, "#1e1e2e", true, false, false);
-      const headerTextColor = orDark(props.headerTextColor, "#e2e8f0", false, true, false);
-      const contentBg = orDark(props.contentBg, "#12121c", true, false, false);
-      const contentTextColor = orDark(props.contentTextColor, "#a0aec0", false, true, false);
-      const borderColor = orDark(props.borderColor, "#2d2d44", false, false, true);
+      // Respect authored colors from the canvas to keep preview/theme parity.
+      const headerBg = String(props.headerBg ?? "#1e1e2e");
+      const headerTextColor = String(props.headerTextColor ?? "#e2e8f0");
+      const contentBg = String(props.contentBg ?? "#12121c");
+      const contentTextColor = String(props.contentTextColor ?? "#a0aec0");
+      const borderColor = String(props.borderColor ?? "#2d2d44");
       const borderWidth = toNumber(props.borderWidth, 1);
       const headerFontSize = toNumber(props.headerFontSize, 14);
       const contentFontSize = toNumber(props.contentFontSize, 13);
@@ -2727,7 +3400,8 @@ function RenderNode({
     case "Rating": {
       const value = Math.max(0, toNumber(props.value, 4.2));
       const max = Math.max(1, Math.round(toNumber(props.max, 5)));
-      const size = Math.max(10, toNumber(props.size, 24));
+      const baseSize = Math.max(10, toNumber(props.size, 24));
+      const size = isNarrowPreview ? Math.max(12, Math.min(baseSize, 22)) : baseSize;
       const gap = Math.max(0, toNumber(props.gap, 8));
       const filledColor = (props.filledColor as string) || "#f7c200";
       const emptyColor = (props.emptyColor as string) || "#6b6b6b";
@@ -2735,17 +3409,20 @@ function RenderNode({
 
       return wrap(
         <div
+          data-fluid-space="true"
+          data-layout="row"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            display: "inline-flex",
+            display: "flex",
             alignItems: "center",
+            flexWrap: isNarrowPreview ? "wrap" : "nowrap",
             gap: `${Math.max(0, toNumber(props.valueGap, 8))}px`,
-            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || undefined,
+            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || (isNarrowPreview ? "100%" : undefined),
             maxWidth: "100%",
             minWidth: 0,
           }}
         >
-          <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px` }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px`, flexWrap: "wrap", maxWidth: "100%" }}>
             {Array.from({ length: max }).map((_, index) => {
               const fillRatio = Math.max(0, Math.min(1, value - index));
               return (
@@ -2753,7 +3430,7 @@ function RenderNode({
                   <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
                     <path fill={emptyColor} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                   </svg>
-                  <span style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fillRatio * 100}%` }}>
+                  <span data-preserve-position="true" style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fillRatio * 100}%` }}>
                     <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
                       <path fill={filledColor} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                     </svg>
@@ -2814,17 +3491,19 @@ function RenderNode({
         spacerFlipH ? "scaleX(-1)" : null,
         spacerFlipV ? "scaleY(-1)" : null,
       ].filter(Boolean).join(" ") || undefined;
-      const width = normalizeLayoutWidthForNarrow(
-        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) || (props.width as string) || "100%",
-        isNarrowPreview,
-        builderParityMode,
-      ) || "100%";
-      const height = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode) || (props.height as string) || "20px";
+      const spacerWidthSource =
+        normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) ||
+        props.width ||
+        "100%";
+      const spacerHeightSource = props.height ?? "20px";
+      const width = normalizeSpacerDimension(spacerWidthSource, "width", isNarrowPreview, builderParityMode);
+      const height = normalizeSpacerDimension(spacerHeightSource, "height", isNarrowPreview, builderParityMode);
       const bw = toNumber(props.borderWidth, 0);
 
       return wrap(
         <div
           data-fluid-space="true"
+          data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width,
@@ -2832,8 +3511,10 @@ function RenderNode({
             maxWidth: "100%",
             minWidth: 0,
             boxSizing: "border-box",
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            display: "block",
+            flexShrink: 0,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             background: (props.background as string) || "transparent",
             borderRadius: px(props.borderRadius),
             border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
@@ -2873,6 +3554,7 @@ function RenderNode({
         <div
           data-fluid-space="true"
           data-layout="row"
+          data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width: badgeWidth,
@@ -2881,8 +3563,8 @@ function RenderNode({
             minWidth: badgeWidth === "fit-content" ? fluidSpace(pl + pr + 48, 48) : 0,
             boxSizing: "border-box",
             backgroundColor: (props.background as string) || "#16a34a",
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             borderRadius: px(props.borderRadius),
             ...(badgeStrokePlacement === "outside" && badgeBorderDecl
               ? { border: "none", outline: badgeBorderDecl, outlineOffset: 0 }
@@ -2894,7 +3576,7 @@ function RenderNode({
             flexWrap: (props.flexWrap as React.CSSProperties["flexWrap"]) || "nowrap",
             alignItems: (props.alignItems as React.CSSProperties["alignItems"]) || "center",
             justifyContent: (props.justifyContent as React.CSSProperties["justifyContent"]) || "center",
-            gap: fluidSpace(props.gap, 0, 0.4, 1.8),
+            gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
             overflow: (props.overflow as string) || "hidden",
             boxShadow: props.boxShadow as string,
             opacity: toNumber(props.opacity, 1),
@@ -2970,6 +3652,7 @@ function RenderNode({
         maxWidth: "100%",
         minWidth: 0,
         boxSizing: "border-box",
+        transition: "background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease",
       };
 
       const navButtonStyle: React.CSSProperties = {
@@ -2996,6 +3679,7 @@ function RenderNode({
       return wrap(
         <div
           data-fluid-space="true"
+          data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             width,
@@ -3006,9 +3690,9 @@ function RenderNode({
             flexWrap: "wrap",
             alignItems: "center",
             justifyContent,
-            gap: fluidSpace(gapValue, 0, 0.45, 1.8),
-            padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4)} ${fluidSpace(mr, 0, 0.35, 1.4)} ${fluidSpace(mb, 0, 0.35, 1.4)} ${fluidSpace(ml, 0, 0.35, 1.4)}`,
+            gap: fluidSpace(gapValue, 0, 0.45, 1.8, useFixedPx),
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
             boxSizing: "border-box",
           }}
         >
@@ -3067,12 +3751,17 @@ function RenderNode({
     case "Divider":
       return wrap(
         <hr
+          data-fluid-space="true"
+          data-smooth="true"
           style={{
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
-            borderTop: `${props.thickness}px ${props.dividerStyle} ${props.color}`,
-            marginTop: px(props.marginTop),
-            marginBottom: px(props.marginBottom),
+            maxWidth: "100%",
+            minWidth: 0,
+            borderTop: `${toNumber(props.thickness, 1)}px ${(props.dividerStyle as string) || "solid"} ${(props.color as string) || "#4a4a4a"}`,
+            marginTop: fluidSpace(props.marginTop, 0, 0.35, 1.4, useFixedPx),
+            marginBottom: fluidSpace(props.marginBottom, 0, 0.35, 1.4, useFixedPx),
+            opacity: toNumber(props.opacity, 1),
           }}
         />
       );
@@ -3086,10 +3775,16 @@ function RenderNode({
         <div
           data-fluid-space="true"
           data-fluid-icon="true"
+          data-smooth="true"
           onClick={interactiveClick}
           style={{
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
+            minWidth: 0,
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: interactiveClick ? "pointer" : undefined,
           }}
         >
           <DesignIcon
@@ -3304,8 +3999,63 @@ function RenderNode({
       );
     }
 
-    case "Tabs":
-      return wrap(<PreviewTabs props={props} />);
+    case "Tabs": {
+      const tabs = Array.isArray(props.tabs) ? (props.tabs as Array<{ id?: string; content?: unknown }>) : [];
+      const linkedSlotMap: Record<string, string> = {};
+      const tabContentChildIds = childIds.filter((id) => {
+        const child = nodes[id];
+        const childType = String(child?.type || "").toLowerCase();
+        return childType === "tabcontent" || childType === "tab-content" || childType === "tab content";
+      });
+
+      for (let index = 0; index < tabs.length; index += 1) {
+        const tab = tabs[index];
+        const tabId = typeof tab?.id === "string" ? tab.id.trim() : "";
+        if (!tabId) continue;
+
+        const fallbackId = `tab-content-${tabId}`;
+        const candidateId =
+          typeof tab?.content === "string" && tab.content.trim() ? tab.content.trim() : fallbackId;
+        const resolvedId =
+          (nodes[candidateId] ? candidateId : undefined) ||
+          (nodes[fallbackId] ? fallbackId : undefined) ||
+          (tabContentChildIds[index] && nodes[tabContentChildIds[index]] ? tabContentChildIds[index] : undefined);
+
+        if (resolvedId) {
+          linkedSlotMap[`tab-content-${tabId}`] = resolvedId;
+        }
+      }
+
+      const previewTabsProps = {
+        ...props,
+        __linkedNodes: linkedSlotMap,
+        nodes,
+        pages,
+        pageIndex,
+        viewportWidth,
+        interactionState,
+        availableTriggerTargets,
+        onToggle,
+        storeContext,
+        onPrototypeAction,
+        mobileBreakpoint,
+        enableFormInputs,
+        builderParityMode,
+        renderAllNodes,
+        preserveAuthoredPositioning,
+        layoutReferenceWidth,
+        layoutReferenceHeight,
+      };
+
+      return wrap(
+        <PreviewTabs
+          props={previewTabsProps}
+          childNodes={children}
+          childNodeIds={tabContentChildIds.length > 0 ? tabContentChildIds : childIds}
+          childNodeMap={childNodeMap}
+        />
+      );
+    }
 
     default:
       return <div data-unknown-type={type}>{children}</div>;
@@ -3334,14 +4084,34 @@ function resolveInternalPageSlug(destination: string | undefined, pages: Preview
 
   const normalized = normalizeNavToken(raw);
 
+  // Exact slug match
   const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
   if (bySlug) return bySlug.slug;
 
+  // Match by page name
   const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
   if (byName) return byName.slug;
 
+  // Match by page ID
   const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
   if (byId) return byId.slug;
+
+  // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
+  const pageIndexMatch = raw.match(/^page-(\d+)$/i);
+  if (pageIndexMatch) {
+    const idx = parseInt(pageIndexMatch[1], 10);
+    // Try exact index first
+    if (idx >= 0 && idx < pages.length) return pages[idx].slug;
+    // Try index-1 (editor uses 1-based, serializer uses 0-based)
+    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].slug;
+  }
+
+  // Slug contains the destination as substring (fuzzy)
+  const fuzzy = pages.find((p) =>
+    normalizeNavToken(p.slug).includes(normalized) ||
+    normalized.includes(normalizeNavToken(p.slug))
+  );
+  if (fuzzy) return fuzzy.slug;
 
   if (raw.startsWith("?")) {
     try {
@@ -3376,6 +4146,7 @@ export function WebPreview({
   pageIndex = 0,
   initialPageSlug,
   storeContext,
+  onNavigate,
   simulatedWidth,
   responsiveViewportWidth,
   mobileBreakpoint,
@@ -3389,6 +4160,8 @@ export function WebPreview({
   /** Initial page slug for multi-page (overrides pageIndex when set). */
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
+  /** Notify parent when prototype navigation changes the visible page. */
+  onNavigate?: (pageSlug: string) => void;
   simulatedWidth?: number;
   /** Optional viewport width used only for responsive visibility/breakpoint logic. */
   responsiveViewportWidth?: number;
@@ -3401,7 +4174,28 @@ export function WebPreview({
   /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
   renderAllNodes?: boolean;
 }): React.ReactElement {
-  const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
+  const safePages = React.useMemo(
+    () => (Array.isArray(doc?.pages)
+      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+      : []),
+    [doc]
+  );
+  const safeNodes = React.useMemo(
+    () => (doc?.nodes && typeof doc.nodes === "object"
+      ? (doc.nodes as Record<string, CleanNode>)
+      : {}),
+    [doc]
+  );
+
+  React.useEffect(() => {
+    const nodesWithPrototype = Object.entries(safeNodes).filter(
+      ([, n]) => n?.props?.prototype && (n.props.prototype as PrototypeConfig).interactions?.length > 0
+    );
+    console.log("[WebPreview] Pages:", safePages.map((p, i) => ({ id: p.id, name: p.name, slug: getPageSlug(p, i) })));
+    console.log("[WebPreview] Nodes with prototype:", nodesWithPrototype.map(([id, n]) => ({ id, type: n.type, prototype: n.props.prototype })));
+    console.log("[WebPreview] Total nodes:", Object.keys(safeNodes).length);
+  }, [safePages, safeNodes]);
+
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
@@ -3421,9 +4215,13 @@ export function WebPreview({
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
+      console.log("[Prototype] Action fired:", JSON.stringify(interaction));
+      console.log("[Prototype] Available pages:", JSON.stringify(pageMeta));
+      console.log("[Prototype] Current page:", currentPageSlug);
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
         const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
+        console.log("[Prototype] Resolved slug:", internalSlug, "from destination:", interaction.destination);
         if (internalSlug) {
           setHistory((h) => [...h, currentPageSlug]);
           const trans = interaction.transition ?? "dissolve";
@@ -3432,6 +4230,7 @@ export function WebPreview({
             animationDuration: `${duration}s`,
           });
           setCurrentPageSlug(internalSlug);
+          onNavigate?.(internalSlug);
         } else if (interaction.destination.startsWith("#")) {
           document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
         } else if (
@@ -3447,6 +4246,7 @@ export function WebPreview({
           setHistory((h) => h.slice(0, -1));
           setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
           setCurrentPageSlug(prev);
+          onNavigate?.(prev);
         }
       } else if (interaction.action === "openUrl" && interaction.destination) {
         window.open(interaction.destination, "_blank", "noopener");
@@ -3454,21 +4254,10 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history, pageMeta]
+    [currentPageSlug, history, pageMeta, onNavigate]
   );
 
-  if (!currentPage) {
-    const hasPages = safePages.length > 0;
-    return (
-      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-      </div>
-    );
-  }
-
-  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
@@ -3494,14 +4283,14 @@ export function WebPreview({
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
-    for (const node of Object.values(doc.nodes)) {
+    for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
       if (typeof target === "string" && target.trim()) {
         targets.add(target.trim());
       }
     }
     return targets;
-  }, [doc.nodes]);
+  }, [safeNodes]);
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
@@ -3513,10 +4302,21 @@ export function WebPreview({
     });
   }, []);
 
+  if (!currentPage) {
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
+  }
+
   const pageContent = (
     <>
-      {currentPage.children.map((id) => {
-        const node = doc.nodes[id];
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
         if (childType === "page") return null;
@@ -3524,7 +4324,7 @@ export function WebPreview({
           <RenderNode
             key={id}
             node={node}
-            nodes={doc.nodes}
+            nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}
@@ -3647,7 +4447,18 @@ export function LiveSite({
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
 }): React.ReactElement {
-  const safePages = doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page));
+  const safePages = React.useMemo(
+    () => (Array.isArray(doc?.pages)
+      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+      : []),
+    [doc]
+  );
+  const safeNodes = React.useMemo(
+    () => (doc?.nodes && typeof doc.nodes === "object"
+      ? (doc.nodes as Record<string, CleanNode>)
+      : {}),
+    [doc]
+  );
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = React.useState(
@@ -3667,18 +4478,7 @@ export function LiveSite({
     [safePages]
   );
 
-  if (!currentPage) {
-    const hasPages = safePages.length > 0;
-    return (
-      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-      </div>
-    );
-  }
-
-  const pageProps = mergeProps("Page", currentPage.props) as Record<string, unknown>;
+  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
@@ -3702,14 +4502,14 @@ export function LiveSite({
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
-    for (const node of Object.values(doc.nodes)) {
+    for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
       if (typeof target === "string" && target.trim()) {
         targets.add(target.trim());
       }
     }
     return targets;
-  }, [doc.nodes]);
+  }, [safeNodes]);
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
@@ -3758,10 +4558,21 @@ export function LiveSite({
     }
   }, [currentPageSlug, history, pageMeta]);
 
+  if (!currentPage) {
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
+  }
+
   const pageChildren = (
     <>
-      {currentPage.children.map((id) => {
-        const node = doc.nodes[id];
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
         if (childType === "page") return null;
@@ -3769,7 +4580,7 @@ export function LiveSite({
           <RenderNode
             key={id}
             node={node}
-            nodes={doc.nodes}
+            nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
             viewportWidth={viewportWidth}

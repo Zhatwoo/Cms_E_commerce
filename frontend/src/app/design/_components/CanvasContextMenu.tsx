@@ -383,7 +383,8 @@ export function CanvasContextMenu() {
     close();
   };
   const handleBringToFront = () => {
-    if (!hasSelection || !parentId || !actions.move || !allSameParent) return;
+    if (!hasSelection || !parentId || !actions
+      .move || !allSameParent) return;
     // Sort by current sibling index so we preserve document order at the end
     const sorted = [...effectiveIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     for (const id of sorted) {

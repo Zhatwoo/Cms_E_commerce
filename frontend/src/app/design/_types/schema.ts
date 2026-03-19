@@ -79,6 +79,7 @@ export type ComponentType =
   | "BooleanField"
   | "Rating"
   | "Accordion"
+  | "BooleanField"
   | "ImportedBlock";
 
 /** A single node in the document. */

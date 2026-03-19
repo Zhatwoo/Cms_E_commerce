@@ -21,10 +21,16 @@ interface AuthModalProps {
 export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail = '', isDarkMode = false }: AuthModalProps) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [email, setEmail] = useState('');
+  
+  // Separate state for login and register to prevent "ghosting" between forms
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  const [regName, setRegName] = useState('');
+  const [regEmail, setRegEmail] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  
   const [pendingEmail, setPendingEmail] = useState(initialEmail);
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -32,23 +38,39 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
   const [resendMessage, setResendMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    setMode(initialMode);
-    if (initialEmail) {
-      setPendingEmail(initialEmail);
-      setEmail(initialEmail);
+    if (isOpen) {
+      setMode(initialMode);
+      setError('');
+      setLoading(false);
+      setShowPassword(false);
+      setResendMessage(null);
+      
+      // Reset states and populate with initial data if provided
+      setLoginEmail(initialMode === 'login' ? initialEmail : '');
+      setLoginPassword('');
+      
+      setRegName('');
+      setRegEmail(initialMode === 'register' ? initialEmail : '');
+      setRegPassword('');
+      
+      if (initialEmail) {
+        setPendingEmail(initialEmail);
+      } else {
+        setPendingEmail('');
+      }
     }
-  }, [initialMode, initialEmail]);
+  }, [isOpen, initialMode, initialEmail]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) {
+    if (!loginEmail || !loginPassword) {
       setError('Please enter email and password.');
       return;
     }
     setLoading(true);
     try {
-      const data = await login(email, password);
+      const data = await login(loginEmail, loginPassword);
       if (data.success) {
         setStoredUser(data.user ?? null);
         onClose();
@@ -72,24 +94,23 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!email || !password) {
+    if (!regEmail || !regPassword) {
       setError('Please enter email and password.');
       return;
     }
-    if (password.length < 6) {
+    if (regPassword.length < 6) {
       setError('Password must be at least 6 characters.');
       return;
     }
     setLoading(true);
     try {
-      const data = await apiRegister({ name: name.trim() || email.split('@')[0], email, password });
+      const data = await apiRegister({ name: regName.trim() || regEmail.split('@')[0], email: regEmail, password: regPassword });
       if (data.success) {
         if (typeof (data as { confirmUrl?: string }).confirmUrl === 'string') {
           sessionStorage.setItem('centric_confirm_url', (data as { confirmUrl: string }).confirmUrl);
         }
-        const normalizedEmail = email.trim();
+        const normalizedEmail = regEmail.trim();
         setPendingEmail(normalizedEmail);
-        setEmail(normalizedEmail);
         setResendMessage(null);
         setMode('check-email');
       } else {
@@ -103,7 +124,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
   };
 
   const handleResend = async () => {
-    const targetEmail = (pendingEmail || email).trim();
+    const targetEmail = (pendingEmail || loginEmail || regEmail).trim();
     if (!targetEmail) {
       setResendMessage({ type: 'error', text: 'No email address found.' });
       return;
@@ -125,6 +146,30 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
     }
   };
 
+  const getPasswordStrength = (pass: string) => {
+    if (!pass) return { score: 0, label: '', color: 'bg-transparent', text: '' };
+    if (pass.length < 6) return { score: 1, label: 'Too short', color: 'bg-red-500', text: 'text-red-500' };
+    
+    let score = 1;
+    const hasUpper = /[A-Z]/.test(pass);
+    const hasNumber = /[0-9]/.test(pass);
+    const hasSpecial = /[^A-Za-z0-9]/.test(pass);
+    
+    if (pass.length >= 8 && (hasUpper || hasNumber || hasSpecial)) score = 2;
+    if (pass.length >= 10 && ((hasUpper && hasNumber) || (hasUpper && hasSpecial) || (hasNumber && hasSpecial))) score = 3;
+    if (pass.length >= 12 && hasUpper && hasNumber && hasSpecial) score = 4;
+
+    switch (score) {
+      case 1: return { score: 1, label: 'Weak', color: 'bg-orange-500', text: 'text-orange-500' };
+      case 2: return { score: 2, label: 'Normal', color: 'bg-yellow-500', text: 'text-yellow-500' };
+      case 3: return { score: 3, label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-500' };
+      case 4: return { score: 4, label: 'Great!', color: 'bg-blue-500', text: 'text-blue-500' };
+      default: return { score: 1, label: 'Weak', color: 'bg-orange-500', text: 'text-orange-500' };
+    }
+  };
+
+  const strength = getPasswordStrength(regPassword);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -135,7 +180,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
           />
 
           {/* Modal */}
@@ -160,12 +205,12 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
               stiffness: 300,
               damping: 30,
             }}
-            className="fixed z-50 w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            className="fixed z-[110] w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
           >
             <div className={`relative overflow-hidden rounded-3xl border p-8 ${
               isDarkMode 
-                ? 'border-[#4f36b8]/55 bg-[#09022f]/95 shadow-[0_24px_80px_rgba(8,3,36,0.75)]' 
-                : 'border-[#c1c1cd] bg-white/95 shadow-[0_20px_60px_rgba(0,0,0,0.15)]'
+                ? 'auth-modal-dark border-[#4f36b8]/55 bg-[#09022f]/95 shadow-[0_24px_80px_rgba(8,3,36,0.75)]' 
+                : 'auth-modal-light border-[#c1c1cd] bg-white/95 shadow-[0_20px_60px_rgba(0,0,0,0.15)]'
             }`}>
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_0%,rgba(168,85,247,0.2),transparent_40%),radial-gradient(circle_at_85%_15%,rgba(255,204,0,0.09),transparent_35%)]" />
 
@@ -258,8 +303,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         type="email"
                         autoComplete="email"
                         placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
                         className={`dark-input mt-3 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
                           isDarkMode 
                             ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
@@ -277,8 +322,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                           type={showPassword ? 'text' : 'password'}
                           autoComplete="current-password"
                           placeholder="Password"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
                           className={`dark-input w-full rounded-xl border px-4 py-3 pr-12 focus:outline-none focus:ring-2 ${
                             isDarkMode 
                               ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
@@ -345,8 +390,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         type="text"
                         autoComplete="name"
                         placeholder="Jane Doe"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        value={regName}
+                        onChange={(e) => setRegName(e.target.value)}
                         className={`dark-input mt-2 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
                           isDarkMode 
                             ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
@@ -363,8 +408,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                         type="email"
                         autoComplete="email"
                         placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
                         className={`dark-input mt-2 w-full rounded-xl border px-4 py-3 focus:outline-none focus:ring-2 ${
                           isDarkMode 
                             ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
@@ -382,8 +427,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                           type={showPassword ? 'text' : 'password'}
                           autoComplete="new-password"
                           placeholder="••••••••"
-                          value={password}
-                          onChange={(e) => setPassword(e.target.value)}
+                          value={regPassword}
+                          onChange={(e) => setRegPassword(e.target.value)}
                           className={`dark-input w-full rounded-xl border px-4 py-3 pr-12 focus:outline-none focus:ring-2 ${
                             isDarkMode 
                               ? 'border-white/25 bg-[#10131d]/85 text-white placeholder:text-white/35 focus:border-[#8b3dff] focus:ring-[#8b3dff]/35' 
@@ -400,7 +445,26 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                           {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
                       </div>
-                      <p className={`mt-1.5 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>At least 6 characters</p>
+                      
+                      {/* Password strength indicator */}
+                      {regPassword && (
+                        <div className="mt-2.5">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${strength.text}`}>
+                              {strength.label}
+                            </span>
+                          </div>
+                          <div className={`h-1 w-full rounded-full overflow-hidden ${isDarkMode ? 'bg-white/10' : 'bg-black/5'}`}>
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${(strength.score / 4) * 100}%` }}
+                              className={`h-full transition-all duration-300 ${strength.color}`}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {!regPassword && <p className={`mt-1.5 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>At least 6 characters</p>}
                     </div>
                     <button
                       type="submit"
@@ -431,7 +495,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   <h1 className={`mt-6 text-4xl font-black leading-none ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>Check your email</h1>
                   <p className={`mt-3 text-sm ${isDarkMode ? 'text-white/70' : 'text-[#616170]'}`}>
                     We sent a confirmation link to
-                    <span className={`block mt-1 font-medium ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>{pendingEmail || email || 'your email address'}</span>
+                    <span className={`block mt-1 font-medium ${isDarkMode ? 'text-white/90' : 'text-[#120533]'}`}>{pendingEmail || loginEmail || regEmail || 'your email address'}</span>
                     Click the link to confirm your account, then you can log in.
                   </p>
                   <p className={`mt-4 text-xs ${isDarkMode ? 'text-white/60' : 'text-[#888899]'}`}>Didn&apos;t get the email? Check your spam folder.</p>
@@ -449,7 +513,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                   <button
                     type="button"
                     onClick={handleResend}
-                    disabled={resendLoading || !(pendingEmail || email)}
+                    disabled={resendLoading || !(pendingEmail || loginEmail || regEmail)}
                     className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {resendLoading ? 'Sending…' : 'Resend email'}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useTransition } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef, useTransition } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { Element } from "@craftjs/core";
@@ -84,6 +84,49 @@ function getDescendantIds(nodeId: string, nodes: Record<string, any>): Set<strin
   return result;
 }
 
+function getNodeBaseName(node: Record<string, any> | null | undefined): string {
+  const data = (node?.data ?? {}) as Record<string, unknown>;
+  const custom = (data.custom ?? {}) as Record<string, unknown>;
+  const raw = String(custom.displayName ?? data.displayName ?? data.name ?? "").trim();
+  return raw || "Node";
+}
+
+function buildNodeNameIndexMap(nodes: Record<string, any>): {
+  baseNameById: Record<string, string>;
+  indexById: Record<string, number>;
+  totalByName: Record<string, number>;
+} {
+  const baseNameById: Record<string, string> = {};
+  const indexById: Record<string, number> = {};
+  const totalByName: Record<string, number> = {};
+  const seen = new Set<string>();
+
+  const visit = (id: string) => {
+    if (!id || seen.has(id)) return;
+    seen.add(id);
+    const node = nodes[id] as Record<string, any> | undefined;
+    if (!node) return;
+
+    const baseName = getNodeBaseName(node);
+    baseNameById[id] = baseName;
+    totalByName[baseName] = (totalByName[baseName] ?? 0) + 1;
+    indexById[id] = totalByName[baseName];
+
+    const childIds = getChildIds(node);
+    for (const childId of childIds) {
+      visit(childId);
+    }
+  };
+
+  visit("ROOT");
+
+  for (const id of Object.keys(nodes)) {
+    visit(id);
+  }
+
+  return { baseNameById, indexById, totalByName };
+}
+
 // ─── Drag types ────────────────────────────────────────────────────────────
 
 interface DragState {
@@ -112,6 +155,7 @@ export const FilesPanel = () => {
   const { permission } = useDesignProject();
 
   const [isPending, startTransition] = useTransition();
+  const nodeNameIndexMap = useMemo(() => buildNodeNameIndexMap(nodes as Record<string, any>), [nodes]);
 
   // ── Refs for stable access in event handlers ─
   const nodesRef = useRef(nodes);
@@ -596,10 +640,13 @@ export const FilesPanel = () => {
     const locked = (props.locked as boolean | undefined) ?? false;
 
     let Icon = Box;
-    const name = node.data.displayName || node.data.name || "";
-    if (name === "Text") Icon = Type;
-    else if (name === "Container") Icon = Layout;
-    else if (name === "Image") Icon = ImageIcon;
+    const baseName = nodeNameIndexMap.baseNameById[nodeId] || getNodeBaseName(node as Record<string, any>);
+    const instanceIndex = nodeNameIndexMap.indexById[nodeId] ?? 1;
+    const totalForName = nodeNameIndexMap.totalByName[baseName] ?? 1;
+    const name = totalForName > 1 ? `${baseName} ${instanceIndex}` : baseName;
+    if (baseName === "Text") Icon = Type;
+    else if (baseName === "Container") Icon = Layout;
+    else if (baseName === "Image") Icon = ImageIcon;
 
     const openContextMenu = (e: React.MouseEvent) => {
       e.preventDefault();
@@ -774,7 +821,12 @@ export const FilesPanel = () => {
     };
 
     const nodeProtected = isProtected(contextMenu.nodeId);
-    const nodeName = nodes[contextMenu.nodeId]?.data.displayName || "Node";
+    const contextBaseName =
+      nodeNameIndexMap.baseNameById[contextMenu.nodeId] ||
+      getNodeBaseName(nodes[contextMenu.nodeId] as Record<string, any>);
+    const contextIndex = nodeNameIndexMap.indexById[contextMenu.nodeId] ?? 1;
+    const contextTotal = nodeNameIndexMap.totalByName[contextBaseName] ?? 1;
+    const nodeName = contextTotal > 1 ? `${contextBaseName} ${contextIndex}` : contextBaseName;
     const selectedIds = selectedToIds(selected);
 
     const UNGROUPABLE_TYPES = new Set([

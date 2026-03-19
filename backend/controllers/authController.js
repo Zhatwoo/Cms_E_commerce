@@ -306,8 +306,15 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'Profile not found. Please try signing up again or contact support.' });
     }
-    if (user.status === 'disabled' || !user.isActive) {
-      return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
+    const normalizedStatus = String(user.status || '').toLowerCase();
+    if (normalizedStatus === 'suspended' || normalizedStatus === 'restricted' || normalizedStatus === 'disabled' || !user.isActive) {
+      const reason = typeof user.suspensionReason === 'string' ? user.suspensionReason.trim() : '';
+      return res.status(403).json({
+        success: false,
+        message: reason
+          ? `Your account is currently suspended. Reason: ${reason}. Please contact admin for assistance.`
+          : 'Your account is currently suspended. Please contact admin for assistance.'
+      });
     }
 
     const authUser = await auth.getUser(uid);
