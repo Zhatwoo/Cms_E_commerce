@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   getClients,
   updateClientPlan,
@@ -9,27 +10,8 @@ import {
   type ClientRow,
 } from '@/lib/api';
 import { useGDriveSelection } from './useGDriveSelection';
-
-const SearchIcon = () => (
-  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
-const ChevronDownIcon = () => (
-  <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-  </svg>
-);
-
-const StorageIcon = () => (
-  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-    <circle cx="6" cy="6" r="1" fill="currentColor" />
-    <circle cx="6" cy="12" r="1" fill="currentColor" />
-    <circle cx="6" cy="18" r="1" fill="currentColor" />
-  </svg>
-);
+import { ChevronDownIcon, SearchIcon, StorageIcon } from '@/lib/icons/adminIcons';
+import { getPlanLabel, getPlanPillClasses, PLAN_OPTIONS } from '@/lib/config/planConfig';
 
 const ManageIcon = () => (
   <img src="/icons/actions/user-avatar.png" alt="User profile" className="h-6 w-6 object-contain" />
@@ -55,20 +37,6 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
       </span>
     </span>
   );
-}
-
-const PLAN_OPTIONS = ['free', 'basic', 'pro'] as const;
-
-function planLabel(plan: string) {
-  const p = (plan || 'free').toLowerCase();
-  return p.charAt(0).toUpperCase() + p.slice(1);
-}
-
-function planPillClasses(plan: string): string {
-  const p = (plan || 'free').toLowerCase();
-  if (p === 'basic') return 'bg-[#FFCC00] text-[#2A1A47]';
-  if (p === 'pro') return 'bg-[#0A8F2F] text-white';
-  return 'bg-[#3D49DD] text-white';
 }
 
 function websiteLabel(client: ClientRow): string {
@@ -160,6 +128,9 @@ type ActionModalState = {
 };
 
 export function UserManagement() {
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get('search') || '';
+  const focusedClientId = searchParams.get('clientId') || '';
   const PAGE_SIZE = 20;
   type SortOption = 'recent' | 'az' | 'za';
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -207,8 +178,14 @@ export function UserManagement() {
 
   useEffect(() => { loadClients(); }, [loadClients]);
 
+  useEffect(() => {
+    setSearch(urlSearch);
+    setCurrentPage(1);
+  }, [urlSearch, focusedClientId]);
+
   const filtered = useMemo(() => {
     return clients.filter((c) => {
+      const matchFocusedClient = !focusedClientId || c.id === focusedClientId;
       const matchSearch = !search ||
         (c.displayName || '').toLowerCase().includes(search.toLowerCase()) ||
         (c.email || '').toLowerCase().includes(search.toLowerCase());
@@ -219,9 +196,9 @@ export function UserManagement() {
         (statusFilter === 'active' && active) ||
         (statusFilter === 'suspended' && (c.status || '').toLowerCase() === 'suspended') ||
         (statusFilter === 'restricted' && (c.status || '').toLowerCase() === 'restricted');
-      return matchSearch && matchPlan && matchStatus;
+      return matchFocusedClient && matchSearch && matchPlan && matchStatus;
     });
-  }, [clients, search, planFilter, statusFilter]);
+  }, [clients, focusedClientId, search, planFilter, statusFilter]);
 
   const sortedFiltered = useMemo(() => {
     const copy = [...filtered];
@@ -343,7 +320,7 @@ export function UserManagement() {
         setClients((prev) =>
           prev.map((c) => (c.id === userId ? { ...c, subscriptionPlan: newPlan } : c))
         );
-        setToast(`Plan updated to ${planLabel(newPlan)}`);
+        setToast(`Plan updated to ${getPlanLabel(newPlan)}`);
         setTimeout(() => setToast(null), 2500);
       } else {
         setToast(res.message || 'Update failed');
@@ -961,11 +938,11 @@ export function UserManagement() {
                               handlePlanChange(client.id, e.target.value);
                             }}
                             aria-label={`Change plan for ${client.displayName || client.email}`}
-                            className={`min-w-[90px] px-3 py-1 text-[0.9rem] font-semibold rounded-full border-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed appearance-none ${planPillClasses(client.subscriptionPlan || 'free')}`}
+                            className={`min-w-[90px] px-3 py-1 text-[0.9rem] font-semibold rounded-full border-0 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed appearance-none ${getPlanPillClasses(client.subscriptionPlan || 'free')}`}
                           >
                             {PLAN_OPTIONS.map((p) => (
                               <option key={p} value={p} className="text-black bg-white">
-                                {planLabel(p)}
+                                {getPlanLabel(p)}
                               </option>
                             ))}
                           </select>
