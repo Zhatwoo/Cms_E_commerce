@@ -552,11 +552,7 @@ async function unpublishForClient(userId, projectId) {
     updated_at: now,
     publish_history,
   });
-<<<<<<< Updated upstream
   batch.set(publishedRef, {
-=======
-  batch.update(publishedRef, {
->>>>>>> Stashed changes
     status: 'draft',
     updated_at: now,
   }, { merge: true });
@@ -565,7 +561,6 @@ async function unpublishForClient(userId, projectId) {
   return { id: domainId, subdomain, projectId, status: 'draft' };
 }
 
-<<<<<<< Updated upstream
 /**
  * Update subdomain for an existing published project.
  * Deletes old published_subdomains lookup and creates new one.
@@ -611,8 +606,6 @@ async function updateSubdomainForClient(userId, projectId, newSubdomain) {
   return { id: domainId, subdomain: normalized, projectId };
 }
 
-=======
->>>>>>> Stashed changes
 /** Get publish history for a project (stack of { at, type }), newest first. Backfills from updatedAt/createdAt if no history. Returns at most 10 most recent. */
 async function getPublishHistoryByProject(userId, projectId) {
   const existing = await findByProjectId(userId, projectId);
@@ -717,10 +710,7 @@ module.exports = {
   deleteTrashByProjectId,
   publishForClientBatch,
   unpublishForClient,
-<<<<<<< Updated upstream
   updateSubdomainForClient,
-=======
->>>>>>> Stashed changes
   setSubdomainLookup,
   findBySubdomain,
   findByPublishedSubdomain,
