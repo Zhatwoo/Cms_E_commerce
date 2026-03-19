@@ -108,6 +108,9 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
   // Delay mounting FilesPanel to avoid "setState during render" warnings
   // caused by Craft.js internal synchronous updates while Frame is rendering.
   const [filesPanelReady, setFilesPanelReady] = useState(false);
@@ -118,13 +121,36 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const searchParams = useSearchParams();
   const projectId = searchParams?.get("projectId") || null;
   const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
-  const { clientName, websiteName, permission } = useDesignProject();
+  const { clientName, websiteName, permission, updateProjectTitle } = useDesignProject();
 
   const { query, actions, connectors } = useEditor();
 
   const mediaStorageKey = projectId
     ? `${MEDIA_LIBRARY_KEY_PREFIX}_${projectId}`
     : MEDIA_LIBRARY_KEY_PREFIX;
+
+  const handleTitleDoubleClick = () => {
+    if (permission === "viewer") return;
+    setTempTitle(websiteName ?? "Project Title");
+    setIsEditingTitle(true);
+  };
+
+  const handleTitleSave = async () => {
+    if (!isEditingTitle) return;
+    const trimmed = tempTitle.trim();
+    if (trimmed && trimmed !== websiteName) {
+      await updateProjectTitle(trimmed);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleTitleSave();
+    } else if (e.key === "Escape") {
+      setIsEditingTitle(false);
+    }
+  };
 
   const persistMediaItems = (items: MediaLibraryItem[]) => {
     if (typeof window === "undefined") return;
@@ -307,6 +333,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   };
 
   useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  useEffect(() => {
     const id = requestAnimationFrame(() => setFilesPanelReady(true));
     return () => cancelAnimationFrame(id);
   }, []);
@@ -435,17 +468,33 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
           <div className="flex items-start justify-between mb-1 gap-2">
             {/* Project dropdown trigger */}
             <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-2 hover:bg-[var(--builder-surface-2)] rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
-              >
-                <h3 className="text-builder-text font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
-                  {websiteName ?? "Project Title"}
-                </h3>
-                <ChevronDown
-                  className={`w-4 h-4 text-builder-text-muted transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""}`}
-                />
-              </button>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2 bg-[var(--builder-surface-3)] rounded-lg px-2 py-1 -ml-2 ring-1 ring-blue-500/50">
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={tempTitle}
+                    onChange={(e) => setTempTitle(e.target.value)}
+                    onBlur={handleTitleSave}
+                    onKeyDown={handleTitleKeyDown}
+                    className="bg-transparent border-none p-0 m-0 text-builder-text font-bold text-lg focus:outline-none w-[200px]"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  onDoubleClick={handleTitleDoubleClick}
+                  className="flex items-center gap-2 hover:bg-[var(--builder-surface-2)] rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
+                >
+                  <h3 className="text-builder-text font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
+                    {websiteName ?? "Project Title"}
+                  </h3>
+                  <ChevronDown
+                    className={`w-4 h-4 text-builder-text-muted transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+              )}
 
               {/* Dropdown menu */}
               {menuOpen && (

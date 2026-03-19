@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useCallback } from "react";
+import React, { useEffect, useCallback, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { addFileToMediaLibrary } from "../_lib/mediaActions";
 import { useDesignProject } from "../_context/DesignProjectContext";
@@ -13,6 +13,16 @@ import { Image } from "../_designComponents/Image/Image";
 export const CanvasPasteHandler = () => {
   const { actions, query } = useEditor();
   const { projectId } = useDesignProject();
+
+  const lastMousePos = useRef({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const trackMouse = (e: MouseEvent) => {
+      lastMousePos.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener("mousemove", trackMouse, true);
+    return () => window.removeEventListener("mousemove", trackMouse, true);
+  }, []);
 
   const handlePaste = useCallback(async (e: ClipboardEvent) => {
     // 1. Don't intercept when typing in inputs/textareas
@@ -41,7 +51,6 @@ export const CanvasPasteHandler = () => {
     if (!hasImage) return;
 
     // 2. We found an image, prevent default browser behavior
-    // This stops the browser from doing anything with the image data (like pasting into a hidden div)
     e.preventDefault();
 
     for (let i = 0; i < items.length; i++) {
@@ -50,55 +59,69 @@ export const CanvasPasteHandler = () => {
         const file = item.getAsFile();
         if (!file) continue;
 
-        if (!projectId) {
-          console.warn("CanvasPasteHandler: No projectId, cannot upload and sync image.");
-          continue;
-        }
-
         try {
-          // 3. Upload to project storage AND add to media library
-          // If this fails, the catch block will prevent the paste
-          const mediaItem = await addFileToMediaLibrary(projectId, file);
-          const imageUrl = mediaItem.url;
-
-
-          // 4. Determine where to paste
+          // 3. Resolve where to paste based on cursor
+          const { x, y } = lastMousePos.current;
+          const elUnderCursor = document.elementFromPoint(x, y) as HTMLElement | null;
+          const nodeEl = elUnderCursor?.closest("[data-node-id]") as HTMLElement | null;
+          const hitNodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+          
           const state = query.getState();
-          const selectedSets = state.events.selected;
-          const selectedIds = Array.from(selectedSets);
+          const nodes = state.nodes as Record<string, any>;
           
-          let parentId = "ROOT";
-          
-          // Try to use selected container/page as parent
-          if (selectedIds.length > 0) {
-            const firstId = selectedIds[0];
-            const node = state.nodes[firstId];
-            if (node?.data?.isCanvas) {
-              parentId = firstId;
-            } else {
-              parentId = node?.data?.parent || "ROOT";
+          const resolvePage = (id: string | null): string | null => {
+            let curr = id;
+            while (curr && curr !== "ROOT") {
+              if (nodes[curr]?.data?.displayName === "Page") return curr;
+              curr = nodes[curr]?.data?.parent;
             }
+            return Object.keys(nodes).find(k => nodes[k]?.data?.displayName === "Page") || null;
+          };
+
+          const pageId = resolvePage(hitNodeId);
+          let parentId = pageId || "ROOT";
+          let imageLeft = 40;
+          let imageTop = 40;
+
+          if (pageId) {
+            try {
+              const pageDom = query.node(pageId).get()?.dom;
+              if (pageDom) {
+                const rect = pageDom.getBoundingClientRect();
+                const baseW = pageDom.offsetWidth || 1;
+                const scaleX = rect.width / baseW;
+                const baseH = pageDom.offsetHeight || 1;
+                const scaleY = rect.height / baseH;
+                
+                imageLeft = Math.max(0, Math.round((x - rect.left) / scaleX));
+                imageTop = Math.max(0, Math.round((y - rect.top) / scaleY));
+              }
+            } catch (e) {}
           }
 
-          // Better default: Find the first page's main container if parent is ROOT or Viewport
-          if (parentId === "ROOT" || (state.nodes[parentId] && state.nodes[parentId].data.displayName === "Viewport")) {
-            const rootNode = state.nodes["ROOT"];
-            const viewportId = rootNode?.data?.nodes?.[0];
-            if (viewportId) {
-              const viewportNode = state.nodes[viewportId];
-              const firstPageId = viewportNode?.data?.nodes?.[0];
-              if (firstPageId) {
-                const firstPageNode = state.nodes[firstPageId];
-                const firstContainerId = firstPageNode?.data?.nodes?.[0];
-                parentId = firstContainerId || firstPageId;
-              } else {
-                parentId = viewportId;
-              }
+          // 4. Upload to project storage
+          let imageUrl: string;
+          if (projectId) {
+            try {
+              const mediaItem = await addFileToMediaLibrary(projectId, file);
+              imageUrl = mediaItem.url;
+            } catch (err) {
+              console.error("Paste upload failed:", err);
+              imageUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (re) => resolve(re.target?.result as string);
+                reader.readAsDataURL(file);
+              });
             }
+          } else {
+            imageUrl = await new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = (re) => resolve(re.target?.result as string);
+              reader.readAsDataURL(file);
+            });
           }
 
           // 5. Create and add the Image component
-          // We use absolute positioning so it appears exactly where it's pasted (defaulting to top-left of parent)
           const imageNode = (
             <Image
               src={imageUrl}
@@ -106,8 +129,8 @@ export const CanvasPasteHandler = () => {
               height="auto"
               alt="Pasted Image"
               position="absolute"
-              top="40px"
-              left="40px"
+              top={`${imageTop}px`}
+              left={`${imageLeft}px`}
             />
           );
 
@@ -121,20 +144,15 @@ export const CanvasPasteHandler = () => {
               (actions as any).add(nodeTree, parentId);
             }
             
-            // Select the newly added node in the next tick
             if (newId) {
               setTimeout(() => {
                 try {
                   actions.selectNode(newId);
-                } catch (e) {
-                  // node might not be ready
-                }
+                } catch (e) {}
               }, 100);
             }
           } catch (err) {
             console.error("Paste add failed:", err);
-            // Fallback for some Craft.js versions
-            (actions as any).add(imageNode, parentId);
           }
 
         } catch (error) {

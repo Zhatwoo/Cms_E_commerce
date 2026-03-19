@@ -32,7 +32,7 @@ import {
 } from "../_lib/canvasActions";
 import { Container } from "../_designComponents/Container/Container";
 import { useDesignProject } from "../_context/DesignProjectContext";
-import { uploadMediaApi } from "@/lib/api";
+import { addFileToMediaLibrary } from "../_lib/mediaActions";
 import { Image } from "../_designComponents/Image/Image";
 
 const PROTECTED = new Set(["Viewport", "ROOT"]);
@@ -310,9 +310,10 @@ export function CanvasContextMenu() {
             let imageUrl: string;
             if (projectId) {
               try {
-                const result = await uploadMediaApi(projectId, file, { folder: "images" });
-                imageUrl = result.url;
+                const mediaItem = await addFileToMediaLibrary(projectId, file);
+                imageUrl = mediaItem.url;
               } catch (err) {
+                console.error("Right-click paste upload failed:", err);
                 imageUrl = await new Promise((resolve) => {
                   const reader = new FileReader();
                   reader.onload = (e) => resolve(e.target?.result as string);
@@ -327,14 +328,38 @@ export function CanvasContextMenu() {
               });
             }
 
-            // Determine parent
+            // Determine parent and position
             let targetParentId = "ROOT";
-            if (menu.nodeId && state.nodes[menu.nodeId]) {
-              const node = state.nodes[menu.nodeId];
-              targetParentId = node?.data?.isCanvas ? menu.nodeId : (node?.data?.parent || "ROOT");
-            } else if (effectiveIds.length > 0) {
-              const node = state.nodes[effectiveIds[0]];
-              targetParentId = node?.data?.isCanvas ? effectiveIds[0] : (node?.data?.parent || "ROOT");
+            let imageLeft = 40;
+            let imageTop = 40;
+
+            const nodes = query.getState().nodes;
+            const resolvePage = (id: string | null): string | null => {
+              let curr = id;
+              while (curr && curr !== "ROOT") {
+                if (nodes[curr]?.data?.displayName === "Page") return curr;
+                curr = nodes[curr]?.data?.parent;
+              }
+              return Object.keys(nodes).find(k => nodes[k]?.data?.displayName === "Page") || null;
+            };
+
+            const pageId = resolvePage(menu.nodeId || (effectiveIds.length > 0 ? effectiveIds[0] : null));
+            if (pageId) {
+              targetParentId = pageId;
+              try {
+                const pageDom = query.node(pageId).get()?.dom;
+                if (pageDom) {
+                  const rect = pageDom.getBoundingClientRect();
+                  // Helper within reach or from imports? We'll use a local small version.
+                  const baseW = pageDom.offsetWidth || pageDom.clientWidth || 1;
+                  const scaleX = rect.width / baseW;
+                  const baseH = pageDom.offsetHeight || pageDom.clientHeight || 1;
+                  const scaleY = rect.height / baseH;
+                  
+                  imageLeft = Math.max(0, Math.round((menu.x - rect.left) / scaleX));
+                  imageTop = Math.max(0, Math.round((menu.y - rect.top) / scaleY));
+                }
+              } catch (e) {}
             }
 
             // Create node
@@ -345,8 +370,8 @@ export function CanvasContextMenu() {
                 height="auto"
                 alt="Pasted Image"
                 position="absolute"
-                top="40px"
-                left="40px"
+                top={`${imageTop}px`}
+                left={`${imageLeft}px`}
               />
             );
 
