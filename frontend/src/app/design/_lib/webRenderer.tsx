@@ -1753,55 +1753,91 @@ function isNavContainer(
   return (isHorizontal && navItemCount >= 2) || navItemCount >= 3;
 }
 
-function wrapWithPrototype(
-  element: React.ReactElement,
-  prototype: PrototypeConfig | undefined,
-  onPrototypeAction: ((interaction: Interaction) => void) | undefined
-): React.ReactElement {
-  if (!onPrototypeAction || !prototype?.interactions?.length) return element;
-  const interactions = prototype.interactions;
+function PrototypeWrapper({
+  children,
+  interactions,
+  onPrototypeAction,
+}: {
+  children: React.ReactElement;
+  interactions: Interaction[];
+  onPrototypeAction: (interaction: Interaction) => void;
+}) {
+  const run = React.useCallback(
+    (trigger: Interaction["trigger"]) => {
+      const i = interactions.find((x) => x.trigger === trigger);
+      if (i) onPrototypeAction(i);
+    },
+    [interactions, onPrototypeAction]
+  );
 
-  const run = (trigger: Interaction["trigger"]) => {
-    const i = interactions.find((x) => x.trigger === trigger);
-    if (i) onPrototypeAction(i);
-  };
+  const hasClick = interactions.some((x) => x.trigger === "click");
+  const hasDblClick = interactions.some((x) => x.trigger === "doubleClick");
+  const hasHover = interactions.some((x) => x.trigger === "hover");
+  const hasMouseLeave = interactions.some((x) => x.trigger === "mouseLeave");
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  const handleClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     run("click");
-  };
-  const handleDoubleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
+  }, [run]);
+
+  const handleDblClick = React.useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     run("doubleClick");
-  };
+  }, [run]);
 
-  const handlers: Record<string, unknown> = {};
-  if (interactions.some((x) => x.trigger === "click")) {
-    handlers.onClickCapture = handleClick;
+  const isDomElement = typeof children.type === "string";
+
+  if (isDomElement) {
+    const existingStyle =
+      (children.props as Record<string, unknown>)?.style as React.CSSProperties | undefined;
+    return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
+      ...(hasClick ? { onClick: handleClick } : {}),
+      ...(hasDblClick ? { onDoubleClick: handleDblClick } : {}),
+      ...(hasHover ? { onMouseEnter: () => run("hover") } : {}),
+      ...(hasMouseLeave ? { onMouseLeave: () => run("mouseLeave") } : {}),
+      style: { ...existingStyle, cursor: "pointer" },
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          run("click");
+        }
+      },
+      role: "button",
+      tabIndex: 0,
+    });
   }
-  if (interactions.some((x) => x.trigger === "doubleClick")) {
-    handlers.onDoubleClickCapture = handleDoubleClick;
-  }
-  if (interactions.some((x) => x.trigger === "hover")) handlers.onMouseEnter = () => run("hover");
-  if (interactions.some((x) => x.trigger === "mouseLeave")) handlers.onMouseLeave = () => run("mouseLeave");
 
   return (
     <div
       style={{ display: "contents", cursor: "pointer" }}
       role="button"
       tabIndex={0}
+      {...(hasClick ? { onClickCapture: handleClick } : {})}
+      {...(hasDblClick ? { onDoubleClickCapture: handleDblClick } : {})}
+      {...(hasHover ? { onMouseEnter: () => run("hover") } : {})}
+      {...(hasMouseLeave ? { onMouseLeave: () => run("mouseLeave") } : {})}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           run("click");
         }
       }}
-      {...handlers}
     >
-      {element}
+      {children}
     </div>
+  );
+}
+
+function wrapWithPrototype(
+  element: React.ReactElement,
+  prototype: PrototypeConfig | undefined,
+  onPrototypeAction: ((interaction: Interaction) => void) | undefined
+): React.ReactElement {
+  if (!onPrototypeAction || !prototype?.interactions?.length) return element;
+  return (
+    <PrototypeWrapper interactions={prototype.interactions} onPrototypeAction={onPrototypeAction}>
+      {element}
+    </PrototypeWrapper>
   );
 }
 
@@ -2064,6 +2100,9 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
+  if (prototype?.interactions?.length) {
+    console.log("[Prototype] Node", nodeId, "type:", type, "has prototype:", JSON.stringify(prototype));
+  }
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
@@ -2151,7 +2190,7 @@ function RenderNode({
   };
 
   const wrap = (el: React.ReactElement) =>
-    wrapWithPrototype(wrapWithAnimation(withNodeMeta(el), animation), prototype, onPrototypeAction);
+    wrapWithAnimation(wrapWithPrototype(withNodeMeta(el), prototype, onPrototypeAction), animation);
 
   switch (type) {
     case "Container": {
@@ -4010,14 +4049,34 @@ function resolveInternalPageSlug(destination: string | undefined, pages: Preview
 
   const normalized = normalizeNavToken(raw);
 
+  // Exact slug match
   const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
   if (bySlug) return bySlug.slug;
 
+  // Match by page name
   const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
   if (byName) return byName.slug;
 
+  // Match by page ID
   const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
   if (byId) return byId.slug;
+
+  // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
+  const pageIndexMatch = raw.match(/^page-(\d+)$/i);
+  if (pageIndexMatch) {
+    const idx = parseInt(pageIndexMatch[1], 10);
+    // Try exact index first
+    if (idx >= 0 && idx < pages.length) return pages[idx].slug;
+    // Try index-1 (editor uses 1-based, serializer uses 0-based)
+    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].slug;
+  }
+
+  // Slug contains the destination as substring (fuzzy)
+  const fuzzy = pages.find((p) =>
+    normalizeNavToken(p.slug).includes(normalized) ||
+    normalized.includes(normalizeNavToken(p.slug))
+  );
+  if (fuzzy) return fuzzy.slug;
 
   if (raw.startsWith("?")) {
     try {
@@ -4052,6 +4111,7 @@ export function WebPreview({
   pageIndex = 0,
   initialPageSlug,
   storeContext,
+  onNavigate,
   simulatedWidth,
   responsiveViewportWidth,
   mobileBreakpoint,
@@ -4065,6 +4125,8 @@ export function WebPreview({
   /** Initial page slug for multi-page (overrides pageIndex when set). */
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
+  /** Notify parent when prototype navigation changes the visible page. */
+  onNavigate?: (pageSlug: string) => void;
   simulatedWidth?: number;
   /** Optional viewport width used only for responsive visibility/breakpoint logic. */
   responsiveViewportWidth?: number;
@@ -4089,6 +4151,16 @@ export function WebPreview({
       : {}),
     [doc]
   );
+
+  React.useEffect(() => {
+    const nodesWithPrototype = Object.entries(safeNodes).filter(
+      ([, n]) => n?.props?.prototype && (n.props.prototype as PrototypeConfig).interactions?.length > 0
+    );
+    console.log("[WebPreview] Pages:", safePages.map((p, i) => ({ id: p.id, name: p.name, slug: getPageSlug(p, i) })));
+    console.log("[WebPreview] Nodes with prototype:", nodesWithPrototype.map(([id, n]) => ({ id, type: n.type, prototype: n.props.prototype })));
+    console.log("[WebPreview] Total nodes:", Object.keys(safeNodes).length);
+  }, [safePages, safeNodes]);
+
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
@@ -4108,9 +4180,13 @@ export function WebPreview({
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
+      console.log("[Prototype] Action fired:", JSON.stringify(interaction));
+      console.log("[Prototype] Available pages:", JSON.stringify(pageMeta));
+      console.log("[Prototype] Current page:", currentPageSlug);
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
         const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
+        console.log("[Prototype] Resolved slug:", internalSlug, "from destination:", interaction.destination);
         if (internalSlug) {
           setHistory((h) => [...h, currentPageSlug]);
           const trans = interaction.transition ?? "dissolve";
@@ -4119,6 +4195,7 @@ export function WebPreview({
             animationDuration: `${duration}s`,
           });
           setCurrentPageSlug(internalSlug);
+          onNavigate?.(internalSlug);
         } else if (interaction.destination.startsWith("#")) {
           document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
         } else if (
@@ -4134,6 +4211,7 @@ export function WebPreview({
           setHistory((h) => h.slice(0, -1));
           setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
           setCurrentPageSlug(prev);
+          onNavigate?.(prev);
         }
       } else if (interaction.action === "openUrl" && interaction.destination) {
         window.open(interaction.destination, "_blank", "noopener");
@@ -4141,7 +4219,7 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history, pageMeta]
+    [currentPageSlug, history, pageMeta, onNavigate]
   );
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;

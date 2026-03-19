@@ -1214,8 +1214,31 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           return prev === next ? prev : next;
         });
       }
-      if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(permission === "viewer" ? false : parsed.leftPanelOpen);
-      if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(permission === "viewer" ? false : parsed.rightPanelOpen);
+
+      // If panels were previously saved as both closed, they can look like the editor UI broke.
+      // Auto-restore both panels for non-viewer permissions.
+      const nextLeftPanelOpen =
+        permission === "viewer"
+          ? false
+          : typeof parsed.leftPanelOpen === "boolean"
+            ? parsed.leftPanelOpen
+            : true;
+      const nextRightPanelOpen =
+        permission === "viewer"
+          ? false
+          : typeof parsed.rightPanelOpen === "boolean"
+            ? parsed.rightPanelOpen
+            : true;
+
+      const bothClosed = nextLeftPanelOpen === false && nextRightPanelOpen === false;
+      if (bothClosed) {
+        setLeftPanelOpen(true);
+        setRightPanelOpen(true);
+      } else {
+        setLeftPanelOpen(nextLeftPanelOpen);
+        setRightPanelOpen(nextRightPanelOpen);
+      }
+
       if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
       if (typeof parsed.showDualView === "boolean") setShowDualView(parsed.showDualView);
       if (parsed.currentPageId) setCurrentPageId(parsed.currentPageId);
@@ -1246,9 +1269,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   // Prevents stale hidden state from making the panel appear missing.
   useEffect(() => {
     if (!panelsReady || hasForcedRightPanelOpenRef.current || permission === "viewer") return;
+    // If both panels are hidden, restore both so TopPanel + BottomPanel tools are visible.
+    if (leftPanelOpen === false && rightPanelOpen === false) {
+      hasForcedRightPanelOpenRef.current = true;
+      setLeftPanelOpen(true);
+      setRightPanelOpen(true);
+      return;
+    }
     hasForcedRightPanelOpenRef.current = true;
     setRightPanelOpen(true);
-  }, [panelsReady, permission]);
+  }, [panelsReady, permission, leftPanelOpen, rightPanelOpen]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -2183,6 +2213,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
   }, [frameReady]);
+
+  // Fail-safe: if the frame mounted but panelsReady never flips to true (rare),
+  // re-enable panels after a short delay so the editor tools/shortcuts come back.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (permission === "viewer") return;
+    if (panelsReady) return;
+    const t = window.setTimeout(() => setPanelsReady(true), 2500);
+    return () => window.clearTimeout(t);
+  }, [panelsReady, permission, initialJson, frameReady]);
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
