@@ -8,7 +8,6 @@ import { AnimatePresence } from 'framer-motion';
 import { getDomainsManagement, listProducts, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
-import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -52,17 +51,8 @@ function websiteViewUrl(domainName: string): string {
   return normalized;
 }
 
-function productCategory(product: ApiProduct): string {
-  return product.subcategory || product.subCategory || product.sub_category || product.category || 'General';
-}
-
 function productIndustry(product: ApiProduct): string {
-  const rawIndustry = String(product.projectIndustry || '').trim();
-  if (!rawIndustry) return 'General';
-
-  const normalizedKey = normalizeIndustryKey(rawIndustry);
-  const option = INDUSTRY_OPTIONS.find((item) => item.key === normalizedKey);
-  return option?.label || rawIndustry;
+  return product.category || product.subcategory || product.subCategory || product.sub_category || 'General';
 }
 
 function chartBarHeightClass(value: number): string {
@@ -82,7 +72,6 @@ function subdomainFromDomain(domainName: string): string {
 
 const WEBSITE_CARD_IMAGE = '/images/template-saas.jpg';
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN || 'websitelink';
 
 function MonitoringPageContent() {
   const router = useRouter();
@@ -412,7 +401,7 @@ function MonitoringPageContent() {
                     ) : uniqueFilteredWebsites.length === 0 ? (
                       <p className="text-sm text-[#82788F]">No approved websites found.</p>
                     ) : (
-                      <div className="grid grid-cols-1 min-[1760px]:grid-cols-[513px_513px] min-[1760px]:justify-center gap-y-4 min-[1760px]:gap-x-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
                         {uniqueFilteredWebsites.map((w) => {
                           const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
@@ -421,7 +410,7 @@ function MonitoringPageContent() {
                           return (
                             <article
                               key={`${w.userId}::${w.id}`}
-                              className="w-full max-w-[513px] h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
+                              className="w-full h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
                             >
                               <div className="relative h-[170px]">
                                 {w.thumbnail ? (
@@ -504,7 +493,7 @@ function MonitoringPageContent() {
                         <div className="bg-[#B13BFF] px-2.5 py-1.5 text-white flex-1 flex flex-col">
                           <div className="flex items-start gap-1 flex-wrap">
                             <p className="text-sm font-semibold leading-tight truncate flex-1">{p.name || 'Product Name'}</p>
-                            <span className="rounded-full bg-[#6C2CD7] px-1.5 py-0.5 text-[9px] whitespace-nowrap">{productCategory(p)}</span>
+                            <span className="rounded-full bg-[#6C2CD7] px-1.5 py-0.5 text-[9px] whitespace-nowrap">{p.subcategory || 'General'}</span>
                           </div>
                           <p className="text-sm text-white/85 truncate">SKU: {p.sku || 'N/A'}</p>
                           <div className="flex items-center gap-1 mt-auto">
