@@ -121,7 +121,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                 </button>
                             </div>
                             <div className="mt-2 flex flex-col items-center text-center">
-                                <Image src="/images/logo.svg" alt="CMS E-commerce" width={76} height={76} className="object-contain" />
+                                <Image src="/images/logo.svg" alt="CMS E-commerce" width={48} height={48} className="h-9 w-auto object-contain" />
                             </div>
                         </div>
 
@@ -132,13 +132,13 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                 const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
 
                                 return (
-                                    <div key={item.id}>
+                                    <motion.div key={item.id} layout>
                                         {hasChildren ? (
                                             <button
                                                 type="button"
                                                 onClick={() => toggleDropdown(item.id)}
                                                 suppressHydrationWarning
-                                                className={`admin-dashboard-purple flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                className={`admin-dashboard-purple flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-colors ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                             >
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
                                                     <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
@@ -150,8 +150,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                             <Link
                                                 href={item.href}
                                                 onClick={() => onClose?.()}
-                                                className={`admin-dashboard-purple flex items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
-                                            >
+                                                className={`admin-dashboard-purple flex items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}>
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
                                                     <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                                 </span>
@@ -161,10 +160,11 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <AnimatePresence initial={false}>
                                             {hasChildren && isOpen ? (
                                                 <motion.div
+                                                    layout
                                                     initial={{ height: 0, opacity: 0 }}
                                                     animate={{ height: 'auto', opacity: 1 }}
                                                     exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.22 }}
+                                                    transition={{ duration: 0.18, ease: 'easeOut' }}
                                                     className="overflow-hidden"
                                                 >
                                                     <div className="mt-1 flex flex-col gap-0.5 pl-6">
@@ -185,7 +185,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 </motion.div>
                                             ) : null}
                                         </AnimatePresence>
-                                    </div>
+                                    </motion.div>
                                 );
                             })}
                         </nav>
@@ -215,14 +215,14 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             className="sticky top-0 z-20 hidden h-[100dvh] overflow-hidden px-4 py-4 lg:flex"
             initial={false}
             animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
-            transition={{ type: 'spring', stiffness: 300, damping: 28, mass: 0.8 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
             <div className="admin-dashboard-panel flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5">
                 <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
                     <Link href="/admindashboard" aria-label="Dashboard Home">
-                        <Image src="/images/logo.svg" alt="CMS E-commerce" width={56} height={56} className="object-contain" />
+                        <Image src="/images/logo.svg" alt="CMS E-commerce" width={48} height={48} className="h-9 w-auto max-w-[48px] object-contain" />
                     </Link>
                 </div>
 
@@ -240,7 +240,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         onClick={() => isHovered && toggleDropdown(item.id)}
                                         aria-label={item.label}
                                         suppressHydrationWarning
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
@@ -249,8 +249,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                             {item.label}
                                         </span>
                                         <span className={`admin-dashboard-purple mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
-                                        </span>
+                                            <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} /></span>
                                         {isActive ? (
                                             <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
                                         ) : null}
@@ -259,7 +258,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                     <Link
                                         href={item.href}
                                         aria-label={item.label}
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
@@ -272,32 +271,22 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         ) : null}
                                     </Link>
                                 )}
-                                <AnimatePresence initial={false}>
-                                    {hasChildren && isHovered && isOpen ? (
-                                        <motion.div
-                                            initial={{ height: 0, opacity: 0 }}
-                                            animate={{ height: 'auto', opacity: 1 }}
-                                            exit={{ height: 0, opacity: 0 }}
-                                            transition={{ duration: 0.22 }}
-                                            className="overflow-hidden"
-                                        >
-                                            <div className="mt-1 flex flex-col gap-0.5 pl-4">
-                                                {(item.children ?? []).map((child) => {
-                                                    const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
-                                                    return (
-                                                        <Link
-                                                            key={child.id}
-                                                            href={child.href}
-                                                            className={`admin-dashboard-purple flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-white/30 ${isChildActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
-                                                        >
-                                                            {child.label}
-                                                        </Link>
-                                                    );
-                                                })}
-                                            </div>
-                                        </motion.div>
-                                    ) : null}
-                                </AnimatePresence>
+                                {hasChildren && isOpen && isHovered ? (
+                                    <div className="mt-1 flex flex-col gap-0.5 pl-4">
+                                        {(item.children ?? []).map((child) => {
+                                            const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
+                                            return (
+                                                <Link
+                                                    key={child.id}
+                                                    href={child.href}
+                                                    className={`admin-dashboard-purple flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-white/30 ${isChildActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                >
+                                                    {child.label}
+                                                </Link>
+                                            );
+                                        })}
+                                    </div>
+                                ) : null}
                             </div>
                         );
                     })}
@@ -308,14 +297,17 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     suppressHydrationWarning
-                    className={`admin-dashboard-logout mt-auto shrink-0 flex items-center rounded-2xl ${isHovered ? 'w-full px-2 py-2 justify-start' : 'justify-center py-2'}`}
+                    className="admin-dashboard-logout mt-auto shrink-0 flex w-full items-center justify-start overflow-hidden rounded-2xl px-2 py-2"
                     aria-label="Log out"
                     title="Log out"
                 >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
                         <LogoutIcon />
                     </span>
-                    <span className={`admin-dashboard-purple whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'ml-3 opacity-100' : 'opacity-0'}`}>
+                    <span
+                        className={`admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                        aria-hidden={!isHovered}
+                    >
                         {isLoggingOut ? 'Logging out...' : 'Log out'}
                     </span>
                 </button>

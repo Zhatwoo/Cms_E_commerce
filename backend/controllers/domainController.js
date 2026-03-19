@@ -27,13 +27,11 @@ exports.getManagementList = async (req, res) => {
     for (const doc of published) {
       const subdomain = doc.id || '';
       const userId = doc.userId || doc.user_id;
-      const projectId = doc.projectId || doc.project_id;
       const status = (doc.status || 'published').toString().toLowerCase();
       const statusDisplay = status === 'published' ? 'Live' : status === 'draft' ? 'Draft' : status === 'flagged' ? 'Flagged' : status;
       const domainName = subdomain ? `${subdomain}.${BASE_DOMAIN}` : '—';
       let owner = 'Unknown User';
       let planDisplay = 'Free';
-      let thumbnail = null;
       if (userId) {
         try {
           const user = await User.findById(userId);
@@ -45,20 +43,6 @@ exports.getManagementList = async (req, res) => {
         } catch (e) {
           // keep defaults
         }
-
-        // Resolve the project's saved preview thumbnail used by the client dashboard cards.
-        try {
-          let project = null;
-          if (projectId) {
-            project = await Project.get(userId, String(projectId));
-          }
-          if (!project && subdomain) {
-            project = await Project.getBySubdomain(userId, String(subdomain));
-          }
-          thumbnail = project?.thumbnail || null;
-        } catch (e) {
-          // keep thumbnail null when project lookup fails
-        }
       }
       rows.push({
         id: doc.domainId || doc.id || subdomain,
@@ -68,7 +52,6 @@ exports.getManagementList = async (req, res) => {
         status: statusDisplay,
         plan: planDisplay,
         domainType: 'Subdomain',
-        thumbnail,
       });
     }
     const total = rows.length;
