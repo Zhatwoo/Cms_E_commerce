@@ -162,7 +162,7 @@ export default function AdminLogin() {
 					<div className="mt-6 flex justify-center text-sm">
 						<p className="text-[#A63DFF]">
 							Don&apos;t have an Account?{' '}
-							<Link href="/admindashboard/register" className="font-semibold text-[#ffcc00] underline decoration-[#ffcc00]/70 underline-offset-2 hover:opacity-80">
+							<Link href="/adminauth/register" className="font-semibold text-[#ffcc00] underline decoration-[#ffcc00]/70 underline-offset-2 hover:opacity-80">
 								Register
 							</Link>
 						</p>
