@@ -412,7 +412,7 @@ export default function WebsiteProductMonitoringPage() {
                     ) : uniqueFilteredWebsites.length === 0 ? (
                       <p className="text-sm text-[#82788F]">No approved websites found.</p>
                     ) : (
-                      <div className="grid grid-cols-1 min-[1760px]:grid-cols-[513px_513px] min-[1760px]:justify-center gap-y-4 min-[1760px]:gap-x-4">
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(320px,1fr))] gap-4">
                         {uniqueFilteredWebsites.map((w) => {
                           const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
@@ -421,7 +421,7 @@ export default function WebsiteProductMonitoringPage() {
                           return (
                             <article
                               key={`${w.userId}::${w.id}`}
-                              className="w-full max-w-[513px] h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
+                              className="w-full h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
                             >
                               <div className="relative h-[170px]">
                                 {w.thumbnail ? (
@@ -432,7 +432,13 @@ export default function WebsiteProductMonitoringPage() {
                                     loading="lazy"
                                   />
                                 ) : (
-                                  <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill sizes="513px" className="object-cover" />
+                                  <Image
+                                    src={WEBSITE_CARD_IMAGE}
+                                    alt={w.domainName}
+                                    fill
+                                    sizes="(max-width: 767px) 100vw, (max-width: 1536px) 50vw, 33vw"
+                                    className="object-cover"
+                                  />
                                 )}
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-3 py-1 text-sm font-semibold text-gray-900">
                                   <span className={`h-4 w-4 rounded-full ${status.dotClass}`} />
