@@ -79,10 +79,7 @@ class FrameErrorBoundary extends React.Component<
   { children: React.ReactNode; onError: () => void },
   { hasError: boolean }
 > {
-  constructor(props: { children: React.ReactNode; onError: () => void }) {
-    super(props);
-    this.state = { hasError: false };
-  }
+  state = { hasError: false };
 
   static getDerivedStateFromError() {
     return { hasError: true };
@@ -90,7 +87,9 @@ class FrameErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('❌ FrameErrorBoundary caught error:', error, errorInfo);
-    this.props.onError();
+    if (this.props && typeof this.props.onError === 'function') {
+      this.props.onError();
+    }
   }
 
   render() {
@@ -98,7 +97,7 @@ class FrameErrorBoundary extends React.Component<
       return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
-    return this.props.children;
+    return this.props?.children ?? null;
   }
 }
 
@@ -2718,8 +2717,20 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     }
   }, [initialJson, resolver]);
 
+  const shouldForceFluidCanvas = canvasWidth <= 1024;
+  const fluidCanvasTier = canvasWidth <= 640 ? "mobile" : canvasWidth <= 1024 ? "tablet" : "desktop";
+
   return (
-    <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
+    <div
+      data-web-builder-root
+      data-force-fluid-canvas={shouldForceFluidCanvas ? "true" : "false"}
+      data-fluid-canvas-tier={fluidCanvasTier}
+      data-device-switching={isDeviceSwitching ? "true" : "false"}
+      className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}
+      style={{
+        ["--builder-device-width" as string]: `${canvasWidth}px`,
+      } as React.CSSProperties}
+    >
       <style>{`
           div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
           div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
@@ -2730,6 +2741,119 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             opacity: 0 !important;
             border-width: 0 !important;
             background: transparent !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] {
+            width: min(100%, var(--builder-device-width, 1024px)) !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-x: hidden !important;
+            box-sizing: border-box !important;
+            transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1), max-width 220ms cubic-bezier(0.22, 1, 0.36, 1);
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] [data-node-id] {
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow-wrap: break-word;
+            transition:
+              width 180ms ease,
+              max-width 180ms ease,
+              min-width 180ms ease,
+              margin 180ms ease,
+              padding 180ms ease,
+              transform 180ms ease,
+              opacity 160ms ease;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-layout="row"] {
+            flex-wrap: wrap !important;
+            align-items: stretch !important;
+            gap: clamp(8px, 2cqw, 18px) !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-node-id][style*="display: flex"][style*="flex-direction: row"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
+            flex-wrap: wrap !important;
+            align-items: stretch !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            gap: clamp(8px, 2cqw, 18px) !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-layout="row"] > * {
+            min-width: 0 !important;
+            max-width: 100% !important;
+            flex: 0 1 min(320px, 100%) !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-layout="row"] {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-node-id][style*="display: flex"][style*="flex-direction: row"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            gap: clamp(8px, 2.4cqw, 16px) !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-layout="row"] > * {
+            max-width: 100% !important;
+            min-width: 0 !important;
+            flex: 0 1 auto !important;
+            align-self: stretch !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] img,
+          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] video,
+          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] iframe,
+          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] [data-fluid-media="true"] {
+            max-width: 100% !important;
+            min-width: 0 !important;
+            height: auto !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position: absolute"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position:absolute"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position: fixed"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position:fixed"] {
+            position: relative !important;
+            left: auto !important;
+            right: auto !important;
+            top: auto !important;
+            bottom: auto !important;
+            transform: none !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            align-self: stretch !important;
+          }
+
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position: absolute"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position:absolute"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position: fixed"],
+          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position:fixed"] {
+            max-width: 100% !important;
+            min-width: 0 !important;
+          }
+
+          [data-web-builder-root][data-device-switching="true"] [data-page-node="true"] [data-node-id] {
+            transition-duration: 240ms !important;
+            transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"],
+            [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] [data-node-id] {
+              transition: none !important;
+            }
           }
         `}</style>
       <Editor

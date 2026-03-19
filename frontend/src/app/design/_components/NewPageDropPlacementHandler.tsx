@@ -221,13 +221,13 @@ export const NewPageDropPlacementHandler = () => {
 
         lastDropPointRef.current = null;
         preDropPageIdsRef.current = new Set(currentPageIds);
-        return;
+        return true;
       }
 
       // No new page detected yet. Do not create a fallback page here:
       // Craft may commit the dragged "New Page" asynchronously. We retry placement for a few frames
       // and only create a fallback once (see schedulePlacementRetry → createPageAtDropPoint).
-      return;
+      return false;
     } catch (err) {
       console.error("placeDroppedPage unexpected error:", err);
       lastDropPointRef.current = null;

@@ -111,7 +111,7 @@ export const TabsSettings = () => {
     typedSetProp(props => {
       const idx = props.tabs.findIndex(t => t.id === id);
       if (idx !== -1) {
-        props.tabs[idx].content = newContent;
+        props.tabs[idx].content = typeof newContent === 'string' ? newContent : String(newContent);
       }
     });
   };
