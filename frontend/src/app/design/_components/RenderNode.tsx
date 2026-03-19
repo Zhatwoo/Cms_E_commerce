@@ -184,7 +184,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
           if (clickedIsGroup && !clickedIsPageLike) {
             if (event.cancelable) event.preventDefault();
             event.stopPropagation();
-            if (typeof event.stopImmediatePropagation === "function") {
+            if (typeof event.stopImmediatePropagation === "function" && clickedDisplayName !== "Section") {
               event.stopImmediatePropagation();
             }
             actions.selectNode(id);
