@@ -160,7 +160,7 @@ export const AppearanceGroup = ({
                   </button>
                 </div>
 
-                {/* Size & Position Row */}
+                {/* Size & Spacing Row */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="flex flex-col gap-1">
                     <span className="text-[10px] text-[var(--builder-text-muted)]">Size</span>
