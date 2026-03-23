@@ -4024,8 +4024,8 @@ function RenderNode({
   }
 }
 
-function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
-  return page?.slug ?? `page-${index}`;
+function getPageSlug(page: any, index: number): string {
+  return page?.slug || (page?.props?.pageSlug as string) || `page-${index}`;
 }
 
 type PreviewPageMeta = {
@@ -4038,7 +4038,7 @@ function normalizeNavToken(value: string): string {
   return value.trim().replace(/^\/+/, "").toLowerCase();
 }
 
-function resolveInternalPageSlug(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
   if (!destination) return null;
 
   const raw = destination.trim();
@@ -4046,26 +4046,26 @@ function resolveInternalPageSlug(destination: string | undefined, pages: Preview
 
   const normalized = normalizeNavToken(raw);
 
+  // Match by page ID (priority)
+  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+  if (byId) return byId.id;
+
   // Exact slug match
   const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
-  if (bySlug) return bySlug.slug;
+  if (bySlug) return bySlug.id;
 
   // Match by page name
   const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
-  if (byName) return byName.slug;
-
-  // Match by page ID
-  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
-  if (byId) return byId.slug;
+  if (byName) return byName.id;
 
   // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
   const pageIndexMatch = raw.match(/^page-(\d+)$/i);
   if (pageIndexMatch) {
     const idx = parseInt(pageIndexMatch[1], 10);
     // Try exact index first
-    if (idx >= 0 && idx < pages.length) return pages[idx].slug;
+    if (idx >= 0 && idx < pages.length) return pages[idx].id;
     // Try index-1 (editor uses 1-based, serializer uses 0-based)
-    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].slug;
+    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
   }
 
   // Slug contains the destination as substring (fuzzy)
@@ -4073,14 +4073,14 @@ function resolveInternalPageSlug(destination: string | undefined, pages: Preview
     normalizeNavToken(p.slug).includes(normalized) ||
     normalized.includes(normalizeNavToken(p.slug))
   );
-  if (fuzzy) return fuzzy.slug;
+  if (fuzzy) return fuzzy.id;
 
   if (raw.startsWith("?")) {
     try {
       const q = new URLSearchParams(raw.replace(/^\?/, ""));
       const pageParam = q.get("page") ?? "";
-      const resolved = resolveInternalPageSlug(pageParam, pages);
-      if (resolved) return resolved;
+      const resolvedId = resolveInternalPageId(pageParam, pages);
+      if (resolvedId) return resolvedId;
     } catch {
       return null;
     }
@@ -4149,14 +4149,21 @@ export function WebPreview({
     [doc]
   );
 
-  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
-  const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
+  const initialResolvedId = React.useMemo(() => {
+    if (initialPageSlug) {
+      const bySlug = safePages.find((p, i) => getPageSlug(p, i) === initialPageSlug);
+      if (bySlug) return bySlug.id;
+    }
+    return initialPage?.id;
+  }, [initialPageSlug, safePages, initialPage]);
+
+  const [currentPageId, setCurrentPageId] = useState(initialResolvedId);
   const [history, setHistory] = useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
 
-  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
   const pageMeta = React.useMemo<PreviewPageMeta[]>(
     () => safePages.map((p, i) => ({
       id: p.id,
@@ -4170,16 +4177,17 @@ export function WebPreview({
     (interaction: Interaction) => {
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
-        const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
-        if (internalSlug) {
-          setHistory((h) => [...h, currentPageSlug]);
+        const destId = resolveInternalPageId(interaction.destination, pageMeta);
+        if (destId) {
+          if (currentPageId) setHistory((h) => [...h, currentPageId]);
           const trans = interaction.transition ?? "dissolve";
           setTransitionStyle({
             ...PAGE_TRANSITION_STYLES[trans],
             animationDuration: `${duration}s`,
           });
-          setCurrentPageSlug(internalSlug);
-          onNavigate?.(internalSlug);
+          setCurrentPageId(destId);
+          const destSlug = pageMeta.find(p => p.id === destId)?.slug;
+          if (destSlug) onNavigate?.(destSlug);
         } else if (interaction.destination.startsWith("#")) {
           document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
         } else if (
@@ -4191,11 +4199,12 @@ export function WebPreview({
         }
       } else if (interaction.action === "back") {
         if (history.length > 0) {
-          const prev = history[history.length - 1];
+          const prevId = history[history.length - 1];
           setHistory((h) => h.slice(0, -1));
           setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-          setCurrentPageSlug(prev);
-          onNavigate?.(prev);
+          setCurrentPageId(prevId);
+          const prevSlug = pageMeta.find(p => p.id === prevId)?.slug;
+          if (prevSlug) onNavigate?.(prevSlug);
         }
       } else if (interaction.action === "openUrl" && interaction.destination) {
         window.open(interaction.destination, "_blank", "noopener");
@@ -4203,7 +4212,7 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history, pageMeta, onNavigate]
+    [currentPageId, history, pageMeta, onNavigate]
   );
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
@@ -4228,7 +4237,7 @@ export function WebPreview({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageSlug]);
+  }, [isDesktopMode, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4335,7 +4344,7 @@ export function WebPreview({
       `}</style>
       {!isDesktopMode && frameResponsiveStyles}
       <div
-        key={currentPageSlug}
+        key={currentPageId}
         className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
         style={{
           width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : width),
@@ -4408,16 +4417,21 @@ export function LiveSite({
       : {}),
     [doc]
   );
-  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
-  const [currentPageSlug, setCurrentPageSlug] = React.useState(
-    initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug
-  );
-  const [history, setHistory] = React.useState<string[]>([]);
-  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+  const initialResolvedId = React.useMemo(() => {
+    if (initialPageSlug) {
+      const bySlug = safePages.find((p, i) => getPageSlug(p, i) === initialPageSlug);
+      if (bySlug) return bySlug.id;
+    }
+    return initialPage?.id;
+  }, [initialPageSlug, safePages, initialPage]);
 
-  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const [currentPageId, setCurrentPageId] = useState(initialResolvedId);
+  const [history, setHistory] = useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
+
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
   const pageMeta = React.useMemo<PreviewPageMeta[]>(
     () => safePages.map((p, i) => ({
       id: p.id,
@@ -4447,7 +4461,7 @@ export function LiveSite({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isPhoneSize, currentPageSlug]);
+  }, [isPhoneSize, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4476,18 +4490,18 @@ export function LiveSite({
     } else if (interaction.action === "scrollTo" && interaction.destination) {
       document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
     } else if (interaction.action === "navigateTo" && interaction.destination) {
-      const dest = interaction.destination;
-      const internalSlug = resolveInternalPageSlug(dest, pageMeta);
-      if (internalSlug) {
-        setHistory((h) => [...h, currentPageSlug]);
+      const destId = resolveInternalPageId(interaction.destination, pageMeta);
+      if (destId) {
+        if (currentPageId) setHistory((h) => [...h, currentPageId]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
         setTransitionStyle({
           ...PAGE_TRANSITION_STYLES[trans],
           animationDuration: `${duration}s`,
         });
-        setCurrentPageSlug(internalSlug);
+        setCurrentPageId(destId);
       } else {
+        const dest = interaction.destination;
         const el = document.getElementById(dest.startsWith("#") ? dest.slice(1) : dest);
         if (el) {
           el.scrollIntoView({ behavior: "smooth" });
@@ -4497,15 +4511,15 @@ export function LiveSite({
       }
     } else if (interaction.action === "back") {
       if (history.length > 0) {
-        const prev = history[history.length - 1];
+        const prevId = history[history.length - 1];
         setHistory((h) => h.slice(0, -1));
         setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-        setCurrentPageSlug(prev);
+        setCurrentPageId(prevId);
       } else {
         window.history.back();
       }
     }
-  }, [currentPageSlug, history, pageMeta]);
+  }, [currentPageId, history, pageMeta]);
 
   if (!currentPage) {
     const hasPages = safePages.length > 0;
@@ -4564,7 +4578,7 @@ export function LiveSite({
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
       <div
-        key={currentPageSlug}
+        key={currentPageId}
         ref={ref}
         style={{
           width: isPhoneSize ? "100%" : width,
