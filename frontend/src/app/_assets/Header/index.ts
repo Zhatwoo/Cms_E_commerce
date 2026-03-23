@@ -7,3 +7,4 @@ export { MinimalistSaleHeader } from "./minimalist-sale-header/minimalist-sale-h
 export { LuxuryHeader } from "./luxury-header/luxury-header";
 export { MobileHeader } from "./mobile-header/mobile-header";
 export { DarkModeHeader } from "./dark-mode-header/dark-mode-header";
+export { ProfileLogin } from "./profile-login/profile-login";

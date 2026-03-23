@@ -207,6 +207,7 @@ function normalizeResolvedName(rawName: unknown): string {
   if (lowered.includes("divider")) return "Divider";
   if (lowered.includes("banner")) return "Banner";
   if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("profilelogin") || lowered.includes("profile login") || lowered.includes("profile-login")) return "ProfileLogin";
   if (lowered.includes("pagination")) return "Pagination";
   if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
@@ -639,6 +640,19 @@ function ensureFrameDataResolverCompatibility(
     const parsed = JSON.parse(jsonString) as Record<string, any>;
     if (!parsed || typeof parsed !== "object") return jsonString;
 
+    const canonicalByLower = new Map<string, string>();
+    Object.keys(resolver).forEach((key) => {
+      const lowered = key.trim().toLowerCase();
+      if (!lowered) return;
+      if (!canonicalByLower.has(lowered)) canonicalByLower.set(lowered, key);
+    });
+
+    const containerFallback =
+      canonicalByLower.get("container") ??
+      canonicalByLower.get("viewport") ??
+      Object.keys(resolver)[0] ??
+      "Container";
+
     const booleanResolverCandidates = [
       "BooleanField",
       "booleanfield",
@@ -654,7 +668,7 @@ function ensureFrameDataResolverCompatibility(
 
     const resolvedBooleanType =
       booleanResolverCandidates.find((name) => name in resolver) ??
-      ("Container" in resolver ? "Container" : "container");
+      containerFallback;
 
     let changed = false;
     Object.keys(parsed).forEach((id) => {
@@ -667,7 +681,37 @@ function ensureFrameDataResolverCompatibility(
           : "";
       if (!current) return;
 
-      const lowered = current.trim().toLowerCase();
+      const trimmedCurrent = current.trim();
+      const loweredCurrent = trimmedCurrent.toLowerCase();
+      const resolverMatch =
+        (trimmedCurrent in resolver ? trimmedCurrent : undefined) ??
+        canonicalByLower.get(loweredCurrent) ??
+        canonicalByLower.get(loweredCurrent.replace(/[-_\s]+/g, "")) ??
+        canonicalByLower.get(loweredCurrent.replace(/component$/, ""));
+
+      const safeResolvedName = resolverMatch ?? containerFallback;
+
+      if (typeof node.type === "string") {
+        if (node.type !== safeResolvedName) {
+          node.type = safeResolvedName;
+          changed = true;
+        }
+      } else if (node.type && typeof node.type === "object") {
+        if (node.type.resolvedName !== safeResolvedName) {
+          node.type.resolvedName = safeResolvedName;
+          changed = true;
+        }
+      } else {
+        node.type = { resolvedName: safeResolvedName };
+        changed = true;
+      }
+
+      if (node.displayName !== safeResolvedName) {
+        node.displayName = safeResolvedName;
+        changed = true;
+      }
+
+      const lowered = loweredCurrent;
       if (!(lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio"))) {
         return;
       }
@@ -2589,6 +2633,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.TEXT = asComponent(Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
+
+    // Keep legacy ProfileLogin node names resolvable in existing saved snapshots.
+    const profileLoginComp = asComponent(
+      CRAFT_RESOLVER.ProfileLoginNode ?? CRAFT_RESOLVER.ProfileLogin ?? SAFE_CONTAINER
+    );
+    base.ProfileLogin = profileLoginComp;
+    base.profilelogin = profileLoginComp;
+    base.ProfileLoginNode = profileLoginComp;
+    base.profileloginnode = profileLoginComp;
 
     // Explicitly ensure Tabs and TabContent are in the resolver
     base.Tabs = asComponent(CRAFT_RESOLVER.Tabs ?? Tabs);
