@@ -554,28 +554,28 @@ function PreviewContent() {
     }
   }, []);
 
-  const clearSnapshotCache = (targetProjectId: string) => {
-    if (typeof window === "undefined") return;
-    try { window.sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
-    try { window.sessionStorage.removeItem(STORAGE_KEY_PREFIX); } catch { /* ignore */ }
-    try { window.localStorage.removeItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
-  };
-
   const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
-      if (project?.subdomain) {
-        const published = await loadPublishedContent(project.subdomain);
-        if (published) {
-          clearSnapshotCache(projectId);
-          setRawJson(published);
-          return;
-        }
+      const latest = readLatestSnapshot(projectId);
+      if (latest) {
+        setRawJson(latest);
+        return;
       }
+
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
         setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        return;
+      }
+
+      if (project?.subdomain) {
+        const published = await loadPublishedContent(project.subdomain);
+        if (published) {
+          setRawJson(published);
+          return;
+        }
       }
     } catch (e) {
       console.error("Preview refresh error:", e);
@@ -608,18 +608,15 @@ function PreviewContent() {
       if (!project) return;
       setLoading(true);
       try {
-        // If project has a subdomain, always load published content first
-        if (project.subdomain) {
-          const published = await loadPublishedContent(project.subdomain);
-          if (!cancelled && published) {
-            clearSnapshotCache(projectId);
-            setRawJson(published);
-            setLoading(false);
-            return;
-          }
+        // Keep preview aligned with current editor/canvas snapshot first.
+        const latest = readLatestSnapshot(projectId);
+        if (!cancelled && latest) {
+          setRawJson(latest);
+          setLoading(false);
+          return;
         }
 
-        // No subdomain or published content unavailable — load from draft API
+        // No local snapshot available — load latest draft from API
         const timeoutMs = 12000;
         const result = await Promise.race([
           getDraft(projectId),
@@ -638,14 +635,28 @@ function PreviewContent() {
             if (!cancelled) setRawJson(content);
           }
         } else {
-          // Draft API failed — last resort: local cache
+          // Draft unavailable — fall back to published content for deployed projects.
+          if (project.subdomain) {
+            const published = await loadPublishedContent(project.subdomain);
+            if (published && !cancelled) {
+              setRawJson(published);
+              return;
+            }
+          }
+
+          // Last resort: stale local cache (if any)
           const fallback = readLatestSnapshot(projectId);
           if (fallback && !cancelled) setRawJson(fallback);
         }
       } catch (error) {
         console.error("Preview: Load error:", error);
         const fallback = readLatestSnapshot(projectId);
-        if (fallback) setRawJson(fallback);
+        if (fallback) {
+          setRawJson(fallback);
+        } else if (project.subdomain) {
+          const published = await loadPublishedContent(project.subdomain);
+          if (published) setRawJson(published);
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -655,16 +666,36 @@ function PreviewContent() {
     return () => { cancelled = true; };
   }, [projectId, project, loadPublishedContent]);
 
-  // Re-fetch published content when tab becomes visible
+  // Re-sync preview when tab becomes visible (draft first, then published fallback)
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible" && project?.subdomain) {
-        loadPublishedContent(project.subdomain).then((published) => {
-          if (published) {
-            clearSnapshotCache(projectId);
-            setRawJson(published);
-          }
-        });
+      if (document.visibilityState === "visible") {
+        const latest = readLatestSnapshot(projectId);
+        if (latest) {
+          setRawJson(latest);
+          return;
+        }
+
+        getDraft(projectId)
+          .then((res) => {
+            if (res.success && res.data?.content) {
+              const content = res.data.content;
+              setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+              return;
+            }
+            if (project?.subdomain) {
+              return loadPublishedContent(project.subdomain).then((published) => {
+                if (published) setRawJson(published);
+              });
+            }
+          })
+          .catch(() => {
+            if (project?.subdomain) {
+              loadPublishedContent(project.subdomain).then((published) => {
+                if (published) setRawJson(published);
+              });
+            }
+          });
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
