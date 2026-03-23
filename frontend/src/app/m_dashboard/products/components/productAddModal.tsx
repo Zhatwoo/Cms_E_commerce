@@ -73,7 +73,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   uploadSubdomain?: string | null;
   projectIndustry?: string | null;
 }) {
-  const { colors } = useTheme();
+  const { colors, theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
 
   const [images, setImages] = useState<ProductImage[]>([]);
@@ -251,16 +251,38 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
+  const allSlides = useMemo(() => {
+    const variantSlides: Array<{ id: string; src: string; isVariant: true; label: string }> = [];
+    const seen = new Set<string>();
+    fd.variants.forEach((variant) => {
+      variant.options.forEach((option) => {
+        const src = String(option.image || '').trim();
+        if (!src || seen.has(src)) return;
+        seen.add(src);
+        variantSlides.push({
+          id: `${variant.id}:${option.id}`,
+          src,
+          isVariant: true,
+          label: `${variant.name || 'Variant'} \u2022 ${option.name || 'Option'}`.trim(),
+        });
+      });
+    });
+    return [
+      ...images.map(img => ({ id: img.id, src: img.src, isVariant: false as const, label: '' })),
+      ...variantSlides,
+    ];
+  }, [images, fd.variants]);
+
   // Auto-advance slider
   useEffect(() => {
-    if (images.length <= 1) return;
-    const t = setInterval(() => setSlide(i => (i + 1) % images.length), 3500);
+    if (allSlides.length <= 1) return;
+    const t = setInterval(() => setSlide(i => (i + 1) % allSlides.length), 3500);
     return () => clearInterval(t);
-  }, [images.length]);
+  }, [allSlides.length]);
 
   useEffect(() => {
-    if (slide >= images.length && images.length > 0) setSlide(images.length - 1);
-  }, [images.length, slide]);
+    if (slide >= allSlides.length && allSlides.length > 0) setSlide(allSlides.length - 1);
+  }, [allSlides.length, slide]);
 
   // Image helpers
   const addFiles = (files: FileList | null) => {
@@ -292,9 +314,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
   };
 
   const moveSlide = (dir: 1 | -1) => {
-    if (images.length <= 1) return;
+    if (allSlides.length <= 1) return;
     setSlideDir(dir);
-    setSlide((current) => (current + dir + images.length) % images.length);
+    setSlide((current) => (current + dir + allSlides.length) % allSlides.length);
   };
 
   const addImageToGallery = (src: string) => {
@@ -786,8 +808,34 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
   if (!portalTarget) return null;
 
+  const isLight = theme === 'light';
+  const shellBackground = isLight
+    ? 'linear-gradient(135deg, #F9F7FF 0%, #F1ECFF 55%, #ECE6FF 100%)'
+    : 'linear-gradient(135deg, #314675 0%, #25305D 26%, #17044F 58%, #0C012E 100%)';
+  const shellBorder = isLight ? 'rgba(177, 140, 255, 0.45)' : 'rgba(93, 108, 201, 0.55)';
+  const shellShadow = isLight
+    ? '0 40px 80px rgba(40, 22, 92, 0.22), 0 0 0 1px rgba(255,255,255,0.72) inset'
+    : '0 40px 80px rgba(0,0,0,0.45), 0 0 0 1px rgba(138, 164, 255, 0.08) inset';
+  const leftPanelBackground = isLight
+    ? 'linear-gradient(180deg, rgba(232, 223, 255, 0.9) 0%, rgba(221, 210, 251, 0.95) 100%)'
+    : 'linear-gradient(180deg, rgba(73, 95, 149, 0.72) 0%, rgba(50, 67, 111, 0.86) 100%)';
+  const leftPanelBorder = isLight ? 'rgba(180, 159, 238, 0.55)' : 'rgba(126, 145, 221, 0.28)';
+  const titleColor = isLight ? '#25124F' : '#FFFFFF';
+  const subtitleColor = isLight ? '#5C4D88' : '#9FB3DF';
+  const labelColor = isLight ? '#5B4B8A' : '#9FB3DF';
+  const sectionDividerColor = isLight ? '#D7CDED' : '#3A4473';
+  const sectionCardBorder = isLight ? '#D2C7EA' : '#3140A6';
+  const sectionCardBg = isLight ? 'rgba(249, 247, 255, 0.92)' : '#0F145A';
+  const nestedCardBorder = isLight ? '#DCCFF1' : '#3A4473';
+  const nestedCardBg = isLight ? 'rgba(255, 255, 255, 0.72)' : '#121A63';
+  const sectionTitleColor = isLight ? '#4F3C85' : '#DCE7FF';
+  const sectionSubtextColor = isLight ? '#7C6AA8' : '#9FB3DF';
+  const actionButtonBg = isLight ? '#EDE6FF' : '#24327A';
+  const actionButtonText = isLight ? '#5B3EA3' : '#DCE7FF';
   const iCls = 'w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-400/40 transition-all';
-  const iSt = { backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' };
+  const iSt = isLight
+    ? { backgroundColor: 'rgba(249, 247, 255, 0.92)', borderColor: '#CFC4E5', color: '#120533' }
+    : { backgroundColor: '#191A69', borderColor: '#3140A6', color: '#FFFFFF' };
   const lCls = 'block text-xs tracking-[0.12em] font-semibold uppercase mb-2';
 
   const colorVariant = fd.variants.find((variant) => variant.name.toLowerCase().includes('color'));
@@ -935,7 +983,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
           transition={{ duration: 0.25 }}
           className="fixed inset-0 z-[5000] backdrop-blur-[12px]"
           style={{
-            backgroundColor: 'rgba(0,0,0,0.5)',
+            backgroundColor: isLight ? 'rgba(18,5,51,0.26)' : 'rgba(0,0,0,0.5)',
             backdropFilter: 'blur(12px)',
             WebkitBackdropFilter: 'blur(12px)',
           }}
@@ -957,9 +1005,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 maxWidth: 1100,
                 height: 'min(820px, calc(100vh - 48px))',
                 borderRadius: 28,
-                background: 'linear-gradient(180deg, #110248 0%, #090029 100%)',
-                border: '3px solid #211D69',
-                boxShadow: '0 40px 80px rgba(0,0,0,0.45)',
+                fontFamily: "var(--font-outfit), 'Outfit', sans-serif",
+                background: shellBackground,
+                border: `2px solid ${shellBorder}`,
+                boxShadow: shellShadow,
               }}
             >
 
@@ -969,218 +1018,200 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
               style={{
                 width: 430,
                 minWidth: 430,
-                backgroundColor: '#28335B',
-                borderRight: '1px solid #3A4473',
+                background: leftPanelBackground,
+                borderRight: `1px solid ${leftPanelBorder}`,
               }}
             >
-              <div className="px-8 pt-8 pb-4 flex-shrink-0">
-                <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Product Images</p>
-                <div className="mt-1">
-                  <p className="text-[30px] leading-none font-semibold" style={{ color: '#EAF1FF' }}>
-                    {images.length} of 5 images added
-                  </p>
-                  {variationImageGallery.length > 0 ? (
-                    <p className="text-xs mt-1" style={{ color: '#9FB3DF' }}>
-                      {variationImageGallery.length} variation {variationImageGallery.length === 1 ? 'image' : 'images'} linked to options
-                    </p>
-                  ) : null}
-                </div>
-              </div>
+              <div className="px-8 pt-8 pb-5 flex-shrink-0">
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-[11px] tracking-[0.15em] font-black uppercase opacity-50" style={{ color: labelColor }}>
+          Product Media
+        </p>
+        <h2 className="text-[32px] leading-tight font-black mt-1" style={{ color: isLight ? '#2A185B' : '#EAF1FF' }}>
+          {images.length} <span className="text-sm font-bold opacity-40 uppercase tracking-widest">of 5 slots</span>
+        </h2>
+      </div>
+      
+      {variationImageGallery.length > 0 && (
+        <div className="text-right">
+          <p className="text-[11px] font-black uppercase tracking-widest opacity-40" style={{ color: labelColor }}>
+            Linked
+          </p>
+          <p className="text-sm font-bold" style={{ color: isLight ? '#6A4DA8' : '#9FB3DF' }}>
+            {variationImageGallery.length} Variation {variationImageGallery.length === 1 ? 'Image' : 'Images'}
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
 
-              <div className="px-8 pb-8 flex-1 min-h-0">
-                <div
-                  onDragEnter={() => {
-                    if (thumbDrag !== null) return;
-                    setDragging(true);
-                  }}
-                  onDragLeave={() => {
-                    if (thumbDrag !== null) return;
-                    setDragging(false);
-                  }}
-                  onDragOver={e => {
-                    e.preventDefault();
-                  }}
-                  onDrop={e => {
-                    e.preventDefault();
-                    if (thumbDrag !== null) {
-                      // Prevent treating thumbnail reordering as a fresh file upload.
-                      setThumbDrag(null);
-                      setThumbOver(null);
-                      setDragging(false);
-                      return;
-                    }
-                    setDragging(false);
-                    addFiles(e.dataTransfer.files);
-                  }}
-                  onClick={openFileBrowser}
-                  className="relative h-full rounded-[28px] border-2 border-dashed cursor-pointer transition-colors overflow-hidden"
+  {/* MAIN UPLOAD AREA */}
+  <div className="px-8 pb-6 flex-1 min-h-0 flex flex-col">
+    <div
+      onDragEnter={() => thumbDrag === null && setDragging(true)}
+      onDragLeave={() => thumbDrag === null && setDragging(false)}
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => {
+        e.preventDefault();
+        if (thumbDrag !== null) {
+          setThumbDrag(null);
+          setThumbOver(null);
+          setDragging(false);
+          return;
+        }
+        setDragging(false);
+        addFiles(e.dataTransfer.files);
+      }}
+      onClick={openFileBrowser}
+      className={`relative flex-1 rounded-[32px] border-2 border-dashed cursor-pointer transition-all duration-300 overflow-hidden ${
+        dragging ? 'scale-[0.99] border-solid' : 'scale-100'
+      }`}
+      style={{
+        borderColor: dragging ? (isLight ? '#8B5CF6' : '#7E9CFF') : (isLight ? '#CFC4E5' : '#3A4473'),
+        backgroundColor: dragging 
+          ? (isLight ? '#F3EFFF' : '#2A3459') 
+          : (isLight ? '#F9F7FF' : '#1E2642'),
+      }}
+    >
+      {images.length > 0 ? (
+        <div className="h-full flex flex-col">
+          {/* Main Preview */}
+          <div className="relative flex-1 min-h-0 group">
+            <AnimatePresence mode="wait">
+              <motion.img
+                key={images[slide]?.id}
+                src={images[slide]?.src}
+                alt=""
+                className="absolute inset-0 w-full h-full object-contain p-8"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 1.05 }}
+                transition={{ duration: 0.2 }}
+              />
+            </AnimatePresence>
+
+            {/* Pagination Badge */}
+            <div className="absolute left-6 bottom-6 px-4 py-2 rounded-2xl text-[12px] font-black tracking-widest backdrop-blur-xl border border-white/10" 
+                 style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: '#FFFFFF' }}>
+              {slide + 1} / {images.length}
+            </div>
+
+            {/* Controls */}
+            <div className="absolute right-6 top-6 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              {images.length > 1 && (
+                <div className="flex items-center gap-1.5 mr-2">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+                    style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); removeImage(slide); }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center bg-red-500/80 text-white backdrop-blur-md hover:bg-red-500 transition-all"
+                title="Remove image"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Thumbnails Footer */}
+          <div className="border-t p-4" style={{ borderColor: isLight ? '#E9E2F8' : '#2D385C', backgroundColor: isLight ? '#FFFFFF' : '#1A223B' }}>
+            <div className="flex items-center gap-3 overflow-x-auto pb-2 custom-scrollbar" onClick={(e) => e.stopPropagation()}>
+              {images.map((img, idx) => (
+                <button
+                  key={img.id}
+                  type="button"
+                  draggable
+                  onClick={(e) => { e.stopPropagation(); setSlide(idx); }}
+                  onDragStart={(e) => { e.stopPropagation(); setThumbDrag(idx); }}
+                  onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setThumbOver(idx); }}
+                  onDrop={(e) => { e.preventDefault(); e.stopPropagation(); dropThumb(idx); }}
+                  className="relative h-16 w-16 rounded-xl border-2 transition-all flex-shrink-0 overflow-hidden"
                   style={{
-                    borderColor: dragging ? '#7E9CFF' : '#54658E',
-                    backgroundColor: '#2E3B63',
+                    borderColor: idx === slide ? (isLight ? '#8B5CF6' : '#4F93FF') : 'transparent',
+                    opacity: thumbDrag === idx ? 0.4 : 1,
+                    boxShadow: idx === slide ? '0 8px 20px -4px rgba(139, 92, 246, 0.3)' : 'none'
                   }}
                 >
-                  {images.length > 0 ? (
-                    <div className="h-full flex flex-col">
-                      <div className="relative flex-1 min-h-0">
-                        <AnimatePresence mode="wait">
-                          <motion.img
-                            key={slide}
-                            src={images[slide]?.src}
-                            alt=""
-                            className="absolute inset-0 w-full h-full object-contain p-6"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                          />
-                        </AnimatePresence>
-                        <div className="absolute left-4 top-4 px-2.5 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}>
-                          {`${slide + 1}/${images.length}`}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeImage(slide);
-                          }}
-                          className="absolute right-4 top-3 w-8 h-8 rounded-full flex items-center justify-center"
-                          style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFFFFF' }}
-                          title="Remove current image"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M6 6l12 12M18 6L6 18" />
-                          </svg>
-                        </button>
-                        {images.length > 1 && (
-                          <div className="absolute top-3 right-14 flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center"
-                              style={{ backgroundColor: 'rgba(16,22,45,0.82)', color: '#DCE7FF' }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M15 19l-7-7 7-7" /></svg>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
-                              className="w-8 h-8 rounded-full flex items-center justify-center"
-                              style={{ backgroundColor: 'rgba(16,22,45,0.82)', color: '#DCE7FF' }}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.3} d="M9 5l7 7-7 7" /></svg>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="border-t px-4 pt-3 pb-3" style={{ borderColor: '#3A4473', backgroundColor: 'rgba(24,31,57,0.9)' }}>
-                        <div className="flex items-center gap-2 overflow-x-auto pb-2" onClick={(e) => e.stopPropagation()}>
-                          {images.map((img, idx) => {
-                            const isActive = idx === slide;
-                            const isDropTarget = thumbOver === idx;
-                            return (
-                              <button
-                                key={img.id}
-                                type="button"
-                                draggable
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSlideDir(idx >= slide ? 1 : -1);
-                                  setSlide(idx);
-                                }}
-                                onDragStart={(e) => {
-                                  e.stopPropagation();
-                                  setThumbDrag(idx);
-                                  setThumbOver(idx);
-                                }}
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  setThumbOver(idx);
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  dropThumb(idx);
-                                }}
-                                onDragEnd={() => {
-                                  setThumbDrag(null);
-                                  setThumbOver(null);
-                                }}
-                                className="relative h-14 w-14 rounded-lg border overflow-hidden shrink-0"
-                                style={{
-                                  borderColor: isActive ? '#4F93FF' : isDropTarget ? '#7E9CFF' : '#54658E',
-                                  boxShadow: isActive ? '0 0 0 2px rgba(79,147,255,0.35)' : 'none',
-                                  opacity: thumbDrag === idx ? 0.65 : 1,
-                                }}
-                                title="Drag to reorder"
-                              >
-                                <img src={img.src} alt="" className="w-full h-full object-cover" />
-                              </button>
-                            );
-                          })}
-                          {images.length < 5 && (
-                            <button
-                              type="button"
-                              onClick={openFileBrowser}
-                              className="h-14 w-14 rounded-lg border-2 border-dashed shrink-0 flex flex-col items-center justify-center"
-                              style={{ borderColor: '#54658E', color: '#9FB3DF' }}
-                              title="Add image"
-                            >
-                              <span className="text-xl leading-none">+</span>
-                            </button>
-                          )}
-                        </div>
-                        <div className="text-[11px]" style={{ color: '#9FB3DF' }}>
-                          Drag to reorder - First image is the cover photo
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="h-full flex flex-col items-center justify-center text-center px-10">
-                      <div className="w-20 h-20 rounded-3xl flex items-center justify-center mb-4" style={{ backgroundColor: '#324A82' }}>
-                        <img src="/icons/products/add%20image.png" alt="Add image" className="w-11 h-11 object-contain" />
-                      </div>
-                      <p className="text-[34px] leading-none font-semibold" style={{ color: '#FFFFFF' }}>Drop images here</p>
-                      <p className="text-base mt-2" style={{ color: '#9FB3DF' }}>or click to browse files</p>
-                      <p className="text-xs mt-10" style={{ color: '#7F93C1' }}>PNG, JPG, WEBP - Up to 5 images - Max 8MB each</p>
-                    </div>
+                  <img src={img.src} alt="" className="w-full h-full object-cover" />
+                  {idx === 0 && (
+                    <div className="absolute top-0 left-0 right-0 bg-black/60 text-[8px] text-white font-black uppercase py-0.5 text-center">Cover</div>
                   )}
-                </div>
-              </div>
+                </button>
+              ))}
+              
+              {images.length < 5 && (
+                <button
+                  type="button"
+                  onClick={openFileBrowser}
+                  className="h-16 w-16 rounded-xl border-2 border-dashed flex items-center justify-center flex-shrink-0 transition-colors"
+                  style={{ borderColor: isLight ? '#CFC4E5' : '#3A4473', color: isLight ? '#6A4DA8' : '#9FB3DF' }}
+                >
+                  <span className="text-2xl">+</span>
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] font-bold uppercase tracking-widest mt-2 opacity-40 text-center" style={{ color: labelColor }}>
+              Drag to reorder photos
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="h-full flex flex-col items-center justify-center text-center px-10">
+          <div className="w-20 h-20 rounded-[28px] flex items-center justify-center mb-6 shadow-xl" style={{ backgroundColor: isLight ? '#EBE4FF' : '#2D385C' }}>
+            <svg className="w-10 h-10" fill="none" stroke={isLight ? '#8B5CF6' : '#7E9CFF'} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          </div>
+          <h3 className="text-[28px] font-black leading-tight" style={{ color: isLight ? '#2A185B' : '#FFFFFF' }}>Drop images here</h3>
+          <p className="text-sm mt-2 opacity-50" style={{ color: labelColor }}>or click to browse your local files</p>
+          <div className="mt-8 px-4 py-2 rounded-full border border-current opacity-20 text-[10px] font-black uppercase tracking-widest" style={{ color: labelColor }}>
+            PNG, JPG, WEBP • MAX 8MB
+          </div>
+        </div>
+      )}
+    </div>
+  </div>
 
-              {variationImageGallery.length > 0 ? (
-                <div className="px-8 pb-6">
-                  <div className="rounded-2xl border px-3 py-3 space-y-2" style={{ backgroundColor: '#243154', borderColor: '#3A4473' }}>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs tracking-[0.12em] font-semibold uppercase" style={{ color: '#9FB3DF' }}>Variation Images</p>
-                      <span className="text-[11px]" style={{ color: '#BFA6EC' }}>{variationImageGallery.length}</span>
-                    </div>
-                    <div className="flex gap-2 overflow-x-auto pb-1" onClick={(e) => e.stopPropagation()}>
-                      {variationImageGallery.map((item) => (
-                        <div key={item.id} className="w-16 flex-shrink-0">
-                          <div className="h-16 rounded-lg overflow-hidden border" style={{ borderColor: '#4A5A8E' }}>
-                            <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
-                          </div>
-                          <p
-                            className="text-[10px] mt-1 leading-tight"
-                            style={{
-                              color: '#C4D2FF',
-                              display: '-webkit-box',
-                              WebkitLineClamp: 2,
-                              WebkitBoxOrient: 'vertical',
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {item.label}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[10px]" style={{ color: '#7F93C1' }}>Uploaded to Firebase storage with the product.</p>
-                  </div>
-                </div>
-              ) : null}
+  {/* VARIATION GALLERY SECTION */}
+  {variationImageGallery.length > 0 && (
+    <div className="px-8 pb-8">
+      <div className="rounded-[24px] border p-5" style={{ backgroundColor: isLight ? '#F8F6FF' : '#1A223B', borderColor: isLight ? '#E9E2F8' : '#2D385C' }}>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-[10px] font-black uppercase tracking-[0.2em] opacity-40" style={{ color: labelColor }}>Variation Assets</p>
+          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/5">{variationImageGallery.length}</span>
+        </div>
+        <div className="flex gap-3 overflow-x-auto pb-2 custom-scrollbar">
+          {variationImageGallery.map((item) => (
+            <div key={item.id} className="w-16 flex-shrink-0 group">
+              <div className="h-16 rounded-xl overflow-hidden border transition-transform group-hover:scale-105" style={{ borderColor: isLight ? '#D7CDED' : '#3A4473' }}>
+                <img src={item.src} alt={item.label} className="w-full h-full object-cover" />
+              </div>
+              <p className="text-[9px] mt-2 font-bold leading-tight opacity-60 truncate" style={{ color: isLight ? '#4A3A8E' : '#C4D2FF' }}>
+                {item.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )}
 
               <input
                 ref={fileRef}
@@ -1204,16 +1235,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
             <div className="flex flex-col flex-1 overflow-hidden">
               <div className="flex items-start justify-between px-8 pt-7 pb-4 flex-shrink-0">
                 <div>
-                  <h2 className="text-[44px] leading-none font-bold" style={{ color: '#FFFFFF' }}>
+                  <h2 className="text-[44px] leading-none font-bold" style={{ color: titleColor }}>
                     {editingProduct ? 'Edit Product' : 'New Product'}
                   </h2>
-                  <p className="text-base mt-2" style={{ color: '#9FB3DF' }}>Fill in the details to add a new product</p>
+                  <p className="text-base mt-2" style={{ color: subtitleColor }}>Fill in the details to add a new product</p>
                 </div>
                 <button
                   type="button"
                   onClick={requestClose}
                   className="w-10 h-10 rounded-full flex items-center justify-center"
-                  style={{ color: '#9FB3DF' }}
+                  style={{ color: subtitleColor }}
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
@@ -1223,7 +1254,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
               <div className="flex-1 overflow-y-auto px-8 pb-4 space-y-4" style={{ scrollbarWidth: 'thin' }}>
                 <div>
-                  <label className={lCls} style={{ color: '#9FB3DF' }}>Product Name *</label>
+                  <label className={lCls} style={{ color: labelColor }}>Product Name *</label>
                   <input
                     type="text"
                     value={fd.name}
@@ -1243,7 +1274,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className={lCls} style={{ color: '#9FB3DF' }}>Category</label>
+                    <label className={lCls} style={{ color: labelColor }}>Category</label>
                     <input
                       type="text"
                       value={fd.category || 'No category set'}
@@ -1252,12 +1283,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                       style={{ ...iSt, opacity: 0.9 }}
                       title={lockedProjectCategory ? 'Category is set from your project industry and cannot be edited here.' : undefined}
                     />
-                    <p className="mt-1 text-[11px]" style={{ color: '#9FB3DF' }}>
+                    <p className="mt-1 text-[11px]" style={{ color: labelColor }}>
                       Category is inherited from your project setup.
                     </p>
                   </div>
                   <div>
-                    <label className={lCls} style={{ color: '#9FB3DF' }}>Subcategory</label>
+                    <label className={lCls} style={{ color: labelColor }}>Subcategory</label>
                     <div className="relative" ref={subcategoryDropdownRef}>
                       <button
                         type="button"
@@ -1316,14 +1347,14 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                         </div>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-[11px]" style={{ color: '#9FB3DF' }}>
+                    <p className="mt-1 text-[11px]" style={{ color: labelColor }}>
                       Use this for the specific product type under the selected category.
                     </p>
                   </div>
                 </div>
 
                 <div>
-                  <label className={lCls} style={{ color: '#9FB3DF' }}>Description</label>
+                  <label className={lCls} style={{ color: labelColor }}>Description</label>
                   <textarea value={fd.description} onChange={e => set('description', e.target.value)}
                     placeholder="e.g. High quality white cotton t-shirt, comfortable and durable..."
                     rows={3}
@@ -1404,14 +1435,14 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="rounded-xl border px-4 py-2.5" style={{ borderColor: '#3140A6', backgroundColor: '#121A63' }}>
-                        <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Profit</p>
+                      <div className="rounded-xl border px-4 py-2.5" style={{ borderColor: sectionCardBorder, backgroundColor: nestedCardBg }}>
+                        <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: sectionSubtextColor }}>Profit</p>
                         <p className="text-sm font-semibold" style={{ color: profitValue >= 0 ? '#34D399' : '#F87171' }}>
                           P{profitValue.toFixed(2)}
                         </p>
                       </div>
-                      <div className="rounded-xl border px-4 py-2.5" style={{ borderColor: '#3140A6', backgroundColor: '#121A63' }}>
-                        <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Margin</p>
+                      <div className="rounded-xl border px-4 py-2.5" style={{ borderColor: sectionCardBorder, backgroundColor: nestedCardBg }}>
+                        <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: sectionSubtextColor }}>Margin</p>
                         <p className="text-sm font-semibold" style={{ color: marginValue >= 0 ? '#34D399' : '#F87171' }}>
                           {marginValue.toFixed(2)}%
                         </p>
@@ -1421,16 +1452,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 )}
 
                 <div className="flex items-center justify-center gap-3">
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>Variants</div>
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                  <div className="flex-1 h-px" style={{ backgroundColor: sectionDividerColor }} />
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: labelColor }}>Variants</div>
+                  <div className="flex-1 h-px" style={{ backgroundColor: sectionDividerColor }} />
                 </div>
 
-                <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: '#3140A6', backgroundColor: '#0F145A' }}>
+                <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: sectionCardBorder, backgroundColor: sectionCardBg }}>
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold" style={{ color: '#DCE7FF' }}>Enable Variants</p>
-                      <p className="text-[11px]" style={{ color: '#9FB3DF' }}>Use options like size, color, or material.</p>
+                      <p className="text-sm font-semibold" style={{ color: sectionTitleColor }}>Enable Variants</p>
+                      <p className="text-[11px]" style={{ color: sectionSubtextColor }}>Use options like size, color, or material.</p>
                     </div>
                     <button
                       type="button"
@@ -1457,8 +1488,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                       }}
                       className="relative h-7 w-14 rounded-full border transition-all"
                       style={{
-                        borderColor: '#4952AF',
-                        backgroundColor: fd.hasVariants ? '#32C870' : '#4A4F98',
+                        borderColor: isLight ? '#BFAFE6' : '#4952AF',
+                        backgroundColor: fd.hasVariants ? '#32C870' : (isLight ? '#B9AED5' : '#4A4F98'),
                       }}
                       aria-label="Toggle variants"
                     >
@@ -1471,16 +1502,16 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold" style={{ color: '#DCE7FF' }}>Add Variation Images</p>
-                      <p className="text-[11px]" style={{ color: '#A9ADD8' }}>Show image upload tiles next to option names.</p>
+                      <p className="text-sm font-semibold" style={{ color: sectionTitleColor }}>Add Variation Images</p>
+                      <p className="text-[11px]" style={{ color: sectionSubtextColor }}>Show image upload tiles next to option names.</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setEnableVariationImages((prev) => !prev)}
                       className="relative h-7 w-14 rounded-full border transition-all"
                       style={{
-                        borderColor: '#4952AF',
-                        backgroundColor: enableVariationImages ? '#32C870' : '#4A4F98',
+                        borderColor: isLight ? '#BFAFE6' : '#4952AF',
+                        backgroundColor: enableVariationImages ? '#32C870' : (isLight ? '#B9AED5' : '#4A4F98'),
                       }}
                       aria-label="Toggle variation images"
                     >
@@ -1494,9 +1525,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   {fd.hasVariants ? (
                     <div className="space-y-3">
                       {fd.variants.map((variant, variantIndex) => (
-                        <div key={variant.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: '#3A4473', backgroundColor: '#121A63' }}>
+                        <div key={variant.id} className="rounded-xl border p-3 space-y-3" style={{ borderColor: nestedCardBorder, backgroundColor: nestedCardBg }}>
                           <div>
-                            <label className={lCls} style={{ color: '#9FB3DF' }}>Variant Name</label>
+                            <label className={lCls} style={{ color: labelColor }}>Variant Name</label>
                             <input
                               type="text"
                               value={variant.name}
@@ -1509,12 +1540,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
 
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <p className="text-xs font-semibold uppercase" style={{ color: '#BFA6EC' }}>Options</p>
+                              <p className="text-xs font-semibold uppercase" style={{ color: isLight ? '#7E56C2' : '#BFA6EC' }}>Options</p>
                               <button
                                 type="button"
                                 onClick={() => addOpt(variant.id)}
                                 className="px-3 h-8 rounded-lg text-xs font-semibold"
-                                style={{ backgroundColor: '#24327A', color: '#DCE7FF' }}
+                                style={{ backgroundColor: actionButtonBg, color: actionButtonText }}
                               >
                                 + Add Option
                               </button>
@@ -1532,8 +1563,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                       <label
                                         className="h-14 w-14 rounded-lg shrink-0 flex items-center justify-center cursor-pointer overflow-hidden"
                                         style={{
-                                          color: '#9FB3DF',
-                                          backgroundColor: '#1A2577',
+                                          color: isLight ? '#6A4DA8' : '#9FB3DF',
+                                          backgroundColor: isLight ? '#F1EAFF' : '#1A2577',
                                           boxShadow: isDragOver ? '0 0 0 2px rgba(126,156,255,0.8)' : 'none',
                                           border: isDragOver ? '1px solid #7E9CFF' : '1px solid transparent',
                                         }}
@@ -1599,7 +1630,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                                   ) : null}
 
                                   <div className="flex-1">
-                                    <label className={lCls} style={{ color: '#9FB3DF' }}>Option Name</label>
+                                    <label className={lCls} style={{ color: labelColor }}>Option Name</label>
                                     <input
                                       type="text"
                                       value={option.name}
@@ -1625,7 +1656,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                             ))}
 
                             {variant.options.length === 0 ? (
-                              <p className="text-xs" style={{ color: '#9FB3DF' }}>No options yet. Add one to build combinations.</p>
+                              <p className="text-xs" style={{ color: sectionSubtextColor }}>No options yet. Add one to build combinations.</p>
                             ) : null}
                           </div>
 
@@ -1647,31 +1678,31 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                         onClick={addVariant}
                         disabled={fd.variants.length >= MAX_VARIANTS}
                         className={`w-full h-10 rounded-xl text-sm font-semibold ${fd.variants.length >= MAX_VARIANTS ? 'opacity-60 cursor-not-allowed' : ''}`}
-                        style={{ backgroundColor: '#24327A', color: '#DCE7FF' }}
+                        style={{ backgroundColor: actionButtonBg, color: actionButtonText }}
                       >
                         + Add Another Variant
                       </button>
 
                     </div>
                   ) : (
-                    <p className="text-xs" style={{ color: '#9FB3DF' }}>
+                    <p className="text-xs" style={{ color: sectionSubtextColor }}>
                       Keep variants off for simple single-item products.
                     </p>
                   )}
                 </div>
 
                 <div className="flex items-center justify-center gap-3">
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
-                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: '#9FB3DF' }}>
+                  <div className="flex-1 h-px" style={{ backgroundColor: sectionDividerColor }} />
+                  <div className="text-xs font-semibold uppercase tracking-[0.12em]" style={{ color: labelColor }}>
                     {fd.hasVariants ? 'Stock and Pricing' : 'Stock'}
                   </div>
-                  <div className="flex-1 h-px" style={{ backgroundColor: '#3A4473' }} />
+                  <div className="flex-1 h-px" style={{ backgroundColor: sectionDividerColor }} />
                 </div>
 
                 <div>
                     {fd.hasVariants && fd.variants.length > 0 ? (
                       <div className="space-y-3">
-                        <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: '#3A4473', backgroundColor: '#121A63' }}>
+                        <div className="rounded-xl border p-3 space-y-2" style={{ borderColor: nestedCardBorder, backgroundColor: nestedCardBg }}>
                             <div className="flex items-center justify-between gap-2">
                               <p className="text-xs font-semibold uppercase" style={{ color: '#BFA6EC' }}>Variant Stocks and Pricing</p>
                               <button
@@ -1850,7 +1881,11 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                               type="button"
                               onClick={() => set('sku', generateAutoSku(fd.name))}
                               className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center"
-                              style={{ backgroundColor: '#24327A', color: '#C9D8FF' }}
+                              style={{
+                                backgroundColor: isLight ? '#EDE6FF' : '#24327A',
+                                color: isLight ? '#5B3EA3' : '#C9D8FF',
+                                border: isLight ? '1px solid #D2C7EA' : '1px solid transparent',
+                              }}
                               title="Regenerate SKU"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1872,12 +1907,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                 </div>
               </div>
 
-              <div className="px-8 py-4 border-t flex items-center justify-between" style={{ borderColor: '#3A4473', backgroundColor: 'rgba(21,27,79,0.88)' }}>
+              <div className="px-8 py-4 border-t flex items-center justify-between" style={{ borderColor: isLight ? '#D7CDED' : '#3A4473', backgroundColor: isLight ? 'rgba(255,255,255,0.82)' : 'rgba(21,27,79,0.88)' }}>
                 <button
                   type="button"
                   onClick={requestClose}
                   className="px-1 h-10 rounded-xl font-medium text-sm leading-none"
-                  style={{ color: '#B6C5EB' }}
+                  style={{ color: isLight ? '#5C4D88' : '#B6C5EB' }}
                 >
                   Cancel
                 </button>
@@ -1885,8 +1920,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, editingProduc
                   type="button"
                   onClick={save}
                   disabled={saving}
-                  className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:opacity-90'}`}
-                  style={{ backgroundColor: '#3B82F6', color: '#FFFFFF', boxShadow: '0 10px 24px rgba(59,130,246,0.35)' }}
+                  className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none text-white transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:brightness-110 active:scale-95'}`}
+                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#FFFFFF', boxShadow: '0 10px 24px rgba(217,70,239,0.4)' }}
                 >
                   {saving ? (editingProduct ? 'Updating...' : 'Saving...') : (editingProduct ? 'Update Product' : 'Add Product')}
                 </button>

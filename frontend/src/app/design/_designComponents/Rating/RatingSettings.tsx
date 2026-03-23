@@ -117,104 +117,104 @@ export const RatingSettings = () => {
       <DesignSection title="Rating">
         <div className="grid grid-cols-2 gap-2">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Value</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Value</label>
             <input
               type="number"
               value={value}
               step="0.1"
               onChange={(e) => typedSetProp((p) => { p.value = Number(e.target.value); })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Max Stars</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Max Stars</label>
             <input
               type="number"
               value={max}
               min={1}
               onChange={(e) => typedSetProp((p) => { p.max = Number(e.target.value); })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Star Size</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Star Size</label>
             <input
               type="number"
               value={size}
               onChange={(e) => typedSetProp((p) => { p.size = Number(e.target.value); })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Star Gap</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Star Gap</label>
             <input
               type="number"
               value={gap}
               onChange={(e) => typedSetProp((p) => { p.gap = Number(e.target.value); })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Value Gap</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Value Gap</label>
             <input
               type="number"
               value={valueGap}
               onChange={(e) => typedSetProp((p) => { p.valueGap = Number(e.target.value); })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
           <div className="flex items-end gap-2">
-            <label className="text-[10px] text-brand-lighter font-medium">Show Value</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Show Value</label>
             <input
               type="checkbox"
               checked={!!showValue}
               onChange={(e) => typedSetProp((p) => { p.showValue = e.target.checked; })}
-              className="accent-brand-light cursor-pointer"
+              className="accent-[var(--builder-accent)] cursor-pointer"
             />
           </div>
           <div className="flex items-end gap-2">
-            <label className="text-[10px] text-brand-lighter font-medium">Interactive</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Interactive</label>
             <input
               type="checkbox"
               checked={!!interactive}
               onChange={(e) => typedSetProp((p) => { p.interactive = e.target.checked; })}
-              className="accent-brand-light cursor-pointer"
+              className="accent-[var(--builder-accent)] cursor-pointer"
             />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3 mt-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Filled Color</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Filled Color</label>
             <div className="flex gap-2 items-center">
               <input
                 type="color"
                 value={filledColor}
                 onChange={(e) => typedSetProp((p) => { p.filledColor = e.target.value; })}
-                className="w-8 h-8 rounded-lg border border-brand-medium/30 bg-transparent cursor-pointer overflow-hidden p-0"
+                className="w-8 h-8 rounded-lg border border-[var(--builder-border)] bg-transparent cursor-pointer overflow-hidden p-0"
               />
               <input
                 type="text"
                 value={filledColor}
                 onChange={(e) => typedSetProp((p) => { p.filledColor = e.target.value; })}
-                className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-[11px] text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="flex-1 bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-[11px] text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Empty Color</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Empty Color</label>
             <div className="flex gap-2 items-center">
               <input
                 type="color"
                 value={emptyColor}
                 onChange={(e) => typedSetProp((p) => { p.emptyColor = e.target.value; })}
-                className="w-8 h-8 rounded-lg border border-brand-medium/30 bg-transparent cursor-pointer overflow-hidden p-0"
+                className="w-8 h-8 rounded-lg border border-[var(--builder-border)] bg-transparent cursor-pointer overflow-hidden p-0"
               />
               <input
                 type="text"
                 value={emptyColor}
                 onChange={(e) => typedSetProp((p) => { p.emptyColor = e.target.value; })}
-                className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-[11px] text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="flex-1 bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-[11px] text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
           </div>
@@ -224,7 +224,7 @@ export const RatingSettings = () => {
       <DesignSection title="Value Text">
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter font-medium">Custom Value</label>
+            <label className="text-[10px] text-[var(--builder-text)] font-medium">Custom Value</label>
             <input
               type="text"
               value={valueText}
@@ -233,7 +233,7 @@ export const RatingSettings = () => {
                 p.valueText = next.trim() === "" ? undefined : next;
               })}
               placeholder="Leave blank for auto"
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
           <TypographyGroup
@@ -278,7 +278,7 @@ export const RatingSettings = () => {
           editorVisibility={editorVisibility}
           setProp={typedSetProp}
         />
-        <div className="my-4 border-t border-brand-medium/20" />
+        <div className="my-4 border-t border-[var(--builder-border)]" />
         <SizePositionGroup
           width={width}
           height={height}

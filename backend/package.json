@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.13.6",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^16.6.1",
@@ -28,7 +29,8 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "nodemailer": "^8.0.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"

@@ -3,6 +3,7 @@ import { useEditor } from "@craftjs/core";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronDown,
+  ChevronRight,
   Save,
   Settings,
   FileDown,
@@ -11,8 +12,6 @@ import {
   Layout,
   Image as ImageIcon,
   LayoutTemplate,
-  ChevronRight,
-  ChevronLeft,
   Search,
   Plus,
   Component,
@@ -38,9 +37,10 @@ import { Video } from "../../_designComponents/Video/Video";
 import { uploadMediaApi } from "@/lib/api";
 
 import { deleteDraft } from "../../_lib/pageApi";
+import { type MediaLibraryItem, MEDIA_LIBRARY_KEY_PREFIX, MEDIA_LIBRARY_UPDATED_EVENT, removeFilesFromMediaLibrary } from "../../_lib/mediaActions";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
-const MEDIA_LIBRARY_KEY_PREFIX = "craftjs_media_library";
+
 const VIEWPORT_EDGE_PADDING = 100000;
 const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
 const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
@@ -88,14 +88,7 @@ interface LeftPanelProps {
   width?: number;
 }
 
-type MediaLibraryItem = {
-  id: string;
-  name: string;
-  url: string;
-  mimeType: string;
-  size: number;
-  createdAt: number;
-};
+
 
 export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true, width = 320 }: LeftPanelProps) => {
   const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
@@ -115,6 +108,9 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [tempTitle, setTempTitle] = useState("");
+  const titleInputRef = useRef<HTMLInputElement>(null);
   // Delay mounting FilesPanel to avoid "setState during render" warnings
   // caused by Craft.js internal synchronous updates while Frame is rendering.
   const [filesPanelReady, setFilesPanelReady] = useState(false);
@@ -125,13 +121,36 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const searchParams = useSearchParams();
   const projectId = searchParams?.get("projectId") || null;
   const STORAGE_KEY = projectId ? `${STORAGE_KEY_PREFIX}_${projectId}` : STORAGE_KEY_PREFIX;
-  const { clientName, websiteName, permission } = useDesignProject();
+  const { clientName, websiteName, permission, updateProjectTitle } = useDesignProject();
 
   const { query, actions, connectors } = useEditor();
 
   const mediaStorageKey = projectId
     ? `${MEDIA_LIBRARY_KEY_PREFIX}_${projectId}`
     : MEDIA_LIBRARY_KEY_PREFIX;
+
+  const handleTitleDoubleClick = () => {
+    if (permission === "viewer") return;
+    setTempTitle(websiteName ?? "Project Title");
+    setIsEditingTitle(true);
+  };
+
+  const handleTitleSave = async () => {
+    if (!isEditingTitle) return;
+    const trimmed = tempTitle.trim();
+    if (trimmed && trimmed !== websiteName) {
+      await updateProjectTitle(trimmed);
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleTitleSave();
+    } else if (e.key === "Escape") {
+      setIsEditingTitle(false);
+    }
+  };
 
   const persistMediaItems = (items: MediaLibraryItem[]) => {
     if (typeof window === "undefined") return;
@@ -195,13 +214,65 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     }
   };
 
-  const removeMediaItem = (id: string) => {
-    setMediaItems((prev) => {
-      const next = prev.filter((item) => item.id !== id);
-      persistMediaItems(next);
-      return next;
-    });
+  const handleDeleteSelected = async () => {
+    if (!projectId || selectedItems.size === 0) return;
+    if (!window.confirm(`Are you sure you want to delete ${selectedItems.size} item(s)?`)) return;
+
+    try {
+      setUploading(true);
+      await removeFilesFromMediaLibrary(projectId, Array.from(selectedItems));
+      setSelectedItems(new Set());
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to delete items");
+    } finally {
+      setUploading(false);
+    }
   };
+
+  const handleDeleteItem = async (id: string) => {
+    if (!projectId) return;
+    if (!window.confirm("Are you sure you want to delete this item?")) return;
+
+    try {
+      setUploading(true);
+      await removeFilesFromMediaLibrary(projectId, [id]);
+      const next = new Set(selectedItems);
+      next.delete(id);
+      setSelectedItems(next);
+    } catch (err: any) {
+      setUploadError(err.message || "Failed to delete item");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const filteredMedia = mediaItems
+    .filter(item => {
+      const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      if (activeMediaCategory === "all") return true;
+      if (activeMediaCategory === "images") return item.mimeType.startsWith("image/");
+      if (activeMediaCategory === "videos") return item.mimeType.startsWith("video/");
+      if (activeMediaCategory === "audio") return item.mimeType.startsWith("audio/");
+      if (activeMediaCategory === "documents") return !item.mimeType.startsWith("image/") && !item.mimeType.startsWith("video/") && !item.mimeType.startsWith("audio/");
+      return true;
+    })
+    .sort((a, b) => {
+      let res = 0;
+      if (sortBy === "name") res = a.name.localeCompare(b.name);
+      else res = b.createdAt - a.createdAt;
+      return sortOrder === "asc" ? -res : res;
+    });
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedItems(new Set(filteredMedia.map(i => i.id)));
+    } else {
+      setSelectedItems(new Set());
+    }
+  };
+
+  const allSelected = filteredMedia.length > 0 && filteredMedia.every(i => selectedItems.has(i.id));
 
 
   const handleUploadFiles = async (fileList: FileList | null) => {
@@ -262,29 +333,45 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   };
 
   useEffect(() => {
+    if (isEditingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [isEditingTitle]);
+
+  useEffect(() => {
     const id = requestAnimationFrame(() => setFilesPanelReady(true));
     return () => cancelAnimationFrame(id);
   }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    try {
-      const fromSession = window.sessionStorage.getItem(mediaStorageKey);
-      const fromLocal = window.localStorage.getItem(mediaStorageKey);
-      const raw = fromSession || fromLocal;
-      if (!raw) {
+
+    const loadMediaItems = () => {
+      try {
+        const fromSession = window.sessionStorage.getItem(mediaStorageKey);
+        const fromLocal = window.localStorage.getItem(mediaStorageKey);
+        const raw = fromSession || fromLocal;
+        if (!raw) {
+          setMediaItems([]);
+          return;
+        }
+        const parsed = JSON.parse(raw) as MediaLibraryItem[];
+        if (Array.isArray(parsed)) {
+          setMediaItems(parsed);
+        } else {
+          setMediaItems([]);
+        }
+      } catch {
         setMediaItems([]);
-        return;
       }
-      const parsed = JSON.parse(raw) as MediaLibraryItem[];
-      if (Array.isArray(parsed)) {
-        setMediaItems(parsed);
-      } else {
-        setMediaItems([]);
-      }
-    } catch {
-      setMediaItems([]);
-    }
+    };
+
+    loadMediaItems();
+
+    // Listen for external updates (like pasting images)
+    window.addEventListener(MEDIA_LIBRARY_UPDATED_EVENT, loadMediaItems);
+    return () => window.removeEventListener(MEDIA_LIBRARY_UPDATED_EVENT, loadMediaItems);
   }, [mediaStorageKey]);
 
   // Close dropdown on click outside or Escape
@@ -371,7 +458,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   return (
     <div
       data-panel="left"
-      className="bg-brand-dark flex flex-col h-full border-r border-white/10 overflow-hidden transition-[width] duration-300 ease-out"
+      className="bg-builder-surface flex flex-col h-full border-r border-builder-border overflow-hidden transition-[width] duration-300 ease-out"
       style={{ width: `${width}px` }}
     >
       <div className="flex flex-col gap-3 shrink-0 px-4 pt-3">
@@ -381,51 +468,67 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
           <div className="flex items-start justify-between mb-1 gap-2">
             {/* Project dropdown trigger */}
             <div className="relative" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="flex items-center gap-2 hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
-              >
-                <h3 className="text-brand-lighter font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
-                  {websiteName ?? "Project Title"}
-                </h3>
-                <ChevronDown
-                  className={`w-4 h-4 text-brand-light transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""}`}
-                />
-              </button>
+              {isEditingTitle ? (
+                <div className="flex items-center gap-2 bg-[var(--builder-surface-3)] rounded-lg px-2 py-1 -ml-2 ring-1 ring-blue-500/50">
+                  <input
+                    ref={titleInputRef}
+                    type="text"
+                    value={tempTitle}
+                    onChange={(e) => setTempTitle(e.target.value)}
+                    onBlur={handleTitleSave}
+                    onKeyDown={handleTitleKeyDown}
+                    className="bg-transparent border-none p-0 m-0 text-builder-text font-bold text-lg focus:outline-none w-[200px]"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  onDoubleClick={handleTitleDoubleClick}
+                  className="flex items-center gap-2 hover:bg-[var(--builder-surface-2)] rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
+                >
+                  <h3 className="text-builder-text font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
+                    {websiteName ?? "Project Title"}
+                  </h3>
+                  <ChevronDown
+                    className={`w-4 h-4 text-builder-text-muted transition-transform duration-200 shrink-0 ${menuOpen ? "rotate-180" : ""}`}
+                  />
+                </button>
+              )}
 
               {/* Dropdown menu */}
               {menuOpen && (
-                <div className="absolute left-0 top-full mt-2 w-56 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-1 z-50 animate-slideDownItem">
+                <div className="absolute left-0 top-full mt-2 w-56 bg-builder-surface-2 border border-builder-border rounded-xl shadow-2xl py-1 z-50 animate-slideDownItem">
                   {permission !== "viewer" && (
                     <>
                       {/* Save */}
                       <button
                         onClick={handleSave}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
                       >
-                        <Save className="w-4 h-4 text-brand-light" />
+                        <Save className="w-4 h-4 text-builder-text-muted" />
                         Save project
-                        <span className="ml-auto text-[10px] text-brand-light/50">Ctrl+S</span>
+                        <span className="ml-auto text-[10px] text-builder-text-muted/50">Ctrl+S</span>
                       </button>
 
                       {/* Export JSON */}
                       <button
                         onClick={handleExportJson}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-lighter hover:bg-white/5 transition-colors cursor-pointer"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
                       >
-                        <FileDown className="w-4 h-4 text-brand-light" />
+                        <FileDown className="w-4 h-4 text-builder-text-muted" />
                         Export JSON
                       </button>
 
                       {/* Divider */}
-                      <div className="border-t border-white/5 my-1" />
+                      <div className="border-t border-transparent my-1" />
                     </>
                   )}
 
                   {/* Project settings (placeholder) */}
                   <button
                     disabled
-                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-brand-light/30 cursor-not-allowed"
+                    className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text-muted/30 cursor-not-allowed"
                   >
                     <Settings className="w-4 h-4" />
                     Project settings
@@ -433,7 +536,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   </button>
 
                   {/* Divider */}
-                  <div className="border-t border-white/5 my-1" />
+                  <div className="border-t border-transparent my-1" />
 
                   {permission !== "viewer" && (
                     <>
@@ -447,7 +550,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       </button>
 
                       {/* Divider */}
-                      <div className="border-t border-white/5 my-1" />
+                      <div className="border-t border-transparent my-1" />
                     </>
                   )}
                 </div>
@@ -460,7 +563,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 <button
                   type="button"
                   onClick={onToggle}
-                  className="p-1 rounded-lg hover:bg-white/5 text-brand-light transition-colors cursor-pointer"
+                  className="p-1 rounded-lg hover:bg-[var(--builder-surface-2)] text-builder-text-muted transition-colors cursor-pointer"
                   aria-label="Close left panel"
                   title="Close panel"
                 >
@@ -477,13 +580,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-2 px-1 border-y border-brand-medium/30 gap-1 min-h-0 bg-brand-dark/20">
+        <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-1.5 px-2 gap-1 min-h-0 border-b border-[var(--builder-border)]">
           <button
             type="button"
             onClick={() => setActivePanel("files")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
-              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"}`}
+              ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           >
             <FileStack className="w-4 h-4 shrink-0" />
             <span>Files</span>
@@ -493,8 +596,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               type="button"
               onClick={() => setActivePanel("components")}
               className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
-                ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-                : "text-brand-light hover:text-brand-lighter"}`}
+                ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
             >
               <Component className="w-4 h-4 shrink-0" />
               <span>Components</span>
@@ -504,8 +607,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             type="button"
             onClick={() => setActivePanel("media")}
             className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
-              ? "text-brand-lighter bg-brand-medium/50 shadow-sm"
-              : "text-brand-light hover:text-brand-lighter"}`}
+              ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
           >
             <ImageIcon className="w-4 h-4 shrink-0" />
             <span>Media</span>
@@ -518,16 +621,16 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "media" && (
-          <div className="h-full flex flex-col gap-5 px-3 pb-4 bg-brand-dark">
+          <div className="h-full flex flex-col gap-5 px-3 pb-4 bg-builder-surface">
             {/* Search Bar - Integrated with Brand Theme */}
             <div className="relative group shrink-0 mt-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/20 group-focus-within:text-brand-white transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--builder-text-faint)] group-focus-within:text-[var(--builder-text)] transition-colors" />
               <input
                 type="text"
                 placeholder="SEARCH MEDIA..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/5 border border-white/5 rounded-lg py-2.5 pl-9 pr-4 text-[10px] font-bold uppercase tracking-[0.2em] text-brand-white placeholder:text-white/10 focus:outline-none focus:bg-white/10 focus:border-white/20 transition-all"
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-lg py-2.5 pl-9 pr-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--builder-text)] placeholder:text-[var(--builder-text-faint)] focus:outline-none focus:bg-[var(--builder-surface-3)] focus:border-[var(--builder-border-mid)] transition-all"
               />
             </div>
 
@@ -545,10 +648,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 type="button"
                 onClick={() => mediaInputRef.current?.click()}
                 disabled={uploading}
-                className="flex-1 bg-brand-medium hover:bg-brand-medium/80 text-brand-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+                className="flex-1 bg-[var(--builder-purple)] hover:bg-[var(--builder-purple-light)] text-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
               >
                 {uploading ? (
-                  <div className="w-3.5 h-3.5 border-2 border-white/50 border-t-white rounded-full animate-spin" />
+                  <div className="w-3.5 h-3.5 border-2 border-transparent border-t-white rounded-full animate-spin" />
                 ) : (
                   <Plus className="w-4 h-4" />
                 )}
@@ -557,38 +660,49 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             </div>
 
             {/* Selection & Toolbar (Minimalist Style) */}
-            <div className="flex items-center justify-between py-2 border-b border-white/5 shrink-0">
+            <div className="flex items-center justify-between py-2 border-b border-[var(--builder-border)] shrink-0">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => {
                     if (selectedItems.size === mediaItems.length) setSelectedItems(new Set());
                     else setSelectedItems(new Set(mediaItems.map(i => i.id)));
                   }}
-                  className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedItems.size > 0 ? "bg-brand-medium border-brand-medium" : "border-white/10 hover:border-white/30"
+                  className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedItems.size > 0 ? "bg-[var(--builder-purple)] border-[var(--builder-purple)]" : "border-[var(--builder-border-mid)] hover:border-[var(--builder-purple)]"
                     }`}
                   title="Select all"
                 >
-                  {selectedItems.size > 0 && <Check className="w-2.5 h-2.5 text-white" />}
+                  {allSelected && <Check className="w-2.5 h-2.5 text-white" />}
                 </button>
                 {selectedItems.size > 0 && (
-                  <span className="text-[9px] font-black uppercase tracking-widest text-brand-light">
+                  <span className="text-[9px] font-black uppercase tracking-widest text-builder-text-muted">
                     {selectedItems.size} Selected
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-1">
+                {selectedItems.size > 0 && (
+                  <button
+                    onClick={handleDeleteSelected}
+                    disabled={uploading}
+                    className="p-2 text-red-500/40 hover:text-red-500 hover:bg-red-500/5 rounded-lg transition-all"
+                    title="Delete selected"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+
                 {/* Type Filter */}
                 <div className="relative">
                   <button
                     onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                    className="p-2 text-white/20 hover:text-white transition-colors"
+                    className="p-2 text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors"
                   >
                     <ListFilter className="w-4 h-4" />
                   </button>
                   {filterMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-40 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
-                      <div className="px-4 py-1.5 text-[9px] font-black text-white/20 uppercase tracking-widest">Media type</div>
+                    <div className="absolute right-0 top-full mt-2 w-40 bg-builder-surface-2 border border-builder-border rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
+                      <div className="px-4 py-1.5 text-[9px] font-black text-[var(--builder-text-faint)] uppercase tracking-widest">Media type</div>
                       {[
                         { id: "all", label: "All" },
                         { id: "videos", label: "Video" },
@@ -598,10 +712,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                         <button
                           key={cat.id}
                           onClick={() => { setActiveMediaCategory(cat.id as any); setFilterMenuOpen(false); }}
-                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] flex items-center justify-between transition-colors"
                         >
                           {cat.label}
-                          {activeMediaCategory === cat.id && <Check className="w-3 h-3 text-brand-light" />}
+                          {activeMediaCategory === cat.id && <Check className="w-3 h-3 text-[var(--builder-accent)]" />}
                         </button>
                       ))}
                     </div>
@@ -612,12 +726,12 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 <div className="relative">
                   <button
                     onClick={() => setSortMenuOpen(!sortMenuOpen)}
-                    className="p-2 text-white/20 hover:text-white transition-colors"
+                    className="p-2 text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors"
                   >
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
                   {sortMenuOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-brand-darker border border-white/10 rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-builder-surface-2 border border-builder-border rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
                       {[
                         { id: "date", label: "Date added" },
                         { id: "name", label: "Name" },
@@ -625,13 +739,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                         <button
                           key={opt.id}
                           onClick={() => { setSortBy(opt.id as any); setSortMenuOpen(false); }}
-                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] flex items-center justify-between transition-colors"
                         >
                           {opt.label}
-                          {sortBy === opt.id && <Check className="w-3 h-3 text-brand-light" />}
+                          {sortBy === opt.id && <Check className="w-3 h-3 text-[var(--builder-accent)]" />}
                         </button>
                       ))}
-                      <div className="my-1 border-t border-white/5" />
+                      <div className="my-1 border-t border-[var(--builder-border)]" />
                       {[
                         { id: "asc", label: "Ascending" },
                         { id: "desc", label: "Descending" },
@@ -639,10 +753,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                         <button
                           key={opt.id}
                           onClick={() => { setSortOrder(opt.id as any); setSortMenuOpen(false); }}
-                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-white/60 hover:text-white hover:bg-white/5 flex items-center justify-between transition-colors"
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] flex items-center justify-between transition-colors"
                         >
                           {opt.label}
-                          {sortOrder === opt.id && <Check className="w-3 h-3 text-brand-light" />}
+                          {sortOrder === opt.id && <Check className="w-3 h-3 text-[var(--builder-accent)]" />}
                         </button>
                       ))}
                     </div>
@@ -671,11 +785,11 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   return sortOrder === "asc" ? -res : res;
                 })
                 .length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-10 text-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6" />
+                <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-40 text-center gap-4">
+                  <div className="w-12 h-12 rounded-full bg-[var(--builder-surface-2)] flex items-center justify-center">
+                    <ImageIcon className="w-6 h-6 text-[var(--builder-text-faint)]" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-white/40">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--builder-text-faint)]">
                     {searchQuery ? "No matching media" : "No media found"}
                   </span>
                 </div>
@@ -702,7 +816,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       return (
                         <div
                           key={item.id}
-                          className={`group relative aspect-video rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-brand-medium ring-1 ring-brand-medium" : "border-white/5 bg-brand-darker"
+                          className={`group relative aspect-video rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-[var(--builder-purple)] ring-1 ring-[var(--builder-purple)]" : "border-[var(--builder-border)] bg-builder-surface-2"
                             }`}
                           draggable
                           onDragStart={(e) => {
@@ -757,41 +871,53 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                               </div>
                             </div>
                           ) : item.mimeType.startsWith("audio/") ? (
-                            <div className="w-full h-full flex items-center justify-center bg-brand-dark/50">
-                              <Music className="w-5 h-5 text-brand-light" />
+                            <div className="w-full h-full flex items-center justify-center bg-[var(--builder-surface-3)]">
+                              <Music className="w-5 h-5 text-builder-text-muted" />
                             </div>
                           ) : item.mimeType.startsWith("image/") ? (
                             <img src={item.url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <FileStack className="w-5 h-5 text-white/10" />
+                              <FileStack className="w-5 h-5 text-[var(--builder-text-faint)]" />
                             </div>
                           )}
 
                           {/* Selection Checkbox */}
                           <div className={`absolute top-2 left-2 transition-all duration-300 ${selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"}`}>
-                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-brand-medium border-brand-medium" : "border-white bg-brand-dark/60"
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-[var(--builder-purple)] border-[var(--builder-purple)]" : "border-white bg-[var(--builder-surface-3)]"
                               }`}>
                               {selectedItems.has(item.id) && <Check className="w-2.5 h-2.5 text-white" />}
                             </div>
                           </div>
 
                           {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-brand-dark/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <div className="absolute inset-0 bg-[var(--builder-surface)]/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 addMediaToCanvas(item);
                               }}
-                              className="p-2.5 rounded-full bg-brand-medium text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              className="p-2.5 rounded-full bg-[var(--builder-purple)] text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              title="Add to canvas"
                             >
                               <Plus className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteItem(item.id);
+                              }}
+                              className="p-2.5 rounded-full bg-red-500 text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              title="Delete"
+                            >
+                              <Trash2 className="w-4 h-4" />
                             </button>
                           </div>
 
                           {/* Info Tag */}
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-brand-dark/60 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-white/40">
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-[var(--builder-surface)]/80 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-[var(--builder-text-faint)]">
                             {Math.round(item.size / 1024)}KB
                           </div>
                         </div>
@@ -801,42 +927,12 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               )}
             </div>
 
-            {/* Storage Indicator */}
-            {permission !== "viewer" && (
-              <div className="mt-auto pt-4 border-t border-white/5 pb-2">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-brand-light">Storage Used</span>
-                    <span className="text-[10px] text-white/40 font-bold uppercase tracking-tight">
-                      {(mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (1024 * 1024)).toFixed(1)}MB / 500MB
-                    </span>
-                  </div>
-                  <button className="text-[9px] font-black uppercase tracking-widest text-brand-medium hover:text-brand-lighter transition-colors cursor-pointer flex items-center gap-1 group">
-                    <span>Upgrade</span>
-                    <ChevronRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
-                </div>
-                
-                <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full transition-all duration-500 rounded-full ${
-                      (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) > 0.9 
-                        ? "bg-red-500" 
-                        : "bg-brand-medium"
-                    }`}
-                    style={{ width: `${Math.min(100, (mediaItems.reduce((acc, i) => acc + (i.size || 0), 0) / (500 * 1024 * 1024)) * 100)}%` }}
-                  />
-                </div>
-                
-                <p className="mt-2 text-[8px] italic text-white/20 uppercase tracking-widest text-center">
-                  Get unlimited storage for your assets
-                </p>
-              </div>
-            )}
+
+
 
             {/* Read-only status */}
             {permission === "viewer" && (
-              <div className="text-[9px] text-white/10 text-center uppercase tracking-[0.3em] py-2 border-t border-white/5">
+              <div className="text-[9px] text-[var(--builder-text-faint)] text-center uppercase tracking-[0.3em] py-2 border-t border-[var(--builder-border)]">
                 Viewing mode only
               </div>
             )}

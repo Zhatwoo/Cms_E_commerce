@@ -1,4 +1,5 @@
 {
   "explorer.decorations.badges": false,
-  "explorer.decorations.colors": false
+  "explorer.decorations.colors": false,
+  "eslint.quiet": true
 }

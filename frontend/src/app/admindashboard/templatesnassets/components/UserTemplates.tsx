@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface Template {
   id: string;
@@ -24,46 +25,36 @@ export default function UserTemplates({ templates }: UserTemplatesProps) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
+      className="space-y-5"
     >
-      <h3 className="text-lg font-semibold mb-4 text-gray-900">
-        Templates Created by Users
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {templates.map((template) => {
-          const colorMap: Record<string, { bg: string; text: string }> = {
-            'E-commerce': { bg: 'bg-slate-700', text: 'E-commerce' },
-            'Business': { bg: 'bg-slate-600', text: 'Business' },
-            'Portfolio': { bg: 'bg-slate-500', text: 'Portfolio' },
-            'Blog': { bg: 'bg-slate-400', text: 'Blog' },
-          };
-          const colors = colorMap[template.category] || { bg: 'bg-gray-500', text: template.category };
           return (
             <motion.div
               key={template.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+              transition={{ duration: 0.24 }}
+              className="overflow-hidden rounded-[2px] border border-[rgba(177,59,255,0.22)] bg-white/35 shadow-[0_8px_22px_rgba(71,19,150,0.16)]"
             >
-              <div className="flex flex-col gap-3">
-                <div className={`w-full h-32 ${colors.bg} rounded-lg flex items-center justify-center`}>
-                  <span className="text-white text-xl font-semibold text-center">{colors.text}</span>
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 mb-1">
-                    {template.name}
+              <div className="relative h-48 w-full overflow-hidden bg-[#DAD6F8] sm:h-52">
+                {template.thumbnail ? (
+                  <Image src={template.thumbnail} alt={template.name} fill className="object-cover" unoptimized />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#8FC67E] via-[#4F805C] to-[#1E3C3C]">
+                    <span className="text-lg font-semibold text-white/90">{template.category}</span>
                   </div>
-                  <div className="text-sm text-gray-500 mb-1">
-                    {template.category}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    By {template.username}
-                  </div>
-                  <div className="text-xs text-blue-600">
-                    {template.domainName}
-                  </div>
-                </div>
+                )}
+              </div>
+
+              <div className="bg-gradient-to-r from-[#8F29E8] to-[#B13BFF] px-4 py-4 text-center">
+                <p className="truncate text-[2rem] font-semibold leading-none text-white">{template.name}</p>
+                <p className="mt-1 text-sm font-medium text-white/90">
+                  {template.username ? `By ${template.username}` : 'By user'}
+                </p>
+                <p className="mt-1 text-xs font-medium text-white/80">
+                  {template.domainName || 'Created on: January 1, 2026'}
+                </p>
               </div>
             </motion.div>
           );
@@ -71,8 +62,8 @@ export default function UserTemplates({ templates }: UserTemplatesProps) {
       </div>
 
       {templates.length === 0 && (
-        <div className="text-center text-gray-500 py-8">
-          No user templates found matching your search.
+        <div className="admin-dashboard-inset-panel rounded-2xl border border-[rgba(177,59,255,0.2)] px-6 py-10 text-center">
+          <p className="text-base font-medium text-[#471396]">No user templates found matching your search.</p>
         </div>
       )}
     </motion.div>

@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 
-const CANDIDATE_CANVAS_TYPES = new Set(["Page", "Container", "Section", "Row", "Column", "Frame", "Viewport", "Tab Content"]);
+const CANDIDATE_CANVAS_TYPES = new Set(["Page", "Container", "Section", "Row", "Column", "Frame", "Viewport", "Tab Content", "TabContent"]);
 
 export function CanvasDropGuide() {
   const { query } = useEditor();
@@ -189,15 +189,26 @@ export function CanvasDropGuide() {
       }
     };
 
+    let lastRafId: number | null = null;
     const handleDragOver = (event: DragEvent) => {
       if (!activeRef.current) return;
-      const targetEl = resolveDropTarget(event.target);
-      if (!targetEl) {
-        hideGuide();
-        return;
-      }
+      
+      // Throttle with RAF to prevent jank
+      if (lastRafId !== null) cancelAnimationFrame(lastRafId);
+      
+      const clientX = event.clientX;
+      const clientY = event.clientY;
+      const target = event.target;
 
-      showGuideFor(targetEl, event.clientY, event.clientX);
+      lastRafId = requestAnimationFrame(() => {
+        lastRafId = null;
+        const targetEl = resolveDropTarget(target);
+        if (!targetEl) {
+          hideGuide();
+          return;
+        }
+        showGuideFor(targetEl, clientY, clientX);
+      });
     };
 
     const handleDropOrEnd = () => {

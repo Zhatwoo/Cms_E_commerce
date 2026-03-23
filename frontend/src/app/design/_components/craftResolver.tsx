@@ -48,6 +48,35 @@ function withResolverFallback<T extends Resolver>(base: T): T {
 
       return resolved || target.Container || Container;
     },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      if (Reflect.has(target, canonical)) return true;
+
+      if (
+        normalized.includes("image") ||
+        normalized === "img" ||
+        normalized === "imagecomponent"
+      ) {
+        return (
+          Reflect.has(target, "Image") ||
+          Reflect.has(target, "image") ||
+          Reflect.has(target, "IMAGE") ||
+          Reflect.has(target, "img") ||
+          Reflect.has(target, "Img") ||
+          Reflect.has(target, "ImageComponent")
+        );
+      }
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+    },
   }) as T;
 }
 
@@ -83,6 +112,18 @@ export function buildCraftResolver(): Resolver {
   const PaginationComp = asComponent(Pagination, ContainerComp);
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
+  const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
+    const variants = [
+      name,
+      name.toLowerCase(),
+      name.toUpperCase(),
+      ...extra,
+    ];
+    variants.forEach((key) => {
+      if (!key) return;
+      base[key] = comp;
+    });
+  };
   const base: Resolver = {
     Container: ContainerComp,
     container: ContainerComp,
@@ -96,6 +137,9 @@ export function buildCraftResolver(): Resolver {
     Image: ImageComp,
     image: ImageComp,
     IMAGE: ImageComp,
+    img: ImageComp,
+    Img: ImageComp,
+    ImageComponent: ImageComp,
     Video: VideoComp,
     video: VideoComp,
     VIDEO: VideoComp,
@@ -147,6 +191,20 @@ export function buildCraftResolver(): Resolver {
   base.text = TextComp;
   base.Container = ContainerComp;
   base.container = ContainerComp;
+  addAliases(base, "Button", ButtonComp);
+  addAliases(base, "Divider", DividerComp);
+  addAliases(base, "Banner", BannerComp);
+  addAliases(base, "Badge", BadgeComp);
+  addAliases(base, "Pagination", PaginationComp);
+  addAliases(base, "BooleanField", BooleanFieldComp, [
+    "Boolean Field",
+    "boolean field",
+    "Checkbox",
+    "checkbox",
+    "CheckBox",
+    "Radio",
+    "radio",
+  ]);
   return base;
 }
 

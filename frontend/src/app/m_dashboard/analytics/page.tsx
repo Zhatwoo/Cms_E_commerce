@@ -915,10 +915,16 @@ export default function AnalyticsPage() {
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="mb-6 text-center">
-        <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[0.98] tracking-tight">
+        <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[1.2] tracking-tight">
           <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Analytics</span>
-          <span className="block text-transparent bg-clip-text"
-            style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
+          <span 
+            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+            style={{ 
+              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
+              paddingBottom: '0.1em',
+              marginBottom: '-0.1em'
+            }}
+          >
             {toTitleCase(activeSectionTab)}
           </span>
         </h1>
@@ -943,7 +949,7 @@ export default function AnalyticsPage() {
                 left: sectionIndicator.left,
                 width: sectionIndicator.width,
                 opacity: sectionIndicator.ready ? 1 : 0,
-                background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
+                background: theme === 'dark' ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
                 boxShadow: theme === 'dark' ? '0 0 12px rgba(177, 59, 255, 0.35)' : '0 0 12px rgba(139, 92, 246, 0.35)',
               }}
             />
@@ -951,10 +957,14 @@ export default function AnalyticsPage() {
         </div>
 
         <div className="mx-auto mt-4 sm:mt-5 flex w-full max-w-[860px] flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
-          <div className={`flex-1 rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
-            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" style={{ color: colors.accent.yellow }}>
-              <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+          <div className={`m-dashboard-search-shadow flex-1 rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
+            <svg 
+              viewBox="0 0 20 20" 
+              className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`} 
+              fill="none"
+            >
+              <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
             </svg>
             <input
               value={search}
@@ -989,8 +999,8 @@ export default function AnalyticsPage() {
         <>
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
             {kpiCards.map((card) => (
-              <div key={card.label} className="rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px]"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div key={card.label} className={`rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px] ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+                style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
                 <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
                 <p className="mt-1 text-[24px] lg:text-[26px] 2xl:text-[28px] leading-none font-extrabold"
                   style={{ color: colors.text.primary }}>{loading ? '—' : card.value}</p>
@@ -999,8 +1009,8 @@ export default function AnalyticsPage() {
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-[1.55fr_1fr] gap-4 mb-4">
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <div className="mb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Revenue Trend</h2>
                 <PeriodSelector />
@@ -1026,8 +1036,8 @@ export default function AnalyticsPage() {
               </div>
             </div>
 
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Top Performance</h2>
               {analytics.topPerformance.length === 0 ? (
                 <EmptyState message="No buyer performance data yet." />
@@ -1054,8 +1064,8 @@ export default function AnalyticsPage() {
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-[1fr_1.8fr] gap-4 pb-3">
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Sales by Category</h2>
               {analytics.categoryRows.length === 0 ? (
                 <EmptyState message="No category sales data yet." />
@@ -1083,8 +1093,8 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Recent Transactions</h2>
               {analytics.recentTransactions.length === 0 ? (
                 <EmptyState message="No recent transactions yet." />
@@ -1125,8 +1135,8 @@ export default function AnalyticsPage() {
               { label: 'Avg. Daily Revenue', value: formatPeso(salesTrendData.avgDailyRevenue) },
               { label: 'Avg. Daily Orders', value: salesTrendData.avgDailyOrders.toFixed(1) },
             ].map((card) => (
-              <div key={card.label} className="rounded-2xl border px-4 py-3 min-h-[88px]"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div key={card.label} className={`rounded-2xl border px-4 py-3 min-h-[88px] ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+                style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
                 <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
                 <p className="mt-1 text-[22px] lg:text-[24px] leading-none font-extrabold"
                   style={{ color: loading ? colors.text.muted : colors.text.primary }}>{loading ? '—' : card.value}</p>
@@ -1136,8 +1146,8 @@ export default function AnalyticsPage() {
 
           <section className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 mb-4">
             {/* Multi-line monthly chart */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Monthly Revenue Trend</h2>
                 <PeriodSelector />
@@ -1163,8 +1173,8 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Day-of-week breakdown */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Revenue by Day of Week</h2>
               {salesTrendData.dowData.some((d) => d.revenue > 0) ? (
                 <div className="space-y-2.5">
@@ -1193,8 +1203,8 @@ export default function AnalyticsPage() {
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-3">
             {/* Peak days */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>
                 🚀 Peak Revenue Days
               </h2>
@@ -1219,8 +1229,8 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Slow days */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>
                 🐢 Slowest Revenue Days
               </h2>
@@ -1274,8 +1284,8 @@ export default function AnalyticsPage() {
                 delta: purchaseSuccessData.avgOrderDelta,
               },
             ].map((card) => (
-              <div key={card.label} className="rounded-2xl border px-4 py-3 min-h-[100px]"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div key={card.label} className={`rounded-2xl border px-4 py-3 min-h-[100px] ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+                style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
                 <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
                 <p className="mt-1 text-[22px] lg:text-[24px] leading-none font-extrabold mb-1.5"
                   style={{ color: loading ? colors.text.muted : colors.text.primary }}>{loading ? '—' : card.value}</p>
@@ -1286,8 +1296,8 @@ export default function AnalyticsPage() {
 
           <section className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 mb-4">
             {/* Success trend chart */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Successful Revenue Trend</h2>
                 <PeriodSelector />
@@ -1305,8 +1315,8 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Order status donut */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Order Status Breakdown</h2>
               {purchaseSuccessData.statusCounts.length > 0 ? (
                 <>
@@ -1347,8 +1357,8 @@ export default function AnalyticsPage() {
 
           {/* Failure breakdown */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-3">
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Failure Analysis</h2>
               {purchaseSuccessData.failedCount > 0 ? (
                 <div className="space-y-4">
@@ -1383,8 +1393,8 @@ export default function AnalyticsPage() {
               )}
             </div>
 
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Order Volume Summary</h2>
               <div className="space-y-3">
                 {[
@@ -1420,8 +1430,8 @@ export default function AnalyticsPage() {
                 value: `${categorySalesData.growthRate >= 0 ? '+' : ''}${categorySalesData.growthRate.toFixed(1)}%`,
               },
             ].map((card) => (
-              <div key={card.label} className="rounded-2xl border px-4 py-3 min-h-[88px]"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div key={card.label} className={`rounded-2xl border px-4 py-3 min-h-[88px] ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+                style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
                 <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
                 <p className="mt-1 text-[20px] lg:text-[22px] leading-none font-extrabold"
                   style={{ color: loading ? colors.text.muted : colors.text.primary }}>{loading ? '—' : card.value}</p>
@@ -1431,8 +1441,8 @@ export default function AnalyticsPage() {
 
           <section className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 mb-4">
             {/* Multi-category line chart */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Category Revenue Over Time</h2>
                 <PeriodSelector />
@@ -1460,8 +1470,8 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Donut + legend */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Category Share</h2>
               {categorySalesData.donutRows.length > 0 ? (
                 <>
@@ -1497,8 +1507,8 @@ export default function AnalyticsPage() {
 
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-4 pb-3">
             {/* Top categories table */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Category Performance</h2>
               {categorySalesData.topCategories.length > 0 ? (
                 <div className="space-y-2.5">
@@ -1528,8 +1538,8 @@ export default function AnalyticsPage() {
             </div>
 
             {/* Top products table */}
-            <div className="rounded-[28px] border p-5 lg:p-6"
-              style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+            <div className={`rounded-[28px] border p-5 lg:p-6 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
               <h2 className="mb-4 text-sm font-semibold" style={{ color: colors.text.primary }}>Top Selling Products</h2>
               {categorySalesData.topSellingProducts.length > 0 ? (
                 <div className="space-y-2.5">
@@ -1567,8 +1577,8 @@ export default function AnalyticsPage() {
               { label: 'Top Category', value: salesHistoryData.topCategory },
               { label: 'Completion Rate', value: `${salesHistoryData.completionRate.toFixed(1)}%` },
             ].map((card) => (
-              <div key={card.label} className="rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px]"
-                style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+              <div key={card.label} className={`rounded-2xl border px-4 py-3 lg:py-3.5 min-h-[88px] ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+                style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
                 <p className="text-[10px] uppercase tracking-[0.14em]" style={{ color: colors.text.muted }}>{card.label}</p>
                 <p className="mt-1 text-[24px] lg:text-[26px] leading-none font-extrabold"
                   style={{ color: loading ? colors.text.muted : colors.text.primary }}>
@@ -1578,8 +1588,8 @@ export default function AnalyticsPage() {
             ))}
           </section>
 
-          <section className="rounded-[28px] border p-5 lg:p-6 pb-4"
-            style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <section className={`rounded-[28px] border p-5 lg:p-6 pb-4 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+            style={{ backgroundColor: theme === 'dark' ? colors.bg.card : undefined, borderColor: theme === 'dark' ? colors.border.faint : undefined }}>
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
               <h2 className="text-sm font-semibold" style={{ color: colors.text.primary }}>Order History</h2>
               <div className="flex items-center gap-2 text-[11px]">

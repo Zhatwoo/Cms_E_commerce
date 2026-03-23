@@ -371,21 +371,12 @@ export function RecentProjects() {
                     : '0 2px 8px rgba(0,0,0,0.12)',
                 }}
               >
-                {project.thumbnail ? (
-                  <img
-                    src={project.thumbnail}
-                    alt={project.title || 'Project preview'}
-                    className="absolute inset-0 w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                ) : (
-                  <DraftPreviewThumbnail
-                    projectId={project.id}
-                    borderColor={colors.border.faint}
-                    bgColor={colors.bg.elevated}
-                    className="w-full h-full rounded-lg"
-                  />
-                )}
+                <DraftPreviewThumbnail
+                  projectId={project.id}
+                  borderColor={colors.border.faint}
+                  bgColor={colors.bg.elevated}
+                  className="w-full h-full rounded-lg"
+                />
               </div>
 
               {/* Project Info */}

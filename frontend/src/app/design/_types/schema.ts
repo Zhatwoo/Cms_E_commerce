@@ -76,8 +76,10 @@ export type ComponentType =
   | "Tabs"
   | "TabContent"
   | "Banner"
+  | "BooleanField"
   | "Rating"
   | "Accordion"
+  | "BooleanField"
   | "ImportedBlock";
 
 /** A single node in the document. */

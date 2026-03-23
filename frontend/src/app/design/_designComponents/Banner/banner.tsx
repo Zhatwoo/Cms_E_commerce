@@ -1,8 +1,11 @@
-import React from "react";
-import { useNode } from "@craftjs/core";
-import type { Node } from "@craftjs/core";
+import React, { useEffect, useRef } from "react";
+import { useEditor, useNode } from "@craftjs/core";
 import { BannerSettings } from "./bannerSettings";
-import type { ContainerProps } from "../../_types/components";
+import type { ContainerProps, TypographyProps } from "../../_types/components";
+
+export interface BannerProps extends ContainerProps, TypographyProps {
+	text?: string;
+}
 
 function fluidSpace(value: number, min = 0): string {
 	if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
@@ -15,6 +18,16 @@ function fluidSpace(value: number, min = 0): string {
  * Banner - row-like container intended for promo / announcement strips.
  */
 export const Banner = ({
+	text = "FLASH SALE: Up to 70% off - Use code SAVE70",
+	fontFamily = "Outfit",
+	fontWeight = "700",
+	fontStyle = "normal",
+	fontSize = 13,
+	lineHeight = 1.2,
+	letterSpacing = 0,
+	textAlign = "center",
+	textTransform = "none",
+	color = "#ffffff",
 	background = "#ef4444",
 	padding = 12,
 	paddingTop,
@@ -43,16 +56,54 @@ export const Banner = ({
 	opacity = 1,
 	overflow = "hidden",
 	rotation = 0,
+	position = "relative",
+	top = "auto",
+	right = "auto",
+	bottom = "auto",
+	left = "auto",
+	zIndex = 0,
 	customClassName = "",
 	children,
-}: ContainerProps) => {
+	}: BannerProps) => {
+	const {
+		actions,
+		query,
+	} = useEditor();
 	const {
 		id,
 		connectors: { connect, drag },
-		childCount,
+		childNodeIds,
 	} = useNode((node) => ({
-		childCount: node.data.nodes.length,
+		childNodeIds: node.data.nodes,
 	}));
+	const migratedLegacyChildrenRef = useRef(false);
+
+	useEffect(() => {
+		if (migratedLegacyChildrenRef.current) return;
+		if (!Array.isArray(childNodeIds) || childNodeIds.length !== 1) return;
+
+		const [childId] = childNodeIds;
+		let childNode: ReturnType<ReturnType<typeof query.node>["get"]>;
+		try {
+			childNode = query.node(childId).get();
+		} catch {
+			return;
+		}
+
+		const childDisplayName = String(childNode?.data?.displayName ?? "").toLowerCase();
+		if (!childDisplayName.includes("text")) return;
+
+		const childProps = (childNode?.data?.props ?? {}) as { text?: unknown };
+		const childText = typeof childProps.text === "string" ? childProps.text : "";
+
+		actions.setProp(id, (props: BannerProps) => {
+			if (!props.text || props.text === "FLASH SALE: Up to 70% off - Use code SAVE70") {
+				props.text = childText || "FLASH SALE: Up to 70% off - Use code SAVE70";
+			}
+		});
+		actions.delete(childId);
+		migratedLegacyChildrenRef.current = true;
+	}, [actions, childNodeIds, id, query]);
 
 	const p = typeof padding === "number" ? padding : 0;
 	const pl = paddingLeft ?? p;
@@ -65,6 +116,13 @@ export const Banner = ({
 	const mr = marginRight ?? m;
 	const mt = marginTop ?? m;
 	const mb = marginBottom ?? m;
+	const resolvedFontSize = Number.isFinite(Number(fontSize)) ? Number(fontSize) : 13;
+	const fluidFontMin = Math.max(10, Math.round(resolvedFontSize * 0.8));
+	const fluidFontCqw = Math.max(0.1, resolvedFontSize / 12).toFixed(2);
+	const hasLegacyChildren = React.Children.count(children) > 0;
+	const resolvedText = typeof text === "string" ? text : "FLASH SALE: Up to 70% off - Use code SAVE70";
+	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
+	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
 
 	return (
 		<div
@@ -105,18 +163,56 @@ export const Banner = ({
 				boxShadow,
 				opacity,
 				overflow,
+				position,
+				top: position !== "static" ? top : undefined,
+				right: position !== "static" ? right : undefined,
+				bottom: position !== "static" ? bottom : undefined,
+				left: position !== "static" ? left : undefined,
+				zIndex: zIndex !== 0 ? zIndex : undefined,
 				transform: rotation ? `rotate(${rotation}deg)` : undefined,
 			}}
 		>
-			{children}
-			{childCount === 0 && (
-				<div className="text-white/80 text-xs tracking-wide uppercase">Drop text here</div>
+			{hasLegacyChildren ? children : (
+				<span
+					data-banner-text="true"
+					style={{
+						display: "block",
+						width: "100%",
+						margin: 0,
+						padding: 0,
+						fontFamily,
+						fontWeight,
+						fontStyle,
+						fontSize: `clamp(${fluidFontMin}px, ${fluidFontCqw}cqw, ${resolvedFontSize}px)`,
+						lineHeight: resolvedLineHeight,
+						letterSpacing: resolvedLetterSpacing,
+						textAlign,
+						textTransform,
+						color,
+						whiteSpace: "nowrap",
+						overflow: "hidden",
+						textOverflow: "ellipsis",
+						userSelect: "none",
+					}}
+				>
+					{resolvedText}
+				</span>
 			)}
 		</div>
 	);
 };
 
-export const BannerDefaultProps: Partial<ContainerProps> = {
+export const BannerDefaultProps: Partial<BannerProps> = {
+	text: "FLASH SALE: Up to 70% off - Use code SAVE70",
+	fontFamily: "Outfit",
+	fontWeight: "700",
+	fontStyle: "normal",
+	fontSize: 13,
+	lineHeight: 1.2,
+	letterSpacing: 0,
+	textAlign: "center",
+	textTransform: "none",
+	color: "#ffffff",
 	background: "#ef4444",
 	padding: 12,
 	margin: 0,
@@ -143,11 +239,7 @@ Banner.craft = {
 	displayName: "Banner",
 	props: BannerDefaultProps,
 	rules: {
-		canMoveIn: (incomingNodes: Node[]) =>
-			incomingNodes.every((node) => {
-				const name = node.data.displayName;
-				return name !== "Page" && name !== "Viewport";
-			}),
+		canMoveIn: () => false,
 	},
 	related: {
 		settings: BannerSettings,

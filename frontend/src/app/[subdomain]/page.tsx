@@ -12,6 +12,7 @@ import type { BuilderDocument } from '@/app/design/_types/schema';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
 import { CartDrawer } from '@/app/sites/_storefront/CartDrawer';
 import type { StorefrontProduct } from '@/app/sites/_storefront/StorefrontProducts';
+import { StorefrontRenderBoundary } from '@/app/sites/_storefront/StorefrontRenderBoundary';
 
 const RESERVED_SUBDOMAINS = new Set([
   'sites', 'site', 's', 'm_dashboard', 'design', 'auth', 'admindashboard', 'landing', 'templates',
@@ -119,11 +120,13 @@ function SubdomainContent() {
   }
 
   return (
-    <>
-      <LiveSite doc={doc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs storeContext={{ products, addToCart }} />
-      <CartFab />
-      <CartDrawer />
-    </>
+    <StorefrontRenderBoundary>
+      <>
+        <LiveSite doc={doc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs storeContext={{ products, addToCart }} />
+        <CartFab />
+        <CartDrawer />
+      </>
+    </StorefrontRenderBoundary>
   );
 }
 

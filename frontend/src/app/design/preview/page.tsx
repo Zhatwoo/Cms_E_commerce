@@ -3,36 +3,450 @@
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { deserializeCleanToCraft } from "../_lib/serializer";
+import { Editor, Frame } from "@craftjs/core";
+import { deserializeCleanToCraft, serializeCraftToClean } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
+import { CRAFT_RESOLVER } from "../_components/craftResolver";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, type Project } from "@/lib/api";
+import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
+const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
 
-function toPxNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
+function looksLikeCraftRawSnapshot(value: string): boolean {
+  try {
+    const parsed = JSON.parse(value);
+    return Boolean(parsed && typeof parsed === "object" && "ROOT" in parsed);
+  } catch {
+    return false;
+  }
+}
 
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return null;
+function looksLikeCleanDocSnapshot(value: string): boolean {
+  try {
+    const parsed = JSON.parse(value);
+    return Boolean(
+      parsed &&
+      typeof parsed === "object" &&
+      "version" in parsed &&
+      "pages" in parsed &&
+      "nodes" in parsed
+    );
+  } catch {
+    return false;
+  }
+}
 
-  if (normalized.endsWith("px")) {
-    const parsed = Number.parseFloat(normalized.slice(0, -2));
-    return Number.isFinite(parsed) ? parsed : null;
+function PreviewRoot({ children }: { children?: React.ReactNode }) {
+  return (
+    <div
+      data-preview-root
+      style={{
+        position: "relative",
+        width: "100%",
+        minHeight: "100%",
+        padding: 0,
+        margin: 0,
+        overflow: "visible",
+        background: "transparent",
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+const SAFE_PREVIEW_CONTAINER: React.ComponentType<any> =
+  (typeof (CRAFT_RESOLVER as Record<string, unknown>).Container === "function"
+    ? ((CRAFT_RESOLVER as Record<string, unknown>).Container as React.ComponentType<any>)
+    : null) ??
+  ((props: any) => React.createElement("div", props, props?.children));
+
+const asComponent = (value: unknown): React.ComponentType<any> =>
+  typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_PREVIEW_CONTAINER;
+
+function withResolverFallback<T extends Record<string, React.ComponentType<any>>>(base: T): T {
+  return new Proxy(base, {
+    get(target, prop, receiver) {
+      const direct = Reflect.get(target, prop, receiver);
+      if (direct) return direct;
+      if (typeof prop !== "string") return direct;
+
+      const normalized = prop.trim().toLowerCase();
+      const resolved =
+        Reflect.get(target, prop.trim(), receiver) ||
+        Reflect.get(target, normalized, receiver) ||
+        Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
+
+      return resolved || target.Container || SAFE_PREVIEW_CONTAINER;
+    },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
+      if (Reflect.has(target, canonical)) return true;
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+    },
+  }) as T;
+}
+
+// Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
+const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
+  ...CRAFT_RESOLVER,
+  BooleanField: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BooleanField),
+  booleanfield: asComponent((CRAFT_RESOLVER as Record<string, unknown>).booleanfield),
+  BOOLEANFIELD: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BOOLEANFIELD),
+  "Boolean Field": asComponent((CRAFT_RESOLVER as Record<string, unknown>)["Boolean Field"]),
+  "boolean field": asComponent((CRAFT_RESOLVER as Record<string, unknown>)["boolean field"]),
+  Checkbox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Checkbox),
+  checkbox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).checkbox),
+  CheckBox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).CheckBox),
+  Radio: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Radio),
+  radio: asComponent((CRAFT_RESOLVER as Record<string, unknown>).radio),
+  PreviewRoot: asComponent(PreviewRoot),
+  previewroot: asComponent(PreviewRoot),
+  PREVIEWROOT: asComponent(PreviewRoot),
+} as typeof CRAFT_RESOLVER & {
+  PreviewRoot: typeof PreviewRoot;
+  previewroot: typeof PreviewRoot;
+  PREVIEWROOT: typeof PreviewRoot;
+});
+
+function PreviewRenderNode(props: { render: React.ReactElement }) {
+  return props.render;
+}
+
+type CraftStorageNode = {
+  type: { resolvedName: string };
+  isCanvas: boolean;
+  props: Record<string, unknown>;
+  displayName: string;
+  custom: Record<string, unknown>;
+  parent?: string;
+  hidden: boolean;
+  nodes: string[];
+  linkedNodes: Record<string, string>;
+};
+
+const PREVIEW_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
+Object.keys(PREVIEW_CRAFT_RESOLVER as Record<string, unknown>).forEach((k) => {
+  const lowered = k.toLowerCase();
+  if (!PREVIEW_CANONICAL_NAME_BY_LOWER.has(lowered)) PREVIEW_CANONICAL_NAME_BY_LOWER.set(lowered, k);
+});
+
+function canonicalResolvedName(rawName: unknown): string {
+  const name = typeof rawName === "string" ? rawName.trim() : "";
+  if (!name) return "Container";
+  const lowered = name.toLowerCase();
+  const exact = PREVIEW_CANONICAL_NAME_BY_LOWER.get(lowered);
+  if (exact) return exact;
+  if (lowered === "tab content" || lowered.includes("tabcontent")) return "TabContent";
+  if (lowered.includes("tabs")) return "Tabs";
+  if (lowered.includes("image")) return "Image";
+  if (lowered.includes("text")) return "Text";
+  if (lowered.includes("button")) return "Button";
+  if (lowered.includes("divider")) return "Divider";
+  if (lowered.includes("banner")) return "Banner";
+  if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("pagination")) return "Pagination";
+  if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
+  if (lowered.includes("accordion")) return "Accordion";
+  if (lowered.includes("viewport")) return "Viewport";
+  if (lowered.includes("page")) return "Page";
+  return "Container";
+}
+
+function validateCraftFrameDataForPreview(jsonString: string): { valid: boolean; data?: string } {
+  try {
+    const parsed = JSON.parse(jsonString) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object" || !parsed.ROOT) return { valid: false };
+
+    const allIds = Object.keys(parsed);
+    const invalidNodes: string[] = [];
+    const validIds = new Set(
+      allIds.filter((id) => {
+        const node = parsed[id];
+        if (!node || typeof node !== "object") {
+          invalidNodes.push(id);
+          return false;
+        }
+        if (!node.type) {
+          invalidNodes.push(id);
+          return false;
+        }
+        const resolved =
+          typeof node.type === "string"
+            ? canonicalResolvedName(node.type)
+            : canonicalResolvedName(node.type?.resolvedName);
+        node.type = { resolvedName: resolved };
+        node.displayName = resolved;
+        if (!Array.isArray(node.nodes)) node.nodes = [];
+        if (!node.linkedNodes || typeof node.linkedNodes !== "object") node.linkedNodes = {};
+        if (!node.props || typeof node.props !== "object") node.props = {};
+        if (!node.custom || typeof node.custom !== "object") node.custom = {};
+        if (typeof node.hidden !== "boolean") node.hidden = false;
+        return true;
+      })
+    );
+
+    if (invalidNodes.length > allIds.length * 0.5) return { valid: false };
+
+    const visited = new Set<string>();
+    const cleanRefs = (id: string) => {
+      if (visited.has(id)) return;
+      visited.add(id);
+      const node = parsed[id];
+      if (!node) return;
+
+      if (Array.isArray(node.nodes)) {
+        node.nodes = node.nodes.filter((childId: unknown) => typeof childId === "string" && validIds.has(childId));
+        node.nodes.forEach((childId: string) => cleanRefs(childId));
+      }
+
+      if (node.linkedNodes && typeof node.linkedNodes === "object") {
+        for (const [k, v] of Object.entries(node.linkedNodes)) {
+          if (typeof v !== "string" || !validIds.has(v)) delete node.linkedNodes[k];
+        }
+      }
+    };
+
+    cleanRefs("ROOT");
+    invalidNodes.forEach((id) => delete parsed[id]);
+
+    return { valid: true, data: JSON.stringify(parsed) };
+  } catch {
+    return { valid: false };
+  }
+}
+
+function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, CraftStorageNode> {
+  const existing = new Set(Object.keys(input));
+  const out: Record<string, CraftStorageNode> = {};
+
+  for (const [id, rawNode] of Object.entries(input)) {
+    const n = (rawNode && typeof rawNode === "object") ? (rawNode as any) : {};
+    const typeName =
+      (n.type && typeof n.type === "object" && typeof n.type.resolvedName === "string" && n.type.resolvedName) ||
+      "Container";
+
+    const nodes = Array.isArray(n.nodes) ? (n.nodes as unknown[]).filter((x): x is string => typeof x === "string" && existing.has(x)) : [];
+    const linkedNodesObj = (n.linkedNodes && typeof n.linkedNodes === "object") ? (n.linkedNodes as Record<string, unknown>) : {};
+    const linkedNodes: Record<string, string> = {};
+    for (const [k, v] of Object.entries(linkedNodesObj)) {
+      if (typeof v === "string" && existing.has(v)) linkedNodes[k] = v;
+    }
+
+    out[id] = {
+      type: { resolvedName: String(typeName) },
+      isCanvas: Boolean(n.isCanvas),
+      props: (n.props && typeof n.props === "object") ? (n.props as Record<string, unknown>) : {},
+      displayName: String(n.displayName ?? typeName),
+      custom: (n.custom && typeof n.custom === "object") ? (n.custom as Record<string, unknown>) : {},
+      parent: typeof n.parent === "string" ? n.parent : undefined,
+      hidden: Boolean(n.hidden),
+      nodes,
+      linkedNodes,
+    };
   }
 
-  const numeric = Number.parseFloat(normalized);
-  return Number.isFinite(numeric) ? numeric : null;
+  return out;
+}
+
+/**
+ * Craft.js can serialize in two shapes:
+ * - Storage shape: { id: { type: { resolvedName }, nodes, props, ... } }
+ * - State shape:   { id: { type: ComponentRef, data: { nodes, props, displayName, ... } } }
+ * Frame expects storage shape. Normalize so preview doesn't crash.
+ */
+function normalizeCraftToStorageShape(raw: string): string {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object") return raw;
+
+    const root = parsed.ROOT;
+    const alreadyStorage =
+      root &&
+      typeof root === "object" &&
+      root.type &&
+      typeof root.type === "object" &&
+      typeof root.type.resolvedName === "string";
+    if (alreadyStorage) {
+      const sanitized = sanitizeCraftStorageDoc(parsed);
+      for (const node of Object.values(sanitized)) {
+        const canonicalType = canonicalResolvedName(node.type?.resolvedName);
+        node.type = { resolvedName: canonicalType };
+        node.displayName = canonicalResolvedName(node.displayName ?? canonicalType);
+      }
+      const validated = validateCraftFrameDataForPreview(JSON.stringify(sanitized));
+      return validated.valid && validated.data ? validated.data : JSON.stringify(sanitized);
+    }
+
+    const result: Record<string, CraftStorageNode> = {};
+    for (const [id, value] of Object.entries(parsed)) {
+      if (!value || typeof value !== "object") continue;
+      const v = value as Record<string, any>;
+      const data = (v.data && typeof v.data === "object") ? (v.data as Record<string, any>) : undefined;
+
+      const resolvedName =
+        (v.type && typeof v.type === "object" && typeof (v.type as any).resolvedName === "string" && (v.type as any).resolvedName) ||
+        (data?.type && typeof data.type === "object" && typeof (data.type as any).resolvedName === "string" && (data.type as any).resolvedName) ||
+        (data?.displayName as string) ||
+        (v.displayName as string) ||
+        "Container";
+
+      const nodes = (data?.nodes ?? v.nodes) as unknown;
+      const linkedNodes = (data?.linkedNodes ?? v.linkedNodes) as unknown;
+      const props = (data?.props ?? v.props) as unknown;
+
+      result[id] = {
+        type: { resolvedName: canonicalResolvedName(resolvedName) },
+        isCanvas: Boolean(v.isCanvas ?? data?.isCanvas ?? false),
+        props: (props && typeof props === "object") ? (props as Record<string, unknown>) : {},
+        displayName: canonicalResolvedName(data?.displayName ?? v.displayName ?? resolvedName),
+        custom: (v.custom && typeof v.custom === "object") ? (v.custom as Record<string, unknown>) : {},
+        parent: (data?.parent ?? v.parent) as string | undefined,
+        hidden: Boolean(v.hidden ?? data?.hidden ?? false),
+        nodes: Array.isArray(nodes) ? (nodes as string[]) : [],
+        linkedNodes:
+          linkedNodes && typeof linkedNodes === "object"
+            ? Object.fromEntries(
+              Object.entries(linkedNodes as Record<string, unknown>)
+                .filter(([, vv]) => typeof vv === "string")
+                .map(([kk, vv]) => [kk, vv as string])
+            )
+            : {},
+      };
+    }
+
+    const validated = validateCraftFrameDataForPreview(JSON.stringify(sanitizeCraftStorageDoc(result)));
+    return validated.valid && validated.data ? validated.data : JSON.stringify(sanitizeCraftStorageDoc(result));
+  } catch {
+    return raw;
+  }
+}
+
+function normalizeCraftSnapshotForPreview(raw: string, preferredPageSlug?: string): string {
+  try {
+    const parsed = JSON.parse(raw) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object" || !parsed.ROOT) return raw;
+
+    const root = parsed.ROOT as any;
+    const rootNodes: string[] = Array.isArray(root.nodes) ? root.nodes : [];
+
+    const resolvePageId = (): string | null => {
+      if (!rootNodes.length) return null;
+      if (!preferredPageSlug) return rootNodes[0] ?? null;
+
+      for (const id of rootNodes) {
+        const n = parsed[id];
+        const props = n?.props ?? n?.data?.props ?? {};
+        const slug = typeof props.pageSlug === "string" ? props.pageSlug : undefined;
+        if (slug && slug === preferredPageSlug) return id;
+      }
+      return rootNodes[0] ?? null;
+    };
+
+    const pageId = resolvePageId();
+    if (!pageId) return raw;
+
+    // Convert ROOT into a lightweight preview root so we don't inherit infinite-canvas sizing.
+    parsed.ROOT = {
+      ...(parsed.ROOT ?? {}),
+      type: { resolvedName: "PreviewRoot" },
+      displayName: "PreviewRoot",
+      props: {},
+      nodes: [pageId],
+      isCanvas: true,
+    };
+
+    // Bring the selected page to (0,0) so it appears immediately in preview.
+    const pageNode = parsed[pageId];
+    if (pageNode) {
+      const nextProps = { ...(pageNode.props ?? {}) };
+      nextProps.canvasX = 0;
+      nextProps.canvasY = 0;
+      parsed[pageId] = {
+        ...pageNode,
+        parent: "ROOT",
+        props: nextProps,
+      };
+    }
+
+    const validated = validateCraftFrameDataForPreview(JSON.stringify(sanitizeCraftStorageDoc(parsed)));
+    return validated.valid && validated.data ? validated.data : JSON.stringify(sanitizeCraftStorageDoc(parsed));
+  } catch {
+    return raw;
+  }
+}
+
+/**
+ * Readonly renderer that matches the Craft.js canvas exactly.
+ * Used in Preview when we have a valid Craft raw snapshot (contains ROOT).
+ */
+function CraftCanvasPreview({ data }: { data: string }) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+
+  if (!mounted) return null;
+
+  return (
+    <Editor enabled={false} resolver={PREVIEW_CRAFT_RESOLVER} onRender={PreviewRenderNode}>
+      <Frame data={data} />
+    </Editor>
+  );
+}
+
+function readPageDimensionsFromCraftSnapshot(
+  craftJson: string,
+  preferredPageSlug?: string
+): { width?: string | number; height?: string | number } | null {
+  try {
+    const parsed = JSON.parse(craftJson) as Record<string, any>;
+    const root = parsed?.ROOT;
+    const rootNodes: string[] = Array.isArray(root?.nodes) ? root.nodes : [];
+    if (rootNodes.length === 0) return null;
+
+    const pickPageId = (): string | null => {
+      if (!preferredPageSlug) return rootNodes[0] ?? null;
+      for (const id of rootNodes) {
+        const node = parsed[id];
+        const props = node?.props ?? {};
+        const slug = typeof props.pageSlug === "string" ? props.pageSlug : undefined;
+        if (slug && slug === preferredPageSlug) return id;
+      }
+      return rootNodes[0] ?? null;
+    };
+
+    const pageId = pickPageId();
+    if (!pageId) return null;
+    const pageNode = parsed[pageId];
+    const props = (pageNode?.props ?? {}) as Record<string, unknown>;
+    return {
+      width: props.width as any,
+      height: props.height as any,
+    };
+  } catch {
+    return null;
+  }
 }
 
 type ViewMode = "Web-Preview" | "clean" | "raw";
@@ -66,6 +480,10 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
+  const [previewProducts, setPreviewProducts] = useState<ApiProduct[]>([]);
+  const [previewCart, setPreviewCart] = useState<Array<{ id: string; name: string; price: number; image?: string; quantity: number }>>([]);
+  const [previewCartOpen, setPreviewCartOpen] = useState(false);
+  const [previewLastAddedAt, setPreviewLastAddedAt] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
@@ -89,45 +507,119 @@ function PreviewContent() {
     }
   };
 
-  const handleRefresh = React.useCallback(async () => {
-    const sessionSnapshot = readSessionSnapshot(projectId);
-    if (sessionSnapshot) {
-      setRawJson(sessionSnapshot);
-      console.log("Preview: Refreshed from sessionStorage (latest from editor)");
-      return;
+  const readPersistentSnapshot = (targetProjectId: string): string | null => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`);
+    } catch {
+      return null;
     }
+  };
+
+  const readLatestSnapshot = (targetProjectId: string): string | null => {
+    const session = readSessionSnapshot(targetProjectId);
+    if (session) {
+      if (looksLikeCraftRawSnapshot(session)) return session;
+      if (looksLikeCleanDocSnapshot(session)) return session;
+    }
+
+    const persistent = readPersistentSnapshot(targetProjectId);
+    if (persistent) {
+      if (looksLikeCraftRawSnapshot(persistent)) return persistent;
+      if (looksLikeCleanDocSnapshot(persistent)) return persistent;
+    }
+
+    // Ignore invalid cache values; let API draft load next.
+    return null;
+  };
+
+  /** Fetch published content from the same API the live subdomain uses. */
+  const loadPublishedContent = React.useCallback(async (subdomain: string): Promise<string | null> => {
+    try {
+      const data = await apiFetch<{
+        success?: boolean;
+        data?: { content?: unknown };
+        projectTitle?: string;
+      }>(`/api/public/sites/${encodeURIComponent(subdomain.trim().toLowerCase())}?t=${Date.now()}`, {
+        method: "GET",
+      });
+      const content = data?.data?.content;
+      if (!content) return null;
+      let clean = parseContentToCleanDoc(content);
+      if (!clean) return null;
+      clean = migratePublishedContent(clean) as any;
+      return JSON.stringify(clean);
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const clearSnapshotCache = (targetProjectId: string) => {
+    if (typeof window === "undefined") return;
+    try { window.sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
+    try { window.sessionStorage.removeItem(STORAGE_KEY_PREFIX); } catch { /* ignore */ }
+    try { window.localStorage.removeItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
+  };
+
+  const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
+      if (project?.subdomain) {
+        const published = await loadPublishedContent(project.subdomain);
+        if (published) {
+          clearSnapshotCache(projectId);
+          setRawJson(published);
+          return;
+        }
+      }
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
         setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
-        console.log("Preview: Refreshed from API");
       }
     } catch (e) {
       console.error("Preview refresh error:", e);
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
+  // Fetch project metadata so we know the subdomain
+  useEffect(() => {
+    let cancelled = false;
+    if (project) return;
+    (async () => {
+      try {
+        const res = await getProject(projectId);
+        if (!cancelled && res.success && res.project) {
+          setProject(res.project);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId, project]);
+
+  // Main data loader: load published content (same as live subdomain) when available.
+  // Depends on `project` so it re-runs once project metadata (with subdomain) arrives.
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
+      if (!project) return;
       setLoading(true);
       try {
-        const sessionSnapshot = readSessionSnapshot(projectId);
-        if (sessionSnapshot) {
-          console.log('✅ Preview: Loaded latest snapshot from sessionStorage');
-          if (!cancelled) {
-            setRawJson(sessionSnapshot);
+        // If project has a subdomain, always load published content first
+        if (project.subdomain) {
+          const published = await loadPublishedContent(project.subdomain);
+          if (!cancelled && published) {
+            clearSnapshotCache(projectId);
+            setRawJson(published);
             setLoading(false);
+            return;
           }
-          return;
         }
 
-        console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
+        // No subdomain or published content unavailable — load from draft API
         const timeoutMs = 12000;
         const result = await Promise.race([
           getDraft(projectId),
@@ -138,72 +630,46 @@ function PreviewContent() {
 
         if (cancelled) return;
 
-        if ((result as { timeout?: boolean }).timeout) {
-          console.warn(`⚠️ Preview: getDraft timeout after ${timeoutMs}ms`);
-        }
-
-        let loaded = false;
-
-        if (result.success && result.data) {
-          console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
-
-          if (result.data.content) {
-            const content = result.data.content;
-
-            // If already clean object, we still keep it as "rawJson" (as string) 
-            // for the rest of the existing preview logic to work (it formats it etc.)
-            if (typeof content === 'object') {
-              console.log('✨ Data is CLEAN format (version:', content.version, ')');
-              if (!cancelled) setRawJson(JSON.stringify(content));
-            } else {
-              if (!cancelled) setRawJson(content);
-            }
-            loaded = true;
-            console.log('✅ Preview: Data loaded');
+        if (result.success && result.data?.content) {
+          const content = result.data.content;
+          if (typeof content === "object") {
+            if (!cancelled) setRawJson(JSON.stringify(content));
           } else {
-            console.warn('⚠️ Preview: No content found in result data');
+            if (!cancelled) setRawJson(content);
           }
         } else {
-          console.warn('⚠️ Preview: API success=false or no data found');
-        }
-
-        if (!loaded) {
-          const fallback = readSessionSnapshot(projectId);
-          if (fallback) {
-            console.log('✅ Preview: Loaded fallback snapshot from sessionStorage');
-            if (!cancelled) setRawJson(fallback);
-          }
+          // Draft API failed — last resort: local cache
+          const fallback = readLatestSnapshot(projectId);
+          if (fallback && !cancelled) setRawJson(fallback);
         }
       } catch (error) {
-        console.error('❌ Preview: Load error:', error);
-        const fallback = readSessionSnapshot(projectId);
-        if (fallback) {
-          console.log('✅ Preview: Loaded fallback snapshot after API error');
-          if (!cancelled) setRawJson(fallback);
-        }
+        console.error("Preview: Load error:", error);
+        const fallback = readLatestSnapshot(projectId);
+        if (fallback) setRawJson(fallback);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
     loadData();
+    return () => { cancelled = true; };
+  }, [projectId, project, loadPublishedContent]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
-
-  // Re-read sessionStorage when tab becomes visible (user switched back from Editor)
+  // Re-fetch published content when tab becomes visible
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const sessionSnapshot = readSessionSnapshot(projectId);
-        if (sessionSnapshot) setRawJson(sessionSnapshot);
+      if (document.visibilityState === "visible" && project?.subdomain) {
+        loadPublishedContent(project.subdomain).then((published) => {
+          if (published) {
+            clearSnapshotCache(projectId);
+            setRawJson(published);
+          }
+        });
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [projectId]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
   useEffect(() => {
     let active = true;
@@ -221,11 +687,94 @@ function PreviewContent() {
     return () => { active = false; };
   }, [projectId]);
 
+  // Fetch products for the preview store context
+  useEffect(() => {
+    const subdomain = project?.subdomain;
+    if (!subdomain) return;
+    let active = true;
+    listProducts({ subdomain, status: 'active', limit: 100 })
+      .then((res) => { if (active && res.success) setPreviewProducts(res.items); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [project?.subdomain]);
+
+  const previewAddToCart = React.useCallback(
+    (product: { id: string; name: string; price: number; image?: string }) => {
+      setPreviewCart((prev) => {
+        const existing = prev.find((i) => i.id === product.id);
+        if (existing) return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
+        return [...prev, { ...product, quantity: 1 }];
+      });
+      setPreviewLastAddedAt(Date.now());
+    },
+    []
+  );
+
+  const previewStoreContext = React.useMemo(
+    () => previewProducts.length > 0 ? { products: previewProducts, addToCart: previewAddToCart } : null,
+    [previewProducts, previewAddToCart]
+  );
+
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
+
+  // If draft is still Craft RAW (ROOT-based), convert it so WebPreview can run Prototype interactions.
+  const effectiveCleanDoc = useMemo(() => {
+    if (cleanDoc) return cleanDoc;
+    if (!rawJson) return null;
+    if (!looksLikeCraftRawSnapshot(rawJson)) return null;
+    try {
+      return serializeCraftToClean(rawJson);
+    } catch {
+      return null;
+    }
+  }, [cleanDoc, rawJson]);
+
+  const craftPreviewData = useMemo(() => {
+    if (!rawJson) return null;
+    if (!looksLikeCraftRawSnapshot(rawJson)) return null;
+    const storage = normalizeCraftToStorageShape(rawJson);
+    return normalizeCraftSnapshotForPreview(storage, selectedPreviewPageSlug);
+  }, [rawJson, selectedPreviewPageSlug]);
+
+  const craftPageDimensions = useMemo(() => {
+    if (!craftPreviewData) return null;
+    return readPageDimensionsFromCraftSnapshot(craftPreviewData, selectedPreviewPageSlug);
+  }, [craftPreviewData, selectedPreviewPageSlug]);
+
+  const craftDesktopPreviewStyle = useMemo<React.CSSProperties>(() => {
+    const fallback: React.CSSProperties = { width: "100%" };
+
+    if (!craftPageDimensions?.width) return fallback;
+    const w = craftPageDimensions.width;
+    if (typeof w === "number" && Number.isFinite(w) && w > 0) {
+      return { width: `${w}px`, minWidth: `${w}px` };
+    }
+    if (typeof w === "string" && w.trim()) {
+      const trimmed = w.trim();
+      const lower = trimmed.toLowerCase();
+      const isFluid =
+        lower.includes("%") ||
+        lower.includes("vw") ||
+        lower.startsWith("min(") ||
+        lower.startsWith("max(") ||
+        lower.startsWith("clamp(");
+      return isFluid ? { width: trimmed } : { width: trimmed, minWidth: trimmed };
+    }
+    return fallback;
+  }, [craftPageDimensions?.width]);
+
+  const craftDesktopPreviewHeightStyle = useMemo<React.CSSProperties>(() => {
+    const h = craftPageDimensions?.height;
+    if (!h) return {};
+    if (h === "auto") return { height: "auto" };
+    if (typeof h === "number" && Number.isFinite(h) && h > 0) return { height: `${h}px` };
+    if (typeof h === "string" && h.trim()) return { height: h.trim() };
+    return {};
+  }, [craftPageDimensions?.height]);
 
   const cleanJson = useMemo(
     () => (cleanDoc ? JSON.stringify(cleanDoc, null, 2) : null),
@@ -268,41 +817,17 @@ function PreviewContent() {
     return previewPages.find((p) => p.slug === selectedPreviewPageSlug) ?? previewPages[0] ?? null;
   }, [previewPages, selectedPreviewPageSlug]);
 
-  const desktopPreviewWidth = useMemo(() => {
-    const selectedIndex = selectedPreviewPage
-      ? previewPages.findIndex((page) => page.slug === selectedPreviewPage.slug)
-      : 0;
-    const targetPage = selectedIndex >= 0 ? cleanDoc?.pages?.[selectedIndex] : cleanDoc?.pages?.[0];
-    const rawWidth = targetPage?.props?.width;
-    if (typeof rawWidth === "number" && Number.isFinite(rawWidth) && rawWidth > 0) {
-      return `${rawWidth}px`;
-    }
-    if (typeof rawWidth === "string" && rawWidth.trim()) {
-      return rawWidth.trim();
-    }
-    return "1920px";
-  }, [cleanDoc, previewPages, selectedPreviewPage]);
-
-  const desktopPreviewStyle = useMemo<React.CSSProperties>(() => {
-    const lower = desktopPreviewWidth.toLowerCase();
-    const isFluid =
-      lower.includes("%") ||
-      lower.includes("vw") ||
-      lower.startsWith("min(") ||
-      lower.startsWith("max(") ||
-      lower.startsWith("clamp(");
-
-    if (isFluid) {
-      return {
-        width: desktopPreviewWidth,
-      };
-    }
-
-    return {
-      width: desktopPreviewWidth,
-      minWidth: desktopPreviewWidth,
-    };
-  }, [desktopPreviewWidth]);
+  const selectedPreviewPageIndex = useMemo(() => {
+    if (!cleanDoc?.pages?.length) return 0;
+    if (!selectedPreviewPage?.slug) return 0;
+    const idx = cleanDoc.pages.findIndex((p, i) => {
+      const pageProps = (p?.props ?? {}) as Record<string, unknown>;
+      const rawSlug = p?.slug ?? pageProps.pageSlug;
+      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${i + 1}`;
+      return slug === selectedPreviewPage.slug;
+    });
+    return idx >= 0 ? idx : 0;
+  }, [cleanDoc, selectedPreviewPage?.slug]);
 
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
@@ -323,15 +848,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-
-  const desktopResponsiveViewportWidth = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return undefined;
-    const idx = selectedPreviewPageSlug
-      ? previewPages.findIndex((p) => p.slug === selectedPreviewPageSlug)
-      : 0;
-    const targetPage = idx >= 0 ? cleanDoc.pages[idx] : cleanDoc.pages[0];
-    return toPxNumber(targetPage?.props?.width) ?? 1920;
-  }, [cleanDoc, previewPages, selectedPreviewPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -802,17 +1318,17 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`py-6 h-full ${previewViewport === "desktop" ? "overflow-x-auto" : "flex justify-center"}`}>
-            {cleanDoc ? (
+          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden ${previewViewport === "desktop" ? "" : "flex justify-center"}`}>
+            {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
-                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
-                  ? "min-h-[calc(100vh-200px)] mx-auto"
-                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                className={`bg-white transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
+                  ? "min-h-[calc(100vh-200px)] w-full min-w-0"
+                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
                   }`}
                 style={
                   previewViewport === "desktop"
-                    ? desktopPreviewStyle
+                    ? { width: "100%" }
                     : previewViewport === "tablet"
                       ? { width: 768, maxWidth: "100%" }
                       : previewViewport === "mobile"
@@ -821,22 +1337,17 @@ function PreviewContent() {
                 }
               >
                 <WebPreview
-                  key={selectedPreviewPage?.slug ?? "default-page"}
-                  doc={cleanDoc}
-                  pageIndex={0}
+                  key="preview-web"
+                  doc={effectiveCleanDoc}
+                  pageIndex={selectedPreviewPageIndex}
                   initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
                   builderParityMode={useBuilderParityMode}
+                  fillViewport
+                  storeContext={previewStoreContext}
                   simulatedWidth={
-                    previewViewport === "desktop"
-                      ? (desktopResponsiveViewportWidth ?? 1920)
-                      : previewViewport === "tablet"
-                        ? 768
-                        : 390
-                  }
-                  responsiveViewportWidth={
-                    previewViewport === "desktop" ? (desktopResponsiveViewportWidth ?? 1920) : undefined
+                    previewViewport === "tablet" ? 768 : previewViewport === "mobile" ? 390 : undefined
                   }
                 />
               </div>
@@ -1104,6 +1615,78 @@ function PreviewContent() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Preview Cart FAB */}
+      {previewStoreContext && (
+        <>
+          {previewLastAddedAt > 0 && (
+            <div
+              key={previewLastAddedAt}
+              className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none rounded-2xl bg-black/70 text-white px-10 py-7 shadow-2xl flex flex-col items-center text-center animate-[fadeIn_0.2s_ease-out]"
+              aria-hidden
+            >
+              <span className="text-lg font-semibold">Added to cart</span>
+              <svg className="w-8 h-8 mt-2 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setPreviewCartOpen(true)}
+            className="fixed bottom-6 right-6 z-[150] flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-3 text-white shadow-lg hover:bg-emerald-600 transition-all"
+            aria-label="Open preview cart"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
+              <span className="text-sm font-semibold">{previewCart.reduce((s, i) => s + i.quantity, 0)}</span>
+            )}
+          </button>
+          {previewCartOpen && (
+            <div className="fixed inset-0 z-[160] flex justify-end" onClick={() => setPreviewCartOpen(false)}>
+              <div className="relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-5 py-4 border-b">
+                  <span className="font-semibold text-zinc-900 text-lg">Preview Cart</span>
+                  <button type="button" onClick={() => setPreviewCartOpen(false)} className="text-zinc-400 hover:text-zinc-700">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+                  {previewCart.length === 0 ? (
+                    <p className="text-zinc-500 text-sm text-center mt-8">Your cart is empty.</p>
+                  ) : previewCart.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      {item.image && <img src={item.image} alt={item.name} className="w-14 h-14 rounded object-cover border" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-zinc-900 text-sm truncate">{item.name}</p>
+                        <p className="text-zinc-500 text-xs">₱{item.price.toFixed(2)} × {item.quantity}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))}
+                        className="text-zinc-400 hover:text-red-500 text-xs"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {previewCart.length > 0 && (
+                  <div className="px-5 py-4 border-t">
+                    <div className="flex justify-between text-sm font-semibold text-zinc-900 mb-3">
+                      <span>Total</span>
+                      <span>₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toFixed(2)}</span>
+                    </div>
+                    <p className="text-xs text-zinc-400 text-center">This is a preview — checkout is disabled.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

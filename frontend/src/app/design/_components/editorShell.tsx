@@ -7,7 +7,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
-import { FloatingMobilePreview } from "./FloatingMobilePreview";
+import { FloatingMobilePreview } from "@/app/design/_components/FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -16,15 +16,21 @@ import { Viewport } from "../_designComponents/Viewport/Viewport";
 import { Section } from "../_designComponents/Section/Section";
 import { Image } from "../_designComponents/Image/Image";
 import { Button } from "../_designComponents/Button/Button";
+import { Divider } from "../_designComponents/Divider/Divider";
+import { Banner } from "../_designComponents/Banner/banner";
+import { Badge } from "../_designComponents/Badge/badge";
+import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
+import { Tabs } from "../_designComponents/Tabs/Tabs";
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { CanvasPasteHandler } from "./CanvasPasteHandler";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { FreeDropPlacementHandler } from "./FreeDropPlacementHandler";
-import { MarqueeSelectionHandler } from "./MarqueeSelectionHandler";
 import { TextToolHandler } from "./TextToolHandler";
 import { ShapeToolHandler } from "./ShapeToolHandler";
 import { TransformModeProvider } from "./TransformModeContext";
@@ -39,12 +45,14 @@ import { NewPageDropPlacementHandler } from "./NewPageDropPlacementHandler";
 import { HeaderFooterDropPlacementHandler } from "./HeaderFooterDropPlacementHandler";
 import PanelDropFreePlacementHandler from "./PanelDropFreePlacementHandler";
 import { ScrollToSelectedHandler } from "./ScrollToSelectedHandler";
+import { SnapMarkers } from "./SnapMarkers";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { migratePublishedContent } from "../_lib/contentMigration";
 import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
+import { useThemeOptional } from "@/app/m_dashboard/components/context/theme-context";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
@@ -161,6 +169,20 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   viewport: asComponent(Viewport),
   Accordion: asComponent(Accordion),
   accordion: asComponent(Accordion),
+  Tabs: asComponent(Tabs),
+  tabs: asComponent(Tabs),
+  TabContent: asComponent(TabContent),
+  tabcontent: asComponent(TabContent),
+  BooleanField: asComponent(BooleanField),
+  booleanfield: asComponent(BooleanField),
+  BOOLEANFIELD: asComponent(BooleanField),
+  "Boolean Field": asComponent(BooleanField),
+  "boolean field": asComponent(BooleanField),
+  Checkbox: asComponent(BooleanField),
+  checkbox: asComponent(BooleanField),
+  CheckBox: asComponent(BooleanField),
+  Radio: asComponent(BooleanField),
+  radio: asComponent(BooleanField),
 };
 
 const VALIDATOR_CANONICAL_NAME_BY_LOWER = new Map<string, string>();
@@ -177,8 +199,16 @@ function normalizeResolvedName(rawName: unknown): string {
   const lowered = name.toLowerCase();
   const exact = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(lowered);
   if (exact) return exact;
+  if (lowered === "tabs" || lowered.includes("tabs")) return "Tabs";
+  if (lowered === "tabcontent" || lowered === "tab content" || lowered.includes("tabcontent")) return "TabContent";
   if (lowered.includes("image")) return "Image";
   if (lowered.includes("text")) return "Text";
+  if (lowered.includes("button")) return "Button";
+  if (lowered.includes("divider")) return "Divider";
+  if (lowered.includes("banner")) return "Banner";
+  if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("pagination")) return "Pagination";
+  if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
   if (lowered.includes("container")) return "Container";
   if (lowered.includes("page")) return "Page";
@@ -200,6 +230,35 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
         Reflect.get(target, VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized) ?? "", receiver);
 
       return resolved || target.Container || SAFE_CONTAINER;
+    },
+    has(target, prop) {
+      if (Reflect.has(target, prop)) return true;
+      if (typeof prop !== "string") {
+        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      }
+
+      const normalized = prop.trim().toLowerCase();
+      if (Reflect.has(target, normalized)) return true;
+
+      const canonical = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized);
+      if (canonical && Reflect.has(target, canonical)) return true;
+
+      if (
+        normalized.includes("image") ||
+        normalized === "img" ||
+        normalized === "imagecomponent"
+      ) {
+        return (
+          Reflect.has(target, "Image") ||
+          Reflect.has(target, "image") ||
+          Reflect.has(target, "IMAGE") ||
+          Reflect.has(target, "img") ||
+          Reflect.has(target, "Img") ||
+          Reflect.has(target, "ImageComponent")
+        );
+      }
+
+      return Reflect.has(target, "Container") || Reflect.has(target, "container");
     },
   }) as T;
 }
@@ -572,6 +631,74 @@ function prepareFrameData(jsonString: string): { valid: boolean; data?: string }
   return validateCraftData(jsonString);
 }
 
+function ensureFrameDataResolverCompatibility(
+  jsonString: string,
+  resolver: Record<string, React.ComponentType<any>>,
+): string {
+  try {
+    const parsed = JSON.parse(jsonString) as Record<string, any>;
+    if (!parsed || typeof parsed !== "object") return jsonString;
+
+    const booleanResolverCandidates = [
+      "BooleanField",
+      "booleanfield",
+      "BOOLEANFIELD",
+      "Boolean Field",
+      "boolean field",
+      "Checkbox",
+      "checkbox",
+      "CheckBox",
+      "Radio",
+      "radio",
+    ];
+
+    const resolvedBooleanType =
+      booleanResolverCandidates.find((name) => name in resolver) ??
+      ("Container" in resolver ? "Container" : "container");
+
+    let changed = false;
+    Object.keys(parsed).forEach((id) => {
+      const node = parsed[id];
+      if (!node || typeof node !== "object") return;
+      const current = typeof node?.type === "string"
+        ? node.type
+        : typeof node?.type?.resolvedName === "string"
+          ? node.type.resolvedName
+          : "";
+      if (!current) return;
+
+      const lowered = current.trim().toLowerCase();
+      if (!(lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio"))) {
+        return;
+      }
+
+      if (typeof node.type === "string") {
+        if (node.type !== resolvedBooleanType) {
+          node.type = resolvedBooleanType;
+          changed = true;
+        }
+      } else if (node.type && typeof node.type === "object") {
+        if (node.type.resolvedName !== resolvedBooleanType) {
+          node.type.resolvedName = resolvedBooleanType;
+          changed = true;
+        }
+      } else {
+        node.type = { resolvedName: resolvedBooleanType };
+        changed = true;
+      }
+
+      if (node.displayName !== resolvedBooleanType) {
+        node.displayName = resolvedBooleanType;
+        changed = true;
+      }
+    });
+
+    return changed ? JSON.stringify(parsed) : jsonString;
+  } catch {
+    return jsonString;
+  }
+}
+
 // Suppress known @craftjs/core React 19 compatibility warnings.
 // Safe to remove once craftjs releases a stable React 19 compatible version (0.3.x+).
 if (typeof window !== "undefined") {
@@ -916,7 +1043,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const lastWheelZoomAtRef = useRef(0);
   const manualCameraControlUntilRef = useRef(0);
   const hasAutoCenteredAfterFrameReadyRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const saveStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSnapshotRef = useRef<string | null>(null);
   const lastSavedRawRef = useRef<string | null>(null);
   const editorQueryRef = useRef<{ serialize: () => string } | null>(null);
@@ -938,6 +1065,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [activeTool, setActiveTool] = useState<CanvasTool>(permission === "viewer" ? "hand" : "move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const themeCtx = useThemeOptional();
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    // Prefer ThemeProvider state if available, fall back to builder_theme localStorage
+    const stored = window.localStorage.getItem("builder_theme");
+    return stored !== "light";
+  });
+
+  // Keep isDarkMode in sync with ThemeProvider when it changes externally
+  useEffect(() => {
+    if (!themeCtx) return;
+    setIsDarkMode(themeCtx.theme === "dark");
+  }, [themeCtx?.theme]);
   const [isDeviceSwitching, setIsDeviceSwitching] = useState(false);
   const hasInitialCenteringRef = useRef(false);
   const hasForcedRightPanelOpenRef = useRef(false);
@@ -2149,14 +2289,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
         lastSavedRawRef.current = next;
 
-        let snapshot: string | null = null;
-        try {
-          snapshot = JSON.stringify(serializeCraftToClean(next));
-        } catch {
-          snapshot = next;
-        }
-
-        const toStore = snapshot ?? next;
+        // Store the raw Craft JSON as the snapshot.
+        // The preview/loader pipeline can normalize either Craft or clean-doc formats.
+        const toStore = next;
         if (typeof window !== "undefined" && window.sessionStorage && projectId) {
           try {
             const key = `${STORAGE_KEY_PREFIX}_${projectId}`;
@@ -2171,7 +2306,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         }
 
         lastSnapshotRef.current = toStore;
-        return snapshot;
+        return toStore;
       } catch {
         return null;
       }
@@ -2241,9 +2376,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const result = await autoSavePage(snapshot, projectId);
       if (result.success) {
+        if (saveStatusTimerRef.current) {
+          clearTimeout(saveStatusTimerRef.current);
+          saveStatusTimerRef.current = null;
+        }
         setSaveStatus("saved");
         setSaveError(null);
-        setTimeout(() => setSaveStatus("idle"), 1200);
+        saveStatusTimerRef.current = setTimeout(() => {
+          setSaveStatus("idle");
+          saveStatusTimerRef.current = null;
+        }, 1200);
       } else {
         console.warn("Auto-save warning:", result.error);
         setSaveStatus("error");
@@ -2367,7 +2509,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (saveStatusTimerRef.current) {
+        clearTimeout(saveStatusTimerRef.current);
+        saveStatusTimerRef.current = null;
+      }
+      if (dbSaveTimerRef.current) {
+        clearTimeout(dbSaveTimerRef.current);
+        dbSaveTimerRef.current = null;
+      }
     };
   }, []); // Stable [] array to prevent mismatch
 
@@ -2380,10 +2529,23 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       ...buildCraftResolver(),
       Button: asComponent(Button),
       button: asComponent(Button),
+      BUTTON: asComponent(Button),
       Text: asComponent(Text),
       text: asComponent(Text),
       Image: asComponent(Image),
       image: asComponent(Image),
+      Divider: asComponent(Divider),
+      divider: asComponent(Divider),
+      DIVIDER: asComponent(Divider),
+      Banner: asComponent(Banner),
+      banner: asComponent(Banner),
+      BANNER: asComponent(Banner),
+      Badge: asComponent(Badge),
+      badge: asComponent(Badge),
+      BADGE: asComponent(Badge),
+      Pagination: asComponent(Pagination),
+      pagination: asComponent(Pagination),
+      PAGINATION: asComponent(Pagination),
       Circle: asComponent(Circle),
       Square: asComponent(Square),
       Triangle: asComponent(Triangle),
@@ -2392,6 +2554,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       triangle: asComponent(Triangle),
       BooleanField: asComponent(BooleanField),
       booleanfield: asComponent(BooleanField),
+      BOOLEANFIELD: asComponent(BooleanField),
+      "Boolean Field": asComponent(BooleanField),
+      "boolean field": asComponent(BooleanField),
+      Checkbox: asComponent(BooleanField),
+      checkbox: asComponent(BooleanField),
+      CheckBox: asComponent(BooleanField),
+      Radio: asComponent(BooleanField),
+      radio: asComponent(BooleanField),
     };
     // Force Frame to always exist; Craft looks up by "Frame" and sometimes "frame"
     base.Frame = SAFE_CONTAINER;
@@ -2409,10 +2579,35 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Image = asComponent(CRAFT_RESOLVER.Image ?? Image);
     base.image = asComponent(CRAFT_RESOLVER.image ?? Image);
     base.IMAGE = asComponent(CRAFT_RESOLVER.IMAGE ?? CRAFT_RESOLVER.Image ?? Image);
-    base.Text = asComponent(CRAFT_RESOLVER.Text ?? Text);
-    base.text = asComponent(CRAFT_RESOLVER.text ?? Text);
+    base.img = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.Img = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.ImageComponent = asComponent(CRAFT_RESOLVER.Image ?? Image);
+    base.Text = asComponent(Text);
+    base.text = asComponent(Text);
+    base.TEXT = asComponent(Text);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
+
+    // Explicitly ensure Tabs and TabContent are in the resolver
+    base.Tabs = asComponent(CRAFT_RESOLVER.Tabs ?? Tabs);
+    base.tabs = asComponent(CRAFT_RESOLVER.tabs ?? Tabs);
+    base.TabContent = asComponent(CRAFT_RESOLVER.TabContent ?? TabContent);
+    base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
+
+    // Force BooleanField aliases after all spreads so legacy snapshots always resolve.
+    const booleanFieldComp = asComponent(CRAFT_RESOLVER.BooleanField ?? BooleanField);
+    base.BooleanField = booleanFieldComp;
+    base.booleanfield = booleanFieldComp;
+    base.Booleanfield = booleanFieldComp;
+    base.BOOLEANFIELD = booleanFieldComp;
+    base["Boolean Field"] = booleanFieldComp;
+    base["boolean field"] = booleanFieldComp;
+    base.Checkbox = booleanFieldComp;
+    base.checkbox = booleanFieldComp;
+    base.CheckBox = booleanFieldComp;
+    base.Radio = booleanFieldComp;
+    base.radio = booleanFieldComp;
+
     return withResolverFallback(base);
   }, []);
 
@@ -2422,14 +2617,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     try {
       const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
       const validated = validateCraftData(raw);
-      return validated.valid && validated.data ? validated.data : null;
+      return validated.valid && validated.data
+        ? ensureFrameDataResolverCompatibility(validated.data, resolver)
+        : null;
     } catch {
       return null;
     }
-  }, [initialJson]);
+  }, [initialJson, resolver]);
 
   return (
-    <div data-web-builder-root className="h-screen bg-brand-black text-brand-lighter overflow-hidden font-sans relative">
+    <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
       <style>{`
           div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
           div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
@@ -2466,6 +2663,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                 <TransformModeProvider>
                   <InlineTextEditProvider>
                     <KeyboardShortcuts />
+                    <CanvasPasteHandler />
                     <CanvasSelectionHandler />
                     <BoxSelectionHandler />
                     <ScrollToSelectedHandler />
@@ -2478,6 +2676,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     <TextToolHandler />
                     <ShapeToolHandler />
                     <DoubleClickTransformHandler />
+                    <SnapMarkers />
                     <PrototypeFlowLines />
                     {/* Top Panel */}
                     {panelsReady && (
@@ -2493,13 +2692,27 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                         scale={scale}
                         onScaleChange={handleScaleChange}
                         onZoomFit={handleFitToCanvas}
+                        isDarkMode={isDarkMode}
+                        onThemeToggle={(e) => {
+                          // Let ThemeProvider drive the state — the useEffect below syncs isDarkMode
+                          if (themeCtx) {
+                            themeCtx.toggleTheme(e);
+                          } else {
+                            // Fallback when ThemeProvider is unavailable
+                            setIsDarkMode((v) => {
+                              const next = !v;
+                              window.localStorage.setItem("builder_theme", next ? "dark" : "light");
+                              return next;
+                            });
+                          }
+                        }}
                       />
                     )}
                     {/* Canvas Area — Infinite Scroll Area */}
                     <div
                       ref={containerRef}
                       data-canvas-container
-                      className={`absolute inset-0 overflow-auto bg-brand-darker canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
+                      className={`absolute inset-0 overflow-auto bg-builder-canvas-bg canvas-scroll-container ${canPanWithPointerDrag ? "canvas-hand-tool" : ""} ${canPanWithPointerDrag && isPanning ? "canvas-hand-panning" : ""} ${isPanelDragging ? "transition-none" : "transition-[left,right] duration-300 ease-out"}`}
                       style={{
                         top: `${TOP_PANEL_HEIGHT_PX}px`,
                         left: panelsReady && leftPanelOpen && permission !== "viewer" ? `${leftPanelWidth}px` : "0px",
@@ -2557,7 +2770,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <button
                         type="button"
                         onClick={() => setRightPanelOpen(true)}
-                        className="absolute top-14 right-4 z-[60] p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
+                        className="absolute top-14 right-4 z-[60] p-3 bg-builder-surface/80 backdrop-blur-lg rounded-3xl border border-builder-border hover:bg-builder-surface-3 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110"
                         title="Show Configs panel"
                       >
                         <PanelRight className="w-5 h-5 text-brand-light" />
@@ -2594,7 +2807,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                           </div>
                           <button
                             onClick={() => setLeftPanelOpen((open) => !open)}
-                            className={`absolute left-4 top-2 p-3 bg-brand-dark/75 backdrop-blur-lg rounded-3xl border border-white/10 hover:bg-brand-medium/40 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
+                            className={`absolute left-4 top-2 p-3 bg-builder-surface/80 backdrop-blur-lg rounded-3xl border border-builder-border hover:bg-builder-surface-3 transition-[opacity,transform] duration-300 ease-out cursor-pointer active:scale-110 ${leftPanelOpen ? "opacity-0 pointer-events-none scale-95" : "opacity-100 pointer-events-auto scale-100"
                               }`}
                             title={leftPanelOpen ? "Hide left panel" : "Show left panel"}
                           >
@@ -2663,6 +2876,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <FloatingMobilePreview
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
+                        activePageId={currentPageId}
                         canvasWidth={canvasWidth}
                         canvasHeight={canvasHeight}
                       />

@@ -61,7 +61,7 @@ export const PageNavigator: React.FC<PageNavigatorProps> = ({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full mt-2 left-0 w-64 bg-[#1a1d26] border border-white/10 rounded-lg shadow-xl z-50">
+        <div className="absolute top-full mt-2 left-0 w-64 bg-[#1a1d26] border border-transparent rounded-lg shadow-xl z-50">
           <div className="max-h-80 overflow-y-auto">
             {pages.length === 0 ? (
               <div className="p-4 text-center text-white/60 text-sm">No pages yet</div>
@@ -69,7 +69,7 @@ export const PageNavigator: React.FC<PageNavigatorProps> = ({
               pages.map((page) => (
                 <div
                   key={page.id}
-                  className={`flex items-center gap-2 px-4 py-2.5 border-b border-white/5 hover:bg-white/10 transition-colors group ${
+                  className={`flex items-center gap-2 px-4 py-2.5 border-b border-transparent hover:bg-white/10 transition-colors group ${
                     currentPageId === page.id ? "bg-blue-500/20" : ""
                   }`}
                 >
@@ -91,7 +91,7 @@ export const PageNavigator: React.FC<PageNavigatorProps> = ({
                           if (e.key === "Escape") setRenamingId(null);
                         }}
                         autoFocus
-                        className="w-full px-2 py-1 bg-white/10 border border-white/20 rounded text-white text-sm"
+                        className="w-full px-2 py-1 bg-white/10 border border-transparent rounded text-white text-sm"
                         onClick={(e) => e.stopPropagation()}
                       />
                     ) : (
@@ -135,7 +135,7 @@ export const PageNavigator: React.FC<PageNavigatorProps> = ({
               onAddPage();
               setIsOpen(false);
             }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-3 border-t border-white/10 text-blue-400 hover:bg-blue-500/10 transition-colors text-sm font-medium"
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 border-t border-transparent text-blue-400 hover:bg-blue-500/10 transition-colors text-sm font-medium"
           >
             <Plus size={16} />
             Add Page

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
+import Image from 'next/image';
 
 interface Template {
   id: string;
@@ -22,56 +23,31 @@ export default function BuiltInTemplates({ templates }: BuiltInTemplatesProps) {
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 20 }}
       transition={{ duration: 0.3 }}
+      className="space-y-5"
     >
-      <h3 className="text-lg font-semibold mb-4 text-gray-900">
-        Built-in Templates from Web Builder
-      </h3>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {templates.map((template) => {
-          const colorMap: Record<string, { bg: string; text: string }> = {
-            'E-commerce': { bg: 'bg-slate-700', text: 'E-commerce' },
-            'Business': { bg: 'bg-slate-600', text: 'Business' },
-            'Portfolio': { bg: 'bg-slate-500', text: 'Portfolio' },
-            'Blog': { bg: 'bg-slate-400', text: 'Blog' },
-          };
-          const colors = colorMap[template.category] || { bg: 'bg-gray-500', text: template.category };
           return (
             <motion.div
               key={template.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition-shadow"
+              transition={{ duration: 0.24 }}
+              className="overflow-hidden rounded-[2px] border border-[rgba(177,59,255,0.22)] bg-white/35 shadow-[0_8px_22px_rgba(71,19,150,0.16)]"
             >
-              <div className="flex flex-col gap-3">
-                <div className={`w-full h-32 ${colors.bg} rounded-lg flex items-center justify-center`}>
-                  <span className="text-white text-xl font-semibold text-center">{colors.text}</span>
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-900 mb-1">
-                    {template.name}
+              <div className="relative h-48 w-full overflow-hidden bg-[#DAD6F8] sm:h-52">
+                {template.thumbnail ? (
+                  <Image src={template.thumbnail} alt={template.name} fill className="object-cover" unoptimized />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#8FC67E] via-[#4F805C] to-[#1E3C3C]">
+                    <span className="text-lg font-semibold text-white/90">{template.category}</span>
                   </div>
-                  <div className="text-sm text-gray-500">
-                    {template.category}
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-2">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex-1 bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors"
-                  >
-                    Preview
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="flex-1 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-200 transition-colors"
-                  >
-                    Edit
-                  </motion.button>
-                </div>
+                )}
+              </div>
+
+              <div className="bg-gradient-to-r from-[#8F29E8] to-[#B13BFF] px-4 py-4 text-center">
+                <p className="truncate text-[2rem] font-semibold leading-none text-white">{template.name}</p>
+                <p className="mt-2 text-sm font-medium text-white/85">Created on: January 1, 2026</p>
               </div>
             </motion.div>
           );
@@ -79,8 +55,8 @@ export default function BuiltInTemplates({ templates }: BuiltInTemplatesProps) {
       </div>
 
       {templates.length === 0 && (
-        <div className="text-center text-gray-500 py-8">
-          No templates found matching your search.
+        <div className="admin-dashboard-inset-panel rounded-2xl border border-[rgba(177,59,255,0.2)] px-6 py-10 text-center">
+          <p className="text-base font-medium text-[#471396]">No templates found matching your search.</p>
         </div>
       )}
     </motion.div>

@@ -8,12 +8,16 @@ import {
   deleteProject,
   restoreProject,
   permanentDeleteProject,
+  createProject,
+  getStoredUser,
   type Project,
 } from '@/lib/api';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
+import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { span } from 'framer-motion/m';
 
 const INDUSTRIES = [
@@ -100,6 +104,58 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [createTitle, setCreateTitle] = useState('');
+  const [createIndustry, setCreateIndustry] = useState('');
+  const [createSubdomain, setCreateSubdomain] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setCreating(true);
+      const title = createTitle.trim() || 'Untitled Project';
+      const industry = createIndustry.trim();
+      const subdomain = createSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+      if (!industry) {
+        showAlert('Please select your store industry first.');
+        return;
+      }
+
+      const res = await createProject({
+        title,
+        industry,
+        subdomain: subdomain || undefined,
+      });
+
+      if (!res.success || !res.project) {
+        showAlert('Failed to create project. Please try again.');
+        return;
+      }
+
+      const user = getStoredUser();
+      const clientName = (user?.name || user?.username || 'client').trim() || 'client';
+      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
+
+      setCreateModalOpen(false);
+      setCreateTitle('');
+      setCreateIndustry('');
+      setCreateSubdomain('');
+      
+      router.push(`/design?projectId=${res.project.id}`);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : '';
+      if (msg.includes('404')) {
+        showAlert('Project API not found. Make sure the backend is running.');
+      } else {
+        showAlert('Failed to create project. Please try again.');
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -259,9 +315,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   };
 
   const renderProjectPreview = (project: Project | null) => {
-    if (project?.thumbnail) {
-      return <img src={project.thumbnail} alt={project.title || 'Recent'} className="h-full w-full object-cover" loading="lazy" />;
-    }
     if (project?.id) {
       return (
         <DraftPreviewThumbnail
@@ -287,39 +340,23 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
         <div className="flex flex-col items-center text-center gap-8 pt-1">
           <h1
-            className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.06] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black leading-[1.2] tracking-tight max-w-5xl [font-family:var(--font-outfit),sans-serif] text-white"
           >
-            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               What{' '}
               <span
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', 
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  display: 'inline-block' 
-                }}
+                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 website
               </span>{' '}
               will
             </span>
-            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-black'}`}>
+            <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               you{' '}
               <span
-                style={{
-                  backgroundImage: theme === 'dark'
-                    ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                    : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
-                  WebkitBackgroundClip: 'text',
-                  backgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                  color: 'transparent',
-                  display: 'inline-block'
-                }}
+                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 build?
               </span>
@@ -336,8 +373,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 className={`
                   cursor-pointer relative pb-1 transition-all duration-300
                   ${activeTab === tab.id 
-                    ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-black') 
-                    : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#1E1B4B]/50')
+                    ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]') 
+                    : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
                   }
                   hover:opacity-70
                 `}
@@ -350,8 +387,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
                     style={{ 
                       background: theme === 'dark'
-                        ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' 
-                        : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' 
+                        ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
+                        : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)' 
                     }}
                     transition={{ 
                       type: 'spring', 
@@ -366,12 +403,12 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
           <div 
             className={`
-              w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
+              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
               transition-all duration-500
               
               ${theme === 'dark' 
                 ? 'bg-[#141446] border-[#1F1F51]' 
-                : 'bg-white/80 backdrop-blur-md border-[#E2E8F0]'
+                : 'admin-dashboard-panel-soft border-0'
               }
 
               ${theme === 'light' && 'shadow-[0_0_15px_rgba(139,92,246,0.1),0_0_1px_rgba(139,92,246,0.2)]'}
@@ -413,7 +450,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 w-full bg-transparent text-sm outline-none font-medium
                 ${theme === 'dark'
                   ? 'text-white placeholder:text-[#6F70A8]'
-                  : 'text-[#1E1B4B] placeholder:text-[#1E1B4B]/30'
+                  : 'text-[#120533] placeholder:text-[#120533]/30'
                 }
               `}
             />
@@ -433,7 +470,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="space-y-5 w-full max-w-190 lg:justify-self-start">
                   <h2
                     className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif]"
-                    style={{ color: theme === 'dark' ? '#FFFFFF' : '#000000' }}
+                    style={{ color: theme === 'dark' ? '#FFFFFF' : '#120533' }}
                   >
                     Most Recent Project
                   </h2>
@@ -470,16 +507,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       rounded-full px-10 py-3 text-base font-bold cursor-pointer 
                       transition-all duration-300 ease-out 
                       hover:-translate-y-1 hover:brightness-110 active:scale-95
-                      
-                      /* Dark Mode: Gold Glow Styling */
-                      ${theme === 'dark' 
-                        ? 'bg-[#FFCE00] text-[#121241] shadow-[0_0_28px_rgba(255,206,0,0.35)] hover:shadow-[0_0_40px_rgba(255,206,0,0.6)]' 
-                        : 'text-white shadow-[0_10px_25px_-5px_rgba(139,92,246,0.4)] hover:shadow-[0_15px_35px_-5px_rgba(139,92,246,0.6)]'
-                      }
+                      text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]
                     `}
-                    style={theme === 'light' ? { 
-                      background: 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' 
-                    } : {}}
+                    style={{
+                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
+                    }}
                   >
                     View Project
                   </button>
@@ -489,7 +521,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   relative rounded-4xl border p-5 text-left overflow-hidden transition-all duration-500
                   ${theme === 'dark' 
                     ? 'bg-linear-to-br from-[#0D0C37] via-[#110F4D] to-[#0D0C37] border-[#6E6ABF]/40 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]' 
-                    : 'bg-linear-to-br from-[#F8F9FF] via-[#F1F3F9] to-[#F8F9FF] border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.08)]'
+                    : 'admin-dashboard-panel border-0'
                   }
                 `}>
                   {/* Ambient Background Glows */}
@@ -583,7 +615,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="mb-4 flex items-center justify-between">
                   <h3 
                     className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
+                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
                       ${theme === 'dark' 
                         ? 'text-[#FFCE00]' 
                         : 'text-[#8B5CF6]' 
@@ -615,7 +647,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
                   <button
                     type="button"
-                    onClick={() => router.push('/design')}
+                    onClick={() => setCreateModalOpen(true)}
                     className={`
                       cursor-pointer group relative flex flex-col items-center justify-center gap-6
                       w-full min-h-60 sm:min-h-65 p-4 sm:p-5
@@ -624,16 +656,10 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       
                       ${theme === 'dark' 
                         ? 'bg-[#15093E] border border-[#280E59] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' 
-                        : 'bg-white border border-[#F1F1F4] shadow-[0_15px_35px_rgba(139,92,246,0.06)] hover:shadow-[0_25px_50px_rgba(139,92,246,0.12)]'
+                        : 'admin-dashboard-panel border-0'
                       }
                     `}
                   >
-                    {/* The Plus Icon Corner Decoration - Subtler and better placed */}
-                    <div className={`absolute top-8 right-8 transition-opacity duration-500 group-hover:opacity-100 opacity-20 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M7 0V14M0 7H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      </svg>
-                    </div>
 
                     {/* Main Action Icon */}
                     <div className="relative">
@@ -657,8 +683,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                     <div className="flex flex-col items-center gap-1">
                       <span 
                         className={`
-                          text-xl font-black uppercase tracking-tighter transition-colors duration-300
-                          ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                          text-xl font-black tracking-tighter transition-colors duration-300
+                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}
                       >
                         New Project
@@ -666,7 +692,6 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       <div className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
                     </div>
                   </button>
-
                   {otherProjects.map((project) => (
                     <div
                       key={project.id}
@@ -674,7 +699,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                         group relative rounded-4xl overflow-hidden transition-all duration-500 cursor-pointer
                         ${theme === 'dark' 
                           ? 'bg-[#15093E] border border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' 
-                          : 'bg-[#ffffff] border border-[#8B5CF6]/20 shadow-[0_15px_35px_rgba(139,92,246,0.06)] hover:shadow-[0_25px_50px_rgba(139,92,246,0.12)]'
+                          : 'admin-dashboard-panel-soft border-0'
                         }
                         hover:-translate-y-2
                       `}
@@ -737,27 +762,23 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       {/* Content Area */}
                       <div role="button" onClick={() => router.push(`/design?projectId=${project.id}`)}>
                         <div className={`relative w-full aspect-video overflow-hidden ${theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white'}`}>
-                          {project.thumbnail ? (
-                            <img src={project.thumbnail} alt={project.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                          ) : (
-                            <DraftPreviewThumbnail
-                              projectId={project.id}
-                              borderColor="transparent"
-                              bgColor="transparent"
-                              className="w-full h-full aspect-16/10! rounded-none!"
-                            />
-                          )}
+                          <DraftPreviewThumbnail
+                            projectId={project.id}
+                            borderColor="transparent"
+                            bgColor="transparent"
+                            className="w-full h-full aspect-16/10! rounded-none!"
+                          />
                           {/* Subtle Violet Wash on Image */}
                           <div className={`absolute inset-0 opacity-10 ${theme === 'light' ? 'bg-[#8B5CF6]' : 'bg-transparent'}`} />
                         </div>
 
                         <div className="p-6">
                           <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
-                            theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#1E1B4B] group-hover:text-[#8B5CF6]'
+                            theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
                           }`}>
                             {project.title || 'Untitled Project'}
                           </h3>
-                          <p className={`text-[11px] font-bold uppercase tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
+                          <p className={`text-[11px] font-bold tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
                             {project.isShared ? `by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
                           </p>
                         </div>
@@ -781,7 +802,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                 <div className="mb-5 flex items-center justify-between">
                   <h3 
                     className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
+                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
                       ${theme === 'dark' 
                         ? 'text-[#FFCE00]' 
                         : 'text-[#8B5CF6]' 
@@ -808,8 +829,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                           /* Dark Mode: Original preserved */
                           ${theme === 'dark' 
                             ? 'border-[#272261]/50 bg-[#23164E] hover:border-[#B13BFF] hover:bg-[#2A1756]' 
-                            /* Light Mode: Just a touch lighter, pure warm violet */
-                            : 'border-[#A855F7]/25 bg-linear-to-br from-[#F3E8FF] via-[#E9D5FF] to-[#F5F3FF] hover:bg-[#D8B4FE] hover:border-[#A855F7]/40 shadow-sm'
+                            : 'admin-dashboard-panel border-0'
                           }
                           hover:-translate-y-1 active:scale-95
                         `}
@@ -916,7 +936,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                       </span>
                       <h4 className={`
                         text-2xl sm:text-3xl font-extrabold leading-tight transition-colors
-                        ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                        ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                       `}>
                         Fashion Website
                       </h4>
@@ -953,7 +973,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                         </span>
                         <h4 className={`
                           text-xl font-extrabold leading-tight
-                          ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}>
                           Simple Website
                         </h4>
@@ -979,7 +999,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                         </span>
                         <h4 className={`
                           text-xl font-extrabold leading-tight
-                          ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}
+                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
                         `}>
                           Fashion Website
                         </h4>
@@ -1003,7 +1023,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Rename project</h3>
+            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Rename project</h3>
             <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
 
             <input
@@ -1020,7 +1040,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               className={`mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none ${
                 theme === 'dark'
                   ? 'border-[#2D3A90] bg-[#0E0D3D] text-white focus:border-[#6B72D8]'
-                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#1E1B4B] focus:border-[#8B5CF6] placeholder:text-gray-400'
+                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#120533] focus:border-[#8B5CF6] placeholder:text-gray-400'
               }`}
               placeholder="Untitled Project"
             />
@@ -1033,7 +1053,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
                   setRenameTitle('');
                 }}
                 disabled={actioningProjectId === renamingProject.id}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#1E1B4B]'}`}
+                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#120533]'}`}
               >
                 Cancel
               </button>
@@ -1053,6 +1073,112 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
           </div>
         </div>
       )}
+
+      {/* Create Project Modal */}
+      <AnimatePresence>
+        {createModalOpen && (
+          <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={() => setCreateModalOpen(false)}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md rounded-[32px] border shadow-[0_32px_80px_rgba(0,0,0,0.5)] overflow-hidden"
+              style={{ 
+                backgroundColor: theme === 'dark' ? '#15093E' : '#FFFFFF', 
+                borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB' 
+              }}
+            >
+              <div className="p-8 border-b" style={{ borderColor: theme === 'dark' ? '#280E59' : '#F3F4F6' }}>
+                <h3 className="text-2xl font-black tracking-tight" style={{ color: theme === 'dark' ? '#FFFFFF' : '#120533' }}>Create New Project</h3>
+                <p className="text-sm mt-2 font-medium opacity-60" style={{ color: theme === 'dark' ? '#A78BFA' : '#616170' }}>
+                  Launch your next stunning storefront. Select an industry to load the best optimized tools.
+                </p>
+              </div>
+
+              <form onSubmit={handleCreateProject} className="p-8 space-y-5">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-2 opacity-50" style={{ color: theme === 'dark' ? '#A78BFA' : '#120533' }}>Project Title</label>
+                  <input
+                    type="text"
+                    value={createTitle}
+                    onChange={(e) => setCreateTitle(e.target.value)}
+                    placeholder="e.g. My Awesome Store"
+                    required
+                    className="w-full px-5 py-3.5 rounded-2xl border bg-transparent font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/50"
+                    style={{ 
+                      borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB', 
+                      color: theme === 'dark' ? '#FFFFFF' : '#120533',
+                      backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-2 opacity-50" style={{ color: theme === 'dark' ? '#A78BFA' : '#120533' }}>Industry / Store Type</label>
+                  <select
+                    value={createIndustry}
+                    onChange={(e) => setCreateIndustry(e.target.value)}
+                    required
+                    className="w-full px-5 py-3.5 rounded-2xl border bg-transparent font-medium appearance-none transition-all focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/50"
+                    style={{ 
+                      borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB', 
+                      color: theme === 'dark' ? '#FFFFFF' : '#120533',
+                      backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+                    }}
+                  >
+                    <option value="" disabled className={theme === 'dark' ? 'bg-[#15093E]' : 'bg-white'}>Select Industry</option>
+                    {INDUSTRY_OPTIONS.map((item) => (
+                      <option key={item.key} value={item.key} className={theme === 'dark' ? 'bg-[#15093E]' : 'bg-white'}>{item.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-widest mb-2 opacity-50" style={{ color: theme === 'dark' ? '#A78BFA' : '#120533' }}>Preferred Subdomain</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={createSubdomain}
+                      onChange={(e) => setCreateSubdomain(e.target.value)}
+                      placeholder="myshop"
+                      className="w-full px-5 py-3.5 rounded-2xl border bg-transparent font-medium transition-all focus:outline-none focus:ring-2 focus:ring-[#8B5CF6]/50"
+                      style={{ 
+                        borderColor: theme === 'dark' ? '#280E59' : '#E5E7EB', 
+                        color: theme === 'dark' ? '#FFFFFF' : '#120533',
+                        backgroundColor: theme === 'dark' ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.02)'
+                      }}
+                    />
+                  </div>
+                  <p className="text-[10px] mt-2 font-bold opacity-40 uppercase tracking-tighter" style={{ color: theme === 'dark' ? '#A78BFA' : '#616170' }}>
+                    Result: {createSubdomain.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'myshop'}.mycentric.shop
+                  </p>
+                </div>
+
+                <div className="flex justify-end gap-4 pt-6">
+                  <button 
+                    type="button" 
+                    onClick={() => setCreateModalOpen(false)} 
+                    className="px-6 py-3 rounded-2xl text-sm font-bold transition-all hover:opacity-70" 
+                    style={{ color: theme === 'dark' ? '#A78BFA' : '#616170' }}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={creating} 
+                    className={`px-8 py-3 rounded-2xl text-sm font-black text-white transition-all transform active:scale-95 disabled:opacity-50 shadow-lg ${
+                      theme === 'dark' ? 'bg-[#FFCE00] !text-[#121241]' : 'bg-gradient-to-r from-[#8B5CF6] to-[#D946EF]'
+                    }`}
+                  >
+                    {creating ? 'Creating…' : 'Create & Design'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
       <style jsx>{`
         .template-pan-img,
         .template-pan-img-slow {

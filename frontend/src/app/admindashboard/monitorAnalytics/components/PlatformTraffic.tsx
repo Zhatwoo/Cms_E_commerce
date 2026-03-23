@@ -40,11 +40,16 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                     {
                         label: 'Signups',
                         data: signups,
-                        borderColor: '#1d4ed8',
-                        backgroundColor: 'rgba(29, 78, 216, 0.1)',
-                        borderWidth: 2,
+                        borderColor: '#8A78FF',
+                        backgroundColor: 'rgba(138, 120, 255, 0.12)',
+                        borderWidth: 2.2,
+                        pointRadius: 2.5,
+                        pointHoverRadius: 4,
+                        pointBackgroundColor: '#FFFFFF',
+                        pointBorderColor: '#8A78FF',
+                        pointBorderWidth: 1.4,
                         fill: true,
-                        tension: 0.4,
+                        tension: 0.35,
                     },
                 ],
             },
@@ -58,19 +63,32 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                 plugins: {
                     legend: {
                         display: true,
-                        position: 'top',
+                        position: 'bottom',
+                        labels: {
+                            color: 'rgba(71, 19, 150, 0.72)',
+                            usePointStyle: true,
+                            pointStyle: 'line',
+                            boxWidth: 18,
+                            boxHeight: 4,
+                        },
                     },
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
                         grid: {
-                            color: 'rgba(226, 232, 240, 0.5)',
+                            color: 'rgba(71, 19, 150, 0.10)',
+                        },
+                        ticks: {
+                            color: 'rgba(71, 19, 150, 0.58)',
                         },
                     },
                     x: {
                         grid: {
                             display: false,
+                        },
+                        ticks: {
+                            color: 'rgba(71, 19, 150, 0.58)',
                         },
                     },
                 },
@@ -94,10 +112,10 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
             <div>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
                     <div>
-                        <h2 className="text-2xl font-semibold text-slate-900">Platform Traffic</h2>
-                        <p className="text-sm text-slate-500 mt-1">New client signups over time</p>
+                        <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Platform Traffic</h2>
+                        <p className="admin-dashboard-soft-text mt-1 text-sm">New client signups overtime</p>
                     </div>
-                    <div className="flex gap-1 bg-slate-100 rounded-lg p-1" suppressHydrationWarning>
+                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1" suppressHydrationWarning>
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -107,10 +125,10 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                                 key={p.id}
                                 onClick={() => onPeriodChange(p.id)}
                                 disabled={loading}
-                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                                     period === p.id
-                                        ? 'bg-white text-slate-900 shadow-sm'
-                                        : 'text-slate-600 hover:text-slate-900'
+                                        ? 'admin-dashboard-yellow-fill admin-dashboard-purple shadow-sm'
+                                        : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
                                 } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
@@ -120,7 +138,7 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                     </div>
                 </div>
 
-                <div className="bg-white rounded-xl p-8 border border-slate-200">
+                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8">
                     <canvas ref={trafficChartRef} height="80"></canvas>
                 </div>
             </div>

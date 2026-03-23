@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { useCanvasTool } from "./CanvasToolContext";
+import { getSnapGuides, Rect } from "./snapUtils";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -26,6 +28,8 @@ const HANDLE_CURSORS: Record<Handle, string> = {
 interface ResizeOverlayProps {
   nodeId: string;
   dom: HTMLElement;
+  disableResize?: boolean;
+  disableRotate?: boolean;
 }
 
 function rectChanged(prev: DOMRect | null, next: DOMRect): boolean {
@@ -63,7 +67,7 @@ function getOverlayRect(el: HTMLElement): DOMRect {
   return el.getBoundingClientRect();
 }
 
-const SNAP_THRESHOLD = 0;
+const SNAP_THRESHOLD = 5;
 
 type SiblingRect = {
   left: number;
@@ -78,6 +82,8 @@ type DragState = {
   type: "move" | "resize" | "rotate";
   handle?: Handle;
   moveMode?: "margin" | "offset" | "page-canvas";
+  disableSnap?: boolean;
+  disableClamp?: boolean;
   originX: number;
   originY: number;
   moveStarted?: boolean;
@@ -169,10 +175,11 @@ type GuideState = {
   bounds?: { left: number; top: number; right: number; bottom: number };
 } | null;
 
-export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
+export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotate = false }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
 
-  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content"]);
+  const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content", "TabContent"]);
+  const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 
   const dragRef = useRef<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -182,6 +189,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
   const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
+  const { setSnapGuides } = useCanvasTool();
+  const setSnapGuidesRef = useRef(setSnapGuides);
+  useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
   const [isExternalDragActive, setIsExternalDragActive] = useState(false);
 
@@ -296,10 +306,17 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       const position = String(props.position ?? "static").toLowerCase();
       const isAbsoluteLike = position === "absolute" || position === "fixed";
 
-      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame"]);
+      const flowLayoutParents = new Set(["Container", "Section", "Row", "Column", "Frame", "TabContent", "Tab Content"]);
       const offsetMoveTypes = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+      const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+      const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+      const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+      const parentIsFreeform =
+        parentProps.isFreeform === true ||
+        (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
 
       if (displayName === "Page") return "page-canvas";
+      if (parentIsFreeform) return "offset";
       if (isAbsoluteLike) return "offset";
       if (parentDisplayName && flowLayoutParents.has(parentDisplayName)) return "margin";
       if (displayName && offsetMoveTypes.has(displayName)) return "offset";
@@ -337,6 +354,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       window.removeEventListener("scroll", scrollUpdate, true);
       window.removeEventListener("resize", scrollUpdate);
       clearInterval(interval);
+      // Clear guides on unmount to prevent stale markers after deletion/deselection
+      setSnapGuidesRef.current([]);
     };
   }, [dom]);
 
@@ -397,8 +416,12 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
 
         const dropParent = state.nodes[dropParentId];
         const dropParentName = dropParent?.data?.displayName as string | undefined;
-        const flowParents = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
-        const isFlowParent = !!dropParentName && flowParents.has(dropParentName);
+        const flowParents = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+        const dropParentProps = (dropParent?.data?.props ?? {}) as Record<string, unknown>;
+        const dropParentDisplay = String(dropParentProps.display ?? "").toLowerCase();
+        const dropParentIsFlexOrGrid = dropParentDisplay === "flex" || dropParentDisplay === "grid";
+        const dropParentIsFreeform = dropParentProps.isFreeform === true;
+        const isFlowParent = !!dropParentName && flowParents.has(dropParentName) && dropParentIsFlexOrGrid && !dropParentIsFreeform;
         const index = Array.isArray(dropParent?.data?.nodes)
           ? (isFlowParent ? 0 : dropParent.data.nodes.length)
           : 0;
@@ -522,6 +545,59 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               item.dom.style.transition = "none";
               item.dom.style.setProperty("translate", "0px 0px");
               item.dom.style.willChange = "translate";
+            }
+
+            // Sections: switch to absolute positioning on drag start so they move freely
+            for (const item of dragRef.current.moveItems ?? []) {
+              const displayName = state.nodes[item.nodeId]?.data?.displayName as string | undefined;
+              if (displayName !== "Section") continue;
+              const parentId = state.nodes[item.nodeId]?.data?.parent as string | undefined;
+              const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+              if (!parentDom) continue;
+
+              const rect = item.dom.getBoundingClientRect();
+              const parentRect = parentDom.getBoundingClientRect();
+              const nextTop = Math.round(rect.top - parentRect.top);
+              const nextLeft = Math.round(rect.left - parentRect.left);
+
+              item.dom.style.position = "absolute";
+              item.dom.style.top = `${nextTop}px`;
+              item.dom.style.left = `${nextLeft}px`;
+              item.dom.style.marginTop = "0px";
+              item.dom.style.marginLeft = "0px";
+              item.startProps = {
+                ...item.startProps,
+                position: "absolute",
+                top: `${nextTop}px`,
+                left: `${nextLeft}px`,
+                marginTop: 0,
+                marginLeft: 0,
+              };
+
+              actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
+                props.position = "absolute";
+                props.top = `${nextTop}px`;
+                props.left = `${nextLeft}px`;
+                props.marginTop = 0;
+                props.marginLeft = 0;
+                if (props.right == null) props.right = "auto";
+                if (props.bottom == null) props.bottom = "auto";
+              });
+
+              item.moveMode = "offset";
+              if (dragRef.current) {
+                dragRef.current.moveMode = "offset";
+                dragRef.current.disableClamp = true;
+              }
+
+              if (parentId) {
+                actions.setProp(parentId, (props: Record<string, unknown>) => {
+                  const parentPosition = String(props.position ?? "static");
+                  if (!parentPosition || parentPosition === "static") {
+                    props.position = "relative";
+                  }
+                });
+              }
             }
 
             if (hasPageCanvasMove) {
@@ -707,113 +783,163 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           applyOverlayRect(d.currentRect);
         }
 
-        const r = d.currentRect;
-        const centerX = r.left + r.width / 2;
-        const centerY = r.top + r.height / 2;
-        const th = SNAP_THRESHOLD;
-        let snapV: number | undefined;
-        let snapH: number | undefined;
-        if (d.parentCenterX != null && Math.abs(centerX - d.parentCenterX) <= th) snapV = d.parentCenterX;
-        if (d.parentCenterY != null && Math.abs(centerY - d.parentCenterY) <= th) snapH = d.parentCenterY;
-        for (const s of d.siblingRects ?? []) {
-          if (Math.abs(centerX - s.left) <= th || Math.abs(centerX - s.centerX) <= th || Math.abs(centerX - s.right) <= th) {
-            const v = Math.abs(centerX - s.left) <= Math.abs(centerX - s.centerX) && Math.abs(centerX - s.left) <= Math.abs(centerX - s.right) ? s.left : Math.abs(centerX - s.centerX) <= Math.abs(centerX - s.right) ? s.centerX : s.right;
-            if (snapV === undefined || Math.abs(centerX - v) < Math.abs(centerX - (snapV ?? 0))) snapV = v;
-          }
-          if (Math.abs(centerY - s.top) <= th || Math.abs(centerY - s.centerY) <= th || Math.abs(centerY - s.bottom) <= th) {
-            const h = Math.abs(centerY - s.top) <= Math.abs(centerY - s.centerY) && Math.abs(centerY - s.top) <= Math.abs(centerY - s.bottom) ? s.top : Math.abs(centerY - s.centerY) <= Math.abs(centerY - s.bottom) ? s.centerY : s.bottom;
-            if (snapH === undefined || Math.abs(centerY - h) < Math.abs(centerY - (snapH ?? 0))) snapH = h;
-          }
-        }
-        const zoom = d.zoom;
-        let snapOffsetX = 0;
-        let snapOffsetY = 0;
-        if (snapV != null) {
-          snapOffsetX = snapV - centerX;
-        }
-        if (snapH != null) {
-          snapOffsetY = snapH - centerY;
-        }
-
-        if (snapOffsetX !== 0 || snapOffsetY !== 0) {
-          d.previewX = (d.previewX ?? 0) + snapOffsetX / zoom;
-          d.previewY = (d.previewY ?? 0) + snapOffsetY / zoom;
-          dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
-          for (const item of d.moveItems ?? []) {
-            item.previewX += snapOffsetX / zoom;
-            item.previewY += snapOffsetY / zoom;
-            item.dom.style.setProperty("translate", `${item.previewX}px ${item.previewY}px`);
-          }
-          d.currentRect = new DOMRect(
-            d.currentRect.left + snapOffsetX,
-            d.currentRect.top + snapOffsetY,
-            d.currentRect.width,
-            d.currentRect.height
-          );
-          applyOverlayRect(d.currentRect);
-        }
-
-        if (d.guideBounds) {
+        if (d.disableSnap) {
+          setSnapGuidesRef.current([]);
+          setGuidesIfChanged(null);
+        } else {
           const r = d.currentRect;
-          const left = r.left;
-          const right = r.right;
-          const top = r.top;
-          const bottom = r.bottom;
           const centerX = r.left + r.width / 2;
           const centerY = r.top + r.height / 2;
           const th = SNAP_THRESHOLD;
-          const lines: GuideLine[] = [];
-
-          const snapX = (v: number) => Math.abs(v - centerX) <= th;
-          const snapY = (v: number) => Math.abs(v - centerY) <= th;
-          const snapLeft = (v: number) => Math.abs(v - left) <= th;
-          const snapRight = (v: number) => Math.abs(v - right) <= th;
-          const snapTop = (v: number) => Math.abs(v - top) <= th;
-          const snapBottom = (v: number) => Math.abs(v - bottom) <= th;
-
           let snapV: number | undefined;
           let snapH: number | undefined;
-          const allRects = [...(d.siblingRects ?? [])];
-          if (d.parentCenterX != null && Math.abs(centerX - d.parentCenterX) <= th) {
-            snapV = d.parentCenterX;
-            if (!lines.some((l) => l.type === "v" && Math.abs(l.value - snapV!) < 0.5)) lines.push({ type: "v", value: d.parentCenterX });
-          }
-          if (d.parentCenterY != null && Math.abs(centerY - d.parentCenterY) <= th) {
-            snapH = d.parentCenterY;
-            if (!lines.some((l) => l.type === "h" && Math.abs(l.value - snapH!) < 0.5)) lines.push({ type: "h", value: d.parentCenterY });
-          }
-          for (const s of allRects) {
-            if (snapX(s.left) || snapX(s.centerX) || snapX(s.right)) {
+          if (d.parentCenterX != null && Math.abs(centerX - d.parentCenterX) <= th) snapV = d.parentCenterX;
+          if (d.parentCenterY != null && Math.abs(centerY - d.parentCenterY) <= th) snapH = d.parentCenterY;
+          for (const s of d.siblingRects ?? []) {
+            if (Math.abs(centerX - s.left) <= th || Math.abs(centerX - s.centerX) <= th || Math.abs(centerX - s.right) <= th) {
               const v = Math.abs(centerX - s.left) <= Math.abs(centerX - s.centerX) && Math.abs(centerX - s.left) <= Math.abs(centerX - s.right) ? s.left : Math.abs(centerX - s.centerX) <= Math.abs(centerX - s.right) ? s.centerX : s.right;
-              if (snapV === undefined || Math.abs(v - centerX) < Math.abs((snapV ?? 0) - centerX)) snapV = v;
+              if (snapV === undefined || Math.abs(centerX - v) < Math.abs(centerX - (snapV ?? 0))) snapV = v;
             }
-            if (snapY(s.top) || snapY(s.centerY) || snapY(s.bottom)) {
+            if (Math.abs(centerY - s.top) <= th || Math.abs(centerY - s.centerY) <= th || Math.abs(centerY - s.bottom) <= th) {
               const h = Math.abs(centerY - s.top) <= Math.abs(centerY - s.centerY) && Math.abs(centerY - s.top) <= Math.abs(centerY - s.bottom) ? s.top : Math.abs(centerY - s.centerY) <= Math.abs(centerY - s.bottom) ? s.centerY : s.bottom;
-              if (snapH === undefined || Math.abs(h - centerY) < Math.abs((snapH ?? 0) - centerY)) snapH = h;
+              if (snapH === undefined || Math.abs(centerY - h) < Math.abs(centerY - (snapH ?? 0))) snapH = h;
             }
-            if (snapLeft(s.left) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.left) < 0.5)) lines.push({ type: "v", value: s.left });
-            if (snapLeft(s.centerX) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.centerX) < 0.5)) lines.push({ type: "v", value: s.centerX });
-            if (snapLeft(s.right) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.right) < 0.5)) lines.push({ type: "v", value: s.right });
-            if (snapRight(s.left)) lines.push({ type: "v", value: s.left });
-            if (snapRight(s.centerX)) lines.push({ type: "v", value: s.centerX });
-            if (snapRight(s.right)) lines.push({ type: "v", value: s.right });
-            if (snapTop(s.top) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.top) < 0.5)) lines.push({ type: "h", value: s.top });
-            if (snapTop(s.centerY) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.centerY) < 0.5)) lines.push({ type: "h", value: s.centerY });
-            if (snapTop(s.bottom) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.bottom) < 0.5)) lines.push({ type: "h", value: s.bottom });
-            if (snapBottom(s.top)) lines.push({ type: "h", value: s.top });
-            if (snapBottom(s.centerY)) lines.push({ type: "h", value: s.centerY });
-            if (snapBottom(s.bottom)) lines.push({ type: "h", value: s.bottom });
           }
-          const dedupeLines = lines.filter((l, i) => lines.findIndex((x) => x.type === l.type && Math.abs(x.value - l.value) < 0.5) === i);
-          if (snapV != null && !dedupeLines.some((l) => l.type === "v" && Math.abs(l.value - snapV!) < 0.5)) dedupeLines.push({ type: "v", value: snapV });
-          if (snapH != null && !dedupeLines.some((l) => l.type === "h" && Math.abs(l.value - snapH!) < 0.5)) dedupeLines.push({ type: "h", value: snapH });
+          const zoom = d.zoom;
+          let snapOffsetX = 0;
+          let snapOffsetY = 0;
+          if (snapV != null) {
+            snapOffsetX = snapV - centerX;
+          }
+          if (snapH != null) {
+            snapOffsetY = snapH - centerY;
+          }
 
-          setGuidesIfChanged({
-            lines: dedupeLines,
-            bounds: d.guideBounds,
-          });
-        } else {
-          setGuidesIfChanged(null);
+          // Use the new snap markers system
+          const movingRect: Rect = {
+            left: r.left,
+            top: r.top,
+            right: r.right,
+            bottom: r.bottom,
+            width: r.width,
+            height: r.height,
+            centerX: r.left + r.width / 2,
+            centerY: r.top + r.height / 2,
+          };
+
+          const otherRects: Rect[] = (d.siblingRects ?? []).map(s => ({
+            left: s.left,
+            top: s.top,
+            right: s.right,
+            bottom: s.bottom,
+            width: s.right - s.left,
+            height: s.bottom - s.top,
+            centerX: s.centerX,
+            centerY: s.centerY,
+          }));
+          if (d.guideBounds) {
+            otherRects.push({
+              left: d.guideBounds.left,
+              top: d.guideBounds.top,
+              right: d.guideBounds.right,
+              bottom: d.guideBounds.bottom,
+              width: d.guideBounds.right - d.guideBounds.left,
+              height: d.guideBounds.bottom - d.guideBounds.top,
+              centerX: (d.guideBounds.left + d.guideBounds.right) / 2,
+              centerY: (d.guideBounds.top + d.guideBounds.bottom) / 2,
+            });
+          }
+
+          const { snappedX, snappedY, guides: snapGuides } = getSnapGuides(movingRect, otherRects, SNAP_THRESHOLD);
+          setSnapGuidesRef.current(snapGuides);
+
+          if (snappedX !== null) {
+             snapOffsetX = snappedX - movingRect.left;
+          }
+          if (snappedY !== null) {
+             snapOffsetY = snappedY - movingRect.top;
+          }
+
+          if (snapOffsetX !== 0 || snapOffsetY !== 0) {
+            d.previewX = (d.previewX ?? 0) + snapOffsetX / zoom;
+            d.previewY = (d.previewY ?? 0) + snapOffsetY / zoom;
+            dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
+            for (const item of d.moveItems ?? []) {
+              item.previewX += snapOffsetX / zoom;
+              item.previewY += snapOffsetY / zoom;
+              item.dom.style.setProperty("translate", `${item.previewX}px ${item.previewY}px`);
+            }
+            d.currentRect = new DOMRect(
+              d.currentRect.left + snapOffsetX,
+              d.currentRect.top + snapOffsetY,
+              d.currentRect.width,
+              d.currentRect.height
+            );
+            applyOverlayRect(d.currentRect);
+          }
+
+          if (d.guideBounds) {
+            const r = d.currentRect;
+            const left = r.left;
+            const right = r.right;
+            const top = r.top;
+            const bottom = r.bottom;
+            const centerX = r.left + r.width / 2;
+            const centerY = r.top + r.height / 2;
+            const th = SNAP_THRESHOLD;
+            const lines: GuideLine[] = [];
+
+            const snapX = (v: number) => Math.abs(v - centerX) <= th;
+            const snapY = (v: number) => Math.abs(v - centerY) <= th;
+            const snapLeft = (v: number) => Math.abs(v - left) <= th;
+            const snapRight = (v: number) => Math.abs(v - right) <= th;
+            const snapTop = (v: number) => Math.abs(v - top) <= th;
+            const snapBottom = (v: number) => Math.abs(v - bottom) <= th;
+
+            let snapV: number | undefined;
+            let snapH: number | undefined;
+            const allRects = [...(d.siblingRects ?? [])];
+            if (d.parentCenterX != null && Math.abs(centerX - d.parentCenterX) <= th) {
+              snapV = d.parentCenterX;
+              if (!lines.some((l) => l.type === "v" && Math.abs(l.value - snapV!) < 0.5)) lines.push({ type: "v", value: d.parentCenterX });
+            }
+            if (d.parentCenterY != null && Math.abs(centerY - d.parentCenterY) <= th) {
+              snapH = d.parentCenterY;
+              if (!lines.some((l) => l.type === "h" && Math.abs(l.value - snapH!) < 0.5)) lines.push({ type: "h", value: d.parentCenterY });
+            }
+            for (const s of allRects) {
+              if (snapX(s.left) || snapX(s.centerX) || snapX(s.right)) {
+                const v = Math.abs(centerX - s.left) <= Math.abs(centerX - s.centerX) && Math.abs(centerX - s.left) <= Math.abs(centerX - s.right) ? s.left : Math.abs(centerX - s.centerX) <= Math.abs(centerX - s.right) ? s.centerX : s.right;
+                if (snapV === undefined || Math.abs(v - centerX) < Math.abs((snapV ?? 0) - centerX)) snapV = v;
+              }
+              if (snapY(s.top) || snapY(s.centerY) || snapY(s.bottom)) {
+                const h = Math.abs(centerY - s.top) <= Math.abs(centerY - s.centerY) && Math.abs(centerY - s.top) <= Math.abs(centerY - s.bottom) ? s.top : Math.abs(centerY - s.centerY) <= Math.abs(centerY - s.bottom) ? s.centerY : s.bottom;
+                if (snapH === undefined || Math.abs(h - centerY) < Math.abs((snapH ?? 0) - centerY)) snapH = h;
+              }
+              if (snapLeft(s.left) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.left) < 0.5)) lines.push({ type: "v", value: s.left });
+              if (snapLeft(s.centerX) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.centerX) < 0.5)) lines.push({ type: "v", value: s.centerX });
+              if (snapLeft(s.right) && !lines.some((l) => l.type === "v" && Math.abs(l.value - s.right) < 0.5)) lines.push({ type: "v", value: s.right });
+              if (snapRight(s.left)) lines.push({ type: "v", value: s.left });
+              if (snapRight(s.centerX)) lines.push({ type: "v", value: s.centerX });
+              if (snapRight(s.right)) lines.push({ type: "v", value: s.right });
+              if (snapTop(s.top) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.top) < 0.5)) lines.push({ type: "h", value: s.top });
+              if (snapTop(s.centerY) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.centerY) < 0.5)) lines.push({ type: "h", value: s.centerY });
+              if (snapTop(s.bottom) && !lines.some((l) => l.type === "h" && Math.abs(l.value - s.bottom) < 0.5)) lines.push({ type: "h", value: s.bottom });
+              if (snapBottom(s.top)) lines.push({ type: "h", value: s.top });
+              if (snapBottom(s.centerY)) lines.push({ type: "h", value: s.centerY });
+              if (snapBottom(s.bottom)) lines.push({ type: "h", value: s.bottom });
+            }
+            const dedupeLines = lines.filter((l, i) => lines.findIndex((x) => x.type === l.type && Math.abs(x.value - l.value) < 0.5) === i);
+            if (snapV != null && !dedupeLines.some((l) => l.type === "v" && Math.abs(l.value - snapV!) < 0.5)) dedupeLines.push({ type: "v", value: snapV });
+            if (snapH != null && !dedupeLines.some((l) => l.type === "h" && Math.abs(l.value - snapH!) < 0.5)) dedupeLines.push({ type: "h", value: snapH });
+
+            setGuidesIfChanged({
+              lines: dedupeLines,
+              bounds: d.guideBounds,
+            });
+          } else {
+            setGuidesIfChanged(null);
+          }
         }
 
         d.startX = d.lastX;
@@ -991,7 +1117,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         const totalDx = (d.previewX ?? 0) + (d.lastX - d.startX) / d.zoom;
         const totalDy = (d.previewY ?? 0) + (d.lastY - d.startY) / d.zoom;
         const clampedMove = d.type === "move"
-          ? clampMoveDeltaToBounds(totalDx, totalDy, d)
+          ? (d.disableClamp ? { dx: totalDx, dy: totalDy } : clampMoveDeltaToBounds(totalDx, totalDy, d))
           : { dx: totalDx, dy: totalDy };
 
         const clearPreviewStyles = () => {
@@ -1146,6 +1272,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
           const currentNode = query.getState().nodes[nodeId];
           const isTextNode = currentNode?.data?.displayName === "Text";
           const isAccordionNode = currentNode?.data?.displayName === "Accordion";
+          const isImageNode = currentNode?.data?.displayName === "Image";
           const startFontSize = parsePxOrAuto(d.startProps.fontSize);
           const nextFontSize = isTextNode
             ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
@@ -1176,6 +1303,9 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
               const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
               const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
               props.marginLeft = Math.round(nextML);
+            }
+            if (isImageNode) {
+              props._autoFitInTabs = false;
             }
           });
 
@@ -1212,7 +1342,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
       setRect(finalRect);
       setIsDragging(false);
       setDragType(null);
-      setGuides(null);
+      setSnapGuidesRef.current([]);
       setRotateAngle(null);
       if (d?.type === "resize") {
         dom.style.willChange = d.previousWillChange ?? "";
@@ -1244,7 +1374,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
     { key: "w", style: { left: -half, top: "50%", transform: "translateY(-50%)" } },
     { key: "e", style: { right: -half, top: "50%", transform: "translateY(-50%)" } },
   ];
-  const handles = allHandles;
+  const handles = disableResize ? [] : allHandles;
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   const currentRotation = (() => {
@@ -1268,45 +1398,8 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         willChange: isDragging ? "left, top, width, height" : undefined,
       }}
     >
-      {isDragging && dragType === "move" && guides?.bounds && (
-        <>
-          {guides.lines?.map((line, i) =>
-            line.type === "v" ? (
-              <div
-                key={`v-${i}-${line.value}`}
-                style={{
-                  position: "fixed",
-                  left: line.value,
-                  top: guides.bounds!.top,
-                  width: 1,
-                  height: guides.bounds!.bottom - guides.bounds!.top,
-                  backgroundColor: "#38bdf8",
-                  boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
-                  pointerEvents: "none",
-                  zIndex: 10000,
-                }}
-              />
-            ) : (
-              <div
-                key={`h-${i}-${line.value}`}
-                style={{
-                  position: "fixed",
-                  top: line.value,
-                  left: guides.bounds!.left,
-                  height: 1,
-                  width: guides.bounds!.right - guides.bounds!.left,
-                  backgroundColor: "#38bdf8",
-                  boxShadow: "0 0 0 1px rgba(56, 189, 248, 0.3)",
-                  pointerEvents: "none",
-                  zIndex: 10000,
-                }}
-              />
-            )
-          )}
-        </>
-      )}
-
       {isDragging && dragRef.current?.guideBounds && (
+
         <div
           style={{
             position: "fixed",
@@ -1322,7 +1415,7 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         />
       )}
 
-      {isDragging && dragType === "rotate" && (
+      {isDragging && dragType === "rotate" && !disableRotate && (
         <>
           <div
             style={{
@@ -1426,42 +1519,46 @@ export const ResizeOverlay = ({ nodeId, dom }: ResizeOverlayProps) => {
         ))}
 
         {/* Rotation handle */}
-        <div
-          data-resize-handle
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: -ROTATION_HANDLE_OFFSET,
-            transform: "translate(-50%, -50%)",
-            width: 20,
-            height: 20,
-            borderRadius: "50%",
-            border: "2px solid #3b82f6",
-            backgroundColor: "#ffffff",
-            cursor: "default",
-            pointerEvents: isExternalDragActive ? "none" : "auto",
-            zIndex: 2,
-          }}
-          onMouseDown={(e) => startDrag(e, "rotate")}
-          title="Rotate"
-        />
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: -ROTATION_HANDLE_OFFSET / 2,
-            width: 2,
-            height: ROTATION_HANDLE_OFFSET,
-            backgroundColor: "#3b82f6",
-            transform: "translateX(-50%)",
-            pointerEvents: "none",
-            zIndex: 1,
-          }}
-        />
+        {!disableRotate && (
+          <>
+            <div
+              data-resize-handle
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: -ROTATION_HANDLE_OFFSET,
+                transform: "translate(-50%, -50%)",
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                border: "2px solid #3b82f6",
+                backgroundColor: "#ffffff",
+                cursor: "default",
+                pointerEvents: isExternalDragActive ? "none" : "auto",
+                zIndex: 2,
+              }}
+              onMouseDown={(e) => startDrag(e, "rotate")}
+              title="Rotate"
+            />
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: -ROTATION_HANDLE_OFFSET / 2,
+                width: 2,
+                height: ROTATION_HANDLE_OFFSET,
+                backgroundColor: "#3b82f6",
+                transform: "translateX(-50%)",
+                pointerEvents: "none",
+                zIndex: 1,
+              }}
+            />
+          </>
+        )}
       </div>
 
       {/* Size tooltip while resizing */}
-      {isDragging && dragType === "resize" && (
+      {isDragging && dragType === "resize" && !disableResize && (
         <div
           style={{
             position: "absolute",

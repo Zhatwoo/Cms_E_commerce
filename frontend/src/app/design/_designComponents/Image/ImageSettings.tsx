@@ -121,14 +121,14 @@ export const ImageSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Source URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Source URL</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Source URL</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={src}
                 onChange={(e) => typedSetProp((props) => { props.src = e.target.value; })}
                 placeholder="https://example.com/image.jpg"
-                className="flex-1 bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+                className="flex-1 bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
               />
               {/* Hidden file input */}
               <input
@@ -143,13 +143,13 @@ export const ImageSettings = () => {
                 type="button"
                 onClick={handleBrowseClick}
                 disabled={uploading}
-                className="px-3 py-2 bg-brand-medium/30 hover:bg-brand-medium/50 border border-brand-medium/30 rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
+                className="px-3 py-2 bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
                 title="Browse files"
               >
                 {uploading ? (
-                  <Loader2 className="w-4 h-4 text-brand-light animate-spin" />
+                  <Loader2 className="w-4 h-4 text-[var(--builder-text-muted)] animate-spin" />
                 ) : (
-                  <Upload className="w-4 h-4 text-brand-light" />
+                  <Upload className="w-4 h-4 text-[var(--builder-text-muted)]" />
                 )}
               </button>
               {/* Clear button (only show if image is selected) */}
@@ -166,13 +166,13 @@ export const ImageSettings = () => {
             </div>
             {uploading && (
               <div className="mt-1.5 flex flex-col gap-1">
-                <div className="h-1.5 w-full bg-brand-medium/30 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-brand-light/80 rounded-full transition-[width] duration-150"
+                    className="h-full bg-[var(--builder-accent)] rounded-full transition-[width] duration-150"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-brand-light">{uploadProgress}% uploaded</p>
+                <p className="text-[10px] text-[var(--builder-text-muted)]">{uploadProgress}% uploaded</p>
               </div>
             )}
             {uploadError && (
@@ -186,7 +186,7 @@ export const ImageSettings = () => {
               </p>
             )}
             {isDataUrl && !uploading && !uploadError && (
-              <p className="text-[9px] text-brand-medium mt-1">
+              <p className="text-[9px] text-[var(--builder-text-faint)] mt-1">
                 Using local preview (not in Storage)
               </p>
             )}
@@ -194,25 +194,25 @@ export const ImageSettings = () => {
 
           {/* Alt Text */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Alt Text</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Alt Text</label>
             <input
               type="text"
               value={alt}
               onChange={(e) => typedSetProp((props) => { props.alt = e.target.value; })}
               placeholder="Describe the image"
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-2 focus:outline-none focus:border-brand-light"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
             />
           </div>
 
           {/* Object Fit */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-brand-lighter">Object Fit</label>
+            <label className="text-[10px] text-[var(--builder-text)]">Object Fit</label>
             <select
               value={objectFit}
               onChange={(e) => typedSetProp((props) => {
                 props.objectFit = e.target.value as ImageProps["objectFit"];
               })}
-              className="w-full bg-brand-medium-dark border border-brand-medium/30 rounded-md text-xs text-brand-lighter p-1.5 focus:outline-none"
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
             >
               <option value="cover">Cover</option>
               <option value="contain">Contain</option>
@@ -236,7 +236,16 @@ export const ImageSettings = () => {
           marginRight={marginRight}
           marginTop={marginTop}
           marginBottom={marginBottom}
-          setProp={typedSetProp}
+          setProp={(updater) => {
+            typedSetProp((props) => {
+              const beforeWidth = props.width;
+              const beforeHeight = props.height;
+              updater(props);
+              if (props.width !== beforeWidth || props.height !== beforeHeight) {
+                props._autoFitInTabs = false;
+              }
+            });
+          }}
         />
       </DesignSection>
 

@@ -34,6 +34,13 @@ export const BooleanField = ({
   fontFamily = "Outfit",
   fontWeight = "500",
   showLabels = true,
+  position = "relative",
+  top = "auto",
+  right = "auto",
+  bottom = "auto",
+  left = "auto",
+  zIndex = 0,
+  display,
   options,
   // back-compat single option
   label,
@@ -43,7 +50,12 @@ export const BooleanField = ({
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
-  const groupName = useMemo(() => (controlType === "radio" ? `${name}-${id}` : undefined), [controlType, name, id]);
+  const normalizedControlType = useMemo(
+    () => (String(controlType ?? "checkbox").trim().toLowerCase() === "radio" ? "radio" : "checkbox"),
+    [controlType]
+  );
+  const isRadio = normalizedControlType === "radio";
+  const groupName = useMemo(() => (isRadio ? `${name}-${id}` : undefined), [isRadio, name, id]);
   const normalizedOptions = useMemo(() => ensureOptions({ options, label, checked }), [options, label, checked]);
   const [previewById, setPreviewById] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -52,10 +64,10 @@ export const BooleanField = ({
   });
 
   const radioSelectedId = useMemo(() => {
-    if (controlType !== "radio") return null;
+    if (!isRadio) return null;
     const fromPreview = normalizedOptions.find((o) => previewById[o.id]);
     return fromPreview?.id ?? normalizedOptions[0]?.id ?? null;
-  }, [controlType, normalizedOptions, previewById]);
+  }, [isRadio, normalizedOptions, previewById]);
 
   useEffect(() => {
     const next: Record<string, boolean> = {};
@@ -85,11 +97,18 @@ export const BooleanField = ({
         userSelect: "none",
         maxWidth: "100%",
         boxSizing: "border-box",
+        position,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        display: display ?? "inline-flex",
       }}
     >
       {normalizedOptions.map((opt, idx) => {
         const inputId = `bf-${id}-${reactId}-${opt.id}`.replace(/[^a-zA-Z0-9-_]/g, "");
-        const isChecked = controlType === "radio"
+        const isChecked = isRadio
           ? radioSelectedId === opt.id
           : !!previewById[opt.id];
 
@@ -106,14 +125,14 @@ export const BooleanField = ({
           >
             <input
               id={inputId}
-              type={controlType}
+              type={normalizedControlType}
               name={groupName}
               checked={isChecked}
               disabled={disabled}
               onChange={(e) => {
                 const nextChecked = e.target.checked;
                 setPreviewById((prev) => {
-                  if (controlType === "radio") {
+                  if (isRadio) {
                     const next: Record<string, boolean> = {};
                     normalizedOptions.forEach((o) => { next[o.id] = o.id === opt.id ? nextChecked : false; });
                     return next;

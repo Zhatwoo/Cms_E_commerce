@@ -11,6 +11,7 @@ export const TextSettings = () => {
   const {
     text,
     fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color,
+    width, height,
     margin, marginTop, marginBottom, marginLeft, marginRight,
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
@@ -31,6 +32,8 @@ export const TextSettings = () => {
     textAlign: node.data.props.textAlign,
     textTransform: node.data.props.textTransform,
     color: node.data.props.color,
+    width: node.data.props.width,
+    height: node.data.props.height,
     margin: node.data.props.margin,
     marginTop: node.data.props.marginTop,
     marginBottom: node.data.props.marginBottom,
@@ -78,10 +81,10 @@ export const TextSettings = () => {
           value={safeText}
           onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
           placeholder={isCodeBlock ? "Type your code here..." : "Type your text here..."}
-          className={`w-full bg-brand-medium-dark p-2 rounded-lg text-brand-lighter focus:border-brand-light focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
+          className={`w-full bg-[var(--builder-surface-2)] p-2 rounded-lg text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
         />
         {isCodeBlock && (
-          <p className="text-[10px] text-brand-light mt-1">
+          <p className="text-[10px] text-[var(--builder-text-muted)] mt-1">
             Code block mode {codeLanguage ? `(${codeLanguage})` : ""}.
           </p>
         )}
@@ -90,19 +93,19 @@ export const TextSettings = () => {
             type="checkbox"
             checked={Boolean(previewEditable)}
             onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
-            className="accent-brand-light cursor-pointer"
+            className="accent-[var(--builder-accent)] cursor-pointer"
           />
-          <span className="text-[12px] text-brand-lighter">Allow input in Preview</span>
+          <span className="text-[12px] text-[var(--builder-text)]">Allow input in Preview</span>
         </div>
-        <p className="text-[10px] text-brand-light mt-1">
+        <p className="text-[10px] text-[var(--builder-text-muted)] mt-1">
           Lets users type into this text block on the Preview page only.
         </p>
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
         <SizePositionGroup
-          width="auto"
-          height="auto"
+          width={width ?? "fit-content"}
+          height={height ?? "fit-content"}
           paddingLeft={paddingLeft}
           paddingRight={paddingRight}
           paddingTop={paddingTop}

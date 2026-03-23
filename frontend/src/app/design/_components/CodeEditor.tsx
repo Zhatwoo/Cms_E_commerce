@@ -824,11 +824,11 @@ import React from 'react';
   if (!mounted) return null;
 
   return (
-    <div className={`flex flex-col h-full bg-[#0F1116] border border-white/10 rounded-2xl overflow-hidden shadow-xl ${className}`}>
+    <div data-theme="dark" className={`flex flex-col h-full bg-[#0F1116] border border-transparent rounded-2xl overflow-hidden shadow-xl ${className}`} style={{ colorScheme: 'dark' }}>
       <div className="flex-1 flex flex-col bg-[#0F1116] relative">
-        <div className="min-h-[64px] border-b border-white/5 flex items-center justify-between gap-3 px-4 py-2.5 bg-black/20 backdrop-blur-md sticky top-0 z-20">
+        <div className="min-h-[64px] border-b border-transparent flex items-center justify-between gap-3 px-4 py-2.5 bg-black/20 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
-            <div className="p-1.5 bg-white/5 rounded-lg border border-white/10 shrink-0">
+            <div className="p-1.5 bg-white/5 rounded-lg border border-transparent shrink-0">
               <Package size={14} className="text-blue-400" />
             </div>
             <div className="flex flex-col min-w-0 gap-0.5">
@@ -840,7 +840,7 @@ import React from 'react';
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <div className="flex items-center bg-black/35 p-1 rounded-xl border border-white/10">
+            <div className="flex items-center bg-black/35 p-1 rounded-xl border border-transparent">
               {activeFileId === "instance-props" && canImport && (
                 <button
                   onClick={() => {
@@ -892,7 +892,7 @@ import React from 'react';
         <div data-code-editor-scroll="true" className="flex-1 min-h-0 relative group overflow-hidden flex flex-col">
           {activeFileId === "instance-props" && showImportPaste && canImport && (
             <div className="shrink-0 border-b border-amber-500/20 bg-amber-500/5">
-              <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+              <div className="flex items-center justify-between px-4 py-2 border-b border-transparent">
                 <span className="text-[10px] text-amber-400/90 font-bold uppercase tracking-wider">React · Next.js · Tailwind · TypeScript · CSS · HTML</span>
                 <button
                   onClick={() => setShowImportPaste(false)}
@@ -901,16 +901,16 @@ import React from 'react';
                   Close
                 </button>
               </div>
-              <p className="text-[10px] text-white/50 px-4 py-1.5 bg-black/20 border-b border-white/5">
+              <p className="text-[10px] text-white/50 px-4 py-1.5 bg-black/20 border-b border-transparent">
                 Imports are for exported code only — they do not show on the canvas. <strong className="text-amber-400/80">Add as Component</strong> below to turn React+styled-components into a draggable block in the Components panel.
               </p>
-              <div className="flex flex-wrap gap-1.5 px-3 pt-2 pb-1 border-b border-white/5">
+              <div className="flex flex-wrap gap-1.5 px-3 pt-2 pb-1 border-b border-transparent">
                 {IMPORT_PRESETS.map((preset) => (
                   <button
                     key={preset.label}
                     type="button"
                     onClick={() => handleInsertImportPreset(preset.code)}
-                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-amber-500/20 text-white/70 hover:text-amber-300 border border-white/10 hover:border-amber-500/30 transition-colors"
+                    className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-white/5 hover:bg-amber-500/20 text-white/70 hover:text-amber-300 border border-transparent hover:border-amber-500/30 transition-colors"
                   >
                     + {preset.label}
                   </button>
@@ -939,7 +939,7 @@ import React from 'react';
                   onChange={(e) => setImportCodePaste(e.target.value)}
                   spellCheck={false}
                   placeholder="Paste React + styled-components code (e.g. Loader)..."
-                  className="w-full resize-none bg-black/30 text-white/90 font-mono text-[11px] p-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50 placeholder:text-white/20 min-h-[60px] border border-white/10"
+                  className="w-full resize-none bg-black/30 text-white/90 font-mono text-[11px] p-3 rounded-lg focus:outline-none focus:ring-1 focus:ring-emerald-500/50 placeholder:text-white/20 min-h-[60px] border border-transparent"
                   style={{ fontFamily: "'Fira Code', monospace" }}
                   rows={3}
                 />

@@ -1,9 +1,12 @@
+const fs = require('fs');
+const { Readable } = require('stream');
 const { getStorageBucket } = require('../config/firebase');
 const crypto = require('crypto');
 const path = require('path');
 
 /** Fixed prefix: always "Clients/" to match frontend. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
+exports.STORAGE_PREFIX = STORAGE_PREFIX;
 /** Product image root folder requested by user. */
 const PRODUCT_IMAGE_PREFIX = 'Products_img/';
 
@@ -109,8 +112,10 @@ async function uploadProductImage({ buffer, userId, mimeType = 'application/octe
  * Upload web builder media to Storage at:
  * Clients/{clientSlug}/{websiteSlug}/{images|videos|files}/{timestamp}-{safeName}.{ext}
  * Returns direct download URL with token.
+ * Supports buffer (small files) or filePath (large files) for streaming to avoid OOM.
  * @param {Object} opts
- * @param {Buffer} opts.buffer - File buffer
+ * @param {Buffer} [opts.buffer] - File buffer (use when file is small)
+ * @param {string} [opts.filePath] - Path to temp file (use for large files; streamed to GCS)
  * @param {string} opts.mimeType - e.g. image/png, video/mp4
  * @param {string} opts.originalName - Original filename
  * @param {string} opts.clientName - Client/owner display name
@@ -118,10 +123,14 @@ async function uploadProductImage({ buffer, userId, mimeType = 'application/octe
  * @param {string} [opts.folder] - 'images' | 'videos' | 'files'. Default: from mimeType
  * @returns {Promise<string>} Public download URL
  */
-async function uploadClientMedia({ buffer, mimeType = 'application/octet-stream', originalName = 'file', clientName, websiteName, folder }) {
+async function uploadClientMedia({ buffer, filePath, mimeType = 'application/octet-stream', originalName = 'file', clientName, websiteName, folder }) {
   const bucket = getStorageBucket();
   if (!bucket) {
     throw new Error('Firebase Storage bucket not configured. Set FIREBASE_STORAGE_BUCKET in backend .env');
+  }
+
+  if (!buffer && !filePath) {
+    throw new Error('uploadClientMedia requires either buffer or filePath');
   }
 
   let resolvedFolder = folder;
@@ -137,21 +146,22 @@ async function uploadClientMedia({ buffer, mimeType = 'application/octet-stream'
   const fileName = `${Date.now()}-${baseName}.${ext}`;
   const client = slugPathSegment(clientName || 'client');
   const website = slugPathSegment(websiteName || 'project');
-  const filePath = `${STORAGE_PREFIX}${client}/${website}/${resolvedFolder}/${fileName}`;
+  const storagePath = `${STORAGE_PREFIX}${client}/${website}/${resolvedFolder}/${fileName}`;
   const token = crypto.randomUUID();
 
-  const file = bucket.file(filePath);
-  await file.save(buffer, {
+  const gcsFile = bucket.file(storagePath);
+  const metadata = {
+    contentType: mimeType,
     metadata: {
-      contentType: mimeType,
-      metadata: {
-        firebaseStorageDownloadTokens: token,
-      },
+      firebaseStorageDownloadTokens: token,
     },
-  });
+  };
+
+  const inputStream = filePath ? fs.createReadStream(filePath) : Readable.from(buffer);
+  await gcsFile.save(inputStream, { metadata });
 
   const bucketName = bucket.name;
-  const encodedPath = encodeURIComponent(filePath);
+  const encodedPath = encodeURIComponent(storagePath);
   return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodedPath}?alt=media&token=${token}`;
 }
 
@@ -412,6 +422,96 @@ async function getProjectStorageUsage({ clientName, websiteName, userId, subdoma
       });
     } catch (err) {
       // Ignore
+    }
+  }
+
+  return totalBytes;
+}
+
+/**
+ * Calculate total storage usage (in bytes) for a specific user across all their projects.
+ * Includes:
+ * 1) Media files in Firebase Storage (checking multiple possible path patterns)
+ * 2) Product images in Firebase Storage
+ * 3) All project, page, and trash data in Firestore (checking all role folders)
+ */
+async function getUserStorageUsage({ clientName, userId }) {
+  const { db } = require('../config/firebase');
+  const bucket = getStorageBucket();
+  
+  let totalBytes = 0;
+
+  // 1. Firebase Storage Media
+  if (bucket) {
+    const client = slugPathSegment(clientName);
+    // Possible client-level folder names
+    const clientFolders = [client];
+    if (userId) clientFolders.push(`${client}-${userId}`);
+    if (userId) clientFolders.push(userId);
+
+    const seenPrefixes = new Set();
+    for (const cFolder of clientFolders) {
+      const prefix = `${STORAGE_PREFIX}${cFolder}/`;
+      if (seenPrefixes.has(prefix)) continue;
+      seenPrefixes.add(prefix);
+
+      try {
+        const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
+        files.forEach((file) => {
+          const size = parseInt(file.metadata.size || 0, 10);
+          if (!isNaN(size)) totalBytes += size;
+        });
+      } catch (err) {
+        // Ignore
+      }
+    }
+
+    // 2. Product images
+    if (userId) {
+      try {
+        const prefix = `${PRODUCT_IMAGE_PREFIX}${userId}/`;
+        const [files] = await bucket.getFiles({ prefix, autoPaginate: true });
+        files.forEach((file) => {
+          const size = parseInt(file.metadata.size || 0, 10);
+          if (!isNaN(size)) totalBytes += size;
+        });
+      } catch (err) {
+        // Ignore
+      }
+    }
+  }
+
+  // 3. Firestore Data Size
+  // We check 'client', 'admin', and 'support' role folders for projects just in case.
+  if (userId) {
+    const roles = ['client', 'admin', 'support'];
+    try {
+      for (const role of roles) {
+        const userRoleRef = db.collection('user').doc('roles').collection(role).doc(userId);
+        
+        const [projectsSnap, trashSnap] = await Promise.all([
+          userRoleRef.collection('projects').get(),
+          userRoleRef.collection('trash').get()
+        ]);
+        
+        const allDocs = [...projectsSnap.docs, ...trashSnap.docs];
+        if (allDocs.length === 0) continue;
+
+        const sizes = await Promise.all(allDocs.map(async (doc) => {
+          let b = Buffer.byteLength(JSON.stringify(doc.data() || {}));
+          try {
+            const pagesSnap = await doc.ref.collection('pages').get();
+            pagesSnap.forEach(p => {
+              b += Buffer.byteLength(JSON.stringify(p.data() || {}));
+            });
+          } catch (pe) {}
+          return b;
+        }));
+        
+        totalBytes += sizes.reduce((acc, s) => acc + s, 0);
+      }
+    } catch (err) {
+      console.warn('[storageHelpers] getUserStorageUsage Firestore error for UID:', userId, err.message);
     }
   }
 

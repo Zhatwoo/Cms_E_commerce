@@ -15,7 +15,9 @@ const {
   forgotPassword,
   resetPassword,
   verifyEmail,
-  resendVerification
+  resendVerification,
+  createStripeSetupIntent,
+  getStripePublicKey
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const { validate } = require('../middleware/validate');
@@ -109,5 +111,9 @@ router.put('/change-password', protect, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
 ], validate, changePassword);
+
+// Billing / Payment Method routes
+router.get('/billing/public-key', protect, getStripePublicKey);
+router.post('/billing/setup-intent', protect, createStripeSetupIntent);
 
 module.exports = router;

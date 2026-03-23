@@ -20,7 +20,8 @@ type DropPoint = {
 type DragSourceKind = "asset" | "component" | "imported" | null;
 
 const MAX_RETRY_FRAMES = 24;
-const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content"]);
+const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -124,7 +125,7 @@ export function FreeDropPlacementHandler() {
       const newIdSet = new Set(newIds);
       const rootNewIds = newIds.filter((id) => {
         const parentId = nodes[id]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return false;
+        if (!parentId) return false;
         return !newIdSet.has(parentId);
       });
 
@@ -132,7 +133,7 @@ export function FreeDropPlacementHandler() {
         ? rootNewIds
         : selectedToIds(state?.events?.selected).filter((id) => {
             const parentId = nodes[id]?.data?.parent;
-            if (!parentId || parentId === "ROOT") return false;
+            if (!parentId) return false;
             return !newIdSet.has(parentId);
           });
 
@@ -151,22 +152,24 @@ export function FreeDropPlacementHandler() {
 
       idsToPlace.forEach((nodeId) => {
         const parentId = nodes[nodeId]?.data?.parent;
-        if (!parentId || parentId === "ROOT") return;
+        if (!parentId) return;
 
         const displayName = nodes[nodeId]?.data?.displayName ?? "";
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
         const parentNode = nodes[parentId];
         const parentDisplayName = parentNode?.data?.displayName ?? "";
         const shouldImageFillParent =
-          displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content");
+          displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
-        const isFlexParent =
+        const parentIsFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
           parentDisplayName === "Tab Content" ||
+          parentDisplayName === "TabContent" ||
           LAYOUT_LIKE_TYPES.has(parentDisplayName);
+        const forceFlowPlacement = false;
 
         let left = 0;
         let top = 0;
@@ -200,7 +203,7 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, Math.round(left));
         top = Math.max(0, Math.round(top));
 
-        if (isFlexParent && !parentIsFreeform) {
+        if (parentIsFlexParent && !parentIsFreeform) {
           let insertIndex = 0;
           try {
             const parentDom = query.node(parentId).get()?.dom ?? null;
@@ -284,16 +287,19 @@ export function FreeDropPlacementHandler() {
         });
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
-          if (isLayoutLike) {
+          const shouldUseAbsolute = !forceFlowPlacement && !isLayoutLike;
+          if (shouldUseAbsolute) {
+            props.position = "absolute";
+            props.left = `${left}px`;
+            props.top = `${top}px`;
+            props.right = "auto";
+            props.bottom = "auto";
+          } else {
             props.position = "relative";
             props.left = "auto";
             props.top = "auto";
             props.right = "auto";
             props.bottom = "auto";
-          } else {
-            props.position = "absolute";
-            props.left = `${left}px`;
-            props.top = `${top}px`;
           }
           props.marginTop = 0;
           props.marginLeft = 0;
@@ -315,11 +321,6 @@ export function FreeDropPlacementHandler() {
             } else if (rawWidth == null) {
               props.width = "100%";
             }
-          }
-
-          if (!isLayoutLike) {
-            if (props.right == null) props.right = "auto";
-            if (props.bottom == null) props.bottom = "auto";
           }
 
           if (shouldImageFillParent) {

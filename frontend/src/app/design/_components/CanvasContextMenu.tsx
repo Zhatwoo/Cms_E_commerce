@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useCallback, useLayoutEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
+import { Element } from "@craftjs/core";
 import {
   Copy,
   ClipboardPaste,
   Replace,
   ChevronsUp,
   ChevronsDown,
-  Group,
-  Ungroup,
   Eye,
   EyeOff,
   Lock,
@@ -18,6 +17,8 @@ import {
   ArrowLeftRight,
   ArrowUpDown,
   Trash2,
+  Group,
+  Ungroup,
 } from "lucide-react";
 import {
   selectedToIds,
@@ -29,6 +30,10 @@ import {
   groupSelection,
   ungroupSelection,
 } from "../_lib/canvasActions";
+import { Container } from "../_designComponents/Container/Container";
+import { useDesignProject } from "../_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "../_lib/mediaActions";
+import { Image } from "../_designComponents/Image/Image";
 
 const PROTECTED = new Set(["Viewport", "ROOT"]);
 
@@ -76,10 +81,11 @@ function Divider() {
 
 /**
  * Right-click context menu on canvas: components, content, or empty area.
- * Shows Copy, Paste, Bring to front, Send to back, Group, Ungroup, Show/Hide, Lock, Flip, Delete.
+ * Shows Copy, Paste, Bring to front, Send to back, Show/Hide, Lock, Flip, Delete.
  */
 export function CanvasContextMenu() {
   const { actions, query } = useEditor();
+  const { projectId } = useDesignProject();
   const [menu, setMenu] = useState<MenuState>(null);
   const [menuContentReady, setMenuContentReady] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ left: number; top: number } | null>(null);
@@ -94,29 +100,56 @@ export function CanvasContextMenu() {
     const handleContextMenu = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest("[data-panel]")) return;
-      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable) return;
+      // Only skip for actual side/top/bottom panels (they have their own context menus or UI).
+      // Do NOT skip for canvas overlays (resize-overlay, node-label, page-name-edit, marquee, etc.)
+      const inSideOrToolPanel =
+        target.closest("[data-panel='left']") ||
+        target.closest("[data-panel='right']") ||
+        target.closest("[data-panel='configs']") ||
+        target.closest("[data-panel='top-controls']") ||
+        target.closest("[data-panel='bottom-tools']");
+      if (inSideOrToolPanel) return;
 
-      const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
-      const nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-      const state = query.getState();
-      const nodesMap = state.nodes;
-      const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
+      e.preventDefault();
+      e.stopPropagation();
 
-      if (nodeId && exists(nodeId)) {
-        const currentIds = selectedToIds(state.events.selected);
-        if (!currentIds.includes(nodeId)) {
-          actions.selectNode(nodeId);
+      let nodeId: string | null = null;
+      const isInputLike = target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT" || target.isContentEditable;
+      if (!isInputLike) {
+        try {
+          const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
+          nodeId = nodeEl?.getAttribute("data-node-id") ?? null;
+          const state = query.getState();
+          const nodesMap = state.nodes;
+          const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
+
+          if (nodeId && exists(nodeId)) {
+            const currentIds = selectedToIds(state.events.selected);
+            if (!currentIds.includes(nodeId)) {
+              actions.selectNode(nodeId);
+            }
+          }
+        } catch {
+          nodeId = null;
         }
       }
 
-      e.preventDefault();
       setMenu({ x: e.clientX, y: e.clientY, nodeId });
       setMenuContentReady(false);
     };
 
     document.addEventListener("contextmenu", handleContextMenu, true);
-    return () => document.removeEventListener("contextmenu", handleContextMenu, true);
+    const canvasEl = document.querySelector("[data-canvas-container]");
+    const boundHandler = (ev: Event) => handleContextMenu(ev as MouseEvent);
+    if (canvasEl) {
+      canvasEl.addEventListener("contextmenu", boundHandler, true);
+    }
+    return () => {
+      document.removeEventListener("contextmenu", handleContextMenu, true);
+      if (canvasEl) {
+        canvasEl.removeEventListener("contextmenu", boundHandler, true);
+      }
+    };
   }, [actions, query]);
 
   useEffect(() => {
@@ -196,21 +229,25 @@ export function CanvasContextMenu() {
 
   const state = query.getState();
   const selectedIds = selectedToIds(state.events.selected);
-  const hasSelection = selectedIds.length > 0;
-  const singleSelected = selectedIds.length === 1;
-  const firstId = selectedIds[0] ?? null;
+  // Use menu.nodeId as fallback when right-click selects a node but selection hasn't propagated yet
+  const effectiveIds = selectedIds.length > 0
+    ? selectedIds
+    : menu.nodeId && state.nodes[menu.nodeId]
+      ? [menu.nodeId]
+      : [];
+  const hasSelection = effectiveIds.length > 0;
+  const singleSelected = effectiveIds.length === 1;
+  const firstId = effectiveIds[0] ?? null;
   const clipboard = getClipboard();
   const hasClipboard = clipboard !== null && clipboard.nodeIds.length > 0;
   const firstNode = firstId ? state.nodes[firstId] : null;
   const displayName = firstNode?.data?.displayName as string | undefined;
-  const canUngroup = singleSelected && (displayName === "Container" || displayName === "Group");
-  const canGroup = selectedIds.length >= 1;
   const visibility = (firstNode?.data?.props as Record<string, unknown>)?.visibility as string | undefined;
   const isHidden = visibility === "hidden";
   const locked = (firstNode?.data?.props as Record<string, unknown>)?.locked as boolean | undefined;
   const flipH = (firstNode?.data?.props as Record<string, unknown>)?.flipHorizontal as boolean | undefined;
   const flipV = (firstNode?.data?.props as Record<string, unknown>)?.flipVertical as boolean | undefined;
-  const deletable = hasSelection && selectedIds.every((id) => {
+  const deletable = hasSelection && effectiveIds.every((id) => {
     try {
       if (PROTECTED.has(state.nodes[id]?.data?.displayName as string)) return false;
       return query.node(id).isDeletable();
@@ -219,47 +256,162 @@ export function CanvasContextMenu() {
 
   const parentId = firstNode?.data?.parent as string | undefined;
   const siblings = parentId && state.nodes[parentId] ? (state.nodes[parentId]?.data?.nodes as string[]) ?? [] : [];
-  const selectedIndices = selectedIds.map((id) => siblings.indexOf(id)).filter((i) => i >= 0);
+  const selectedIndices = effectiveIds.map((id) => siblings.indexOf(id)).filter((i) => i >= 0);
   const minSelectedIndex = selectedIndices.length > 0 ? Math.min(...selectedIndices) : -1;
   const maxSelectedIndex = selectedIndices.length > 0 ? Math.max(...selectedIndices) : -1;
-  const allSameParent = hasSelection && parentId && selectedIds.every((id) => (state.nodes[id]?.data?.parent as string) === parentId);
+  const allSameParent = hasSelection && parentId && effectiveIds.every((id) => (state.nodes[id]?.data?.parent as string) === parentId);
   const canBringForward = hasSelection && allSameParent && maxSelectedIndex >= 0 && maxSelectedIndex < siblings.length - 1 && actions.move;
   const canSendBackward = hasSelection && allSameParent && minSelectedIndex > 0 && actions.move;
 
   const handleCopy = () => {
-    copySelection(query as any, selectedIds);
+    copySelection(query as any, effectiveIds);
     close();
   };
-  const handlePasteHere = () => {
-    let parentIdOpt: string | undefined;
-    let atIndexOpt: number | undefined;
-    if (menu.nodeId && state.nodes[menu.nodeId]) {
-      const node = state.nodes[menu.nodeId];
-      parentIdOpt = node?.data?.parent as string | undefined;
-      const sibs = parentIdOpt && state.nodes[parentIdOpt] ? (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [] : [];
-      const idx = sibs.indexOf(menu.nodeId);
-      atIndexOpt = idx === -1 ? sibs.length : idx + 1;
-    } else if (selectedIds.length > 0) {
-      const lastId = selectedIds[selectedIds.length - 1]!;
-      const lastNode = state.nodes[lastId];
-      parentIdOpt = lastNode?.data?.parent as string | undefined;
-      if (parentIdOpt && state.nodes[parentIdOpt]) {
-        const sibs = (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [];
-        const lastIndex = sibs.indexOf(lastId);
-        atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
+
+  const handlePasteHere = async () => {
+    const clipboard = getClipboard();
+    
+    // 1. Try internal Craft.js clipboard first
+    if (clipboard && clipboard.nodeIds.length > 0) {
+      let parentIdOpt: string | undefined;
+      let atIndexOpt: number | undefined;
+      
+      if (menu.nodeId && state.nodes[menu.nodeId]) {
+        const node = state.nodes[menu.nodeId];
+        parentIdOpt = node?.data?.parent as string | undefined;
+        const sibs = parentIdOpt && state.nodes[parentIdOpt] ? (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [] : [];
+        const idx = sibs.indexOf(menu.nodeId);
+        atIndexOpt = idx === -1 ? sibs.length : idx + 1;
+      } else if (effectiveIds.length > 0) {
+        const lastId = effectiveIds[effectiveIds.length - 1]!;
+        const lastNode = state.nodes[lastId];
+        parentIdOpt = lastNode?.data?.parent as string | undefined;
+        if (parentIdOpt && state.nodes[parentIdOpt]) {
+          const sibs = (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [];
+          const lastIndex = sibs.indexOf(lastId);
+          atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
+        }
       }
+      
+      pasteClipboard(actions as any, query as any, { parentId: parentIdOpt, atIndex: atIndexOpt });
+      close();
+      return;
     }
-    pasteClipboard(actions as any, query as any, { parentId: parentIdOpt, atIndex: atIndexOpt });
+
+    // 2. Try system clipboard (for images)
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        for (const type of item.types) {
+          if (type.startsWith("image/")) {
+            const blob = await item.getType(type);
+            const file = new File([blob], "pasted-image.png", { type });
+            
+            let imageUrl: string;
+            if (projectId) {
+              try {
+                const mediaItem = await addFileToMediaLibrary(projectId, file);
+                imageUrl = mediaItem.url;
+              } catch (err) {
+                console.error("Right-click paste upload failed:", err);
+                imageUrl = await new Promise((resolve) => {
+                  const reader = new FileReader();
+                  reader.onload = (e) => resolve(e.target?.result as string);
+                  reader.readAsDataURL(file);
+                });
+              }
+            } else {
+              imageUrl = await new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target?.result as string);
+                reader.readAsDataURL(file);
+              });
+            }
+
+            // Determine parent and position
+            let targetParentId = "ROOT";
+            let imageLeft = 40;
+            let imageTop = 40;
+
+            const nodes = query.getState().nodes;
+            const resolvePage = (id: string | null): string | null => {
+              let curr = id;
+              while (curr && curr !== "ROOT") {
+                if (nodes[curr]?.data?.displayName === "Page") return curr;
+                curr = nodes[curr]?.data?.parent;
+              }
+              return Object.keys(nodes).find(k => nodes[k]?.data?.displayName === "Page") || null;
+            };
+
+            const pageId = resolvePage(menu.nodeId || (effectiveIds.length > 0 ? effectiveIds[0] : null));
+            if (pageId) {
+              targetParentId = pageId;
+              try {
+                const pageDom = query.node(pageId).get()?.dom;
+                if (pageDom) {
+                  const rect = pageDom.getBoundingClientRect();
+                  // Helper within reach or from imports? We'll use a local small version.
+                  const baseW = pageDom.offsetWidth || pageDom.clientWidth || 1;
+                  const scaleX = rect.width / baseW;
+                  const baseH = pageDom.offsetHeight || pageDom.clientHeight || 1;
+                  const scaleY = rect.height / baseH;
+                  
+                  imageLeft = Math.max(0, Math.round((menu.x - rect.left) / scaleX));
+                  imageTop = Math.max(0, Math.round((menu.y - rect.top) / scaleY));
+                }
+              } catch (e) {}
+            }
+
+            // Create node
+            const imageNode = (
+              <Image
+                src={imageUrl}
+                width="320px"
+                height="auto"
+                alt="Pasted Image"
+                position="absolute"
+                top={`${imageTop}px`}
+                left={`${imageLeft}px`}
+              />
+            );
+
+            const nodeTree = query.parseReactElement(imageNode).toNodeTree();
+            const newId = (nodeTree as any).rootNodeId || (nodeTree as any).root;
+            
+            if ((actions as any).addNodeTree) {
+              (actions as any).addNodeTree(nodeTree, targetParentId);
+            } else {
+              (actions as any).add(nodeTree, targetParentId);
+            }
+
+            if (newId) {
+              setTimeout(() => {
+                try {
+                  actions.selectNode(newId);
+                } catch (e) {}
+              }, 100);
+            }
+            
+            close();
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("System clipboard paste failed:", err);
+    }
+    
     close();
   };
   const handlePasteToReplace = () => {
-    if (singleSelected) pasteToReplaceSelection(actions as any, query as any, selectedIds);
+    if (singleSelected) pasteToReplaceSelection(actions as any, query as any, effectiveIds);
     close();
   };
   const handleBringToFront = () => {
-    if (!hasSelection || !parentId || !actions.move || !allSameParent) return;
+    if (!hasSelection || !parentId || !actions
+      .move || !allSameParent) return;
     // Sort by current sibling index so we preserve document order at the end
-    const sorted = [...selectedIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
+    const sorted = [...effectiveIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     for (const id of sorted) {
       try {
         const st = query.getState();
@@ -278,7 +430,7 @@ export function CanvasContextMenu() {
   const handleSendToBack = () => {
     if (!hasSelection || !parentId || !actions.move || !allSameParent) return;
     // Sort by current sibling index so we preserve document order at the front
-    const sorted = [...selectedIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
+    const sorted = [...effectiveIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     for (let i = 0; i < sorted.length; i++) {
       try {
         const st = query.getState();
@@ -293,21 +445,13 @@ export function CanvasContextMenu() {
     }
     close();
   };
-  const handleGroup = () => {
-    groupSelection(actions as any, query as any, selectedIds);
-    close();
-  };
-  const handleUngroup = () => {
-    ungroupSelection(actions as any, query as any, selectedIds);
-    close();
-  };
   const handleDuplicate = () => {
-      duplicateNodes(actions as any, query as any, selectedIds);
+    duplicateNodes(actions as any, query as any, effectiveIds);
     close();
   };
   const handleShowHide = () => {
     const next = isHidden ? "visible" : "hidden";
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.visibility = next; });
       } catch { /* skip */ }
@@ -316,7 +460,7 @@ export function CanvasContextMenu() {
   };
   const handleLockUnlock = () => {
     const next = !locked;
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.locked = next; });
       } catch { /* skip */ }
@@ -324,7 +468,7 @@ export function CanvasContextMenu() {
     close();
   };
   const handleFlipH = () => {
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.flipHorizontal = !(p.flipHorizontal as boolean); });
       } catch { /* skip */ }
@@ -332,17 +476,37 @@ export function CanvasContextMenu() {
     close();
   };
   const handleFlipV = () => {
-    selectedIds.forEach((id) => {
+    effectiveIds.forEach((id) => {
       try {
         actions.setProp(id, (p: Record<string, unknown>) => { p.flipVertical = !(p.flipVertical as boolean); });
       } catch { /* skip */ }
     });
     close();
   };
+  const UNGROUPABLE_TYPES = new Set([
+    "Container", "Section", "Row", "Column", "Banner", "Frame",
+  ]);
+  const canGroup = effectiveIds.length >= 2 && allSameParent;
+  const canUngroup =
+    singleSelected &&
+    firstNode &&
+    UNGROUPABLE_TYPES.has(displayName ?? "") &&
+    ((firstNode.data?.nodes as string[]) ?? []).length > 0;
+
+  const handleGroup = () => {
+    if (!canGroup) return;
+    groupSelection(actions as any, query as any, effectiveIds, Container, Element);
+    close();
+  };
+  const handleUngroup = () => {
+    if (!canUngroup) return;
+    ungroupSelection(actions as any, query as any, effectiveIds);
+    close();
+  };
   const handleDelete = () => {
     if (!deletable) return;
     try {
-      (actions as any).delete(selectedIds.length === 1 ? selectedIds[0]! : selectedIds);
+      (actions as any).delete(effectiveIds.length === 1 ? effectiveIds[0]! : effectiveIds);
       (actions as any).selectNode(undefined);
     } catch { /* ignore */ }
     close();
@@ -357,15 +521,16 @@ export function CanvasContextMenu() {
       onClick={(e) => e.stopPropagation()}
     >
       <MenuItem icon={Copy} label="Copy" shortcut="⌘C" onClick={handleCopy} disabled={!hasSelection} />
-      <MenuItem icon={ClipboardPaste} label="Paste here" shortcut="⌘V" onClick={handlePasteHere} disabled={!hasClipboard} />
+      <MenuItem icon={ClipboardPaste} label="Paste here" shortcut="⌘V" onClick={handlePasteHere} />
       <MenuItem icon={Replace} label="Paste to replace" shortcut="⇧⌘R" onClick={handlePasteToReplace} disabled={!singleSelected || !hasClipboard} />
       <Divider />
       <MenuItem icon={ChevronsUp} label="Bring to front" shortcut="]" onClick={handleBringToFront} disabled={!canBringForward} />
       <MenuItem icon={ChevronsDown} label="Send to back" shortcut="[" onClick={handleSendToBack} disabled={!canSendBackward} />
       <Divider />
+      <MenuItem icon={Copy} label="Duplicate" shortcut="⌘D" onClick={handleDuplicate} disabled={!hasSelection} />
+      <Divider />
       <MenuItem icon={Group} label="Group selection" shortcut="⌘G" onClick={handleGroup} disabled={!canGroup} />
       <MenuItem icon={Ungroup} label="Ungroup" shortcut="⇧⌘G" onClick={handleUngroup} disabled={!canUngroup} />
-      <MenuItem icon={Copy} label="Duplicate" shortcut="⌘D" onClick={handleDuplicate} disabled={!hasSelection} />
       <Divider />
       <MenuItem
         icon={isHidden ? Eye : EyeOff}

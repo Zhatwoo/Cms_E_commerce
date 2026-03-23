@@ -27,7 +27,48 @@ interface CraftRawNode {
 type CraftRawDocument = Record<string, CraftRawNode>;
 
 function getResolvedType(node: CraftRawNode | null | undefined): string {
-  return (node?.type?.resolvedName ?? "").trim();
+  const resolved = (node?.type?.resolvedName ?? "").trim();
+  const display = (node?.displayName ?? "").trim();
+  if (!resolved) return display;
+
+  const generic = resolved.toLowerCase();
+  // Craft may serialize wrapper nodes as "Element" while displayName carries the real component type.
+  if ((generic === "element" || generic === "canvas" || generic === "unknown") && display) {
+    return display;
+  }
+
+  return resolved;
+}
+
+function normalizeComponentType(rawType: unknown): ComponentType {
+  const name = typeof rawType === "string" ? rawType.trim() : "";
+  const lowered = name.toLowerCase();
+  if (!lowered) return "Container";
+  if (lowered === "tabcontent" || lowered === "tab content") return "TabContent";
+  if (lowered.includes("tabcontent")) return "TabContent";
+  if (lowered === "tabs") return "Tabs";
+  if (lowered.includes("tabs")) return "Tabs";
+  if (lowered === "text" || lowered.includes("text")) return "Text";
+  if (lowered === "image" || lowered.includes("image")) return "Image";
+  if (lowered === "video" || lowered.includes("video")) return "Video";
+  if (lowered === "button" || lowered.includes("button")) return "Button";
+  if (lowered === "divider" || lowered.includes("divider")) return "Divider";
+  if (lowered === "section" || lowered.includes("section")) return "Section";
+  if (lowered === "row" || lowered.includes("row")) return "Row";
+  if (lowered === "column" || lowered.includes("column")) return "Column";
+  if (lowered === "icon" || lowered.includes("icon")) return "Icon";
+  if (lowered === "spacer" || lowered.includes("spacer")) return "Spacer";
+  if (lowered === "pagination" || lowered.includes("pagination")) return "Pagination";
+  if (lowered === "badge" || lowered.includes("badge")) return "Badge";
+  if (lowered === "circle" || lowered.includes("circle")) return "Circle";
+  if (lowered === "square" || lowered.includes("square")) return "Square";
+  if (lowered === "triangle" || lowered.includes("triangle")) return "Triangle";
+  if (lowered === "rating" || lowered.includes("rating")) return "Rating";
+  if (lowered === "banner" || lowered.includes("banner")) return "Banner";
+  if (lowered === "accordion" || lowered.includes("accordion")) return "Accordion";
+  if (lowered === "importedblock" || lowered === "imported block" || lowered.includes("imported")) return "ImportedBlock";
+  if (lowered === "container" || lowered.includes("container")) return "Container";
+  return "Container";
 }
 
 function isType(node: CraftRawNode | null | undefined, typeName: string): boolean {
@@ -55,6 +96,15 @@ function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
     const resolvedName = typeObj?.resolvedName ?? (data?.displayName as string) ?? (v.displayName as string) ?? 'Unknown';
     const nodes = (data?.nodes ?? v.nodes) as string[] | undefined;
     const props = (data?.props ?? v.props) as Record<string, unknown> | undefined;
+    const linkedNodes = (data?.linkedNodes ?? v.linkedNodes) as Record<string, string> | undefined;
+    const normalizedLinkedNodes: Record<string, string> = {};
+    if (linkedNodes && typeof linkedNodes === "object") {
+      for (const [slot, targetId] of Object.entries(linkedNodes)) {
+        if (typeof targetId === "string" && targetId.trim()) {
+          normalizedLinkedNodes[slot] = targetId;
+        }
+      }
+    }
     result[id] = {
       type: { resolvedName },
       isCanvas: (v.isCanvas as boolean) ?? false,
@@ -64,7 +114,7 @@ function normalizeCraftRaw(parsed: Record<string, unknown>): CraftRawDocument {
       parent: (data?.parent ?? v.parent) as string | undefined,
       hidden: (v.hidden as boolean) ?? false,
       nodes: Array.isArray(nodes) ? nodes : [],
-      linkedNodes: (v.linkedNodes as Record<string, string>) ?? {},
+      linkedNodes: normalizedLinkedNodes,
     };
   }
   return result as CraftRawDocument;
@@ -124,6 +174,8 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
   },
   Text: {
     text: "Edit me!",
+    width: "fit-content",
+    height: "fit-content",
     fontSize: 16,
     fontFamily: "Inter",
     fontWeight: "400",
@@ -575,7 +627,10 @@ export function serializeCraftToClean(rawJson: string, files?: CodeFile[]): Buil
     const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
     const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
 
-    const validChildren = (pageRaw.nodes ?? []).filter((childId) => {
+    const pageLinkedChildIds = pageRaw.linkedNodes
+      ? Object.values(pageRaw.linkedNodes).filter((childId) => typeof childId === "string")
+      : [];
+    const validChildren = [...(pageRaw.nodes ?? []), ...pageLinkedChildIds].filter((childId) => {
       const child = raw[childId];
       return !!child && !isPageOrViewport(child);
     });
@@ -617,17 +672,25 @@ function processChildren(
     // Already processed (shared node)
     if (nodes[id]) continue;
 
-    const type = rawNode.type.resolvedName as ComponentType;
+    const type = normalizeComponentType(getResolvedType(rawNode));
+
+    const linkedChildIds = rawNode.linkedNodes
+      ? Object.values(rawNode.linkedNodes).filter((linkedId) => typeof linkedId === "string")
+      : [];
+    const combinedChildIds = [...(rawNode.nodes ?? []), ...linkedChildIds].filter((childId) => {
+      const child = raw[childId];
+      return !!child && !isPageOrViewport(child);
+    });
 
     nodes[id] = {
       type,
       props: cleanProps(type, rawNode.props),
-      children: rawNode.nodes,
+      children: combinedChildIds,
     };
 
     // Recurse into children
-    if (rawNode.nodes.length > 0) {
-      processChildren(rawNode.nodes, raw, nodes);
+    if (combinedChildIds.length > 0) {
+      processChildren(combinedChildIds, raw, nodes);
     }
   }
 }
@@ -717,6 +780,9 @@ function reconstructChildren(
       "Circle",
       "Square",
       "Triangle",
+      // Complex layout / wrapper components that host other blocks
+      "Tabs",
+      "TabContent",
     ]);
 
     // Validate and filter children to only include existing nodes
@@ -728,16 +794,40 @@ function reconstructChildren(
       return exists;
     });
 
+    const baseProps = { ...defaults, ...cleanNode.props };
+
+    // Tabs uses nested canvases via Craft's linkedNodes (e.g. tab-content-tab-xxx).
+    // IMPORTANT: use the tab's stored content id when it looks like a canvas id,
+    // to preserve legacy drafts that used custom ids. Fallback to tab-content-${tab.id}.
+    const isTabs = cleanNode.type === "Tabs";
+    const tabs = (isTabs ? (baseProps as any).tabs : null) as Array<{ id?: string; content?: unknown }> | null;
+    const linkedNodes: Record<string, string> = {};
+    if (isTabs && Array.isArray(tabs)) {
+      for (const t of tabs) {
+        const tabId = (t?.id ?? "").toString();
+        if (!tabId) continue;
+        const maybeContent = typeof t?.content === "string" ? t.content.trim() : "";
+        const canvasId =
+          maybeContent && (maybeContent.startsWith("tab-content-") || maybeContent.startsWith("tab-content"))
+            ? maybeContent
+            : `tab-content-${tabId}`;
+        if (nodes[canvasId]) {
+          linkedNodes[canvasId] = canvasId;
+        }
+      }
+    }
+
     craft[id] = {
       type: { resolvedName: cleanNode.type },
       isCanvas: canvasTypes.has(cleanNode.type),
-      props: { ...defaults, ...cleanNode.props },
+      props: baseProps,
       displayName: cleanNode.type,
       custom: {},
       parent: parentId,
       hidden: false,
-      nodes: validChildren,
-      linkedNodes: {},
+      // For Tabs, tab content canvases must be linkedNodes (not direct children).
+      nodes: isTabs ? [] : validChildren,
+      linkedNodes: isTabs ? linkedNodes : {},
     };
 
     // Recurse

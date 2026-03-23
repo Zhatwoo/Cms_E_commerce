@@ -107,12 +107,12 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json({
-  limit: '20mb',
+  limit: '100mb',
   verify: (req, _res, buf) => {
-    if (req.originalUrl === '/api/webhooks/paymongo') req.rawBody = buf;
+    if (req.originalUrl.startsWith('/api/webhooks')) req.rawBody = buf;
   }
 }));
-app.use(express.urlencoded({ extended: true, limit: '20mb' }));
+app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Domain & Subdomain detection middleware
 const domainDetector = require('./middleware/domainDetector');
@@ -160,6 +160,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const productRoutes = require('./routes/productRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
@@ -176,6 +177,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/domains', domainRoutes);
 app.use('/api/projects', commentRoutes); // Merged into projects path for comments
@@ -320,6 +322,8 @@ const projectRooms = new Map();
 
 function tryListen(port) {
   const server = http.createServer(app);
+  server.timeout = 30 * 60 * 1000;
+  if (typeof server.requestTimeout !== 'undefined') server.requestTimeout = 30 * 60 * 1000;
 
   // Attach Socket.IO to the HTTP server
   const { Server: SocketIOServer } = require('socket.io');

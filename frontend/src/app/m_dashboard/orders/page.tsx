@@ -11,28 +11,41 @@ const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Paid', 'Shipped
 const THUMBNAILS = ['/images/template-saas.jpg', '/images/template-fashion.jpg', '/images/template-portfolio.jpg'];
 
 // ─── Payment mode config ─────────────────────────────────────────────────────
-type PaymentMode = 'COD' | 'Bank Transfer';
-const PAYMENT_MODES: PaymentMode[] = ['COD', 'Bank Transfer'];
-
+type PaymentMode = 'COD' | 'Bank Transfer' | 'Stripe' | 'PayPal' | 'GCash' | 'Maya';
 const PAYMENT_ICONS: Record<PaymentMode, { icon: string; bg: string; color: string }> = {
-  COD:            { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
+  COD:           { icon: '💵', bg: '#FFCC0022', color: '#FFCC00' },
   'Bank Transfer':{ icon: '🏦', bg: '#6702BF22', color: '#A855F7' },
+  Stripe:        { icon: '💳', bg: '#635BFF22', color: '#635BFF' },
+  PayPal:        { icon: '🅿', bg: '#003087' + '22', color: '#009CDE' },
+  GCash:         { icon: '📱', bg: '#007DFF22', color: '#007DFF' },
+  Maya:          { icon: '💚', bg: '#00C27722', color: '#00C277' },
 };
 
-// Deterministic mock payment mode from order id
-function mockPaymentMode(orderId: string): PaymentMode {
-  const charSum = orderId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  return PAYMENT_MODES[charSum % PAYMENT_MODES.length];
+// Map the stored payment_method string from the DB to a display PaymentMode
+function resolvePaymentMode(order: ApiPublishedOrder): PaymentMode {
+  const raw = String(
+    (order as any).paymentMethod ||
+    (order as any).payment_method ||
+    ''
+  ).toLowerCase().trim();
+  if (raw === 'stripe') return 'Stripe';
+  if (raw === 'paypal') return 'PayPal';
+  if (raw === 'gcash') return 'GCash';
+  if (raw === 'maya') return 'Maya';
+  if (raw === 'cod') return 'COD';
+  if (raw === 'bank_transfer' || raw === 'bank transfer') return 'Bank Transfer';
+  // Fallback: no payment method stored yet → show COD
+  return 'COD';
 }
 
 type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
 type ViewMode = 'list' | 'grid';
 
 const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
-  { id: 'all', label: 'ALL CHECKOUTS' },
-  { id: 'pending', label: 'PENDING' },
-  { id: 'transit', label: 'IN TRANSIT' },
-  { id: 'completed', label: 'COMPLETED' },
+  { id: 'all', label: 'All Checkouts' },
+  { id: 'pending', label: 'Pending' },
+  { id: 'transit', label: 'In Transit' },
+  { id: 'completed', label: 'Completed' },
 ];
 
 const ORDER_CATEGORIES = [
@@ -277,22 +290,20 @@ export default function OrdersPage() {
 
   return (
     <div className="dashboard-landing-light relative mx-auto w-full max-w-[1320px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
-      <div
-        className="pointer-events-none absolute top-24 right-6 h-56 w-56 opacity-20"
-        style={{ background: `radial-gradient(circle at center, ${colors.accent.purple} 0%, transparent 72%)` }}
-      />
 
       {/* ── Header ── */}
       <section className="relative z-10 mb-6 sm:mb-7 text-center">
-        <h1 className="text-[38px] max-[390px]:text-[34px] sm:text-5xl md:text-7xl lg:text-[78px] font-extrabold leading-[0.96] tracking-tight">
-          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Track Buyer</span>
+        <h1 className="text-[44px] sm:text-[58px] lg:text-[76px] 2xl:text-[84px] font-extrabold leading-[1.15] tracking-tight">
+          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Customer </span>
           <span
-            className="block text-transparent bg-clip-text"
+            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
             style={{
               backgroundImage: theme === 'dark'
-                ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)'
-                : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
+                ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)'
+                : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
               textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
+              paddingBottom: '0.1em',
+              marginBottom: '-0.1em'
             }}
           >
             Checkouts
@@ -311,7 +322,7 @@ export default function OrdersPage() {
                   ref={(el) => { tabRefs.current[tab.id] = el; }}
                   onClick={() => setActiveTab(tab.id)}
                   className="relative whitespace-nowrap px-1 pb-2 text-[9px] max-[390px]:text-[9px] sm:text-[10px] lg:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em] [font-family:var(--font-outfit),sans-serif] transition-colors duration-200"
-                  style={{ color: isActive ? colors.accent.yellow : colors.text.muted }}
+                  style={{ color: isActive ? (theme === 'light' ? '#000000' : colors.accent.yellow) : colors.text.muted }}
                 >
                   {tab.label}
                 </button>
@@ -322,28 +333,28 @@ export default function OrdersPage() {
               style={{
                 left: tabIndicator.left, width: tabIndicator.width,
                 opacity: tabIndicator.ready ? 1 : 0,
-                background: theme === 'dark'
-                  ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                  : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)',
-                boxShadow: theme === 'dark'
-                  ? '0 0 12px rgba(177, 59, 255, 0.35)'
-                  : '0 0 12px rgba(139, 92, 246, 0.35)',
+                background: theme === 'dark' ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
+                boxShadow: theme === 'dark' ? '0 0 12px rgba(177, 59, 255, 0.35)' : '0 0 12px rgba(139, 92, 246, 0.35)',
               }}
             />
           </div>
         </div>
 
         {/* Search */}
-        <div className={`mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
-          <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0" fill="none" style={{ color: colors.accent.yellow }}>
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="1.8" />
+        <div className={`m-dashboard-search-shadow mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
+          <svg 
+            viewBox="0 0 20 20" 
+            className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`} 
+            fill="none"
+          >
+            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
           </svg>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates, designs, or actions"
-            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-slate-900 placeholder:text-slate-400'}`}
+            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#8a86a3]'}`}
           />
         </div>
       </section>
@@ -356,8 +367,12 @@ export default function OrdersPage() {
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="h-12 w-full appearance-none rounded-2xl border pl-6 pr-10 text-[12px] font-semibold leading-none"
-              style={{ borderColor: colors.border.faint, backgroundColor: colors.bg.card, color: colors.text.primary }}
+              className={`h-12 w-full appearance-none rounded-2xl border pl-6 pr-10 text-[12px] font-semibold leading-none ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
+              style={{
+                borderColor: theme === 'dark' ? colors.border.faint : undefined,
+                backgroundColor: theme === 'dark' ? colors.bg.card : undefined,
+                color: colors.text.primary
+              }}
             >
               <option value="all">Category</option>
               {ORDER_CATEGORIES.map((c) => (
@@ -374,7 +389,9 @@ export default function OrdersPage() {
 
         {/* Pagination */}
         <div className="justify-self-center flex items-center gap-1 sm:gap-2 text-xs" style={{ color: colors.text.secondary }}>
-          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} className="h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px]" style={{ borderColor: colors.border.faint }} aria-label="Previous page">‹</button>
+          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))}
+            className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px] flex items-center justify-center ${theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}`}
+            style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'transparent' : undefined }} aria-label="Previous page">‹</button>
           {paginationItems.map((item, idx) => {
             if (item === 'ellipsis') return <span key={`ellipsis-${idx}`} className="px-0.5 text-[10px] sm:text-[11px]" style={{ color: colors.text.muted }}>...</span>;
             const val = item as number;
@@ -387,22 +404,37 @@ export default function OrdersPage() {
               </button>
             );
           })}
-          <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} className="h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px]" style={{ borderColor: colors.border.faint }} aria-label="Next page">›</button>
+          <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px] flex items-center justify-center ${theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}`}
+            style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'transparent' : undefined }} aria-label="Next page">›</button>
         </div>
 
         {/* View toggle */}
         <div className="justify-self-center md:justify-self-end flex items-center gap-2">
-          {(['list', 'grid'] as ViewMode[]).map((mode) => (
-            <button key={mode} type="button" onClick={() => setViewMode(mode)}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg border inline-flex items-center justify-center"
-              style={{ borderColor: colors.border.faint, backgroundColor: viewMode === mode ? colors.accent.purple : colors.bg.card, color: colors.text.primary }}
-              aria-label={`${mode} view`}>
-              {mode === 'list'
-                ? <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
-                : <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><rect x="4" y="4" width="6" height="6" rx="1" /><rect x="14" y="4" width="6" height="6" rx="1" /><rect x="4" y="14" width="6" height="6" rx="1" /><rect x="14" y="14" width="6" height="6" rx="1" /></svg>
-              }
-            </button>
-          ))}
+          {(['list', 'grid'] as ViewMode[]).map((mode) => {
+            const isActive = viewMode === mode;
+            return (
+              <button 
+                key={mode} 
+                type="button" 
+                onClick={() => setViewMode(mode)}
+                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-300 ${isActive ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
+                style={{ 
+                  borderColor: isActive ? 'transparent' : colors.border.faint, 
+                  backgroundColor: isActive 
+                    ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
+                    : (theme === 'light' ? '#FFFFFF' : colors.bg.card), 
+                  color: isActive ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary) 
+                }}
+                aria-label={`${mode} view`}
+              >
+                {mode === 'list'
+                  ? <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
+                  : <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
+                }
+              </button>
+            );
+          })}
         </div>
       </section>
 
@@ -419,10 +451,10 @@ export default function OrdersPage() {
            LIST VIEW — now 7 cols including Mode of Payment
            ══════════════════════════════════════════════════════ */
         <section
-          className={`relative z-10 rounded-2xl border overflow-hidden ${theme === 'dark' ? '' : 'bg-white shadow-sm'}`}
+          className={`relative z-10 rounded-2xl border overflow-hidden ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
           style={{
-            borderColor: colors.border.faint,
-            background: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #090029 100%)' : undefined,
+            borderColor: theme === 'dark' ? colors.border.faint : undefined,
+            backgroundImage: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #090029 100%)' : 'none',
           }}
         >
           {/* Header row */}
@@ -445,7 +477,7 @@ export default function OrdersPage() {
 
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const paymentMode = mockPaymentMode(order.id);
+            const paymentMode = resolvePaymentMode(order);
             const isExpanded = expandedOrderId === order.id;
             const isEditing = editingOrderId === order.id;
 
@@ -455,9 +487,9 @@ export default function OrdersPage() {
                 className="px-2.5 max-[390px]:px-2 sm:px-4 py-3.5 sm:py-4 border-b transition-colors duration-150"
                 style={{
                   borderColor: colors.border.faint,
-                  background: isExpanded
+                  backgroundColor: isExpanded
                     ? theme === 'dark' ? 'rgba(103,2,191,0.07)' : 'rgba(139,92,246,0.04)'
-                    : undefined,
+                    : 'transparent',
                 }}
               >
                 <div
@@ -482,7 +514,7 @@ export default function OrdersPage() {
                           style={{ borderColor: colors.border.faint }}
                         />
                         {/* subtle shimmer overlay */}
-                        <div className="absolute inset-0 rounded-md" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' }} />
+                        <div className="absolute inset-0 rounded-md" style={{ backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.06) 0%, transparent 60%)' }} />
                       </div>
                       <div className="min-w-0">
                         <p className="text-[10px] font-bold tracking-widest" style={{ color: colors.accent.yellow }}>{orderNumber(order)}</p>
@@ -572,7 +604,7 @@ export default function OrdersPage() {
 
                 {/* ── Expanded details ── */}
                 {isExpanded && (
-                  <div className="mt-4 rounded-xl border p-3 sm:p-4" style={{ borderColor: colors.border.faint, background: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
+                  <div className="mt-4 rounded-xl border p-3 sm:p-4" style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)' }}>
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <span className="text-[11px] font-semibold uppercase tracking-[0.08em]" style={{ color: colors.text.muted }}>Product details</span>
                       {/* Payment mode in details */}
@@ -652,7 +684,7 @@ export default function OrdersPage() {
         <section className="relative z-10 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
           {pagedOrders.map((order, idx) => {
             const badge = rowBadge(String(order.status || 'Pending'), colors);
-            const paymentMode = mockPaymentMode(order.id);
+            const paymentMode = resolvePaymentMode(order);
             const paymentCfg = PAYMENT_ICONS[paymentMode];
             const isExpanded = expandedOrderId === order.id;
             const isEditing = editingOrderId === order.id;
@@ -660,10 +692,10 @@ export default function OrdersPage() {
             return (
               <article
                 key={order.id}
-                className={`rounded-2xl border overflow-hidden transition-all duration-200 ${theme === 'dark' ? '' : 'bg-white shadow-sm'}`}
+                className={`rounded-2xl border overflow-hidden transition-all duration-200 ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
                 style={{
-                  borderColor: isExpanded ? `${colors.accent.purple}66` : colors.border.faint,
-                  background: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #0D0035 100%)' : undefined,
+                  borderColor: isExpanded ? `${colors.accent.purple}66` : (theme === 'dark' ? colors.border.faint : undefined),
+                  backgroundImage: theme === 'dark' ? 'linear-gradient(135deg, #110248 0%, #0D0035 100%)' : 'none',
                   boxShadow: isExpanded
                     ? theme === 'dark' ? '0 0 0 1px rgba(103,2,191,0.3), 0 8px 32px rgba(103,2,191,0.15)' : '0 0 0 1px rgba(139,92,246,0.2), 0 8px 24px rgba(139,92,246,0.08)'
                     : undefined,
@@ -678,7 +710,7 @@ export default function OrdersPage() {
                     style={{ display: 'block' }}
                   />
                   {/* gradient scrim */}
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(9,0,41,0.6) 0%, transparent 55%)' }} />
+                  <div className="absolute inset-0" style={{ backgroundImage: 'linear-gradient(to top, rgba(9,0,41,0.6) 0%, transparent 55%)' }} />
                   {/* Status badge — top right */}
                   <span className="absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-[10px] font-bold shadow"
                     style={{ backgroundColor: badge.bg, color: badge.color, border: `1px solid ${badge.color}33`, backdropFilter: 'blur(6px)' }}>
@@ -713,7 +745,7 @@ export default function OrdersPage() {
                   </div>
 
                   {/* Divider */}
-                  <div className="mt-3 mb-2.5 h-px" style={{ background: `linear-gradient(90deg, ${colors.border.faint} 0%, transparent 100%)` }} />
+                  <div className="mt-3 mb-2.5 h-px" style={{ backgroundImage: `linear-gradient(90deg, ${colors.border.faint} 0%, transparent 100%)` }} />
 
                   {/* Actions */}
                   <div className="grid grid-cols-3 gap-2">

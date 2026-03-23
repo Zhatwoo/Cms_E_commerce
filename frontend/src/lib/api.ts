@@ -25,6 +25,8 @@ export type User = {
   lastLogin?: string;
   username?: string;
   website?: string;
+  paymentMethods?: any[];
+  paymentMethod?: any; // kept for compatibility
 };
 
 export type AuthResponse = {
@@ -36,6 +38,30 @@ export type AuthResponse = {
 };
 
 export type ApiError = { success: false; message: string; error?: string };
+
+export function getApiErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message || '';
+  if (typeof error === 'string') return error;
+  return '';
+}
+
+export function isBackendUnavailableError(error: unknown): boolean {
+  return getApiErrorMessage(error).includes('Backend is unreachable');
+}
+
+export function isAccountDeactivatedError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return message.includes('account has been deactivated') || message.includes('your account has been deactivated');
+}
+
+export function isQuietAuthError(error: unknown): boolean {
+  const message = getApiErrorMessage(error).toLowerCase();
+  return (
+    isAccountDeactivatedError(error) ||
+    message.includes('not authorized') ||
+    message.includes('no token')
+  );
+}
 
 /** Token is in HttpOnly cookie only; not readable from JS. */
 export function getToken(): string | null {
@@ -166,11 +192,19 @@ export async function apiFetch<T>(
         headers,
         credentials: 'include', // ✅ cookie only
       });
+      const data = await handleResponse<T>(res);
       activeApiBase = base;
-      return await handleResponse<T>(res);
-    } catch (error) {
+      return data;
+    } catch (error: any) {
       lastError = error;
-      // Only retry on network-level failures (e.g. backend down / wrong port).
+      // Retry on network-level failures OR 404s on local candidates (could be hit a zombie server)
+      const isLocal = base.includes('localhost') || base.includes('127.0.0.1');
+      const isNotFoundError = error.message?.includes('Route not found') || error.message?.includes('Not Found');
+      
+      if (isLocal && isNotFoundError && candidates.indexOf(base) < candidates.length - 1) {
+        continue;
+      }
+
       if (!(error instanceof TypeError)) {
         throw error;
       }
@@ -284,11 +318,27 @@ export async function updateProfile(data: {
   username?: string;
   website?: string;
   bio?: string;
+  paymentMethods?: any[];
+  paymentMethod?: any;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
   return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
+}
+
+export async function createStripeSetupIntent(): Promise<{ success: boolean; clientSecret: string }> {
+  return apiFetch<{ success: boolean; clientSecret: string }>('/api/auth/billing/setup-intent', {
+    method: 'POST',
+  });
+}
+
+export async function getUnionBankLink(): Promise<{ success: boolean; url: string }> {
+  return apiFetch<{ success: boolean; url: string }>('/api/payments/unionbank/link');
+}
+
+export async function getPayPalLink(): Promise<{ success: boolean; url: string }> {
+  return apiFetch<{ success: boolean; url: string }>('/api/payments/paypal/link');
 }
 
 /** Upload avatar via backend: file is saved in Storage only at Clients/profile_picture/{username}/profile-{uid}. */
@@ -470,6 +520,22 @@ export async function uploadMediaApi(
   if (!data.url) throw new Error(data.message || 'Upload failed');
   return { url: data.url };
 }
+
+
+/** Delete media files by their public URLs. */
+export async function deleteMediaApi(
+  projectId: string,
+  urls: string[]
+): Promise<{ success: boolean; message?: string; summary?: { deleted: number; skipped: number } }> {
+  return apiFetch<{ success: boolean; message?: string; summary?: { deleted: number; skipped: number } }>(
+    `/api/projects/${projectId}/media`,
+    {
+      method: 'DELETE',
+      body: JSON.stringify({ urls }),
+    }
+  );
+}
+
 
 /** Update subdomain for an existing published project. */
 export async function updateDomainSubdomain(
@@ -1161,6 +1227,31 @@ export async function updatePublishedOrderStatus(
     }
   );
 }
+
+export async function createStripePaymentIntent(
+  subdomain: string,
+  orderId: string
+): Promise<{ 
+  success: boolean; 
+  message?: string; 
+  clientSecret?: string; 
+  publicKey?: string;
+}> {
+  const sub = subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  return apiFetch<{ 
+    success: boolean; 
+    message?: string; 
+    clientSecret?: string; 
+    publicKey?: string; 
+  }>(`/api/orders/published/${encodeURIComponent(sub)}/${encodeURIComponent(orderId)}/create-stripe-payment-intent`, {
+    method: 'POST',
+  });
+}
+
+export async function getStripePublicKey(): Promise<{ success: boolean; publicKey?: string }> {
+  return apiFetch<{ success: boolean; publicKey?: string }>('/api/orders/stripe-public-key');
+}
+
 /** Admin: User and Website Management — list websites with owner and plan from user/roles/client (subscription_plan). */
 export type DomainRow = {
   id: string;
@@ -1221,8 +1312,13 @@ export type ClientRow = {
   displayName: string;
   subscriptionPlan: string;
   status: string;
+  suspensionReason?: string;
   createdAt?: string;
   isActive?: boolean;
+  storageUsedBytes?: number;
+  storageLimitBytes?: number;
+  storageUsedGb?: number;
+  storageLimitGb?: number;
 };
 
 export async function getClients(): Promise<{
@@ -1249,11 +1345,12 @@ export async function updateClientPlan(
 /** Admin: update client status (Published = active, Suspended, Restricted). */
 export async function updateClientStatus(
   userId: string,
-  status: 'Published' | 'Suspended' | 'Restricted'
+  status: 'Published' | 'Suspended' | 'Restricted',
+  suspensionReason?: string
 ): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
   return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
     `/api/users/${userId}/status`,
-    { method: 'PUT', body: JSON.stringify({ status }) }
+    { method: 'PUT', body: JSON.stringify({ status, suspensionReason }) }
   );
 }
 
@@ -1309,3 +1406,4 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
+const api = { getMe, updateProfile }; export default api;

@@ -1,7 +1,8 @@
 'use client';
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
+import { getMe, updateProfile, type User, getUnionBankLink, getPayPalLink } from '@/lib/api';
 import { 
     Bell, 
     Shield, 
@@ -15,8 +16,11 @@ import {
     EyeOff,
     Check,
     Moon,
-    Sun
+    Sun,
+    Plus,
+    Trash2
 } from 'lucide-react';
+import { AddCardModal } from './components/AddCardModal';
 
 type SettingTab = 'notifications' | 'security' | 'appearance' | 'api' | 'billing';
 
@@ -31,6 +35,134 @@ export default function SettingsPage() {
     const [orderNotifications, setOrderNotifications] = useState(true);
     const [marketingEmails, setMarketingEmails] = useState(false);
     const [securityAlerts, setSecurityAlerts] = useState(true);
+
+    // User & Billing state
+    const [user, setUser] = useState<User | null>(null);
+    const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [isLinking, setIsLinking] = useState(false);
+    const [removingCardId, setRemovingCardId] = useState<string | null>(null);
+    const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await getMe();
+                if (response && response.success && response.user) {
+                    setUser(response.user);
+                    setPaymentMethods(response.user.paymentMethods || []);
+                }
+            } catch (error) {
+                console.error('Failed to fetch user:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    const handleAddCard = () => {
+        setIsAddCardModalOpen(true);
+    };
+
+    const handleAddCardSuccess = (updatedMethods: any[]) => {
+        setPaymentMethods(updatedMethods);
+        setIsAddCardModalOpen(false);
+    };
+
+    const handleLinkPayPal = async () => {
+        const email = window.prompt('Pakilagay ang iyong PayPal email address para sa pagtanggap ng bayad:');
+        if (!email) return;
+
+        // Simple validation
+        if (!email.includes('@') || email.length < 5) {
+            alert('Mali ang format ng email. Pakisubukan muli.');
+            return;
+        }
+
+        setIsLinking(true);
+        try {
+            const newMethod = {
+                id: `paypal_${Date.now()}`,
+                type: 'paypal',
+                email: email.trim(),
+                linkedAt: new Date().toISOString()
+            };
+
+            // Siguraduhing walang duplicate na paypal entry
+            const otherMethods = paymentMethods.filter(m => m.type !== 'paypal');
+            const updatedMethods = [...otherMethods, newMethod];
+
+            const response = await updateProfile({ paymentMethods: updatedMethods });
+            if (response && response.success && response.user) {
+                setPaymentMethods(response.user.paymentMethods || []);
+                // Success feedback na premium ang dating
+                console.log('✅ PayPal linked manually:', email);
+                // Optional: Pwede ring mag-reload o gumamit ng custom success toast kung mayroon
+            } else {
+                alert('Hindi ma-save ang PayPal email. Pakisubukan muli.');
+            }
+        } catch (error) {
+            console.error('Failed to link PayPal manually:', error);
+            alert('Nagkaroon ng problema sa pag-save. Pakisubukan muli.');
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
+    const handleLinkUnionBank = async () => {
+        console.log('UnionBank link clicked');
+        if (isLinking) return;
+        setIsLinking(true);
+        try {
+            const res = await getUnionBankLink();
+            if (res.success && res.url) {
+                window.location.href = res.url;
+            } else {
+                alert('Failed to get UnionBank link. Please try again.');
+            }
+        } catch (error) {
+            console.error('Failed to link UnionBank:', error);
+            alert('An error occurred. Please try again.');
+        } finally {
+            setIsLinking(false);
+        }
+    };
+
+    const handleRemoveCard = async (id: string) => {
+        console.log('🗑️ handleRemoveCard triggered for id:', id);
+        if (!window.confirm('Sigurado ka bang nais mong tanggalin ang payment method na ito?')) {
+            console.log('❌ Removal cancelled by user');
+            return;
+        }
+        
+        setRemovingCardId(id);
+        console.log('🔄 Current paymentMethods:', paymentMethods);
+        
+        try {
+            const updatedMethods = paymentMethods.filter(card => card.id !== id);
+            console.log('✅ Filtered methods:', updatedMethods);
+            
+            // Optimistically update local state
+            setPaymentMethods(updatedMethods);
+            
+            const response = await updateProfile({ paymentMethods: updatedMethods });
+            console.log('📡 updateProfile response:', response);
+            
+            if (!response.success) {
+                // If failed, revert to original methods
+                console.error('❌ Failed to update profile on backend');
+                setPaymentMethods(paymentMethods);
+                alert('Hindi matanggal ang card. Pakisubukan muli.');
+            }
+        } catch (error) {
+            console.error('❌ Failed to remove card error:', error);
+            // Revert state if possible or reload
+            alert('Nagkaroon ng problema. Pakisubukan muli.');
+        } finally {
+            setRemovingCardId(null);
+        }
+    };
 
     const tabs = [
         { id: 'notifications' as SettingTab, label: 'Notifications', icon: Bell },
@@ -66,8 +198,7 @@ export default function SettingsPage() {
                     transition={{ duration: 0.4 }}
                 >
                     <span
-                        className="text-transparent bg-clip-text"
-                        style={{ backgroundImage: theme === 'dark' ? 'linear-gradient(90deg, #6702BF 14%, #B36760 48%, #FFCC00 78%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)' }}
+                        className={`text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
                     >
                         Settings
                     </span>
@@ -230,7 +361,7 @@ export default function SettingsPage() {
                                     <button
                                         onClick={handleSave}
                                         className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
-                                        style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
+                                        style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
                                     >
                                         {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saveSuccess ? 'Saved!' : 'Save Preferences'}
@@ -347,7 +478,7 @@ export default function SettingsPage() {
                                     <button
                                         onClick={handleSave}
                                         className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
-                                        style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
+                                        style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
                                     >
                                         {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                                         {saveSuccess ? 'Saved!' : 'Update Password'}
@@ -471,7 +602,7 @@ export default function SettingsPage() {
                                         </div>
                                         <div className="flex gap-3">
                                             <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: theme === 'dark' ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)' : 'linear-gradient(90deg, #8B5CF6 0%, #D946EF 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
+                                                style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
                                                 Upgrade Plan
                                             </button>
                                             <button className="px-4 py-2 rounded-lg border hover:bg-opacity-50 transition-colors text-sm font-medium"
@@ -484,30 +615,147 @@ export default function SettingsPage() {
 
                                     <div>
                                         <h3 className="font-medium mb-3" style={{ color: colors.text.primary }}>
-                                            Payment Method
+                                            Payment Methods
                                         </h3>
-                                        <div 
-                                            className="p-4 rounded-lg border flex items-center justify-between"
-                                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-12 h-8 rounded bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center text-white font-bold text-xs">
-                                                    VISA
+                                        <div className="space-y-3">
+                                            {paymentMethods.length > 0 ? (
+                                                <>
+                                                    {paymentMethods.map((card) => (
+                                                        <div 
+                                                            key={card.id}
+                                                            className="p-4 rounded-lg border flex items-center justify-between"
+                                                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
+                                                        >
+                                                            <div className="flex items-center gap-3">
+                                                                <div 
+                                                                    className="w-12 h-8 rounded flex items-center justify-center text-white font-bold text-xs"
+                                                                    style={{ 
+                                                                        background: card.type === 'paypal' ? '#003087' : card.type === 'unionbank' ? '#fd6412' : 'linear-gradient(to bottom right, #2563eb, #9333ea)'
+                                                                    }}
+                                                                >
+                                                                    {card.type === 'paypal' ? 'PP' : card.type === 'unionbank' ? 'UB' : card.type.toUpperCase()}
+                                                                </div>
+                                                                <div>
+                                                                    <p className="font-medium text-sm" style={{ color: colors.text.primary }}>
+                                                                        {card.type === 'paypal' ? (card.email || 'PayPal Account') : `•••• •••• •••• ${card.last4}`}
+                                                                    </p>
+                                                                    <p className="text-xs" style={{ color: colors.text.muted }}>
+                                                                        {card.type === 'paypal' ? `Linked on ${new Date(card.linkedAt).toLocaleDateString()}` : `Expires ${card.expMonth}/${card.expYear}`}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleRemoveCard(card.id);
+                                                                }}
+                                                                disabled={removingCardId === card.id}
+                                                                className="relative z-50 p-2 rounded-lg border hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 cursor-pointer"
+                                                                style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
+                                                                title="Remove Card"
+                                                                id={`remove-card-${card.id}`}
+                                                            >
+                                                                {removingCardId === card.id ? (
+                                                                    <div className="w-5 h-5 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
+                                                                ) : (
+                                                                    <Trash2 className="w-5 h-5" />
+                                                                )}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                                    <button 
+                                                        onClick={handleAddCard}
+                                                        disabled={isLinking}
+                                                        className="w-full flex items-center justify-center gap-2 p-4 rounded-lg border border-dashed transition-all hover:bg-opacity-50"
+                                                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.secondary }}
+                                                    >
+                                                        {isLinking ? (
+                                                            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                                        ) : (
+                                                            <Plus className="w-4 h-4" />
+                                                        )}
+                                                        Add New Card
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <div 
+                                                    className="p-8 rounded-lg border border-dashed flex flex-col items-center justify-center text-center space-y-3"
+                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
+                                                >
+                                                    <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center">
+                                                        <CreditCard className="w-6 h-6 text-violet-500" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium" style={{ color: colors.text.primary }}>No cards added yet</p>
+                                                        <p className="text-xs" style={{ color: colors.text.muted }}>Add a credit card to manage your subscription and payments</p>
+                                                    </div>
+                                                    <button 
+                                                        onClick={handleAddCard}
+                                                        disabled={isLinking}
+                                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85 disabled:opacity-50"
+                                                        style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
+                                                    >
+                                                        {isLinking ? (
+                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                        ) : (
+                                                            <Plus className="w-4 h-4" />
+                                                        )}
+                                                        {isLinking ? 'Linking Card...' : 'Add Card'}
+                                                    </button>
                                                 </div>
-                                                <div>
-                                                    <p className="font-medium text-sm" style={{ color: colors.text.primary }}>
-                                                        •••• •••• •••• 4242
-                                                    </p>
-                                                    <p className="text-xs" style={{ color: colors.text.muted }}>
-                                                        Expires 12/2025
-                                                    </p>
-                                                </div>
+                                            )}
+
+                                            <div className="pt-2">
+                                                <button 
+                                                    type="button"
+                                                    onClick={handleLinkUnionBank}
+                                                    disabled={isLinking}
+                                                    className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-500 hover:bg-blue-50/10 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
+                                                            <div className="w-full h-full flex items-center justify-center bg-[#fd6412] rounded-sm">
+                                                                <span className="text-[10px] font-black text-white tracking-tighter">UPay</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>UPay (UnionBank)</p>
+                                                            <p className="text-[10px]" style={{ color: colors.text.muted }}>Direct bank and e-wallet payments via UPay</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
+                                                        {paymentMethods.some(m => m.type === 'unionbank') ? 'Connected' : 'Link Account'} <ChevronRight className="w-3 h-3" />
+                                                    </div>
+                                                </button>
                                             </div>
-                                            <button className="px-3 py-1.5 rounded-lg border hover:bg-opacity-50 transition-colors text-sm"
-                                                style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-                                            >
-                                                Update
-                                            </button>
+
+                                            <div className="pt-2">
+                                                <button 
+                                                    type="button"
+                                                    onClick={handleLinkPayPal}
+                                                    disabled={isLinking}
+                                                    className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-600 hover:bg-blue-50/10 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
+                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
+                                                            <div className="w-full h-full flex items-center justify-center bg-[#003087] rounded-sm">
+                                                                <span className="text-[10px] font-black text-white tracking-tighter">PayPal</span>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>PayPal</p>
+                                                            <p className="text-[10px]" style={{ color: colors.text.muted }}>International credit cards and PayPal balance</p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
+                                                        {paymentMethods.some(m => m.type === 'paypal') 
+                                                            ? `Connected (${paymentMethods.find(m => m.type === 'paypal')?.email})` 
+                                                            : 'Connect'} <ChevronRight className="w-3 h-3" />
+                                                    </div>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 
@@ -555,6 +803,13 @@ export default function SettingsPage() {
                     </motion.div>
                 </div>
             </div>
+            
+            <AddCardModal 
+                isOpen={isAddCardModalOpen}
+                onClose={() => setIsAddCardModalOpen(false)}
+                onSuccess={handleAddCardSuccess}
+                paymentMethods={paymentMethods}
+            />
         </div>
     );
 }

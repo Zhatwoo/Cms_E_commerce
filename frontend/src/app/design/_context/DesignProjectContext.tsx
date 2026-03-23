@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { getProject, getStoredUser } from "@/lib/api";
+import { getProject, getStoredUser, updateProject } from "@/lib/api";
 import { ensureFirebaseAuthForStorage } from "@/lib/firebase";
 
 type DesignProjectContextType = {
@@ -12,10 +12,14 @@ type DesignProjectContextType = {
   clientName: string | null;
   /** Project name for Storage path: {clientName}/{websiteName}/... */
   websiteName: string | null;
+  /** Project subdomain used by storefront/product APIs */
+  projectSubdomain: string | null;
   /** User permission for this project */
   permission: "editor" | "viewer" | "owner";
   /** Whether project data is still loading */
   loading: boolean;
+  /** Update project title */
+  updateProjectTitle: (newTitle: string) => Promise<boolean>;
 };
 
 const DesignProjectContext = createContext<DesignProjectContextType>({
@@ -23,8 +27,10 @@ const DesignProjectContext = createContext<DesignProjectContextType>({
   pageId: null,
   clientName: null,
   websiteName: null,
+  projectSubdomain: null,
   permission: "viewer",
   loading: true,
+  updateProjectTitle: async () => false,
 });
 
 export function DesignProjectProvider({
@@ -38,8 +44,24 @@ export function DesignProjectProvider({
 }) {
   const [clientName, setClientName] = useState<string | null>(null);
   const [websiteName, setWebsiteName] = useState<string | null>(null);
+  const [projectSubdomain, setProjectSubdomain] = useState<string | null>(null);
   const [permission, setPermission] = useState<"editor" | "viewer" | "owner">("viewer");
   const [loading, setLoading] = useState(true);
+
+  const updateProjectTitle = async (newTitle: string): Promise<boolean> => {
+    if (!projectId) return false;
+    try {
+      const res = await updateProject(projectId, { title: newTitle });
+      if (res.success) {
+        setWebsiteName(res.project.title);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to update project title:", error);
+      return false;
+    }
+  };
 
   // Sync Firebase Auth when user has backend session (so Storage uploads work)
   useEffect(() => {
@@ -59,6 +81,7 @@ export function DesignProjectProvider({
         if (cancelled) return;
         const title = (res.project?.title || "website")?.trim() || "website";
         setWebsiteName(title);
+        setProjectSubdomain((res.project?.subdomain || "")?.trim() || null);
         if (res.project?.collaboratorPermission) {
           setPermission(res.project.collaboratorPermission as any);
         } else {
@@ -66,7 +89,10 @@ export function DesignProjectProvider({
         }
       })
       .catch(() => {
-        if (!cancelled) setWebsiteName("website");
+        if (!cancelled) {
+          setWebsiteName("website");
+          setProjectSubdomain(null);
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -76,7 +102,7 @@ export function DesignProjectProvider({
   }, [projectId]);
 
   return (
-    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, permission, loading }}>
+    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle }}>
       {children}
     </DesignProjectContext.Provider>
   );

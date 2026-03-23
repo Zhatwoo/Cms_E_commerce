@@ -11,6 +11,7 @@ import type { BuilderDocument } from "../_types/schema";
 interface FloatingMobilePreviewProps {
   isOpen: boolean;
   onClose: () => void;
+  activePageId?: string | null;
   canvasWidth?: number;
   canvasHeight?: number;
 }
@@ -54,58 +55,33 @@ const DEFAULT_MOBILE_DEVICE = MOBILE_DEVICE_PRESETS[0];
 export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   isOpen,
   onClose,
+  activePageId,
   canvasWidth,
   canvasHeight,
 }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
 
-  const { query, pages, selectedPageFromCanvas, layoutSyncToken } = useEditor((state) => {
+  const { query, pages, selectedPageFromCanvas, nodes } = useEditor((state) => {
     const allNodes = state.nodes ?? {};
     const pageList: PageInfo[] = [];
-    let layoutHash = 5381;
-
-    const hashPart = (value: unknown) => {
-      const text = String(value ?? "");
-      for (let i = 0; i < text.length; i += 1) {
-        layoutHash = ((layoutHash * 33) ^ text.charCodeAt(i)) >>> 0;
-      }
-    };
 
     Object.entries(allNodes).forEach(([nodeId, node]) => {
-      const nodeData = node?.data;
-      const nodeProps = (nodeData?.props as Record<string, unknown> | undefined) ?? {};
-      hashPart(nodeId);
-      hashPart(nodeData?.displayName);
-      hashPart(nodeData?.parent);
-      hashPart(nodeProps.position);
-      hashPart(nodeProps.top);
-      hashPart(nodeProps.left);
-      hashPart(nodeProps.right);
-      hashPart(nodeProps.bottom);
-      hashPart(nodeProps.width);
-      hashPart(nodeProps.height);
-      hashPart(nodeProps.marginTop);
-      hashPart(nodeProps.marginLeft);
-      hashPart(nodeProps.rotation);
-      const childNodes = Array.isArray(nodeData?.nodes) ? nodeData.nodes : [];
-      hashPart(childNodes.length);
-      for (const childId of childNodes) hashPart(childId);
-
       if (node?.data?.displayName === "Page") {
         pageList.push({
           id: nodeId,
-          name: (node.data.props as Record<string, unknown>)?.pageName as string || "Untitled Page",
+          name: ((node.data.props as Record<string, unknown>)?.pageName as string) || "Untitled Page",
         });
       }
     });
 
     let detectedPageId: string | null = null;
     const selectedIds = state.events.selected;
-    const selectedId = selectedIds instanceof Set
-      ? selectedIds.values().next().value
-      : Array.isArray(selectedIds)
-        ? selectedIds[0]
-        : null;
+    const selectedId =
+      selectedIds instanceof Set
+        ? selectedIds.values().next().value
+        : Array.isArray(selectedIds)
+          ? selectedIds[0]
+          : null;
 
     if (selectedId && selectedId !== "ROOT") {
       const selectedNode = allNodes[selectedId];
@@ -127,7 +103,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     return {
       pages: pageList,
       selectedPageFromCanvas: detectedPageId,
-      layoutSyncToken: layoutHash,
+      nodes: allNodes,
     };
   });
 
@@ -142,6 +118,8 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>(DEFAULT_MOBILE_DEVICE.id);
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const lastGoodDocRef = useRef<BuilderDocument | null>(null);
 
   const selectedDevice = useMemo(
     () => MOBILE_DEVICE_PRESETS.find((d) => d.id === selectedDeviceId) ?? DEFAULT_MOBILE_DEVICE,
@@ -155,11 +133,25 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     try {
       const raw = query.serialize();
       const parsed = serializeCraftToClean(raw);
-      return parsed?.pages?.length ? parsed : null;
+      if (parsed?.pages?.length) {
+        lastGoodDocRef.current = parsed;
+        return parsed;
+      }
+      return lastGoodDocRef.current;
     } catch {
-      return null;
+      return lastGoodDocRef.current;
     }
-  }, [query, layoutSyncToken]);
+  }, [query, nodes]);
+
+  const previewPages = useMemo<PageInfo[]>(() => {
+    if (liveDoc?.pages?.length) {
+      return liveDoc.pages.map((page, index) => ({
+        id: page.id,
+        name: page.name || (page.props?.pageName as string) || `Page ${index + 1}`,
+      }));
+    }
+    return pages;
+  }, [liveDoc, pages]);
 
   useEffect(() => {
     if (isOpen && positionRef.current.x === 0 && positionRef.current.y === 0) {
@@ -174,17 +166,21 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    if (activePageId && previewPages.find((p) => p.id === activePageId)) {
+      setSelectedPageId(activePageId);
+      return;
+    }
     if (selectedPageFromCanvas && pages.find((p) => p.id === selectedPageFromCanvas)) {
       setSelectedPageId(selectedPageFromCanvas);
     }
-  }, [isOpen, selectedPageFromCanvas, pages]);
+  }, [isOpen, activePageId, selectedPageFromCanvas, previewPages, pages]);
 
   useEffect(() => {
     if (!isOpen) return;
-    if (pages.length > 0 && (!selectedPageId || !pages.find((p) => p.id === selectedPageId))) {
-      setSelectedPageId(pages[0].id);
+    if (previewPages.length > 0 && (!selectedPageId || !previewPages.find((p) => p.id === selectedPageId))) {
+      setSelectedPageId(previewPages[0].id);
     }
-  }, [isOpen, pages, selectedPageId]);
+  }, [isOpen, previewPages, selectedPageId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -200,6 +196,18 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
     setSelectedDeviceId(matched.id);
   }, [isOpen, canvasWidth, canvasHeight, selectedDeviceId]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const updateViewportSize = () => {
+      setViewportSize({ width: window.innerWidth, height: window.innerHeight });
+    };
+
+    updateViewportSize();
+    window.addEventListener("resize", updateViewportSize);
+    return () => window.removeEventListener("resize", updateViewportSize);
+  }, [isOpen]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-drag-handle]")) {
@@ -220,7 +228,10 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       if (dragRafRef.current) cancelAnimationFrame(dragRafRef.current);
 
       dragRafRef.current = requestAnimationFrame(() => {
-        const newX = Math.max(0, Math.min(e.clientX - dragStartRef.current.x, window.innerWidth - previewWidth - 40));
+        const newX = Math.max(
+          0,
+          Math.min(e.clientX - dragStartRef.current.x, window.innerWidth - previewWidth - 40),
+        );
         const newY = Math.max(48, Math.min(e.clientY - dragStartRef.current.y, window.innerHeight - 100));
 
         positionRef.current = { x: newX, y: newY };
@@ -256,54 +267,56 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
     const targetWidth = `${previewWidth}px`;
     const targetHeight = `${previewHeight}px`;
-    const updatedNodes = { ...liveDoc.nodes };
-
-    for (const id of Object.keys(updatedNodes)) {
-      const node = updatedNodes[id];
-      if (node?.type === "Frame") {
-        updatedNodes[id] = {
-          ...node,
-          props: {
-            ...node.props,
-            referenceWidth: previewWidth,
-            referenceHeight: previewHeight,
-          },
-        };
-      }
-    }
 
     return {
       ...liveDoc,
-      nodes: updatedNodes,
-      pages: liveDoc.pages.map((page) => ({
-        ...page,
-        props: {
-          ...page.props,
-          referenceWidth: page.props?.referenceWidth ?? page.props?.width,
-          referenceHeight: page.props?.referenceHeight ?? page.props?.height,
-          width: targetWidth,
-          height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
-        },
-      })),
+      nodes: liveDoc.nodes,
+      pages: liveDoc.pages.map((page, index) => {
+        const slugFromPage = typeof page.slug === "string" ? page.slug.trim() : "";
+        const slugFromProps =
+          typeof page.props?.pageSlug === "string" ? page.props.pageSlug.trim() : "";
+        const safeSlug = slugFromPage || slugFromProps || `page-${index}`;
+
+        return {
+          ...page,
+          slug: safeSlug,
+          props: {
+            ...page.props,
+            pageSlug: safeSlug,
+            width: targetWidth,
+            height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
+          },
+        };
+      }),
     };
   }, [liveDoc, previewWidth, previewHeight]);
 
   if (!isOpen) return null;
 
-  const selectedPage = pages.find((p) => p.id === selectedPageId);
-  const selectedPageSlug = liveDoc?.pages.find((p) => p.id === selectedPageId)?.slug
-    ?? liveDoc?.pages[0]?.slug
-    ?? undefined;
+  const selectedPage = previewPages.find((p) => p.id === selectedPageId);
+  const selectedPageSlug =
+    previewDoc?.pages.find((p) => p.id === selectedPageId)?.slug ?? previewDoc?.pages[0]?.slug ?? undefined;
+  const hasRenderablePreview = Boolean(previewDoc && previewDoc.pages.length > 0);
+
+  const frameWidth = previewWidth + 20;
+  const viewportWidthSafe = viewportSize.width > 0 ? viewportSize.width : previewWidth + 80;
+  const viewportHeightSafe = viewportSize.height > 0 ? viewportSize.height : previewHeight + 320;
+  const availablePanelWidth = Math.max(320, viewportWidthSafe - 24);
+  const panelWidth = isMinimized ? undefined : Math.min(previewWidth + 36, availablePanelWidth);
+  const availableFrameWidth = Math.max(220, (panelWidth ?? (previewWidth + 36)) - 16);
+  const frameScale = Math.min(1, availableFrameWidth / frameWidth);
+  const screenHeight = Math.max(260, Math.min(previewHeight, 620, viewportHeightSafe - 280));
 
   return (
     <div
       ref={panelRef}
-      className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-white/10 shadow-2xl ${isDragging ? "cursor-grabbing" : "transition-[width] duration-200"
-        }`}
+      className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-transparent shadow-2xl ${
+        isDragging ? "cursor-grabbing" : "transition-[width] duration-200"
+      }`}
       style={{
         left: position.x,
         top: position.y,
-        width: isMinimized ? "auto" : previewWidth + 24,
+        width: isMinimized ? "auto" : panelWidth,
         willChange: isDragging ? "left, top" : "auto",
       }}
       onMouseDown={handleMouseDown}
@@ -311,7 +324,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
     >
       <div
         data-drag-handle
-        className="flex items-center justify-between px-4 py-3 border-b border-white/10 cursor-grab active:cursor-grabbing"
+        className="flex items-center justify-between px-4 py-3 border-b border-transparent cursor-grab active:cursor-grabbing"
       >
         <div className="flex items-center gap-2">
           <Move className="w-4 h-4 text-brand-light/50" />
@@ -338,34 +351,38 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
       {!isMinimized && (
         <>
-          <div className="px-3 py-2 border-b border-white/10">
+          <div className="px-3 py-2 border-b border-transparent">
             <div className="grid grid-cols-1 gap-2">
               <div className="relative">
                 <button
-                  onClick={() => pages.length > 1 && setShowPageDropdown((v) => !v)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${pages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
-                    }`}
+                  onClick={() => previewPages.length > 1 && setShowPageDropdown((v) => !v)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${
+                    previewPages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
+                  }`}
                 >
                   <span className="truncate">
-                    {pages.length === 0 ? "No pages found" : (selectedPage?.name || "Select Page")}
+                    {previewPages.length === 0 ? "No pages found" : selectedPage?.name || "Select Page"}
                   </span>
-                  {pages.length > 1 && (
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showPageDropdown ? "rotate-180" : ""}`} />
+                  {previewPages.length > 1 && (
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${showPageDropdown ? "rotate-180" : ""}`}
+                    />
                   )}
                 </button>
-                {showPageDropdown && pages.length > 1 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-white/10 rounded-lg shadow-lg py-1 z-10 max-h-48 overflow-y-auto">
-                    {pages.map((page) => (
+                {showPageDropdown && previewPages.length > 1 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-transparent rounded-lg shadow-lg py-1 z-10 max-h-48 overflow-y-auto">
+                    {previewPages.map((page) => (
                       <button
                         key={page.id}
                         onClick={() => {
                           setSelectedPageId(page.id);
                           setShowPageDropdown(false);
                         }}
-                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${page.id === selectedPageId
-                          ? "bg-blue-500/20 text-blue-400"
-                          : "text-brand-lighter hover:bg-brand-medium/30"
-                          }`}
+                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                          page.id === selectedPageId
+                            ? "bg-blue-500/20 text-blue-400"
+                            : "text-brand-lighter hover:bg-brand-medium/30"
+                        }`}
                       >
                         {page.name}
                       </button>
@@ -379,16 +396,18 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                   onClick={() => setShowDeviceDropdown((v) => !v)}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter hover:bg-brand-medium/30 cursor-pointer"
                 >
-                  <span className="truncate">
-                    {selectedDevice.name}
-                  </span>
+                  <span className="truncate">{selectedDevice.name}</span>
                   <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-[11px] text-brand-light/70">{selectedDevice.width}x{selectedDevice.height}</span>
-                    <ChevronDown className={`w-4 h-4 transition-transform ${showDeviceDropdown ? "rotate-180" : ""}`} />
+                    <span className="text-[11px] text-brand-light/70">
+                      {selectedDevice.width}x{selectedDevice.height}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 transition-transform ${showDeviceDropdown ? "rotate-180" : ""}`}
+                    />
                   </div>
                 </button>
                 {showDeviceDropdown && (
-                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-white/10 rounded-lg shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-transparent rounded-lg shadow-lg py-1 z-20 max-h-48 overflow-y-auto">
                     {MOBILE_DEVICE_PRESETS.map((device) => (
                       <button
                         key={device.id}
@@ -396,13 +415,16 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                           setSelectedDeviceId(device.id);
                           setShowDeviceDropdown(false);
                         }}
-                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${device.id === selectedDeviceId
-                          ? "bg-blue-500/20 text-blue-400"
-                          : "text-brand-lighter hover:bg-brand-medium/30"
-                          }`}
+                        className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                          device.id === selectedDeviceId
+                            ? "bg-blue-500/20 text-blue-400"
+                            : "text-brand-lighter hover:bg-brand-medium/30"
+                        }`}
                       >
                         <div className="truncate">{device.name}</div>
-                        <div className="text-[11px] text-brand-light/70">{device.width}x{device.height}</div>
+                        <div className="text-[11px] text-brand-light/70">
+                          {device.width}x{device.height}
+                        </div>
                       </button>
                     ))}
                   </div>
@@ -411,45 +433,66 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
             </div>
           </div>
 
-          <div className="p-3">
-            {!previewDoc || !selectedPageSlug ? (
-              <div
-                className="rounded-xl border border-white/10 bg-brand-white/5 flex items-center justify-center text-brand-light/50 text-sm"
-                style={{ width: previewWidth, minHeight: Math.min(previewHeight, 640) }}
-              >
-                {pages.length === 0 ? "Loading pages..." : "Select a page to preview"}
-              </div>
-            ) : (
-              <div
-                className="rounded-xl border border-white/10 bg-brand-white/5 overflow-auto"
-                style={{
-                  width: previewWidth,
-                  minHeight: Math.min(previewHeight, 640),
-                  maxHeight: "70vh",
-                }}
-              >
+          <div className="px-2 pb-3 pt-3 flex justify-center">
+            <div
+              className="flex flex-col items-center rounded-[44px]"
+              style={{
+                width: frameWidth,
+                background: "linear-gradient(160deg,#2c2c2c 0%,#191919 100%)",
+                border: "2.5px solid #383838",
+                boxShadow:
+                  "inset 0 0 0 1px rgba(255,255,255,0.05), 0 32px 80px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(0,0,0,0.95)",
+                transform: `scale(${frameScale})`,
+                transformOrigin: "top center",
+              }}
+            >
+              <div className="flex flex-col items-center w-full pt-2.5 pb-1">
                 <div
-                  style={{
-                    width: previewWidth,
-                    minHeight: previewHeight,
-                    position: "relative",
-                    isolation: "isolate",
-                    overflow: "hidden",
-                  }}
+                  className="rounded-full flex items-center justify-center gap-2"
+                  style={{ width: 114, height: 30, background: "#0c0c0c" }}
                 >
-                  <WebPreview
-                    key={selectedPageSlug}
-                    doc={previewDoc}
-                    initialPageSlug={selectedPageSlug}
-                    simulatedWidth={previewWidth}
-                    mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                    builderParityMode={true}
-                    renderAllNodes
-                    preserveAuthoredPositioning
+                  <div className="rounded-full" style={{ width: 7, height: 7, background: "#252525" }} />
+                  <div
+                    className="rounded-full"
+                    style={{ width: 11, height: 11, background: "#1a1a1a", border: "1.5px solid #2e2e2e" }}
                   />
                 </div>
               </div>
-            )}
+
+              {!hasRenderablePreview || !previewDoc ? (
+                <div
+                  className="flex items-center justify-center text-neutral-400 text-sm"
+                  style={{ width: previewWidth, minHeight: Math.min(300, screenHeight), borderRadius: 20, background: "#ffffff" }}
+                >
+                  {previewPages.length === 0 ? "Loading pages..." : "Select a page to preview"}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    width: previewWidth,
+                    maxHeight: screenHeight,
+                    minHeight: Math.min(previewHeight, 300, screenHeight),
+                    borderRadius: 20,
+                    overflowY: "auto",
+                    overflowX: "hidden",
+                    background: "#ffffff",
+                  }}
+                >
+                  <WebPreview
+                    key={selectedPageSlug || previewDoc.pages[0]?.slug || "mobile-preview"}
+                    doc={previewDoc}
+                    initialPageSlug={selectedPageSlug || previewDoc.pages[0]?.slug}
+                    simulatedWidth={previewWidth}
+                    mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                    renderAllNodes
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center justify-center w-full py-2.5">
+                <div className="rounded-full" style={{ width: 110, height: 4, background: "#383838" }} />
+              </div>
+            </div>
           </div>
         </>
       )}

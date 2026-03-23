@@ -176,18 +176,16 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     : 'transparent',
                 backdropFilter: scrolled ? 'blur(14px)' : 'none',
                 WebkitBackdropFilter: scrolled ? 'blur(14px)' : 'none',
-                borderBottom: scrolled
-                    ? theme === 'dark'
-                        ? '1px solid rgba(255,255,255,0.07)'
-                        : '1px solid rgba(15,23,42,0.08)'
-                    : 'none',
+                borderBottom: theme === 'dark'
+                    ? scrolled ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)'
+                    : scrolled ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(15,23,42,0.08)',
             }}
         >
             <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
                         type="button"
-                        className="lg:hidden p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        className={`lg:hidden p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
                         style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         onClick={onMenuToggle}
                         aria-label="Open menu"
@@ -208,7 +206,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     <button
                         type="button"
                         onClick={toggleTheme}
-                        className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                        className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'}`}
                         style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                         aria-label="Toggle theme"
                     >
@@ -218,7 +216,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                         <button
                             type="button"
                             onClick={() => setShowNotifications(!showNotifications)}
-                            className="p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 relative"
+                            className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-white/10' : 'hover:bg-black/5'} relative`}
                             style={{ color: theme === 'light' ? '#475569' : colors.text.secondary }}
                             aria-label="Notifications"
                         >
@@ -265,7 +263,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible"
+                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
                                     border: 'none',

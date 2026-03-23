@@ -14,6 +14,13 @@ export const Divider = ({
   marginLeft,
   marginRight,
   rotation = 0,
+  position = "relative",
+  top = "auto",
+  right = "auto",
+  bottom = "auto",
+  left = "auto",
+  zIndex = 0,
+  display,
 }: DividerProps & { height?: string; marginLeft?: number; marginRight?: number }) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -34,6 +41,13 @@ export const Divider = ({
         marginLeft: marginLeft != null ? `${marginLeft}px` : undefined,
         marginRight: marginRight != null ? `${marginRight}px` : undefined,
         height: height || undefined,
+        position,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        display: display ?? undefined,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="cursor-pointer"

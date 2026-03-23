@@ -5,6 +5,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emai
 const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const stripeService = require('../services/stripeService');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -39,7 +40,8 @@ const userToResponse = (user) => {
     avatar: user.avatar || null,
     role: user.role,
     subscriptionPlan: user.subscriptionPlan,
-    createdAt: user.createdAt
+    createdAt: user.createdAt,
+    paymentMethods: user.paymentMethods || []
   };
 };
 
@@ -304,8 +306,15 @@ exports.login = async (req, res) => {
     if (!user) {
       return res.status(401).json({ success: false, message: 'Profile not found. Please try signing up again or contact support.' });
     }
-    if (user.status === 'disabled' || !user.isActive) {
-      return res.status(403).json({ success: false, message: 'Your account has been deactivated' });
+    const normalizedStatus = String(user.status || '').toLowerCase();
+    if (normalizedStatus === 'suspended' || normalizedStatus === 'restricted' || normalizedStatus === 'disabled' || !user.isActive) {
+      const reason = typeof user.suspensionReason === 'string' ? user.suspensionReason.trim() : '';
+      return res.status(403).json({
+        success: false,
+        message: reason
+          ? `Your account is currently suspended. Reason: ${reason}. Please contact admin for assistance.`
+          : 'Your account is currently suspended. Please contact admin for assistance.'
+      });
     }
 
     const authUser = await auth.getUser(uid);
@@ -427,7 +436,7 @@ exports.logout = (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, avatar, username, website, bio } = req.body;
+    const { name, avatar, username, website, bio, paymentMethods } = req.body;
     if (avatar !== undefined && typeof avatar === 'string' && avatar.trim().startsWith('data:')) {
       return res.status(400).json({
         success: false,
@@ -440,15 +449,21 @@ exports.updateProfile = async (req, res) => {
     if (username !== undefined) updates.username = username;
     if (website !== undefined) updates.website = website;
     if (bio !== undefined) updates.bio = bio;
+    if (paymentMethods !== undefined) updates.paymentMethods = paymentMethods;
 
     if (Object.keys(updates).length > 0) {
-      await User.update(req.user.id, updates);
+      const updatedUser = await User.update(req.user.id, updates);
+      return res.status(200).json({
+        success: true,
+        message: 'Profile updated successfully',
+        user: userToResponse(updatedUser)
+      });
     }
 
-    const user = await User.get(req.user.id);
+    // If no updates were provided, return the current user object
+    const user = await User.findById(req.user.id);
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
       user: userToResponse(user)
     });
   } catch (error) {
@@ -608,5 +623,34 @@ exports.resetPassword = async (req, res) => {
     res.status(200).json({ success: true, message: 'Password has been reset successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+exports.createStripeSetupIntent = async (req, res) => {
+  try {
+    const setupIntent = await stripeService.createSetupIntent({
+      userId: req.user.id
+    });
+    res.json({
+      success: true,
+      clientSecret: setupIntent.client_secret
+    });
+  } catch (error) {
+    console.error('Setup Intent Error:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Failed to create setup intent' 
+    });
+  }
+};
+
+exports.getStripePublicKey = async (req, res) => {
+  try {
+    const publicKey = process.env.STRIPE_PUBLIC_KEY;
+    if (!publicKey) {
+      return res.status(400).json({ success: false, message: 'Stripe Public Key is not configured' });
+    }
+    res.json({ success: true, publicKey });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };

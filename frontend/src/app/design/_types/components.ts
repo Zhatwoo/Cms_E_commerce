@@ -35,6 +35,11 @@ export interface InteractionProps {
   mobileBreakpoint?: number;
 }
 
+export interface ProductBindingProps {
+  productId?: string;
+  productIndex?: number;
+}
+
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
@@ -155,14 +160,12 @@ export interface TypographyProps {
 
 /** Container component props — combines all layout and visual property groups. */
 export interface ContainerProps
-  // extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps, InteractionProps, ProductBindingProps {
   children?: ReactNode;
 }
 
 /** Text component props — combines typography, spacing, and basic effects. */
-// export interface TextProps extends SpacingProps, TypographyProps, TransformProps, AnimatableProps, InteractableProps {
-export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractionProps {
+export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps {
   text: string;
   opacity?: number;
   boxShadow?: string;
@@ -175,7 +178,7 @@ export interface TextProps extends SpacingProps, TypographyProps, TransformProps
 }
 
 /** Image component props — media display with sizing, corners, and effects. */
-export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractableProps {
+export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps {
   src?: string;
   alt?: string;
   objectFit?: "cover" | "contain" | "fill" | "none" | "scale-down";
@@ -184,11 +187,12 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
 
 /** Video component props — media display with sizing, corners, and effects. */
-export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractableProps {
+export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps {
   src?: string;
   autoPlay?: boolean;
   loop?: boolean;
@@ -204,8 +208,7 @@ export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-// export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps {
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, LayerProps, AnimatableProps, InteractionProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost" | "cta";
@@ -241,7 +244,7 @@ export interface PageProps extends AnimatableProps, InteractableProps {
 }
 
 /** Divider component props — simple horizontal rule element. */
-export interface DividerProps extends TransformProps, AnimatableProps, InteractableProps {
+export interface DividerProps extends TransformProps, PositionProps, AnimatableProps, InteractableProps {
   dividerStyle?: "solid" | "dashed" | "dotted";
   color?: string;
   thickness?: number;
@@ -312,11 +315,11 @@ export interface TriangleProps extends CircleProps { }
 export interface TabItem {
   id: string;
   title: string;
-  content: string;
+  content: string; // node ID for Craft.js
 }
 
 export interface TabsProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractionProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps, InteractionProps {
   tabs: TabItem[];
   activeTabId: string;
   tabAlignment?: "left" | "center" | "right";
@@ -326,7 +329,7 @@ export interface TabsProps
   activeTabTextColor?: string;
 }
 
-export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps {
+export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps {
   controlType?: "checkbox" | "radio";
   /** Used as radio group name (scoped per-node to avoid collisions). */
   name?: string;

@@ -3,7 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import type { CartItem } from './StorefrontContext';
 
-type PaymentMethod = 'paypal';
+type PaymentMethod = 'card' | 'gcash' | 'maya' | 'stripe' | 'paypal';
 
 type CheckoutModalProps = {
   open: boolean;
@@ -37,7 +37,7 @@ export function CheckoutModal({
   const [streetAddress, setStreetAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
-  const [paymentMethod] = useState<PaymentMethod>('paypal');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [error, setError] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
@@ -244,12 +244,27 @@ export function CheckoutModal({
 
               <div className="mt-5 border-t border-zinc-200 pt-3">
                 <p className="text-start text-xl font-medium text-zinc-900">Payment Method</p>
-                <div className="mt-2 flex items-center gap-2 rounded-lg border border-emerald-600 bg-emerald-50 px-3 py-2 text-emerald-800">
-                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-                    <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944 3.72a.77.77 0 0 1 .76-.641h4.234a3.8 3.8 0 0 1 3.752 3.217l.451 2.872-1.395-.167a2.754 2.754 0 0 0-2.694.898 2.606 2.606 0 0 0-.646 1.864l-.022.216-.697 4.438-.215 1.366a.641.641 0 0 1-.632.525H7.076z" />
-                    <path d="M21.218 8.708a2.354 2.354 0 0 0-1.674-.698h-5.358a.77.77 0 0 0-.76.641l-.993 6.308-.306 1.937a.641.641 0 0 0 .633.74h2.857a.77.77 0 0 0 .76-.641l.143-.91a.641.641 0 0 1 .632-.525h.38c1.208 0 2.246-.861 2.467-2.053l.938-5.966a2.354 2.354 0 0 0-.53-1.893z" />
-                  </svg>
-                  <span className="text-sm font-semibold">PayPal</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(['paypal', 'stripe', 'gcash', 'maya', 'card'] as const).map((m) => (
+                    <label
+                      key={m}
+                      className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium capitalize ${
+                        paymentMethod === m
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800'
+                          : 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value={m}
+                        checked={paymentMethod === m}
+                        onChange={() => setPaymentMethod(m)}
+                        className="sr-only"
+                      />
+                      {m === 'paypal' ? 'PayPal' : m === 'gcash' ? 'GCash' : m === 'maya' ? 'Maya' : m === 'stripe' ? 'Stripe (Card)' : 'PayMongo Card'}
+                    </label>
+                  ))}
                 </div>
               </div>
 
