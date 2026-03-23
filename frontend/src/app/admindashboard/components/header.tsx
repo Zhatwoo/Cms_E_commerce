@@ -157,9 +157,15 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         setShowProfileMenu(false);
     };
 
-    const handleMarkSingleRead = (id: string, e: React.MouseEvent) => {
+    const handleMarkSingleRead = (id: string, e: React.SyntheticEvent) => {
         e.stopPropagation();
         markAsRead(id);
+    };
+
+    const handleOpenNotification = (id: string) => {
+        markAsRead(id);
+        setShowNotifications(false);
+        router.push('/admindashboard/notifications');
     };
 
     const handleSearchNavigate = (href: string) => {
@@ -505,15 +511,24 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     ) : (
                                         <div className="divide-y divide-[rgba(177,59,255,0.08)]">
                                             {notifications.slice(0, 10).map((n) => (
-                                                <div 
+                                                <button
                                                     key={n.id} 
-                                                    className={`group relative flex cursor-default flex-col gap-0.5 px-4 py-3 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/20' : ''}`}
+                                                    type="button"
+                                                    onClick={() => handleOpenNotification(n.id)}
+                                                    className={`group relative flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/20' : ''}`}
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
                                                         <span className={`text-[13px] font-bold leading-tight ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
                                                         {!n.read && (
-                                                            <button 
+                                                            <span
+                                                                role="button"
+                                                                tabIndex={0}
                                                                 onClick={(e) => handleMarkSingleRead(n.id, e)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                                        handleMarkSingleRead(n.id, e);
+                                                                    }
+                                                                }}
                                                                 className="h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform hover:scale-125"
                                                                 title="Mark as read"
                                                             />
@@ -521,7 +536,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                     </div>
                                                     <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
                                                     <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     )}
@@ -549,7 +564,6 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             suppressHydrationWarning
                             className="admin-dashboard-panel relative inline-flex h-12 w-12 items-center justify-center overflow-visible rounded-full transition-transform hover:-translate-y-0.5"
                             aria-label="Profile menu"
-                            aria-expanded={showProfileMenu}
                         >
                             <span className="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-full">
                                 {avatarSrc ? (

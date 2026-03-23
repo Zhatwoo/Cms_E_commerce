@@ -1,5 +1,7 @@
 // controllers/userController.js
 const User = require('../models/User');
+const { auth } = require('../config/firebase');
+const { sendAdminActionEmail } = require('../utils/emailService');
 
 // No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
@@ -278,10 +280,44 @@ exports.updateUserStatus = async (req, res) => {
       isActive: status === 'Published',
       suspensionReason: status === 'Suspended' ? reason : ''
     });
+
+    let emailSent = false;
+    let emailError = '';
+    if (status === 'Suspended') {
+      let recipientEmail = String(user.email || '').trim();
+      if (!recipientEmail) {
+        try {
+          const authUser = await auth.getUser(req.params.id);
+          recipientEmail = String(authUser.email || '').trim();
+        } catch {
+          // keep as empty
+        }
+      }
+
+      if (recipientEmail) {
+        const mail = await sendAdminActionEmail({
+          to: recipientEmail,
+          name: user.displayName || user.fullName || recipientEmail,
+          subject: 'Your account has been suspended',
+          title: 'Account Suspension Notice',
+          intro: 'Your account was suspended by an administrator.',
+          reason: reason || 'No reason provided.',
+        });
+        emailSent = !!mail?.sent;
+        emailError = mail?.error || '';
+      } else {
+        emailError = 'Recipient email not found';
+      }
+    }
+
     res.status(200).json({
       success: true,
-      message: 'User status updated successfully',
-      user: stripPassword(updated)
+      message:
+        status === 'Suspended'
+          ? (emailSent ? 'User suspended and notified by email' : 'User suspended, but email notification was not sent')
+          : 'User status updated successfully',
+      user: stripPassword(updated),
+      ...(status === 'Suspended' ? { emailSent, emailError: emailSent ? undefined : emailError } : {}),
     });
   } catch (error) {
     res.status(500).json({

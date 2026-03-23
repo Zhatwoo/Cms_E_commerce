@@ -3072,7 +3072,7 @@ function RenderNode({
       const link =
         explicitLink ||
         (storeContext ? getDefaultLinkForLabel(labelStr) : "");
-      const internalTargetSlug = link ? resolveInternalPageSlug(link, pages) : null;
+      const internalTargetId = link ? resolveInternalPageId(link, pages) : null;
       const btnRot = toNumber(props.rotation, 0);
       const btnFlipH = props.flipHorizontal === true;
       const btnFlipV = props.flipVertical === true;
@@ -3155,7 +3155,7 @@ function RenderNode({
           </button>
         );
       }
-      if (internalTargetSlug && onPrototypeAction) {
+      if (internalTargetId && onPrototypeAction) {
         return wrap(
           <button
             type="button"
@@ -3166,7 +3166,7 @@ function RenderNode({
               onPrototypeAction({
                 trigger: "click",
                 action: "navigateTo",
-                destination: internalTargetSlug,
+                destination: internalTargetId,
               });
             }}
             style={{
@@ -4041,7 +4041,7 @@ function normalizeNavToken(value: string): string {
   return value.trim().replace(/^\/+/, "").toLowerCase();
 }
 
-function resolveInternalPageSlug(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
   if (!destination) return null;
 
   const raw = destination.trim();
@@ -4049,48 +4049,31 @@ function resolveInternalPageSlug(destination: string | undefined, pages: Preview
 
   const normalized = normalizeNavToken(raw);
 
-  // Exact slug match
+  // Match by page ID first (most stable)
+  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+  if (byId) return byId.id;
+
+  // Match by exact slug
   const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
-  if (bySlug) return bySlug.slug;
+  if (bySlug) return bySlug.id;
 
   // Match by page name
   const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
-  if (byName) return byName.slug;
+  if (byName) return byName.id;
 
-  // Match by page ID
-  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
-  if (byId) return byId.slug;
-
-  // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
+  // Partial matches and page index patterns
   const pageIndexMatch = raw.match(/^page-(\d+)$/i);
   if (pageIndexMatch) {
     const idx = parseInt(pageIndexMatch[1], 10);
-    // Try exact index first
-    if (idx >= 0 && idx < pages.length) return pages[idx].slug;
-    // Try index-1 (editor uses 1-based, serializer uses 0-based)
-    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].slug;
+    if (idx >= 0 && idx < pages.length) return pages[idx].id;
+    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
   }
 
-  // Slug contains the destination as substring (fuzzy)
   const fuzzy = pages.find((p) =>
     normalizeNavToken(p.slug).includes(normalized) ||
     normalized.includes(normalizeNavToken(p.slug))
   );
-  if (fuzzy) return fuzzy.slug;
-
-  if (raw.startsWith("?")) {
-    try {
-      const q = new URLSearchParams(raw.replace(/^\?/, ""));
-      const pageParam = q.get("page") ?? "";
-      const resolved = resolveInternalPageSlug(pageParam, pages);
-      if (resolved) return resolved;
-    } catch {
-      return null;
-    }
-  }
-
-  if (raw.startsWith("#")) return null;
-  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("mailto:")) return null;
+  if (fuzzy) return fuzzy.id;
 
   return null;
 }
@@ -4152,14 +4135,13 @@ export function WebPreview({
     [doc]
   );
 
-  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
-  const initialPage = safePages[pageIndex] ?? safePages[0];
-  const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
-  const [history, setHistory] = useState<string[]>([]);
-  const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
+  const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+  const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
 
-  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
   const pageMeta = React.useMemo<PreviewPageMeta[]>(
     () => safePages.map((p, i) => ({
       id: p.id,
@@ -4169,20 +4151,21 @@ export function WebPreview({
     [safePages]
   );
 
-  const onPrototypeAction = useCallback(
+  const onPrototypeAction = React.useCallback(
     (interaction: Interaction) => {
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
-        const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
-        if (internalSlug) {
-          setHistory((h) => [...h, currentPageSlug]);
+        const destId = resolveInternalPageId(interaction.destination, pageMeta);
+        if (destId) {
+          setHistory((h) => [...h, currentPageId]);
           const trans = interaction.transition ?? "dissolve";
           setTransitionStyle({
             ...PAGE_TRANSITION_STYLES[trans],
             animationDuration: `${duration}s`,
           });
-          setCurrentPageSlug(internalSlug);
-          onNavigate?.(internalSlug);
+          setCurrentPageId(destId);
+          const destPage = safePages.find((p) => p.id === destId);
+          if (destPage) onNavigate?.(getPageSlug(destPage, safePages.indexOf(destPage)));
         } else if (interaction.destination.startsWith("#")) {
           document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
         } else if (
@@ -4194,11 +4177,12 @@ export function WebPreview({
         }
       } else if (interaction.action === "back") {
         if (history.length > 0) {
-          const prev = history[history.length - 1];
+          const prevId = history[history.length - 1];
           setHistory((h) => h.slice(0, -1));
           setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-          setCurrentPageSlug(prev);
-          onNavigate?.(prev);
+          setCurrentPageId(prevId);
+          const prevPage = safePages.find((p) => p.id === prevId);
+          if (prevPage) onNavigate?.(getPageSlug(prevPage, safePages.indexOf(prevPage)));
         }
       } else if (interaction.action === "openUrl" && interaction.destination) {
         window.open(interaction.destination, "_blank", "noopener");
@@ -4206,7 +4190,7 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history, pageMeta, onNavigate]
+    [currentPageId, history, pageMeta, onNavigate, safePages]
   );
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
@@ -4218,10 +4202,8 @@ export function WebPreview({
   const { ref, width: measuredWidth } = useContainerWidth(1000);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
-  const isPhonePreview = viewportWidth <= effectiveMobileBreakpoint;
   const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
-  const isNarrowBuilderPreview = builderParityMode && !isDesktopMode;
-  const isNarrowViewport = !isDesktopMode;
+  const isPhoneSize = !isDesktopMode;
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!isDesktopMode && mobileWrapperRef.current) {
@@ -4231,7 +4213,7 @@ export function WebPreview({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageSlug]);
+  }, [isDesktopMode, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4265,6 +4247,9 @@ export function WebPreview({
     );
   }
 
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
+  const scale = (!isPhoneSize && !fillViewport && measuredWidth < pageWidthPx) ? measuredWidth / pageWidthPx : 1;
+
   const pageContent = (
     <>
       {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
@@ -4279,7 +4264,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={viewportWidth}
+            viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4317,61 +4302,54 @@ export function WebPreview({
           color: var(--placeholder-color, #94a3b8);
           opacity: 1;
         }
-        .responsive-preview,
-        .responsive-preview * {
-          box-sizing: border-box;
-        }
-        .responsive-preview {
-          container-type: inline-size;
-        }
-        @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
-          .responsive-preview {
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-          }
-        }
       `}</style>
-      {!isDesktopMode && frameResponsiveStyles}
+      {isPhoneSize && frameResponsiveStyles}
       <div
-        key={currentPageSlug}
-        className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
-        style={{
-          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : width),
-          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : undefined),
-          minHeight,
-          backgroundColor: background,
-          margin: fillViewport ? 0 : "0 auto",
-          boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
-          borderRadius: isDesktopMode || fillViewport ? 0 : 8,
-          overflow: "hidden",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
-          ...transitionStyle,
-          ...(!isDesktopMode ? { containerType: "inline-size" as const } : {}),
-        }}
+        key={currentPageId}
         ref={ref}
+        style={{
+          width: "100%",
+          minHeight: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          overflowX: "hidden",
+          overflowY: "auto",
+          padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
+          backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+        }}
       >
-        {!isDesktopMode ? (
-          <div
-            ref={mobileWrapperRef}
-            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}${isNarrowBuilderPreview ? " builder-parity-narrow" : ""}`}
-            style={{
-              width: "100%",
-              minHeight: "100%",
-              boxSizing: "border-box",
-              containerType: "inline-size",
-            }}
-          >
-            {pageContent}
-          </div>
-        ) : (
-          pageContent
-        )}
+        <div
+          style={{
+            width: isPhoneSize || fillViewport ? "100%" : width,
+            maxWidth: isPhoneSize || fillViewport ? "100%" : undefined,
+            minHeight: isPhoneSize ? "100vh" : minHeight,
+            backgroundColor: background,
+            boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
+            borderRadius: isPhoneSize || fillViewport ? 0 : 4,
+            transform: `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}`,
+            transformOrigin: "top center",
+            transition: "transform 0.2s ease, width 0.3s ease",
+            ...transitionStyle,
+          }}
+        >
+          {isPhoneSize ? (
+            <div
+              ref={mobileWrapperRef}
+              className="frame-responsive-inner frame-fluid frame-mobile"
+              style={{
+                width: "100%",
+                minHeight: "100vh",
+                boxSizing: "border-box",
+                containerType: "inline-size",
+              }}
+            >
+              {pageContent}
+            </div>
+          ) : (
+            pageContent
+          )}
+        </div>
       </div>
     </>
   );
@@ -4380,7 +4358,7 @@ export function WebPreview({
 /**
  * Full-width live site renderer. No shadow, no border-radius, no max-width box.
  * The design fills the entire browser viewport as a real website.
- * Supports multi-page prototype navigation (Navigate to page) via currentPageSlug state.
+ * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
  */
 export function LiveSite({
   doc,
@@ -4411,16 +4389,14 @@ export function LiveSite({
       : {}),
     [doc]
   );
-  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
-  const initialPage = safePages[pageIndex] ?? safePages[0];
-  const [currentPageSlug, setCurrentPageSlug] = React.useState(
-    initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug
-  );
+
+  const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+  const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
   const [history, setHistory] = React.useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
 
-  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
   const pageMeta = React.useMemo<PreviewPageMeta[]>(
     () => safePages.map((p, i) => ({
       id: p.id,
@@ -4436,11 +4412,13 @@ export function LiveSite({
   const background = (pageProps.background as string) || "#ffffff";
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
+  
   const { ref, width: measuredWidth } = useContainerWidth();
   const isPhoneSize = measuredWidth <= mobileBreakpoint;
   const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
+
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (isPhoneSize && liveSiteWrapperRef.current) {
@@ -4450,7 +4428,8 @@ export function LiveSite({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isPhoneSize, currentPageSlug]);
+  }, [isPhoneSize, currentPageId]);
+
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4462,6 +4441,7 @@ export function LiveSite({
     }
     return targets;
   }, [safeNodes]);
+
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
@@ -4479,36 +4459,35 @@ export function LiveSite({
     } else if (interaction.action === "scrollTo" && interaction.destination) {
       document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
     } else if (interaction.action === "navigateTo" && interaction.destination) {
-      const dest = interaction.destination;
-      const internalSlug = resolveInternalPageSlug(dest, pageMeta);
-      if (internalSlug) {
-        setHistory((h) => [...h, currentPageSlug]);
+      const destId = resolveInternalPageId(interaction.destination, pageMeta);
+      if (destId) {
+        setHistory((h) => [...h, currentPageId]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
         setTransitionStyle({
           ...PAGE_TRANSITION_STYLES[trans],
           animationDuration: `${duration}s`,
         });
-        setCurrentPageSlug(internalSlug);
+        setCurrentPageId(destId);
       } else {
-        const el = document.getElementById(dest.startsWith("#") ? dest.slice(1) : dest);
+        const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
         if (el) {
           el.scrollIntoView({ behavior: "smooth" });
-        } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
-          window.location.href = dest;
+        } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
+          window.location.href = interaction.destination;
         }
       }
     } else if (interaction.action === "back") {
       if (history.length > 0) {
-        const prev = history[history.length - 1];
+        const prevId = history[history.length - 1];
         setHistory((h) => h.slice(0, -1));
         setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-        setCurrentPageSlug(prev);
+        setCurrentPageId(prevId);
       } else {
         window.history.back();
       }
     }
-  }, [currentPageSlug, history, pageMeta]);
+  }, [currentPageId, history, pageMeta]);
 
   if (!currentPage) {
     const hasPages = safePages.length > 0;
@@ -4535,7 +4514,7 @@ export function LiveSite({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={viewportWidth}
+            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4567,7 +4546,7 @@ export function LiveSite({
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
       <div
-        key={currentPageSlug}
+        key={currentPageId}
         ref={ref}
         style={{
           width: isPhoneSize ? "100%" : width,
