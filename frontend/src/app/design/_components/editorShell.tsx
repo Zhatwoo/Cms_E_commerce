@@ -90,7 +90,7 @@ class FrameErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('❌ FrameErrorBoundary caught error:', error, errorInfo);
-    this.props.onError();
+    this.props?.onError?.();
   }
 
   render() {
@@ -98,7 +98,7 @@ class FrameErrorBoundary extends React.Component<
       return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
-    return this.props.children;
+    return this.props?.children ?? null;
   }
 }
 
