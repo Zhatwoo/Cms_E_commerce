@@ -98,7 +98,7 @@ export const ContainerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Position & Transform" defaultOpen={false}>
+      <DesignSection title="Transform" defaultOpen={false}>
         <TransformGroup
           rotation={rotation}
           flipHorizontal={flipHorizontal}
@@ -133,7 +133,7 @@ export const ContainerSettings = () => {
         </DesignSection>
       ) : null}
 
-      <DesignSection title="Size & Position">
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}
@@ -149,7 +149,7 @@ export const ContainerSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Position & Display" defaultOpen={false}>
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
         <PositionGroup
           position={position}
           display={display}

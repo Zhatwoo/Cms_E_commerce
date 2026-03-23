@@ -5,7 +5,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
-import { getDomainsManagement, listProducts, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
+import { getDomainsManagement, listProducts, adminWebsiteAction, adminDeleteProduct, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 
@@ -13,6 +13,21 @@ const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) =>
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
 
 type MonitoringTab = 'websites' | 'products';
+
+type ToastTone = 'success' | 'error';
+
+type WebsiteActionModalState = {
+  open: boolean;
+  target: WebsiteManagementRow | null;
+  action: 'take_down' | 'delete';
+  reason: string;
+};
+
+type ProductDeleteModalState = {
+  open: boolean;
+  target: ApiProduct | null;
+  reason: string;
+};
 
 function normalize(value: string | null | undefined): string {
   return (value || '').toLowerCase().trim();
@@ -45,10 +60,10 @@ function formatMoney(value: number | undefined): string {
 
 function websiteViewUrl(domainName: string): string {
   if (!domainName || domainName === '---') return '#';
-  const normalized = domainName.startsWith('http://') || domainName.startsWith('https://')
-    ? domainName
-    : `https://${domainName}`;
-  return normalized;
+  const clean = normalize(domainName);
+  const sub = clean.includes('.') ? clean.split('.')[0] : clean;
+  if (!sub) return '#';
+  return `http://${sub}.localhost:3000/`;
 }
 
 function productIndustry(product: ApiProduct): string {
@@ -89,6 +104,25 @@ function MonitoringPageContent() {
   const [industryFilter, setIndustryFilter] = useState('');
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
+  const [workingWebsiteKey, setWorkingWebsiteKey] = useState<string | null>(null);
+  const [workingProductId, setWorkingProductId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ open: boolean; message: string; tone: ToastTone }>({
+    open: false,
+    message: '',
+    tone: 'success',
+  });
+  const [websiteActionModal, setWebsiteActionModal] = useState<WebsiteActionModalState>({
+    open: false,
+    target: null,
+    action: 'take_down',
+    reason: '',
+  });
+  const [productDeleteModal, setProductDeleteModal] = useState<ProductDeleteModalState>({
+    open: false,
+    target: null,
+    reason: '',
+  });
 
   useEffect(() => {
     setActiveTab(tabParam === 'products' ? 'products' : 'websites');
@@ -107,7 +141,7 @@ function MonitoringPageContent() {
 
         const [domainRes, productRes] = await Promise.all([
           getDomainsManagement(),
-          listProducts({ limit: 200 }),
+          listProducts({ limit: 200, ignoreActiveProjectScope: true, includeAllUsers: true }),
         ]);
 
         if (cancelled) return;
@@ -124,9 +158,17 @@ function MonitoringPageContent() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!toast.open) return;
+    const timer = window.setTimeout(() => {
+      setToast((prev) => ({ ...prev, open: false }));
+    }, 2400);
+    return () => window.clearTimeout(timer);
+  }, [toast.open]);
+
   const approvedWebsites = useMemo(() => websites.filter((w) => isApprovedWebsite(w.status)), [websites]);
-  const approvedProducts = useMemo(() => {
-    return products.filter((p) => isApprovedProduct(p.status || 'published'));
+  const productsForMonitoring = useMemo(() => {
+    return products;
   }, [products]);
 
   const pendingWebsiteCount = useMemo(
@@ -162,7 +204,7 @@ function MonitoringPageContent() {
 
   const filteredProducts = useMemo(() => {
     const q = normalize(search);
-    return approvedProducts.filter(
+    return productsForMonitoring.filter(
       (p) => {
         const matchFocusedProduct = !focusedProductId || p.id === focusedProductId;
         const matchSearch = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q) || normalize(p.subdomain).includes(q);
@@ -171,7 +213,7 @@ function MonitoringPageContent() {
         return matchFocusedProduct && matchSearch && matchStatus && matchIndustry;
       }
     );
-  }, [approvedProducts, focusedProductId, search, statusFilter, industryFilter]);
+  }, [productsForMonitoring, focusedProductId, search, statusFilter, industryFilter]);
 
   const industryOptions = useMemo(() => {
     const items = new Set<string>();
@@ -212,6 +254,15 @@ function MonitoringPageContent() {
     return result;
   }, [products, approvedWebsites]);
 
+  const websiteBySubdomain = useMemo(() => {
+    const map = new Map<string, WebsiteManagementRow>();
+    websites.forEach((w) => {
+      const sub = subdomainFromDomain(w.domainName);
+      if (sub) map.set(sub, w);
+    });
+    return map;
+  }, [websites]);
+
   const websiteChartData = useMemo(() => {
     const published = approvedWebsites.filter((w) => normalize(w.status) === 'published' || normalize(w.status) === 'live').length;
     const offline = approvedWebsites.filter((w) => normalize(w.status) === 'offline' || normalize(w.status) === 'suspended').length;
@@ -229,6 +280,84 @@ function MonitoringPageContent() {
       const nextParams = new URLSearchParams(window.location.search);
       nextParams.set('tab', tab);
       window.history.replaceState(null, '', `/admindashboard/monitoring?${nextParams.toString()}`);
+    }
+  };
+
+  const openWebsiteActionModal = (website: WebsiteManagementRow) => {
+    setWebsiteActionModal({
+      open: true,
+      target: website,
+      action: 'take_down',
+      reason: '',
+    });
+  };
+
+  const submitWebsiteAction = async () => {
+    const website = websiteActionModal.target;
+    if (!website) return;
+    const reason = websiteActionModal.reason.trim();
+    if (!reason) {
+      setToast({ open: true, message: 'Reason is required.', tone: 'error' });
+      return;
+    }
+
+    const key = `${website.userId}::${website.id}`;
+    try {
+      setWorkingWebsiteKey(key);
+      const res = await adminWebsiteAction({
+        userId: website.userId,
+        domainId: website.id,
+        action: websiteActionModal.action,
+        reason,
+      });
+      if (!res.success) throw new Error(res.message || 'Website action failed');
+      setToast({ open: true, message: res.message || 'Website updated.', tone: 'success' });
+      setWebsites((prev) => prev.filter((w) => `${w.userId}::${w.id}` !== key));
+      setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' });
+    } catch (error) {
+      setToast({
+        open: true,
+        message: error instanceof Error ? error.message : 'Website action failed',
+        tone: 'error',
+      });
+    } finally {
+      setWorkingWebsiteKey(null);
+    }
+  };
+
+  const openDeleteProductModal = (product: ApiProduct) => {
+    setProductDeleteModal({
+      open: true,
+      target: product,
+      reason: '',
+    });
+  };
+
+  const submitDeleteProduct = async () => {
+    const product = productDeleteModal.target;
+    if (!product) return;
+    const reason = productDeleteModal.reason.trim();
+    if (!reason) {
+      setToast({ open: true, message: 'Reason is required.', tone: 'error' });
+      return;
+    }
+
+    try {
+      setWorkingProductId(product.id);
+      const res = await adminDeleteProduct(product.id, reason);
+      if (!res.success) throw new Error(res.message || 'Failed to delete product');
+      setProducts((prev) => prev.filter((p) => p.id !== product.id));
+      if (selectedProduct?.id === product.id) setSelectedProduct(null);
+      setProductDeleteModal({ open: false, target: null, reason: '' });
+      setToast({ open: true, message: 'Product deleted and client notified.', tone: 'success' });
+    } catch (error) {
+      setToast({
+        open: true,
+        message: error instanceof Error ? error.message : 'Failed to delete product',
+        tone: 'error',
+      });
+    } finally {
+      setWorkingProductId(null);
     }
   };
 
@@ -406,6 +535,7 @@ function MonitoringPageContent() {
                           const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
                           const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
+                          const thumbnail = (w as { thumbnail?: string }).thumbnail;
 
                           return (
                             <article
@@ -413,9 +543,9 @@ function MonitoringPageContent() {
                               className="w-full h-[287px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden"
                             >
                               <div className="relative h-[170px]">
-                                {w.thumbnail ? (
+                                {thumbnail ? (
                                   <img
-                                    src={w.thumbnail}
+                                    src={thumbnail}
                                     alt={w.domainName}
                                     className="h-full w-full object-cover"
                                     loading="lazy"
@@ -446,7 +576,14 @@ function MonitoringPageContent() {
                                       >
                                         View
                                       </a>
-                                      <button type="button" className="rounded-xl bg-[#FF4A43] px-4 py-1.5 text-sm font-medium">Dismiss</button>
+                                      <button
+                                        type="button"
+                                        onClick={() => openWebsiteActionModal(w)}
+                                        disabled={workingWebsiteKey === `${w.userId}::${w.id}`}
+                                        className="rounded-xl bg-[#FF4A43] px-4 py-1.5 text-sm font-medium disabled:opacity-60"
+                                      >
+                                        {workingWebsiteKey === `${w.userId}::${w.id}` ? 'Working...' : 'Dismiss'}
+                                      </button>
                                     </div>
                                   </div>
                                   <div className="text-right">
@@ -467,9 +604,9 @@ function MonitoringPageContent() {
               {activeTab === 'products' && (
                 <div className="flex flex-wrap gap-4 justify-center md:justify-start">
                   {loading ? (
-                    <p className="text-sm text-[#82788F]">Loading approved products...</p>
+                    <p className="text-sm text-[#82788F]">Loading products...</p>
                   ) : filteredProducts.length === 0 ? (
-                    <p className="text-sm text-[#82788F]">No approved products found.</p>
+                    <p className="text-sm text-[#82788F]">No products found.</p>
                   ) : (
                     filteredProducts.map((p) => (
                       <article key={`${p.id}-${p.subdomain || 'site'}`} className="w-[324px] h-[365px] rounded-lg border border-[rgba(177,59,255,0.29)] bg-[#B13BFF] shadow-sm overflow-hidden flex flex-col">
@@ -497,14 +634,199 @@ function MonitoringPageContent() {
                           </div>
                           <p className="text-sm text-white/85 truncate">SKU: {p.sku || 'N/A'}</p>
                           <div className="flex items-center gap-1 mt-auto">
-                            <button type="button" className="rounded-lg bg-[#6C2CD7] px-2 py-0.5 text-xs font-medium">View</button>
-                            <button type="button" className="rounded-lg bg-[#FF4A43] px-2 py-0.5 text-xs font-medium">Dismiss</button>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProduct(p)}
+                              className="rounded-lg bg-[#6C2CD7] px-2 py-0.5 text-xs font-medium"
+                            >
+                              View
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => openDeleteProductModal(p)}
+                              disabled={workingProductId === p.id}
+                              className="rounded-lg bg-[#FF4A43] px-2 py-0.5 text-xs font-medium disabled:opacity-60"
+                            >
+                              {workingProductId === p.id ? 'Deleting...' : 'Delete'}
+                            </button>
                             <span className="ml-auto text-xs text-white/85 whitespace-nowrap">{formatMoney(p.finalPrice ?? p.price)}</span>
                           </div>
                         </div>
                       </article>
                     ))
                   )}
+                </div>
+              )}
+
+              {selectedProduct && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                  <div className="w-full max-w-2xl rounded-2xl border border-[rgba(177,59,255,0.3)] bg-[#F5F4FF] p-5">
+                    <div className="mb-4 flex items-center justify-between">
+                      <h3 className="text-xl font-bold text-[#471396]">Product Details</h3>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProduct(null)}
+                        className="rounded-lg bg-white px-3 py-1 text-sm text-[#605D78]"
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Name</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{selectedProduct.name || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">SKU</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{selectedProduct.sku || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Publisher</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{websiteBySubdomain.get(normalize(selectedProduct.subdomain))?.owner || 'Unknown'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Website</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{selectedProduct.subdomain ? `${selectedProduct.subdomain}.localhost:3000` : '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Category</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{productIndustry(selectedProduct)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Status</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{selectedProduct.status || '-'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Price</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{formatMoney(selectedProduct.finalPrice ?? selectedProduct.price)}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-[#7F7A95]">Variants</p>
+                        <p className="text-sm font-semibold text-[#3D2A73]">{Array.isArray(selectedProduct.variants) ? selectedProduct.variants.length : 0}</p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4">
+                      <p className="text-xs text-[#7F7A95]">Description</p>
+                      <p className="text-sm text-[#4E4A70]">{selectedProduct.description || 'No description'}</p>
+                    </div>
+
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openDeleteProductModal(selectedProduct)}
+                        className="rounded-lg bg-[#FF4A43] px-3 py-1.5 text-sm font-semibold text-white"
+                      >
+                        Delete Product
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {websiteActionModal.open && websiteActionModal.target && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+                  <div className="w-full max-w-xl rounded-2xl border border-[rgba(177,59,255,0.35)] bg-[#F5F4FF] p-5">
+                    <h3 className="text-xl font-bold text-[#471396]">Moderate Website</h3>
+                    <p className="mt-1 text-sm text-[#605D78]">
+                      Choose a moderation action for <span className="font-semibold">{websiteActionModal.target.domainName}</span>.
+                    </p>
+
+                    <div className="mt-4 grid gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setWebsiteActionModal((prev) => ({ ...prev, action: 'take_down' }))}
+                        className={`rounded-xl border px-3 py-2 text-left text-sm ${websiteActionModal.action === 'take_down' ? 'border-[#B13BFF] bg-[#EFE8FF] text-[#471396]' : 'border-[#D4C8F5] bg-white text-[#605D78]'}`}
+                      >
+                        Take Down Website (Keep data)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setWebsiteActionModal((prev) => ({ ...prev, action: 'delete' }))}
+                        className={`rounded-xl border px-3 py-2 text-left text-sm ${websiteActionModal.action === 'delete' ? 'border-[#FF4A43] bg-[#FFE8E8] text-[#7A1B1B]' : 'border-[#D4C8F5] bg-white text-[#605D78]'}`}
+                      >
+                        Delete Website (Move to trash)
+                      </button>
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="text-xs text-[#7F7A95]">Reason (required)</label>
+                      <textarea
+                        value={websiteActionModal.reason}
+                        onChange={(e) => setWebsiteActionModal((prev) => ({ ...prev, reason: e.target.value }))}
+                        className="mt-1 w-full rounded-xl border border-[#D4C8F5] bg-white p-3 text-sm text-[#3D2A73] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]"
+                        rows={4}
+                        placeholder="State the moderation reason..."
+                      />
+                    </div>
+
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
+                        className="rounded-lg bg-white px-3 py-1.5 text-sm text-[#605D78]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitWebsiteAction}
+                        disabled={Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}`}
+                        className="rounded-lg bg-[#B13BFF] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                      >
+                        {Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}` ? 'Saving...' : 'Confirm Moderation'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {productDeleteModal.open && productDeleteModal.target && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/55 p-4">
+                  <div className="w-full max-w-xl rounded-2xl border border-[rgba(177,59,255,0.35)] bg-[#F5F4FF] p-5">
+                    <h3 className="text-xl font-bold text-[#471396]">Delete Product</h3>
+                    <p className="mt-1 text-sm text-[#605D78]">
+                      Deleting <span className="font-semibold">{productDeleteModal.target.name || 'this product'}</span> will notify the client.
+                    </p>
+
+                    <div className="mt-4">
+                      <label className="text-xs text-[#7F7A95]">Reason (required)</label>
+                      <textarea
+                        value={productDeleteModal.reason}
+                        onChange={(e) => setProductDeleteModal((prev) => ({ ...prev, reason: e.target.value }))}
+                        className="mt-1 w-full rounded-xl border border-[#D4C8F5] bg-white p-3 text-sm text-[#3D2A73] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]"
+                        rows={4}
+                        placeholder="State why this product is being deleted..."
+                      />
+                    </div>
+
+                    <div className="mt-4 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
+                        className="rounded-lg bg-white px-3 py-1.5 text-sm text-[#605D78]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={submitDeleteProduct}
+                        disabled={Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id}
+                        className="rounded-lg bg-[#FF4A43] px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-60"
+                      >
+                        {Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id ? 'Deleting...' : 'Delete and Notify'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {toast.open && (
+                <div className="fixed bottom-5 right-5 z-[70]">
+                  <div className={`rounded-xl px-4 py-3 text-sm font-medium text-white shadow-lg ${toast.tone === 'error' ? 'bg-[#D93A34]' : 'bg-[#2E8B57]'}`}>
+                    {toast.message}
+                  </div>
                 </div>
               )}
             </div>
