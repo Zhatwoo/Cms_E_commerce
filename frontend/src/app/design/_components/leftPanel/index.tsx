@@ -617,7 +617,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       </div>
 
       {/* Panel content: scrollable; Files/Assets/Templates show scrollbar for full layer access */}
-      <div className={`editor-panel-scroll flex-1 min-h-0 overflow-y-auto overflow-x-hidden ${activePanel === "components" ? "no-scrollbar" : "px-4 pb-4 mt-4"} overscroll-contain`}>
+      <div className={`editor-panel-scroll flex-1 min-h-0 overflow-x-hidden overscroll-contain ${activePanel === "components" ? "overflow-hidden" : "overflow-y-auto px-4 pb-4 mt-4"}`}>
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "media" && (
