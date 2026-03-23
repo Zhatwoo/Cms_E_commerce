@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
     getApiUrl,
     getClients,
@@ -122,6 +123,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const profileMenuRef = useRef<HTMLDivElement | null>(null);
     const notificationsRef = useRef<HTMLDivElement | null>(null);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [activeToast, setActiveToast] = useState<{ id: string; title: string; message: string; type: string } | null>(null);
 
     useEffect(() => {
         const load = () => {
@@ -129,8 +131,37 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         };
         load();
         window.addEventListener('notificationsUpdate', load);
-        return () => window.removeEventListener('notificationsUpdate', load);
-    }, []);
+
+        const onNewReceived = (e: any) => {
+            const newItem = e.detail;
+            if (!newItem) return;
+
+            // Only show toast if it's NOT from the current user (don't double notify)
+            // Or if current user is null (maybe just for testing)
+            if (currentUser && newItem.adminId === currentUser.id) {
+                return;
+            }
+
+            setActiveToast({
+                id: newItem.id || `toast-${Date.now()}`,
+                title: newItem.title,
+                message: newItem.message,
+                type: newItem.type || 'info'
+            });
+
+            // Auto dismiss toast
+            setTimeout(() => {
+                setActiveToast(prev => (prev?.id === newItem.id ? null : prev));
+            }, 5000);
+        };
+
+        window.addEventListener('notification:new_received', onNewReceived);
+
+        return () => {
+            window.removeEventListener('notificationsUpdate', load);
+            window.removeEventListener('notification:new_received', onNewReceived);
+        };
+    }, [currentUser]);
 
     const unreadCount = notifications.filter(n => !n.read).length;
 
@@ -403,6 +434,44 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
     return (
         <header className="relative z-20 px-4 pt-4 sm:px-6 lg:px-6 lg:pt-6">
+            {/* Real-time Notification Toast (Framer Motion) */}
+            <AnimatePresence>
+                {activeToast && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 100, scale: 0.9 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                        className="fixed right-4 top-20 z-[9999] flex w-[320px] cursor-pointer items-start gap-3 rounded-2xl bg-white/95 p-4 shadow-[0_12px_45px_rgba(109,40,217,0.18)] backdrop-blur-md"
+                        style={{ border: '1.5px solid rgba(177,59,255,0.2)' }}
+                        onClick={() => router.push('/admindashboard/notifications')}
+                    >
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${
+                            activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
+                            activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
+                            'from-[#B13BFF] to-[#8B5CF6]'
+                        }`}>
+                            <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <h4 className="truncate text-sm font-bold text-[#4a1a8a]">{activeToast.title}</h4>
+                            <p className="mt-0.5 line-clamp-2 text-xs leading-normal text-[#7a6aa0]">{activeToast.message}</p>
+                            <div className="mt-1 text-[10px] font-bold uppercase tracking-tighter text-[#B13BFF]/60 underline decoration-[#B13BFF]/30">Click to expand</div>
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setActiveToast(null); }}
+                            className="text-[#B13BFF]/50 hover:text-[#B13BFF]"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex flex-1 items-center gap-3">
                     {onMenuClick ? (

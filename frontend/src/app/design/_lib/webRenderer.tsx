@@ -2803,6 +2803,12 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedImageWidth,
             height: resolvedImageHeight,
             maxWidth: "100%",
@@ -2981,6 +2987,12 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
+              position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+              top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+              left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+              right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+              bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+              zIndex: (props.zIndex as number | undefined) ?? 2,
               width: resolvedVideoWidth,
               height: resolvedVideoHeight,
               maxWidth: "100%",
@@ -3017,6 +3029,12 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedVideoWidth,
             height: resolvedVideoHeight,
             maxWidth: "100%",
@@ -3088,6 +3106,12 @@ function RenderNode({
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 2,
             backgroundColor: bg,
             color,
             fontSize: fluidFont(rawButtonFontSize, 12, 3, useFixedPx),
@@ -3471,6 +3495,12 @@ function RenderNode({
           data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 1,
             width,
             height,
             maxWidth: "100%",
@@ -3478,15 +3508,15 @@ function RenderNode({
             boxSizing: "border-box",
             display: "block",
             flexShrink: 0,
-            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
-            background: (props.background as string) || "transparent",
-            borderRadius: px(props.borderRadius),
-            border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
             opacity: toNumber(props.opacity, 1),
             boxShadow: props.boxShadow as string,
             transform: spacerTransform,
             transformOrigin: "center center",
+            backgroundColor: (props.background as string) || "transparent",
+            borderRadius: px(props.borderRadius),
+            border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
           }}
         />
       );
@@ -3719,6 +3749,12 @@ function RenderNode({
           data-fluid-space="true"
           data-smooth="true"
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 1,
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
             maxWidth: "100%",
@@ -3743,6 +3779,12 @@ function RenderNode({
           data-smooth="true"
           onClick={interactiveClick}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 3,
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
             minWidth: 0,
@@ -3817,11 +3859,11 @@ function RenderNode({
             minWidth: 1,
             minHeight: 1,
             maxWidth: "100%",
-            position: (props.position as React.CSSProperties["position"]) ?? "relative",
-            top: props.top as string | undefined,
-            left: props.left as string | undefined,
-            right: props.right as string | undefined,
-            bottom: props.bottom as string | undefined,
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
             margin: toNumber(props.margin, 0),
             marginTop: toNumber(props.marginTop ?? m, 0),
             marginRight: toNumber(props.marginRight ?? m, 0),
@@ -3879,7 +3921,7 @@ function RenderNode({
             height: h,
             minWidth: w,
             minHeight: h,
-            position: props.position as React.CSSProperties["position"],
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
             display: props.display as React.CSSProperties["display"],
             zIndex: toNumber(props.zIndex, 0) || undefined,
             top: (props.position as string) !== "static" ? (props.top as string) : undefined,
