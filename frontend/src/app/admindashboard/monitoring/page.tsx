@@ -134,23 +134,27 @@ function MonitoringPageContent() {
   useEffect(() => { setActiveTab(tabParam === 'products' ? 'products' : 'websites'); }, [tabParam]);
   useEffect(() => { setSearch(urlSearch); }, [urlSearch]);
 
+  const loadData = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      const [domainRes, productRes] = await Promise.all([
+        getDomainsManagement(),
+        listProducts({ limit: 200, ignoreActiveProjectScope: true, includeAllUsers: true }),
+      ]);
+      setWebsites(domainRes.success && Array.isArray(domainRes.data) ? domainRes.data : []);
+      setProducts(productRes.success && Array.isArray(productRes.items) ? productRes.items : []);
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        const [domainRes, productRes] = await Promise.all([
-          getDomainsManagement(),
-          listProducts({ limit: 200, ignoreActiveProjectScope: true, includeAllUsers: true }),
-        ]);
-        if (cancelled) return;
-        setWebsites(domainRes.success && Array.isArray(domainRes.data) ? domainRes.data : []);
-        setProducts(productRes.success && Array.isArray(productRes.items) ? productRes.items : []);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
+    loadData();
+
+    // Listen for remote notifications (from other admins) to sync the list
+    const onNotifReceived = () => loadData(true);
+    window.addEventListener('notification:new_received', onNotifReceived);
+    return () => window.removeEventListener('notification:new_received', onNotifReceived);
   }, []);
 
   useEffect(() => {

@@ -38,6 +38,12 @@ exports.markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
     await Notification.markRead(id);
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('notification:updated', { id, read: true });
+    }
+
     res.status(200).json({ success: true, message: 'Notification marked as read' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -49,6 +55,12 @@ exports.deleteNotification = async (req, res) => {
   try {
     const { id } = req.params;
     await Notification.delete(id);
+
+    const io = req.app.get('io');
+    if (io) {
+        io.emit('notification:deleted', { id });
+    }
+
     res.status(200).json({ success: true, message: 'Notification deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

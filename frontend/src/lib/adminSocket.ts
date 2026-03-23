@@ -21,7 +21,15 @@ export function getAdminSocket(): Socket {
 
   socket.on('notification:added', (newNotification) => {
     console.log('[AdminSocket] New shared notification received:', newNotification);
-    // Sync local state when a new notification arrives
+    fetchSharedNotifications();
+    window.dispatchEvent(new CustomEvent('notification:new_received', { detail: newNotification }));
+  });
+
+  socket.on('notification:updated', () => {
+    fetchSharedNotifications();
+  });
+
+  socket.on('notification:deleted', () => {
     fetchSharedNotifications();
   });
 
