@@ -7,8 +7,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 let activeApiBase = API_URL.replace(/\/$/, '');
 let activeProjectId: string | null = null;
 
-/** In-memory user only; never persisted to localStorage or cookies. */
-let inMemoryUser: User | null = null;
+/** In-memory user with session persistence (for UI consistency during mock-saving). */
+let inMemoryUser: User | null = (typeof window !== 'undefined') 
+  ? (() => {
+      try {
+          const s = localStorage.getItem('mercato_session_user');
+          return s ? JSON.parse(s) : null;
+      } catch { return null; }
+  })()
+  : null;
 
 export type User = {
   id: string;
@@ -74,6 +81,11 @@ export function setToken(_token: string): void {
 
 export function removeToken(): void {
   inMemoryUser = null;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('mercato_session_user');
+    } catch { /* ignore */ }
+  }
   if (typeof document === 'undefined') return;
   document.cookie = 'mercato_user=; Path=/; Max-Age=0';
 }
@@ -96,6 +108,12 @@ export function getStoredUser(): User | null {
 
 export function setStoredUser(user: User | null): void {
   inMemoryUser = user;
+  if (typeof window !== 'undefined') {
+    try {
+      if (user) localStorage.setItem('mercato_session_user', JSON.stringify(user));
+      else localStorage.removeItem('mercato_session_user');
+    } catch { /* ignore */ }
+  }
 }
 
 export function setActiveProjectId(projectId: string | null): void {
@@ -490,7 +508,15 @@ export async function uploadMediaApi(
       };
 
       xhr.onload = () => {
-        const data = JSON.parse(xhr.responseText || '{}');
+        let data: { success?: boolean; url?: string; message?: string } = {};
+        const responseText = typeof xhr.responseText === 'string' ? xhr.responseText.trim() : '';
+        if (responseText) {
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            data = {};
+          }
+        }
         if (xhr.status >= 200 && xhr.status < 300) {
           if (data.success && data.url) resolve({ url: data.url });
           else reject(new Error(data.message || 'Upload failed'));
