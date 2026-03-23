@@ -96,7 +96,8 @@ export default function AdminRegisterPage() {
 	return (
 		<>
 			<style>{`
-				@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+				@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+
 
 				* { box-sizing: border-box; }
 
@@ -175,6 +176,9 @@ export default function AdminRegisterPage() {
 						inset 0 1px 0 rgba(255,255,255,0.9);
 					padding: 44px 44px 40px;
 					position: relative; overflow: hidden;
+					max-width: 480px;
+					width: 100%;
+					margin: 0 auto;
 				}
 				.ar-card::before {
 					content: ''; position: absolute;
@@ -214,7 +218,7 @@ export default function AdminRegisterPage() {
 				}
 
 				.ar-title {
-					font-family: 'Syne', sans-serif;
+					font-family: 'Outfit', sans-serif;  /* was 'Syne' */
 					font-size: 2.4rem; font-weight: 800;
 					line-height: 1; letter-spacing: -.03em;
 					background: linear-gradient(135deg, #2d0060 0%, #7b1de8 50%, #A63DFF 100%);
@@ -316,7 +320,7 @@ export default function AdminRegisterPage() {
 					border-radius: 14px;
 					background: linear-gradient(135deg, #7b1de8 0%, #A63DFF 100%);
 					color: #fff;
-					font-family: 'Syne', sans-serif;
+					font-family: 'Outfit', sans-serif;  /* was 'Syne' */
 					font-size: 1rem; font-weight: 700;
 					letter-spacing: .05em; text-transform: uppercase;
 					cursor: pointer; position: relative; overflow: hidden;
@@ -370,7 +374,7 @@ export default function AdminRegisterPage() {
 					margin-bottom: 32px; text-decoration: none;
 				}
 				.ar-logo-text {
-					font-family: 'Syne', sans-serif;
+					font-family: 'Outfit', sans-serif;  /* was 'Syne' */
 					font-size: 1.7rem; font-weight: 800;
 					background: linear-gradient(90deg, #6702BF 0%, #B36760 52%, #FFAC27 100%);
 					-webkit-background-clip: text;
@@ -417,7 +421,7 @@ export default function AdminRegisterPage() {
 					alignItems: 'center', justifyContent: 'center',
 					padding: '32px 16px',
 				}}>
-					<div style={{ width: '100%', maxWidth: '480px' }} className={mounted ? 'ar-mount' : ''}>
+					<div style={{ width: '100%', maxWidth: '480px', flexShrink: 0 }} className={mounted ? 'ar-mount' : ''}>
 
 						<Link href="/" className="ar-logo-wrap">
 							<Image src="/lggo%201.svg" alt="Centric" width={36} height={36} priority style={{ width: 36, height: 'auto' }} />
@@ -432,7 +436,7 @@ export default function AdminRegisterPage() {
 								<span className="ar-badge-text">New Admin Account</span>
 							</div>
 
-							<h1 className="ar-title">Create account</h1>
+							<h1 className="ar-title">Create Account?</h1>
 							<p className="ar-subtitle">All accounts registered here have admin privileges.</p>
 							<div className="ar-divider" />
 
@@ -501,7 +505,7 @@ export default function AdminRegisterPage() {
 
 									{password.length > 0 && (
 										<div className="ar-strength-bar">
-											{[1,2,3,4,5].map((seg) => (
+											{[1, 2, 3, 4, 5].map((seg) => (
 												<div key={seg} className="ar-strength-seg"
 													style={{ background: seg <= passwordStrength ? strengthColor : undefined }} />
 											))}
@@ -533,12 +537,6 @@ export default function AdminRegisterPage() {
 									Already have an account?{' '}
 									<Link href="/adminauth/login">Login</Link>
 								</p>
-								<Link href="/admindashboard/userAccount" className="ar-back-link">
-									<svg width="13" height="13" viewBox="0 0 20 20" fill="currentColor">
-										<path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
-									</svg>
-									User &amp; Account Management
-								</Link>
 							</div>
 						</div>
 					</div>

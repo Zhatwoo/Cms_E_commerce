@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
+import { addNotification } from '@/lib/notifications';
 
 /* ── icon helpers ─────────────────────────────────────────────── */
 const ChevronRightIcon = () => (
@@ -164,7 +165,10 @@ function ModerationComplianceBoard() {
     }, [tab]);
 
     const handleView = (site: string) => { setCurrentSite(site); setShowDetailsModal(true); };
-    const handleDismiss = () => { console.log('Dismissed:', currentSite); };
+    const handleDismiss = () => {
+        addNotification("Report Dismissed", `Dismissed report for ${currentSite}. No action taken.`, 'success');
+        console.log('Dismissed:', currentSite);
+    };
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="space-y-6">
