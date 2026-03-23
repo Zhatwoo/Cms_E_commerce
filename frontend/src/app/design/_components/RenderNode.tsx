@@ -93,7 +93,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const canShowResizeOverlay =
     !isHandTool &&
     !isDrawingTool &&
-    !isSectionNode &&
     isActive &&
     dom &&
     (!isTextNode || editingTextNodeId !== id);
@@ -247,9 +246,14 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   }, [actions, dom, id, name, isHandTool, query]);
 
   const [rect, setRect] = useState<DOMRect | null>(null);
+  const shouldTrackRect = !!(isActive || isDomHovered);
 
   useEffect(() => {
-    if (!dom) return;
+    if (!dom || !shouldTrackRect) {
+      if (!shouldTrackRect) setRect(null);
+      return;
+    }
+    
     const update = () => {
       const next = dom.getBoundingClientRect();
       setRect((prev) => {
@@ -263,21 +267,21 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         return next;
       });
     };
+    
     update();
 
     const scrollUpdate = () => requestAnimationFrame(update);
     window.addEventListener("scroll", scrollUpdate, true);
     window.addEventListener("resize", scrollUpdate);
 
-    // Initial check and periodic poll for unexpected layout shifts
-    const interval = setInterval(update, 500);
+    const interval = setInterval(update, 600);
 
     return () => {
       window.removeEventListener("scroll", scrollUpdate, true);
       window.removeEventListener("resize", scrollUpdate);
       clearInterval(interval);
     };
-  }, [dom]);
+  }, [dom, shouldTrackRect]);
 
   const isLabelVisible = !isHandTool && ((isDomHovered && !suppressPassiveHover) || isActive) && dom && rect;
   const numberedLabel = useMemo(() => {
@@ -322,7 +326,12 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
 
       {/* Resize / Move overlay — active nodes, including Text when not inline editing */}
       {canShowResizeOverlay ? (
-        <ResizeOverlay nodeId={id} dom={dom} />
+        <ResizeOverlay
+          nodeId={id}
+          dom={dom}
+          disableResize={isSectionNode}
+          disableRotate={isSectionNode}
+        />
       ) : null}
 
       <div

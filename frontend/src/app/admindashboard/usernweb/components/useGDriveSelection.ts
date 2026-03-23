@@ -15,7 +15,7 @@ export function useGDriveSelection() {
   
   const dragStartIdRef = useRef<string | null>(null);
 
-  const handleRowClick = useCallback((id: string, shiftKey: boolean, items: string[]) => {
+  const handleRowClick = useCallback((id: string, shiftKey: boolean, ctrlKey: boolean, items: string[]) => {
     setState((prev) => {
       const next = new Set(prev.selectedIds);
 
@@ -30,14 +30,17 @@ export function useGDriveSelection() {
             next.add(items[i]);
           }
         }
-      } else if (!shiftKey) {
-        // Regular click: toggle single selection
+      } else if (ctrlKey) {
+        // Ctrl/Cmd+click: toggle item in current selection
         if (next.has(id)) {
           next.delete(id);
         } else {
-          next.clear();
           next.add(id);
         }
+      } else {
+        // Regular click: select only this row
+        next.clear();
+        next.add(id);
       }
 
       return {

@@ -37,7 +37,7 @@ export function CheckoutModal({
   const [streetAddress, setStreetAddress] = useState('');
   const [city, setCity] = useState('');
   const [postalCode, setPostalCode] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('paypal');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('card');
   const [error, setError] = useState<string | null>(null);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 

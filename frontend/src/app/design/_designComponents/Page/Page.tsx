@@ -51,7 +51,7 @@ export const Page = ({
     <div
       data-node-id={id}
       data-page-node="true"
-      ref={ref => { if (ref) connect(drag(ref)); }}
+      ref={ref => { if (ref) connect(ref); }}
       className="rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150"
       style={{
         position: "absolute",
@@ -61,12 +61,18 @@ export const Page = ({
         height: height === "auto" ? "auto" : height,
         minHeight: "800px",
         backgroundColor: background,
+        overflowX: "hidden",
+        overflowY: "visible",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
         transformOrigin: "center center",
         transition: "transform 220ms ease-out",
       }}
     >
-      <div data-page-name-label="true" className="absolute -top-8 left-0 font-bold text-2xl opacity-60 select-none min-w-[120px]"
+      <div
+        data-page-name-label="true"
+        data-page-drag-handle="true"
+        ref={(ref) => { if (ref) drag(ref); }}
+        className="absolute -top-8 left-0 font-bold text-2xl opacity-60 select-none min-w-[120px] cursor-move"
         style={{ color: "var(--builder-text, #EDE9FF)" }}>
         {editing ? (
           <input

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { getProject, getStoredUser } from "@/lib/api";
+import { getProject, getStoredUser, updateProject } from "@/lib/api";
 import { ensureFirebaseAuthForStorage } from "@/lib/firebase";
 
 type DesignProjectContextType = {
@@ -18,6 +18,8 @@ type DesignProjectContextType = {
   permission: "editor" | "viewer" | "owner";
   /** Whether project data is still loading */
   loading: boolean;
+  /** Update project title */
+  updateProjectTitle: (newTitle: string) => Promise<boolean>;
 };
 
 const DesignProjectContext = createContext<DesignProjectContextType>({
@@ -28,6 +30,7 @@ const DesignProjectContext = createContext<DesignProjectContextType>({
   projectSubdomain: null,
   permission: "viewer",
   loading: true,
+  updateProjectTitle: async () => false,
 });
 
 export function DesignProjectProvider({
@@ -44,6 +47,21 @@ export function DesignProjectProvider({
   const [projectSubdomain, setProjectSubdomain] = useState<string | null>(null);
   const [permission, setPermission] = useState<"editor" | "viewer" | "owner">("viewer");
   const [loading, setLoading] = useState(true);
+
+  const updateProjectTitle = async (newTitle: string): Promise<boolean> => {
+    if (!projectId) return false;
+    try {
+      const res = await updateProject(projectId, { title: newTitle });
+      if (res.success) {
+        setWebsiteName(res.project.title);
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to update project title:", error);
+      return false;
+    }
+  };
 
   // Sync Firebase Auth when user has backend session (so Storage uploads work)
   useEffect(() => {
@@ -84,7 +102,7 @@ export function DesignProjectProvider({
   }, [projectId]);
 
   return (
-    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, projectSubdomain, permission, loading }}>
+    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle }}>
       {children}
     </DesignProjectContext.Provider>
   );

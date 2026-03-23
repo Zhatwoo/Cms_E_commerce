@@ -628,25 +628,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
   // Always run through validator so component type names are canonicalized
   // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
-  const validated = validateCraftData(jsonString);
-  if (!validated.valid || !validated.data) {
-    return { valid: false };
-  }
-
-  try {
-    // Round-trip through the clean document schema to strip malformed node metadata
-    // that can still survive direct validation and later crash Craft Frame mounts.
-    const cleanDoc = serializeCraftToClean(validated.data);
-    const roundTripped = deserializeCleanToCraft(cleanDoc);
-    const revalidated = validateCraftData(roundTripped);
-    if (revalidated.valid && revalidated.data) {
-      return revalidated;
-    }
-  } catch {
-    // Fall back to the directly validated payload below.
-  }
-
-  return validated;
+  return validateCraftData(jsonString);
 }
 
 function ensureFrameDataResolverCompatibility(
@@ -969,7 +951,7 @@ const CollabSyncHandler = () => {
       console.log("[CollabSync] Received remote change, type:", data.type, "hasJson:", !!data.json);
       if (data.type !== "nodes_change" || !data.json) return;
       try {
-        const validated = prepareFrameData(data.json);
+        const validated = validateCraftData(data.json);
         if (validated.valid && validated.data) {
           console.log("[CollabSync] Applying remote deserialization");
           isApplyingRemoteRef.current = true;
@@ -1232,31 +1214,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           return prev === next ? prev : next;
         });
       }
-
-      // If panels were previously saved as both closed, they can look like the editor UI broke.
-      // Auto-restore both panels for non-viewer permissions.
-      const nextLeftPanelOpen =
-        permission === "viewer"
-          ? false
-          : typeof parsed.leftPanelOpen === "boolean"
-            ? parsed.leftPanelOpen
-            : true;
-      const nextRightPanelOpen =
-        permission === "viewer"
-          ? false
-          : typeof parsed.rightPanelOpen === "boolean"
-            ? parsed.rightPanelOpen
-            : true;
-
-      const bothClosed = nextLeftPanelOpen === false && nextRightPanelOpen === false;
-      if (bothClosed) {
-        setLeftPanelOpen(true);
-        setRightPanelOpen(true);
-      } else {
-        setLeftPanelOpen(nextLeftPanelOpen);
-        setRightPanelOpen(nextRightPanelOpen);
-      }
-
+      if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(permission === "viewer" ? false : parsed.leftPanelOpen);
+      if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(permission === "viewer" ? false : parsed.rightPanelOpen);
       if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
       if (typeof parsed.showDualView === "boolean") setShowDualView(parsed.showDualView);
       if (parsed.currentPageId) setCurrentPageId(parsed.currentPageId);
@@ -1287,16 +1246,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   // Prevents stale hidden state from making the panel appear missing.
   useEffect(() => {
     if (!panelsReady || hasForcedRightPanelOpenRef.current || permission === "viewer") return;
-    // If both panels are hidden, restore both so TopPanel + BottomPanel tools are visible.
-    if (leftPanelOpen === false && rightPanelOpen === false) {
-      hasForcedRightPanelOpenRef.current = true;
-      setLeftPanelOpen(true);
-      setRightPanelOpen(true);
-      return;
-    }
     hasForcedRightPanelOpenRef.current = true;
     setRightPanelOpen(true);
-  }, [panelsReady, permission, leftPanelOpen, rightPanelOpen]);
+  }, [panelsReady, permission]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -1317,62 +1269,33 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     }
   }, []);
 
-  const updatePagesDocument = useCallback((
-    updater: (doc: BuilderDocument) => BuilderDocument | null
-  ): string | null => {
-    if (!initialJson) return null;
-    try {
-      const parsed = JSON.parse(initialJson);
-      let doc: BuilderDocument;
-
-      if (parsed?.version !== undefined && Array.isArray(parsed?.pages) && parsed?.nodes && typeof parsed.nodes === "object") {
-        doc = parsed as BuilderDocument;
-      } else {
-        doc = serializeCraftToClean(initialJson);
-      }
-
-      const nextDoc = updater(doc);
-      if (!nextDoc) return null;
-
-      const craftJson = deserializeCleanToCraft(nextDoc);
-      const prepared = prepareFrameData(craftJson);
-      if (!prepared.valid || !prepared.data) return null;
-
-      loadPages(JSON.stringify(nextDoc));
-      return prepared.data;
-    } catch {
-      return null;
-    }
-  }, [initialJson, loadPages]);
-
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
     try {
       const id = `page-${Date.now()}`;
-      const updated = updatePagesDocument((doc) => ({
-        ...doc,
-        pages: [
-          ...(Array.isArray(doc.pages) ? doc.pages : []),
-          {
-            id,
-            name: `Page ${pages.length + 1}`,
-            slug: `page-${pages.length}`,
-            props: { width: "1920px", height: "1200px" },
-            children: [],
-          },
-        ],
-      }));
-      if (!updated) throw new Error("Failed to update page document");
+      const newPage = {
+        id,
+        name: `Page ${pages.length + 1}`,
+        props: { width: "100%", height: "auto" },
+        children: [],
+      };
+      const parsed = JSON.parse(initialJson);
+      if (!Array.isArray(parsed.pages)) parsed.pages = [];
+      parsed.pages.push(newPage);
+      const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
+      // Save to sessionStorage for persistence across refreshes
       safeSessionSet(storageKey, updated);
-      safeLocalSet(getPersistentStorageKey(projectId), updated);
+      // Optionally, also save to localStorage for backup (uncomment if needed)
+      // localStorage.setItem(storageKey, updated);
+      loadPages(updated);
       setCurrentPageId(id);
       setInitialJson(updated);
     } catch (error) {
       console.error("Failed to add page:", error);
       showAlert("Failed to add page", "error");
     }
-  }, [initialJson, pages, projectId, showAlert, updatePagesDocument]);
+  }, [initialJson, pages, projectId, loadPages, showAlert]);
 
   /** Sync pages list when a new page is added to the canvas via Craft (Add Page button / FAB) */
   const handlePageAdded = useCallback((id: string, name: string) => {
@@ -1387,46 +1310,40 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const handleDeletePage = useCallback((pageId: string) => {
     if (!initialJson || pages.length <= 1) return;
     try {
-      const updated = updatePagesDocument((doc) => ({
-        ...doc,
-        pages: (Array.isArray(doc.pages) ? doc.pages : []).filter((p) => p.id !== pageId),
-      }));
-      if (!updated) throw new Error("Failed to update page document");
+      const parsed = JSON.parse(initialJson);
+      parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
+      const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
       safeSessionSet(storageKey, updated);
-      safeLocalSet(getPersistentStorageKey(projectId), updated);
-      const doc = serializeCraftToClean(updated);
-      if (currentPageId === pageId && doc.pages.length > 0) {
-        setCurrentPageId(doc.pages[0].id);
+      loadPages(updated);
+      if (currentPageId === pageId && parsed.pages.length > 0) {
+        setCurrentPageId(parsed.pages[0].id);
       }
       setInitialJson(updated);
     } catch (error) {
       console.error("Failed to delete page:", error);
       showAlert("Failed to delete page", "error");
     }
-  }, [initialJson, currentPageId, pages, projectId, showAlert, updatePagesDocument]);
+  }, [initialJson, currentPageId, pages, projectId, loadPages, showAlert]);
 
   const handleRenamePage = useCallback((pageId: string, newName: string) => {
     if (!initialJson) return;
     try {
-      const updated = updatePagesDocument((doc) => ({
-        ...doc,
-        pages: (Array.isArray(doc.pages) ? doc.pages : []).map((page) =>
-          page.id === pageId
-            ? { ...page, name: newName }
-            : page
-        ),
-      }));
-      if (!updated) throw new Error("Failed to update page document");
-      const storageKey = getStorageKey(projectId);
-      safeSessionSet(storageKey, updated);
-      safeLocalSet(getPersistentStorageKey(projectId), updated);
-      setInitialJson(updated);
+      const parsed = JSON.parse(initialJson);
+      const page = (parsed.pages || []).find((p: any) => p.id === pageId);
+      if (page) {
+        page.name = newName;
+        const updated = JSON.stringify(parsed);
+        const storageKey = getStorageKey(projectId);
+        safeSessionSet(storageKey, updated);
+        loadPages(updated);
+        setInitialJson(updated);
+      }
     } catch (error) {
       console.error("Failed to rename page:", error);
       showAlert("Failed to rename page", "error");
     }
-  }, [initialJson, projectId, showAlert, updatePagesDocument]);
+  }, [initialJson, projectId, loadPages, showAlert]);
 
   const mousePosRef = useRef({ x: 0, y: 0 });
 
@@ -2133,7 +2050,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             if (!parsed || typeof parsed !== "object") return null;
 
             if (parsed.ROOT && Array.isArray(parsed.ROOT?.nodes)) {
-              const validated = prepareFrameData(JSON.stringify(parsed));
+              const validated = validateCraftData(JSON.stringify(parsed));
               return validated.valid && validated.data ? validated.data : null;
             }
             if (
@@ -2143,7 +2060,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
               typeof parsed.nodes === "object"
             ) {
               const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
-              const validated = prepareFrameData(craftJson);
+              const validated = validateCraftData(craftJson);
               return validated.valid && validated.data ? validated.data : null;
             }
             return null;
@@ -2266,16 +2183,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
   }, [frameReady]);
-
-  // Fail-safe: if the frame mounted but panelsReady never flips to true (rare),
-  // re-enable panels after a short delay so the editor tools/shortcuts come back.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (permission === "viewer") return;
-    if (panelsReady) return;
-    const t = window.setTimeout(() => setPanelsReady(true), 2500);
-    return () => window.clearTimeout(t);
-  }, [panelsReady, permission, initialJson, frameReady]);
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
@@ -2709,7 +2616,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
       const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
-      const validated = prepareFrameData(raw);
+      const validated = validateCraftData(raw);
       return validated.valid && validated.data
         ? ensureFrameDataResolverCompatibility(validated.data, resolver)
         : null;

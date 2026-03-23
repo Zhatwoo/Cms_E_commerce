@@ -187,7 +187,7 @@ export function AddCardModal({
           setStripePromise(loadStripe(keyRes.publicKey));
           
           if (!secretRes.success || !secretRes.clientSecret) {
-            throw new Error(secretRes.message || 'Failed to create setup intent.');
+            throw new Error('Failed to create setup intent.');
           }
           setClientSecret(secretRes.clientSecret);
         } catch (err: any) {
