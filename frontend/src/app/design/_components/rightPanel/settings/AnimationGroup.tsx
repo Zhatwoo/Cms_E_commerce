@@ -372,8 +372,8 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           const baseY = Number(gsap.getProperty(element, "y")) || 0;
           const toOffset = (p: { x: number; y: number }) => ({
             // FreeMove should be exact regardless of Speed/Intensity.
-            x: baseX + (p.x - pageLeft),
-            y: baseY + (p.y - pageTop),
+            x: baseX + ((scrollConfig.freeMove?.mode ?? "absolute") === "relative" ? p.x : (p.x - pageLeft)),
+            y: baseY + ((scrollConfig.freeMove?.mode ?? "absolute") === "relative" ? p.y : (p.y - pageTop)),
           });
 
           const offsets = points.map(toOffset);
@@ -960,26 +960,51 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
 
               {animation.scrollEffect.type !== "none" && (
                 <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between">
-                      <label className={labelClass}>Speed / Intensity</label>
-                      <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <label className={labelClass}>Speed</label>
+                        <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-2"
+                        max="2"
+                        step="0.1"
+                        value={animation.scrollEffect.speed}
+                        onChange={(e) => {
+                          update("scrollEffect.speed", Number(e.target.value));
+                          schedulePreview("scrollEffect");
+                        }}
+                        className={sliderClass}
+                      />
+                      <div className="flex justify-between">
+                        <span className={subLabelClass}>Reverse</span>
+                        <span className={subLabelClass}>Forward</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="-2"
-                      max="2"
-                      step="0.1"
-                      value={animation.scrollEffect.speed}
-                      onChange={(e) => {
-                        update("scrollEffect.speed", Number(e.target.value));
-                        schedulePreview("scrollEffect");
-                      }}
-                      className={sliderClass}
-                    />
-                    <div className="flex justify-between">
-                      <span className={subLabelClass}>Reverse</span>
-                      <span className={subLabelClass}>Forward</span>
+
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <label className={labelClass}>Intensity</label>
+                        <span className={subLabelClass}>{animation.scrollEffect.intensity.toFixed(1)}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={animation.scrollEffect.intensity}
+                        onChange={(e) => {
+                          update("scrollEffect.intensity", Number(e.target.value));
+                          schedulePreview("scrollEffect");
+                        }}
+                        className={sliderClass}
+                      />
+                      <div className="flex justify-between">
+                        <span className={subLabelClass}>Tight</span>
+                        <span className={subLabelClass}>Smooth</span>
+                      </div>
                     </div>
                   </div>
 
@@ -1002,7 +1027,14 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                           type="button"
                           className="text-xs px-2 py-1 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors"
                           onClick={() => {
-                            update("scrollEffect.freeMove", { start: undefined, mids: [], end: undefined, keyframes: undefined });
+                            update("scrollEffect.freeMove", {
+                              mode: "relative",
+                              origin: undefined,
+                              start: undefined,
+                              mids: [],
+                              end: undefined,
+                              keyframes: undefined,
+                            });
                             schedulePreview("scrollEffect");
                           }}
                         >
@@ -1027,7 +1059,10 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             // Main action button: Set Start (first) then Set End (second)
                             if (!freeMoveStatus.hasStart) {
                               const xy = getDomXY(el);
-                              update("scrollEffect.freeMove.start", xy);
+                              // Capture in RELATIVE mode: store deltas from start (stable across live layout).
+                              update("scrollEffect.freeMove.mode", "relative");
+                              update("scrollEffect.freeMove.origin", xy);
+                              update("scrollEffect.freeMove.start", { x: 0, y: 0 });
                               update("scrollEffect.freeMove.mids", []);
                               update("scrollEffect.freeMove.end", undefined);
                               update("scrollEffect.freeMove.keyframes", undefined);
@@ -1037,7 +1072,9 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             const start = animation.scrollEffect.freeMove?.start;
                             if (!start) return;
                             const xy = getDomXY(el);
-                            update("scrollEffect.freeMove.end", xy);
+                            const origin = animation.scrollEffect.freeMove?.origin;
+                            if (!origin) return;
+                            update("scrollEffect.freeMove.end", { x: xy.x - origin.x, y: xy.y - origin.y });
                             update("scrollEffect.freeMove.keyframes", undefined);
 
                             // Snap back to Start immediately after setting End.
@@ -1049,8 +1086,9 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             const baseX = Number(gsap.getProperty(el, "x")) || 0;
                             const baseY = Number(gsap.getProperty(el, "y")) || 0;
                             gsap.set(el, {
-                              x: baseX + (start.x - pageLeft),
-                              y: baseY + (start.y - pageTop),
+                              // In relative mode, Start is (0,0) delta.
+                              x: baseX,
+                              y: baseY,
                               force3D: true,
                             });
                           }}
@@ -1073,11 +1111,16 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             if (!el) return;
 
                             const xy = getDomXY(el);
+                            const origin = animation.scrollEffect.freeMove?.origin;
+                            if (!origin) return;
                             const existing = (animation.scrollEffect.freeMove?.mids ?? []) as Array<{
                               x: number;
                               y: number;
                             }>;
-                            update("scrollEffect.freeMove.mids", [...existing, { x: xy.x, y: xy.y }]);
+                            update("scrollEffect.freeMove.mids", [
+                              ...existing,
+                              { x: xy.x - origin.x, y: xy.y - origin.y },
+                            ]);
                             update("scrollEffect.freeMove.keyframes", undefined);
                           }}
                           title="Add another mid point"

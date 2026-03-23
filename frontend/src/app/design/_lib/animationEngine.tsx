@@ -16,6 +16,9 @@ import { DEFAULT_ANIMATION } from "../_types/animation";
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Track which documents already have a scrollerProxy configured.
+const SCROLLER_PROXY_DOCS = new WeakSet<Document>();
+
 // ─── Easing Map (Framer Motion) ──────────────────────────────────────────────
 
 function mapEasing(easing: EasingType): number[] | string {
@@ -218,12 +221,104 @@ function useGsapScrollEffect(
     if (!el) return;
 
     const view = el.ownerDocument?.defaultView ?? window;
+    const doc = el.ownerDocument ?? document;
+
+    // If we're rendering inside an iframe (builder canvas), the actual scrolling may happen
+    // in the parent document on `.canvas-scroll-container` instead of inside the iframe.
+    // In that case, proxy the iframe documentElement's scrollTop/Left to the parent scroller.
+    let proxiedParentScroller: HTMLElement | null = null;
+    try {
+      const parentWin = view.parent;
+      if (parentWin && parentWin !== view && parentWin.document) {
+        proxiedParentScroller =
+          (parentWin.document.querySelector("[data-canvas-container]") as HTMLElement | null) ??
+          (parentWin.document.querySelector(".canvas-scroll-container") as HTMLElement | null);
+      }
+    } catch {
+      proxiedParentScroller = null;
+    }
+
+    const proxyScroller = proxiedParentScroller ? (doc.documentElement as unknown as HTMLElement) : null;
+    if (proxiedParentScroller && proxyScroller && !SCROLLER_PROXY_DOCS.has(doc)) {
+      SCROLLER_PROXY_DOCS.add(doc);
+      const frameEl = view.frameElement as HTMLElement | null;
+      ScrollTrigger.scrollerProxy(proxyScroller, {
+        scrollTop(value) {
+          if (typeof value === "number") proxiedParentScroller!.scrollTop = value;
+          return proxiedParentScroller!.scrollTop;
+        },
+        scrollLeft(value) {
+          if (typeof value === "number") proxiedParentScroller!.scrollLeft = value;
+          return proxiedParentScroller!.scrollLeft;
+        },
+        getBoundingClientRect() {
+          const width = frameEl?.clientWidth ?? view.innerWidth;
+          const height = frameEl?.clientHeight ?? view.innerHeight;
+          return { top: 0, left: 0, width, height, right: width, bottom: height } as DOMRect;
+        },
+        // Pinning isn't used for our effects, but required for consistency.
+        pinType: "transform",
+      });
+    }
+
+    // If the real scroll happens outside the iframe, ScrollTrigger won't receive scroll events
+    // from the proxied scroller (documentElement). Bridge scroll/resize to ScrollTrigger.
+    const parentScrollHandler = proxiedParentScroller
+      ? () => {
+          ScrollTrigger.update();
+        }
+      : null;
+    const parentResizeHandler = proxiedParentScroller
+      ? () => {
+          ScrollTrigger.refresh();
+        }
+      : null;
+
+    if (proxiedParentScroller && parentScrollHandler) {
+      proxiedParentScroller.addEventListener("scroll", parentScrollHandler, { passive: true });
+    }
+    if (proxiedParentScroller && parentResizeHandler) {
+      try {
+        view.parent?.addEventListener("resize", parentResizeHandler, { passive: true });
+      } catch {
+        // ignore
+      }
+    }
+
+    const findScrollParent = (node: HTMLElement | null): HTMLElement | null => {
+      let cur: HTMLElement | null = node?.parentElement ?? null;
+      while (cur) {
+        const style = view.getComputedStyle(cur);
+        const overflowY = style.overflowY;
+        const overflowX = style.overflowX;
+        const canScrollY =
+          (overflowY === "auto" || overflowY === "scroll") && cur.scrollHeight > cur.clientHeight + 1;
+        const canScrollX =
+          (overflowX === "auto" || overflowX === "scroll") && cur.scrollWidth > cur.clientWidth + 1;
+        if (canScrollY || canScrollX) return cur;
+        cur = cur.parentElement;
+      }
+      return null;
+    };
+
+    // Prefer the proxied scroller (iframe -> parent canvas scroll container).
+    const scroller = proxyScroller ?? findScrollParent(el);
+
+    const getScrollOffsets = () => {
+      if (!scroller) return { x: view.scrollX, y: view.scrollY };
+      // If proxied, offsets are the parent scroller's scroll positions.
+      if (proxyScroller && proxiedParentScroller) {
+        return { x: proxiedParentScroller.scrollLeft, y: proxiedParentScroller.scrollTop };
+      }
+      return { x: scroller.scrollLeft, y: scroller.scrollTop };
+    };
 
     const getPageRect = () => {
       const rect = el.getBoundingClientRect();
+      const scroll = getScrollOffsets();
       return {
-        left: rect.left + view.scrollX,
-        top: rect.top + view.scrollY,
+        left: rect.left + scroll.x,
+        top: rect.top + scroll.y,
       };
     };
 
@@ -266,6 +361,7 @@ function useGsapScrollEffect(
       const start = config.freeMove?.start;
       const mids = config.freeMove?.mids;
       const end = config.freeMove?.end;
+      const mode = config.freeMove?.mode ?? "absolute";
 
       const raw: Array<{ t: number; x: number; y: number }> =
         Array.isArray(direct) && direct.length >= 2
@@ -296,8 +392,8 @@ function useGsapScrollEffect(
         // Speed is still used by other scroll effects, but FreeMove uses 1:1 mapping.
         // IMPORTANT: preserve any existing transform set by the builder by adding deltas
         // instead of overwriting absolute x/y.
-        x: baseX + (p.x - page.left),
-        y: baseY + (p.y - page.top),
+        x: baseX + (mode === "relative" ? p.x : (p.x - page.left)),
+        y: baseY + (mode === "relative" ? p.y : (p.y - page.top)),
       });
 
       const frames = raw
@@ -319,6 +415,11 @@ function useGsapScrollEffect(
       return dedup.length >= 2 ? dedup : [];
     };
 
+    const intensity =
+      typeof config.intensity === "number" && Number.isFinite(config.intensity)
+        ? Math.max(0, Math.min(2, config.intensity))
+        : 1;
+
     if (config.type === "freeMove") {
       const frames = computeFreeMoveKeyframes();
       if (frames.length >= 2) {
@@ -339,11 +440,13 @@ function useGsapScrollEffect(
         // Higher speed => larger follow factor => less lag.
         // IMPORTANT: We apply this even if Scrub is OFF so the slider always "feels" different.
         // Speed 0 => very laggy/smooth, Speed 2 => very snappy.
-        const follow = (() => {
+        const followBase = (() => {
           if (speedAbs <= 0.05) return 0.02;
           if (speedAbs >= 1.95) return 1;
           return Math.max(0.02, Math.min(0.75, 0.05 + speedAbs * 0.35));
         })();
+        const intensityNorm = intensity / 2; // 0..1
+        const follow = Math.max(0.01, Math.min(1, followBase * (1 - 0.85 * intensityNorm)));
 
         let targetProgress = 0;
         let currentProgress = 0;
@@ -361,6 +464,7 @@ function useGsapScrollEffect(
 
         const st = ScrollTrigger.create({
           trigger: el,
+          scroller: scroller ?? undefined,
           start: config.start,
           end: config.end,
           scrub: false,
@@ -374,10 +478,22 @@ function useGsapScrollEffect(
             }
           },
         });
+        // Ensure correct measurements (especially inside scroll containers / canvas).
+        ScrollTrigger.refresh();
 
         return () => {
           if (tickerAdded) gsap.ticker.remove(tick);
           st.kill();
+          if (proxiedParentScroller && parentScrollHandler) {
+            proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
+          }
+          if (parentResizeHandler) {
+            try {
+              view.parent?.removeEventListener("resize", parentResizeHandler as EventListener);
+            } catch {
+              // ignore
+            }
+          }
         };
       }
       return;
@@ -385,9 +501,10 @@ function useGsapScrollEffect(
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: el,
+          scroller: scroller ?? undefined,
           start: config.start,
           end: config.end,
-          scrub: config.scrub ? 1 : false,
+          scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
           invalidateOnRefresh: true,
         },
       });
@@ -396,12 +513,23 @@ function useGsapScrollEffect(
         ...to,
         ease: "none",
       });
+      ScrollTrigger.refresh();
 
       return () => {
         tl.kill();
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
+        if (proxiedParentScroller && parentScrollHandler) {
+          proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
+        }
+        if (parentResizeHandler) {
+          try {
+            view.parent?.removeEventListener("resize", parentResizeHandler as EventListener);
+          } catch {
+            // ignore
+          }
+        }
       };
     }
   }, [
@@ -419,6 +547,8 @@ function useGsapScrollEffect(
     config.freeMove?.end?.y,
     config.freeMove?.mids,
     config.freeMove?.keyframes,
+    config.freeMove?.mode,
+    config.intensity,
   ]);
 }
 

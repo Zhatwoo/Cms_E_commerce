@@ -108,11 +108,28 @@ export interface ScrollEffectConfig {
   enabled: boolean;
   type: ScrollEffectType;
   speed: number;
+  /**
+   * Scroll smoothing intensity when scrub is enabled.
+   * Maps to GSAP ScrollTrigger `scrub` numeric value (seconds).
+   * Higher = smoother / more lag.
+   */
+  intensity: number;
   direction: "vertical" | "horizontal";
   scrub: boolean;
   start: string;
   end: string;
   freeMove?: {
+    /**
+     * How captured points should be interpreted.
+     * - relative: points are stored as deltas from the captured start position (recommended; stable across layouts).
+     * - absolute: points are stored as page coordinates.
+     */
+    mode?: "relative" | "absolute";
+    /**
+     * Captured start position in page coords (used as reference when mode="relative").
+     * Note: runtime uses the element's current layout as the base, so this is only a capture-time reference.
+     */
+    origin?: { x: number; y: number };
     start?: { x: number; y: number };
     mids?: Array<{ x: number; y: number }>;
     end?: { x: number; y: number };
@@ -170,6 +187,7 @@ export const DEFAULT_SCROLL_EFFECT: ScrollEffectConfig = {
   enabled: false,
   type: "none",
   speed: 0.5,
+  intensity: 1,
   direction: "vertical",
   scrub: true,
   start: "top bottom",
