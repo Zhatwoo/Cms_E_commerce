@@ -345,6 +345,11 @@ export function PanelDropFreePlacementHandler() {
           const parentIsFreeform =
             parentFreeformPref === true ||
             (!parentIsFlexParent && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+          const forceFlowInFreeform =
+            !!displayName &&
+            FLOW_LAYOUT_TYPES.has(displayName) &&
+            !!parentDisplayName &&
+            FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName);
           const allowFreeformLayout = parentFreeformPref !== false;
           const forceFlowPlacement =
             parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
@@ -396,14 +401,16 @@ export function PanelDropFreePlacementHandler() {
           } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               // Tab panels should keep normal flow; don't apply pixel offsets that can push nodes outside.
-              if (forceFlowPlacement || !allowFreeformLayout) {
+              if (forceFlowPlacement || !allowFreeformLayout || forceFlowInFreeform) {
                 props.position = "relative";
                 props.left = "auto";
                 props.top = "auto";
                 props.right = "auto";
                 props.bottom = "auto";
-                props.marginTop = 0;
-                props.marginLeft = 0;
+                if (!forceFlowInFreeform) {
+                  props.marginTop = 0;
+                  props.marginLeft = 0;
+                }
 
                 if (shouldImageFillParent) {
                   props.width = "100%";

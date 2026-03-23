@@ -1,5 +1,5 @@
 import React from "react";
-import { useEditor, useNode } from "@craftjs/core";
+import { useNode } from "@craftjs/core";
 import { SectionSettings } from "./SectionSettings";
 import type { SectionProps } from "../../_types/components";
 
@@ -67,14 +67,10 @@ export const Section = ({
 }: SectionProps = {}) => {
   const {
     id,
-    connectors: { connect, drag },
+    connectors: { connect },
     childCount,
   } = useNode((node) => ({
     childCount: Array.isArray(node.data.nodes) ? node.data.nodes.length : 0,
-  }));
-
-  const { isSelected } = useEditor((state, query) => ({
-    isSelected: query.getEvent("selected").contains(id),
   }));
 
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
@@ -104,12 +100,6 @@ export const Section = ({
     [connect]
   );
 
-  const setDragHandleRef = React.useCallback(
-    (element: HTMLDivElement | null) => {
-      if (element) drag(element);
-    },
-    [drag]
-  );
 
   const sectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
@@ -224,41 +214,6 @@ export const Section = ({
       className={`group min-h-[80px] ${customClassName}`}
       style={sectionStyle}
     >
-      <div
-        ref={setDragHandleRef}
-        data-section-drag-handle="true"
-        data-canvas-interactive="true"
-        aria-label="Drag section"
-        style={{
-          position: "absolute",
-          top: 8,
-          left: "50%",
-          transform: "translateX(-50%)",
-          width: 28,
-          height: 28,
-          borderRadius: 999,
-          border: "1px solid rgba(59, 130, 246, 0.45)",
-          background: "rgba(255, 255, 255, 0.94)",
-          boxShadow: "0 8px 18px rgba(15, 23, 42, 0.14)",
-          cursor: "grab",
-          zIndex: 3,
-          display: "grid",
-          placeItems: "center",
-          touchAction: "none",
-          opacity: isSelected ? 1 : 0.28,
-        }}
-      >
-        <div
-          aria-hidden="true"
-          style={{
-            width: 10,
-            height: 10,
-            borderRadius: 999,
-            background: "#3b82f6",
-          }}
-        />
-      </div>
-
       <div style={contentShellStyle}>
         <div style={contentStyle}>
           {children}
