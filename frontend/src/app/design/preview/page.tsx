@@ -716,22 +716,59 @@ function PreviewContent() {
     [previewProducts, previewAddToCart]
   );
 
+
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
-  // If draft is still Craft RAW (ROOT-based), convert it so WebPreview can run Prototype interactions.
+  // Default animation config for preview
+  const defaultPreviewAnimation = {
+    animateIn: { type: "fadeIn", duration: 0.7, distance: 32, easing: "easeInOut" },
+    animateOut: { type: "none" },
+    animateDuring: { type: "float", duration: 2.8, intensity: 1 },
+    scrollEffect: { enabled: false, type: "none" },
+    trigger: { type: "onLoad" }
+  };
+
+  // Patch all nodes in the current page to inject animation if missing
   const effectiveCleanDoc = useMemo(() => {
-    if (cleanDoc) return cleanDoc;
-    if (!rawJson) return null;
-    if (!looksLikeCraftRawSnapshot(rawJson)) return null;
-    try {
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
+    let doc = cleanDoc;
+    if (!doc && rawJson && looksLikeCraftRawSnapshot(rawJson)) {
+      try {
+        doc = serializeCraftToClean(rawJson);
+      } catch {
+        return null;
+      }
     }
+    if (!doc) return null;
+    // Patch all nodes in the current page to always have animation in preview
+    const patched = { ...doc, nodes: { ...doc.nodes } };
+    // Find all node IDs in the current page
+    const rootPageId = doc.pages?.[0]?.id;
+    if (rootPageId) {
+      // Collect all descendant node IDs (BFS)
+      const queue = [rootPageId];
+      const visited = new Set();
+      while (queue.length > 0) {
+        const id = queue.shift();
+        if (!id || visited.has(id) || !patched.nodes[id]) continue;
+        visited.add(id);
+        const node = patched.nodes[id];
+        if (!node.props) node.props = {};
+        if (!node.props.animation || node.props.animation?.animateIn?.type === "none") {
+          node.props.animation = defaultPreviewAnimation;
+        }
+        // Add children to queue
+        if (Array.isArray(node.children)) {
+          for (const childId of node.children) {
+            if (typeof childId === "string" && !visited.has(childId)) queue.push(childId);
+          }
+        }
+      }
+    }
+    return patched;
   }, [cleanDoc, rawJson]);
 
   const craftPreviewData = useMemo(() => {
