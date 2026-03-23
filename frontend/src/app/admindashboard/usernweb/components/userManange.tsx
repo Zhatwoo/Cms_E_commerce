@@ -684,11 +684,10 @@ export function UserManagement() {
                     type="button"
                     onClick={() => setCurrentPage(item)}
                     disabled={loading || filtered.length === 0}
-                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${
-                      currentPage === item
-                        ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
-                        : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
-                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${currentPage === item
+                      ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
+                      : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
                     aria-label={`Page ${item}`}
                     aria-current={currentPage === item ? 'page' : undefined}
                   >
@@ -804,8 +803,8 @@ export function UserManagement() {
 
         {/* Action confirmation modal */}
         {actionModal.isOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" role="dialog" aria-modal="true">
-            <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(200,185,245,0.45)] backdrop-blur-[3px]" role="dialog" aria-modal="true">
+            <div className="rounded-xl shadow-xl max-w-md w-full mx-4 p-6 bg-white border border-[rgba(166,61,255,0.16)]" style={{ boxShadow: '0 20px 50px rgba(103,2,191,0.12)' }}>
               <h3 className="text-lg font-semibold text-gray-900 mb-2">{actionModal.title}</h3>
               <p className="text-gray-600 text-sm mb-4">{actionModal.message}</p>
               {actionModal.requiresReason && (
@@ -864,11 +863,10 @@ export function UserManagement() {
                   return (
                     <tr
                       key={client.id}
-                      className={`select-none cursor-pointer transition-all duration-200 rounded-lg ${
-                        isSelected
-                          ? 'bg-gradient-to-r from-[#E8D9FF] to-[#F0E5FF] border-2 border-[#D0B4FF] shadow-md hover:shadow-lg hover:from-[#E0CAFF] hover:to-[#E8D9FF]'
-                          : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
-                      }`}
+                      className={`select-none cursor-pointer transition-all duration-200 rounded-lg ${isSelected
+                        ? 'bg-gradient-to-r from-[#E8D9FF] to-[#F0E5FF] border-2 border-[#D0B4FF] shadow-md hover:shadow-lg hover:from-[#E0CAFF] hover:to-[#E8D9FF]'
+                        : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
+                        }`}
                       onClick={(e) => {
                         (e as React.MouseEvent).preventDefault?.();
                         const isCtrlKey = (e as React.MouseEvent).ctrlKey || (e as React.MouseEvent).metaKey;
@@ -1039,11 +1037,10 @@ export function UserManagement() {
                     type="button"
                     onClick={() => setCurrentPage(item)}
                     disabled={loading || filtered.length === 0}
-                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${
-                      currentPage === item
-                        ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
-                        : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
-                    } disabled:opacity-40 disabled:cursor-not-allowed`}
+                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${currentPage === item
+                      ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
+                      : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
+                      } disabled:opacity-40 disabled:cursor-not-allowed`}
                     aria-label={`Page ${item}`}
                     aria-current={currentPage === item ? 'page' : undefined}
                   >
@@ -1073,7 +1070,7 @@ export function UserManagement() {
             </div>
           </div>
         </div>
-      </div>
+      </div >
     </>
   );
 }
