@@ -1,9 +1,7 @@
 const { db } = require('../config/firebase');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const { v4: uuidv4 } = require('uuid');
 
-/**
- * Get the reference to the comments collection for a project
- */
 function getCommentsRef(ownerId, projectId) {
     return db.collection('user').doc('roles')
         .collection('client').doc(ownerId)
@@ -11,165 +9,289 @@ function getCommentsRef(ownerId, projectId) {
         .collection('comments');
 }
 
-// @desc   Add a comment to a project
-// @route  POST /api/projects/:projectId/comments
-// @access Private
+async function resolveAccess(req, res) {
+    const projectId = (req.params.projectId || '').trim();
+    const userId = req.user.id;
+    const userEmail = (req.user.email || '').toLowerCase();
+    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    if (!resolved) {
+        res.status(403).json({ success: false, message: 'Access denied' });
+        return null;
+    }
+    return { projectId, userId, userEmail, resolved };
+}
+
+// ── Comments ─────────────────────────────────────────────────────────────────
+
+// POST /api/projects/:projectId/comments
 exports.add = async (req, res) => {
     try {
-        const { projectId } = req.params;
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
         const { content, x, y, pageId, authorName, authorEmail, color, authorAvatar } = req.body;
-        const userId = req.user.id;
-        const userEmail = (req.user.email || '').toLowerCase();
-
-        // 1. Resolve project owner & check access
-        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        if (!resolved) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        const commentsRef = getCommentsRef(resolved.ownerId, projectId);
 
         const commentData = {
             content,
             x: parseFloat(x) || 0,
             y: parseFloat(y) || 0,
             pageId: pageId || 'ROOT',
-            authorId: userId,
-            authorName: authorName || req.user.displayName || 'Contributor',
-            authorEmail: authorEmail || userEmail,
+            authorId: ctx.userId,
+            authorName: authorName || req.user.name || 'Contributor',
+            authorEmail: authorEmail || ctx.userEmail,
             authorAvatar: authorAvatar || null,
             color: color || '#6c8fff',
             resolved: false,
+            replies: [],
+            reactions: [],
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
         };
 
-        const docRef = await commentsRef.add(commentData);
-
-        res.status(201).json({
-            success: true,
-            comment: { id: docRef.id, ...commentData }
-        });
-    } catch (error) {
-        console.error('[Comments] Add failed:', error);
+        const docRef = await getCommentsRef(ctx.resolved.ownerId, ctx.projectId).add(commentData);
+        res.status(201).json({ success: true, comment: { id: docRef.id, ...commentData } });
+    } catch (err) {
+        console.error('[Comments] Add failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-// @desc   List all comments for a project
-// @route  GET /api/projects/:projectId/comments
-// @access Private
+// GET /api/projects/:projectId/comments
 exports.list = async (req, res) => {
     try {
-        const { projectId } = req.params;
-        const userId = req.user.id;
-        const userEmail = (req.user.email || '').toLowerCase();
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
 
-        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        if (!resolved) {
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        const commentsRef = getCommentsRef(resolved.ownerId, projectId);
-        const snapshot = await commentsRef.orderBy('createdAt', 'desc').get();
+        const snapshot = await getCommentsRef(ctx.resolved.ownerId, ctx.projectId)
+            .orderBy('createdAt', 'desc').get();
 
         const comments = [];
         snapshot.forEach(doc => {
-            comments.push({ id: doc.id, ...doc.data() });
+            const data = doc.data();
+            comments.push({
+                id: doc.id,
+                ...data,
+                replies: data.replies || [],
+                reactions: data.reactions || [],
+            });
         });
 
         res.status(200).json({ success: true, comments });
-    } catch (error) {
-        console.error('[Comments] List failed:', error);
+    } catch (err) {
+        console.error('[Comments] List failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-// @desc   Set comment resolved status
-// @route  PATCH /api/projects/:projectId/comments/:commentId/resolve
-// @access Private
+// PATCH /api/projects/:projectId/comments/:commentId
+exports.update = async (req, res) => {
+    try {
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
+        const commentId = (req.params.commentId || '').trim();
+        const { content } = req.body;
+
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
+
+        await ref.update({ content, updatedAt: new Date().toISOString() });
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[Comments] Update failed:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// PATCH /api/projects/:projectId/comments/:commentId/position
+exports.move = async (req, res) => {
+    try {
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
+        const commentId = (req.params.commentId || '').trim();
+        const { x, y } = req.body;
+
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
+
+        await ref.update({ x: parseFloat(x) || 0, y: parseFloat(y) || 0, updatedAt: new Date().toISOString() });
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[Comments] Move failed:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// PATCH /api/projects/:projectId/comments/:commentId/resolve
 exports.resolve = async (req, res) => {
     try {
-        const projectId = (req.params.projectId || '').trim();
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
         const commentId = (req.params.commentId || '').trim();
         const { resolved: resolvedStatus } = req.body;
-        const userId = req.user.id;
-        const userEmail = (req.user.email || '').toLowerCase();
 
-        if (!projectId || !commentId) {
-            return res.status(400).json({ success: false, message: 'Project ID and Comment ID are required' });
-        }
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
 
-        console.log(`[Comments] Resolve attempt - Project: "${projectId}", Comment: "${commentId}", User: "${userId}", Status: ${resolvedStatus}`);
-
-        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        if (!resolved) {
-            console.error(`[Comments] Resolve failed: Access denied for project "${projectId}"`);
-            return res.status(403).json({ success: false, message: 'Access denied' });
-        }
-
-        const commentsRef = getCommentsRef(resolved.ownerId, projectId);
-        const commentDoc = await commentsRef.doc(commentId).get();
-
-        if (!commentDoc.exists) {
-            console.error(`[Comments] Resolve failed: Comment "${commentId}" not found in project "${projectId}"`);
-            return res.status(404).json({ success: false, message: 'Comment not found' });
-        }
-
-        await commentDoc.ref.update({
-            resolved: !!resolvedStatus,
-            updatedAt: new Date().toISOString()
-        });
-
-        console.log(`[Comments] Successfully updated comment "${commentId}" (Resolved: ${resolvedStatus})`);
-        res.status(200).json({ success: true, message: 'Comment status updated' });
-    } catch (error) {
-        console.error('[Comments] Resolve failed:', error);
+        await ref.update({ resolved: !!resolvedStatus, updatedAt: new Date().toISOString() });
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[Comments] Resolve failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
 
-// @desc   Delete a comment
-// @route  DELETE /api/projects/:projectId/comments/:commentId
-// @access Private (Owner or Author only)
+// DELETE /api/projects/:projectId/comments/:commentId
 exports.remove = async (req, res) => {
     try {
-        const projectId = (req.params.projectId || '').trim();
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
         const commentId = (req.params.commentId || '').trim();
-        const userId = req.user.id;
-        const userEmail = (req.user.email || '').toLowerCase();
 
-        if (!projectId || !commentId) {
-            return res.status(400).json({ success: false, message: 'Project ID and Comment ID are required' });
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
+
+        const data = doc.data();
+        if (data.authorId !== ctx.userId && ctx.resolved.permission !== 'owner') {
+            return res.status(403).json({ success: false, message: 'Not authorized' });
         }
 
-        console.log(`[Comments] Delete attempt - Project: "${projectId}", Comment: "${commentId}", User: "${userId}"`);
+        await ref.delete();
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[Comments] Delete failed:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
 
-        const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        if (!resolved) {
-            console.error(`[Comments] Delete failed: Access denied for project "${projectId}"`);
-            return res.status(403).json({ success: false, message: 'Access denied' });
+// ── Replies ───────────────────────────────────────────────────────────────────
+
+// POST /api/projects/:projectId/comments/:commentId/replies
+exports.addReply = async (req, res) => {
+    try {
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
+        const commentId = (req.params.commentId || '').trim();
+        const { content } = req.body;
+
+        if (!content || !content.trim()) {
+            return res.status(400).json({ success: false, message: 'Content is required' });
         }
 
-        console.log(`[Comments] Resolved owner for project "${projectId}": ${resolved.ownerId}`);
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
 
-        const commentDoc = await getCommentsRef(resolved.ownerId, projectId).doc(commentId).get();
-        if (!commentDoc.exists) {
-            console.error(`[Comments] Delete failed: Comment "${commentId}" not found in project "${projectId}" (Owner: ${resolved.ownerId})`);
-            return res.status(404).json({ success: false, message: 'Comment not found' });
+        const reply = {
+            id: uuidv4(),
+            commentId,
+            content: content.trim(),
+            authorId: ctx.userId,
+            authorName: req.user.name || 'Contributor',
+            authorEmail: ctx.userEmail,
+            authorAvatar: req.user.avatar || null,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+
+        const existing = doc.data().replies || [];
+        await ref.update({
+            replies: [...existing, reply],
+            updatedAt: new Date().toISOString(),
+        });
+
+        res.status(201).json({ success: true, reply });
+    } catch (err) {
+        console.error('[Comments] Add reply failed:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// DELETE /api/projects/:projectId/comments/:commentId/replies/:replyId
+exports.deleteReply = async (req, res) => {
+    try {
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
+        const commentId = (req.params.commentId || '').trim();
+        const replyId = (req.params.replyId || '').trim();
+
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
+
+        const replies = (doc.data().replies || []).filter(r => r.id !== replyId);
+        await ref.update({ replies, updatedAt: new Date().toISOString() });
+
+        res.status(200).json({ success: true });
+    } catch (err) {
+        console.error('[Comments] Delete reply failed:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// ── Reactions ─────────────────────────────────────────────────────────────────
+
+// POST /api/projects/:projectId/comments/:commentId/reactions
+exports.addReaction = async (req, res) => {
+    try {
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
+        const commentId = (req.params.commentId || '').trim();
+        const { emoji } = req.body;
+
+        if (!emoji) return res.status(400).json({ success: false, message: 'Emoji is required' });
+
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
+
+        const reactions = doc.data().reactions || [];
+        // Prevent duplicate reaction from same user+emoji
+        const alreadyReacted = reactions.some(r => r.emoji === emoji && r.userId === ctx.userId);
+        if (alreadyReacted) {
+            return res.status(200).json({ success: true, reaction: reactions.find(r => r.emoji === emoji && r.userId === ctx.userId) });
         }
 
-        const data = commentDoc.data();
-        if (data.authorId !== userId && resolved.permission !== 'owner') {
-            console.error(`[Comments] Delete failed: User "${userId}" not authorized to delete comment "${commentId}" (Author: ${data.authorId}, Owner: ${resolved.ownerId})`);
-            return res.status(403).json({ success: false, message: 'Not authorized to delete this comment' });
-        }
+        const reaction = {
+            emoji,
+            userId: ctx.userId,
+            userName: req.user.name || 'Contributor',
+        };
 
-        await commentDoc.ref.delete();
-        console.log(`[Comments] Successfully deleted comment "${commentId}" from project "${projectId}"`);
-        res.status(200).json({ success: true, message: 'Comment deleted' });
-    } catch (error) {
-        console.error('[Comments] Delete failed:', error);
+        await ref.update({
+            reactions: [...reactions, reaction],
+            updatedAt: new Date().toISOString(),
+        });
+
+        res.status(201).json({ success: true, reaction });
+    } catch (err) {
+        console.error('[Comments] Add reaction failed:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+};
+
+// DELETE /api/projects/:projectId/comments/:commentId/reactions
+exports.removeReaction = async (req, res) => {
+    try {
+        const ctx = await resolveAccess(req, res);
+        if (!ctx) return;
+        const commentId = (req.params.commentId || '').trim();
+        const { emoji } = req.body;
+
+        const ref = getCommentsRef(ctx.resolved.ownerId, ctx.projectId).doc(commentId);
+        const doc = await ref.get();
+        if (!doc.exists) return res.status(404).json({ success: false, message: 'Comment not found' });
+
+        const reactions = (doc.data().reactions || []).filter(
+            r => !(r.emoji === emoji && r.userId === ctx.userId)
+        );
+        await ref.update({ reactions, updatedAt: new Date().toISOString() });
+
+        res.status(200).json({ success: true, userId: ctx.userId });
+    } catch (err) {
+        console.error('[Comments] Remove reaction failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
