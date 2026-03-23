@@ -4024,11 +4024,9 @@ function RenderNode({
   }
 }
 
-function getPageSlug(page: any, index: number): string {
-  return page?.slug || (page?.props?.pageSlug as string) || `page-${index}`;
-  function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
-    return page?.slug ?? `page-${index}`;
-  }
+function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
+  return page?.slug ?? `page-${index}`;
+}
 
   type PreviewPageMeta = {
     id: string;
@@ -4575,7 +4573,6 @@ function getPageSlug(page: any, index: number): string {
             pageChildren
           )}
         </div>
-      </div >
-    </>
-  );
+      </>
+    );
   }
