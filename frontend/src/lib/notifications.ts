@@ -3,6 +3,8 @@ export type NotificationItem = {
     id: string;
     title: string;
     message: string;
+    details?: string;
+    metadata?: Record<string, string>;
     time: string;
     date: string;
     type: 'info' | 'success' | 'warning' | 'error';
@@ -31,13 +33,20 @@ export function saveNotifications(notifications: NotificationItem[]) {
     }
 }
 
-export function addNotification(title: string, message: string = '', type: NotificationItem['type'] = 'info') {
+export function addNotification(
+    title: string,
+    message: string = '',
+    type: NotificationItem['type'] = 'info',
+    options?: { details?: string; metadata?: Record<string, string> }
+) {
     const notifications = getNotifications();
     const now = new Date();
     const newNotification: NotificationItem = {
         id: `n-${Date.now()}`,
         title,
         message,
+        details: options?.details,
+        metadata: options?.metadata,
         time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         date: now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         type,
