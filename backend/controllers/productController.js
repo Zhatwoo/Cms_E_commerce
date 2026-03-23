@@ -1,7 +1,9 @@
 const Product = require('../models/Product');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const User = require('../models/User');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
+const { sendAdminActionEmail } = require('../utils/emailService');
 
 function getAllowedProductImagePrefixes(userId) {
   // Keep previous path for backwards compatibility and cleanup of older uploads.
@@ -42,8 +44,20 @@ async function resolveOwnedDomain(userId, subdomainInput) {
 
 exports.getAll = async (req, res) => {
   try {
-    const { status, search, page, limit, subdomain } = req.query;
+    const { status, search, page, limit, subdomain, scope } = req.query;
     const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+    const isAdmin = req.user?.role === 'admin' || req.user?.role === 'super_admin';
+    const wantsGlobalScope = String(scope || '').toLowerCase() === 'all';
+
+    if (isAdmin && wantsGlobalScope) {
+      const filters = {};
+      if (status) filters.status = status;
+      if (search) filters.search = search;
+      if (subdomain) filters.subdomain = Product.normalizeSubdomain(subdomain);
+      const result = await Product.findAllGlobal(filters, { page, limit });
+      return res.status(200).json({ success: true, ...result });
+    }
+
     const filters = { userId: req.user.id };
     if (status) filters.status = status;
     if (search) filters.search = search;
@@ -329,6 +343,43 @@ exports.delete = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
+  }
+};
+
+exports.adminDelete = async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const deleteReason = String(reason || '').trim();
+    if (!deleteReason) {
+      return res.status(400).json({ success: false, message: 'Deletion reason is required' });
+    }
+
+    const existing = await Product.findByIdGlobal(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const deleted = await Product.deleteByIdGlobal(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const owner = existing.userId ? await User.findById(existing.userId) : null;
+    const ownerEmail = owner?.email || '';
+    if (ownerEmail) {
+      await sendAdminActionEmail({
+        to: ownerEmail,
+        name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
+        subject: 'Product removed by admin',
+        title: 'Your product was removed',
+        intro: `Product \"${existing.name || 'Untitled Product'}\" was removed by an administrator.`,
+        reason: deleteReason,
+      });
+    }
+
+    res.status(200).json({ success: true, message: 'Product deleted', data: { id: req.params.id } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }

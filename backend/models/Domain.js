@@ -472,6 +472,20 @@ async function updateForClient(userId, domainId, data) {
   return docToObject(snap);
 }
 
+async function deleteForClient(userId, domainId) {
+  const existing = await get(userId, domainId);
+  if (!existing) return false;
+  const subdomain = (existing.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+
+  const batch = db.batch();
+  batch.delete(getDomainsRef(userId).doc(domainId));
+  if (subdomain) {
+    batch.delete(getPublishedSubdomainsRef().doc(subdomain));
+  }
+  await batch.commit();
+  return true;
+}
+
 /**
  * Schedule a publish at a future date. Saves current draft snapshot; at that date it will go live.
  * Domain must already exist (site published at least once).
@@ -722,6 +736,7 @@ module.exports = {
   createForClient,
   findByProjectId,
   updateForClient,
+  deleteForClient,
   schedulePublish,
   getScheduleByProject,
   getPublishHistoryByProject,

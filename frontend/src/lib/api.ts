@@ -7,8 +7,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 let activeApiBase = API_URL.replace(/\/$/, '');
 let activeProjectId: string | null = null;
 
-/** In-memory user only; never persisted to localStorage or cookies. */
-let inMemoryUser: User | null = null;
+/** In-memory user with session persistence (for UI consistency during mock-saving). */
+let inMemoryUser: User | null = (typeof window !== 'undefined') 
+  ? (() => {
+      try {
+          const s = localStorage.getItem('mercato_session_user');
+          return s ? JSON.parse(s) : null;
+      } catch { return null; }
+  })()
+  : null;
 
 export type User = {
   id: string;
@@ -74,6 +81,11 @@ export function setToken(_token: string): void {
 
 export function removeToken(): void {
   inMemoryUser = null;
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('mercato_session_user');
+    } catch { /* ignore */ }
+  }
   if (typeof document === 'undefined') return;
   document.cookie = 'mercato_user=; Path=/; Max-Age=0';
 }
@@ -96,6 +108,12 @@ export function getStoredUser(): User | null {
 
 export function setStoredUser(user: User | null): void {
   inMemoryUser = user;
+  if (typeof window !== 'undefined') {
+    try {
+      if (user) localStorage.setItem('mercato_session_user', JSON.stringify(user));
+      else localStorage.removeItem('mercato_session_user');
+    } catch { /* ignore */ }
+  }
 }
 
 export function setActiveProjectId(projectId: string | null): void {
@@ -176,7 +194,12 @@ export async function apiFetch<T>(
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  if (activeProjectId && !headers['x-project-id']) {
+  const skipActiveProjectScope = headers['x-skip-active-project-scope'] === '1';
+  if (skipActiveProjectScope) {
+    delete headers['x-skip-active-project-scope'];
+  }
+
+  if (!skipActiveProjectScope && activeProjectId && !headers['x-project-id']) {
     headers['x-project-id'] = activeProjectId;
   }
 
@@ -485,7 +508,15 @@ export async function uploadMediaApi(
       };
 
       xhr.onload = () => {
-        const data = JSON.parse(xhr.responseText || '{}');
+        let data: { success?: boolean; url?: string; message?: string } = {};
+        const responseText = typeof xhr.responseText === 'string' ? xhr.responseText.trim() : '';
+        if (responseText) {
+          try {
+            data = JSON.parse(responseText);
+          } catch {
+            data = {};
+          }
+        }
         if (xhr.status >= 200 && xhr.status < 300) {
           if (data.success && data.url) resolve({ url: data.url });
           else reject(new Error(data.message || 'Upload failed'));
@@ -656,6 +687,8 @@ export async function removeCustomDomain(
 export type ApiProduct = {
   id: string;
   name: string;
+  userId?: string;
+  projectId?: string | null;
   sku?: string;
   category?: string;
   subcategory?: string;
@@ -698,12 +731,36 @@ export type ApiProduct = {
   updatedAt?: string;
 };
 
+export async function adminDeleteProduct(
+  id: string,
+  reason: string
+): Promise<{ success: boolean; message?: string; data?: { id: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { id: string } }>(`/api/products/admin/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function adminWebsiteAction(params: {
+  userId: string;
+  domainId: string;
+  action: 'take_down' | 'delete';
+  reason?: string;
+}): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>('/api/domains/admin/website-action', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function listProducts(params?: {
   subdomain?: string;
   status?: string;
   search?: string;
   page?: number;
   limit?: number;
+  ignoreActiveProjectScope?: boolean;
+  includeAllUsers?: boolean;
 }): Promise<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }> {
   const query = new URLSearchParams();
   if (params?.subdomain) query.set('subdomain', params.subdomain);
@@ -711,9 +768,15 @@ export async function listProducts(params?: {
   if (params?.search) query.set('search', params.search);
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.includeAllUsers) query.set('scope', 'all');
   const qs = query.toString();
   const path = qs ? `/api/products?${qs}` : '/api/products';
-  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path);
+  const headers = params?.ignoreActiveProjectScope
+    ? { 'x-skip-active-project-scope': '1' }
+    : undefined;
+  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path, {
+    headers,
+  });
 }
 
 // For uploading prodcut images to Firebase Storage 
@@ -1272,6 +1335,7 @@ export type WebsiteManagementRow = {
   id: string;
   userId: string;
   domainName: string;
+  thumbnail?: string;
   owner: string;
   status: string;
   plan: string;

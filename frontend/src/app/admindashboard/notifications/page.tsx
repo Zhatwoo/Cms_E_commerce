@@ -1,20 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
+import { getNotifications, saveNotifications, type NotificationItem as LibNotificationItem, addNotification } from "@/lib/notifications";
 
 type NotificationTab = "list" | "configure" | "trash";
 
-type NotificationItem = {
-	id: string;
-	title: string;
-	time: string;
-	date: string;
-	read: boolean;
-};
+type NotificationItem = LibNotificationItem;
 
 type NotificationSetting = {
 	id: string;
@@ -114,15 +109,23 @@ function NotificationsPageContent() {
 	const [trashSelectedIds, setTrashSelectedIds] = useState<string[]>([]);
 	const [showRestoreModal, setShowRestoreModal] = useState(false);
 	const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
-	const [notifications, setNotifications] = useState<NotificationItem[]>([
-		{ id: "n1", title: "New notification available", time: "9:00", date: "January 28, 2026", read: true },
-		{ id: "n2", title: "New notification available", time: "18:30", date: "January 28, 2026", read: false },
-	]);
+	const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 	const [trash, setTrash] = useState<NotificationItem[]>([]);
+
+	useEffect(() => {
+		const load = () => {
+			setNotifications(getNotifications());
+		};
+		load();
+		window.addEventListener('notificationsUpdate', load);
+		return () => window.removeEventListener('notificationsUpdate', load);
+	}, []);
+
 	const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
-		{ id: "evt-site-publish", label: "New notification", email: true, push: false },
-		{ id: "evt-template-update", label: "New notification", email: true, push: false },
-		{ id: "evt-custom-domain", label: "New notification", email: true, push: false },
+		{ id: "evt-site-publish", label: "Takedown Website", email: true, push: true },
+		{ id: "evt-template-update", label: "Delete Website", email: true, push: true },
+		{ id: "evt-custom-domain", label: "Delete Product", email: true, push: true },
+		{ id: "evt-user-modified", label: "Modified User", email: true, push: true },
 	]);
 
 	const unreadCount = notifications.filter((item) => !item.read).length;
@@ -153,9 +156,8 @@ function NotificationsPageContent() {
 
 	const handleMarkAsRead = () => {
 		if (selectedIds.length === 0) return;
-		setNotifications((prev) =>
-			prev.map((item) => (selectedIds.includes(item.id) ? { ...item, read: true } : item))
-		);
+		const updated = notifications.map((item) => (selectedIds.includes(item.id) ? { ...item, read: true } : item));
+		saveNotifications(updated);
 		setSelectedIds([]);
 	};
 
@@ -163,7 +165,8 @@ function NotificationsPageContent() {
 		if (selectedIds.length === 0) return;
 		const toTrash = notifications.filter((item) => selectedIds.includes(item.id));
 		setTrash((current) => [...toTrash.filter((item) => !current.some((entry) => entry.id === item.id)), ...current]);
-		setNotifications((prev) => prev.filter((item) => !selectedIds.includes(item.id)));
+		const updated = notifications.filter((item) => !selectedIds.includes(item.id));
+		saveNotifications(updated);
 		setSelectedIds([]);
 	};
 
@@ -297,7 +300,10 @@ function NotificationsPageContent() {
 																		label={`Select notification at ${item.time}`}
 																	/>
 																	<div className="min-w-0">
-																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
+																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
+																			{item.title}
+																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
+																		</div>
 																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
 																	</div>
 																</div>

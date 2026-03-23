@@ -22,6 +22,24 @@ function isChildPathMatch(pathname: string, matchIncludes: string): boolean {
 
 let desktopSidebarExpandedMemory = false;
 
+/* ── shared inline style helpers ─────────────────────────────── */
+const panelStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.86)',
+    border: '1px solid rgba(166,61,255,0.13)',
+    boxShadow: '0 8px 32px rgba(103,2,191,0.09), inset 0 1px 0 rgba(255,255,255,0.9)',
+    backdropFilter: 'blur(16px)',
+};
+
+const iconWrapStyle: React.CSSProperties = {
+    background: 'rgba(166,61,255,0.07)',
+    border: '1px solid rgba(166,61,255,0.10)',
+};
+
+const navActiveStyle: React.CSSProperties = {
+    background: 'rgba(166,61,255,0.09)',
+    color: '#6b21d8',
+};
+
 export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forcedActiveChildId }: AdminSidebarProps) {
     const [isHovered, setIsHovered] = useState(() => (!mobile && desktopSidebarExpandedMemory));
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
@@ -33,9 +51,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
     const handleLogout = async () => {
         if (isLoggingOut) return;
         setIsLoggingOut(true);
-        try {
-            await logout();
-        } finally {
+        try { await logout(); } finally {
             onClose?.();
             router.replace('/adminauth/login');
             router.refresh();
@@ -43,23 +59,12 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         }
     };
 
-    useEffect(() => {
-        if (!mobile) {
-            desktopSidebarExpandedMemory = isHovered;
-        }
-    }, [isHovered, mobile]);
+    useEffect(() => { if (!mobile) desktopSidebarExpandedMemory = isHovered; }, [isHovered, mobile]);
 
-    const toggleDropdown = (id: string) => {
-        setOpenDropdowns((prev) =>
-            prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
-        );
-    };
+    const toggleDropdown = (id: string) => setOpenDropdowns((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
 
     const handleMouseEnter = () => {
-        if (collapseTimerRef.current) {
-            clearTimeout(collapseTimerRef.current);
-            collapseTimerRef.current = null;
-        }
+        if (collapseTimerRef.current) { clearTimeout(collapseTimerRef.current); collapseTimerRef.current = null; }
         desktopSidebarExpandedMemory = true;
         setIsHovered(true);
     };
@@ -74,47 +79,37 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         }, 180);
     };
 
-    useEffect(() => {
-        return () => {
-            if (collapseTimerRef.current) {
-                clearTimeout(collapseTimerRef.current);
-                collapseTimerRef.current = null;
-            }
-        };
-    }, []);
+    useEffect(() => () => { if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current); }, []);
 
-    const matchedActiveItem = ADMIN_NAV_ITEMS.find(
-        (item) => isAdminNavItemMatch(pathname, item)
-    )?.id;
+    const matchedActiveItem = ADMIN_NAV_ITEMS.find((item) => isAdminNavItemMatch(pathname, item))?.id;
     const activeItem = forcedActiveItemId ?? matchedActiveItem;
     const COLLAPSED_WIDTH = 104;
     const EXPANDED_WIDTH = 322;
 
+    /* ── Mobile sidebar ──────────────────────────────────────── */
     if (mobile) {
         return (
             <>
                 <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
                     onClick={onClose}
-                    className="fixed inset-0 bg-black/50 z-40"
+                    className="fixed inset-0 z-40"
+                    style={{ background: 'rgba(80,30,150,0.25)', backdropFilter: 'blur(2px)' }}
                 />
-
                 <motion.aside
-                    initial={{ x: '-100%' }}
-                    animate={{ x: 0 }}
-                    exit={{ x: '-100%' }}
+                    initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }}
                     transition={{ type: 'spring', damping: 30, stiffness: 300 }}
                     className="fixed inset-y-0 left-0 z-50 flex w-[18.5rem] flex-col px-4 py-4"
                 >
-                    <div className="admin-dashboard-panel flex h-full flex-col rounded-[28px] p-4">
+                    <div className="flex h-full flex-col rounded-[28px] p-4" style={panelStyle}>
+                        {/* Top */}
                         <div className="px-2 pb-5 pt-1">
                             <div className="flex items-center justify-end">
                                 <button
                                     onClick={onClose}
-                                    className="admin-dashboard-soft-text rounded-2xl p-2"
+                                    className="rounded-2xl p-2 transition"
+                                    style={{ color: '#7a6aa0' }}
                                     aria-label="Close sidebar"
                                 >
                                     <CloseIcon />
@@ -125,6 +120,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                             </div>
                         </div>
 
+                        {/* Nav */}
                         <nav className="flex-1 space-y-1 overflow-y-auto">
                             {ADMIN_NAV_ITEMS.map((item) => {
                                 const isActive = activeItem === item.id;
@@ -138,36 +134,37 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 type="button"
                                                 onClick={() => toggleDropdown(item.id)}
                                                 suppressHydrationWarning
-                                                className={`admin-dashboard-purple flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-colors ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                className="flex w-full items-center gap-3 rounded-[18px] px-4 py-3 transition-colors"
+                                                style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                             >
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                                     <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                                 </span>
-                                                <span className="flex-1 text-left text-sm font-medium">{item.label}</span>
+                                                <span className="flex-1 text-left text-sm font-semibold">{item.label}</span>
                                                 <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                             </button>
                                         ) : (
                                             <Link
                                                 href={item.href}
                                                 onClick={() => onClose?.()}
-                                                className={`admin-dashboard-purple flex items-center gap-3 rounded-[18px] px-4 py-3 transition-transform hover:-translate-y-0.5 ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}>
-                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                                                className="flex items-center gap-3 rounded-[18px] px-4 py-3 transition-colors"
+                                                style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
+                                            >
+                                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                                     <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                                 </span>
-                                                <span className="text-sm font-medium">{item.label}</span>
+                                                <span className="text-sm font-semibold">{item.label}</span>
                                             </Link>
                                         )}
-                                        <AnimatePresence initial={false}>
-                                            {hasChildren && isOpen ? (
+
+                                        <AnimatePresence>
+                                            {hasChildren && isOpen && (
                                                 <motion.div
-                                                    layout
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: 'auto', opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    transition={{ duration: 0.18, ease: 'easeOut' }}
+                                                    initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                                                    transition={{ duration: 0.22 }}
                                                     className="overflow-hidden"
                                                 >
-                                                    <div className="mt-1 flex flex-col gap-0.5 pl-6">
+                                                    <div className="ml-14 mt-1 flex flex-col gap-0.5">
                                                         {(item.children ?? []).map((child) => {
                                                             const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
                                                             return (
@@ -175,7 +172,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                                     key={child.id}
                                                                     href={child.href}
                                                                     onClick={() => onClose?.()}
-                                                                    className={`admin-dashboard-purple flex items-center rounded-[14px] px-4 py-2.5 text-sm font-medium transition-colors hover:bg-white/30 ${isChildActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                                    className="flex items-center rounded-[14px] px-4 py-2.5 text-sm font-medium transition-colors"
+                                                                    style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
                                                                 >
                                                                     {child.label}
                                                                 </Link>
@@ -183,22 +181,24 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                         })}
                                                     </div>
                                                 </motion.div>
-                                            ) : null}
+                                            )}
                                         </AnimatePresence>
                                     </motion.div>
                                 );
                             })}
                         </nav>
 
+                        {/* Logout */}
                         <div className="pt-4">
                             <button
                                 type="button"
                                 onClick={handleLogout}
                                 disabled={isLoggingOut}
                                 suppressHydrationWarning
-                                className="admin-dashboard-logout flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-medium"
+                                className="flex w-full items-center gap-3 rounded-[18px] px-4 py-3 text-sm font-medium transition"
+                                style={{ color: '#b13bff' }}
                             >
-                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/55">
+                                <span className="flex h-10 w-10 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                     <LogoutIcon />
                                 </span>
                                 <span>{isLoggingOut ? 'Logging out...' : 'Log out'}</span>
@@ -210,6 +210,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         );
     }
 
+    /* ── Desktop sidebar ─────────────────────────────────────── */
     return (
         <motion.aside
             className="sticky top-0 z-20 hidden h-[100dvh] overflow-hidden px-4 py-4 lg:flex"
@@ -219,13 +220,15 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            <div className="admin-dashboard-panel flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5">
+            <div className="flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5" style={panelStyle}>
+                {/* Logo */}
                 <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
                     <Link href="/admindashboard" aria-label="Dashboard Home">
                         <Image src="/images/logo.svg" alt="CMS E-commerce" width={48} height={48} className="h-9 w-auto max-w-[48px] object-contain" />
                     </Link>
                 </div>
 
+                {/* Nav items */}
                 <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
                     {ADMIN_NAV_ITEMS.map((item) => {
                         const isActive = activeItem === item.id;
@@ -240,37 +243,47 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         onClick={() => isHovered && toggleDropdown(item.id)}
                                         aria-label={item.label}
                                         suppressHydrationWarning
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
+                                        style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
-                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
+                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                         </span>
-                                        <span className={`admin-dashboard-purple ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                                        <span className={`ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
                                             {item.label}
                                         </span>
-                                        <span className={`admin-dashboard-purple mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-                                            <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} /></span>
+                                        <span className={`mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
+                                            <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
+                                        </span>
                                         {isActive ? (
-                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
+                                            <span
+                                                className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
+                                                style={{ background: '#f5c000' }}
+                                            />
                                         ) : null}
                                     </button>
                                 ) : (
                                     <Link
                                         href={item.href}
                                         aria-label={item.label}
-                                        className={`group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors ${isActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                        className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
+                                        style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
-                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
+                                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                         </span>
-                                        <span className={`admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+                                        <span className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
                                             {item.label}
                                         </span>
                                         {isActive ? (
-                                            <span className={`admin-dashboard-yellow-fill absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`} />
+                                            <span
+                                                className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
+                                                style={{ background: '#f5c000' }}
+                                            />
                                         ) : null}
                                     </Link>
                                 )}
+
                                 {hasChildren && isOpen && isHovered ? (
                                     <div className="mt-1 flex flex-col gap-0.5 pl-4">
                                         {(item.children ?? []).map((child) => {
@@ -279,7 +292,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 <Link
                                                     key={child.id}
                                                     href={child.href}
-                                                    className={`admin-dashboard-purple flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors hover:bg-white/30 ${isChildActive ? 'admin-dashboard-nav-active' : ''}`.trim()}
+                                                    className="flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                                                    style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
                                                 >
                                                     {child.label}
                                                 </Link>
@@ -292,21 +306,24 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     })}
                 </nav>
 
+                {/* Logout */}
                 <button
                     type="button"
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     suppressHydrationWarning
-                    className="admin-dashboard-logout mt-auto shrink-0 flex w-full items-center justify-start overflow-hidden rounded-2xl px-2 py-2"
+                    className="mt-auto flex w-full shrink-0 items-center justify-start overflow-hidden rounded-2xl px-2 py-2 transition"
+                    style={{ color: '#b13bff' }}
                     aria-label="Log out"
                     title="Log out"
                 >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white/55">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                         <LogoutIcon />
                     </span>
                     <span
-                        className={`admin-dashboard-purple ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                        className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
                         aria-hidden={!isHovered}
+                        style={{ color: '#b13bff' }}
                     >
                         {isLoggingOut ? 'Logging out...' : 'Log out'}
                     </span>
