@@ -1340,6 +1340,8 @@ export type WebsiteManagementRow = {
   status: string;
   plan: string;
   domainType: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type WebsiteManagementStats = {
@@ -1470,4 +1472,25 @@ export async function getAnalytics(period: '7days' | '30days' | '3months' = '7da
   }
   return apiFetch<AnalyticsResponse>(`/api/dashboard/analytics?period=${encodeURIComponent(period)}`);
 }
+
+/** Admin: Shared notifications (Audit trail for ALL admins). */
+export async function getSharedNotifications(): Promise<{ success: boolean; notifications: any[] }> {
+  return apiFetch<{ success: boolean; notifications: any[] }>('/api/notifications');
+}
+
+export async function addSharedNotification(data: { title: string; message: string; type?: string }): Promise<{ success: boolean; notification: any }> {
+  return apiFetch<{ success: boolean; notification: any }>('/api/notifications', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function markSharedNotificationRead(id: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'PUT' });
+}
+
+export async function deleteSharedNotification(id: string): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>(`/api/notifications/${id}`, { method: 'DELETE' });
+}
+
 const api = { getMe, updateProfile }; export default api;
