@@ -59,6 +59,22 @@ export default function AdminDashboardLayout({
     };
   }, [pathname, router, searchParams]);
 
+  // Real-time notifications connection
+  useEffect(() => {
+    if (isAuthorized) {
+      const { getAdminSocket, disconnectAdminSocket } = require('@/lib/adminSocket');
+      const { fetchSharedNotifications } = require('@/lib/notifications');
+      
+      console.log('[AdminLayout] Initializing real-time shared notifications...');
+      getAdminSocket();
+      fetchSharedNotifications();
+
+      return () => {
+        disconnectAdminSocket();
+      };
+    }
+  }, [isAuthorized]);
+
   if (isChecking || !isAuthorized) {
     return (
       <div className="admin-dashboard-shell flex min-h-screen items-center justify-center">

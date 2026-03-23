@@ -109,6 +109,10 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 // Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
 const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   ...CRAFT_RESOLVER,
+  ProfileLogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profilelogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
+  ProfileLoginNode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLoginNode ?? (CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profileloginnode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profileloginnode ?? (CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   BooleanField: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BooleanField),
   booleanfield: asComponent((CRAFT_RESOLVER as Record<string, unknown>).booleanfield),
   BOOLEANFIELD: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BOOLEANFIELD),
@@ -164,6 +168,7 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered.includes("divider")) return "Divider";
   if (lowered.includes("banner")) return "Banner";
   if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("profilelogin") || lowered.includes("profile login") || lowered.includes("profile-login")) return "ProfileLogin";
   if (lowered.includes("pagination")) return "Pagination";
   if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
@@ -564,18 +569,29 @@ function PreviewContent() {
   const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
-      if (project?.subdomain) {
-        const published = await loadPublishedContent(project.subdomain);
-        if (published) {
-          clearSnapshotCache(projectId);
-          setRawJson(published);
-          return;
-        }
+      // 1. Try to load the latest snapshot (Session/Local) for instant parity with editor
+      const cache = readLatestSnapshot(projectId);
+      if (cache) {
+        setRawJson(cache);
+        setLoading(false);
+        return;
       }
+
+      // 2. Try the Draft API (Firestore)
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
         setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Fallback to Published Content
+      if (project?.subdomain) {
+        const published = await loadPublishedContent(project.subdomain);
+        if (published) {
+          setRawJson(published);
+        }
       }
     } catch (e) {
       console.error("Preview refresh error:", e);
@@ -606,19 +622,16 @@ function PreviewContent() {
       if (!project) return;
       setLoading(true);
       try {
-        // If project has a subdomain, always load published content first
-        if (project.subdomain) {
-          const published = await loadPublishedContent(project.subdomain);
-          if (!cancelled && published) {
-            clearSnapshotCache(projectId);
-            setRawJson(published);
-            setLoading(false);
-            return;
-          }
+        // 1. Try local snapshot first (Instant parity with Editor)
+        const snapshot = readLatestSnapshot(projectId);
+        if (snapshot && !cancelled) {
+          setRawJson(snapshot);
+          setLoading(false);
+          return;
         }
 
-        // No subdomain or published content unavailable — load from draft API
-        const timeoutMs = 12000;
+        // 2. Try Draft API
+        const timeoutMs = 8000;
         const result = await Promise.race([
           getDraft(projectId),
           new Promise<{ success: false; timeout: true }>((resolve) =>
@@ -631,19 +644,23 @@ function PreviewContent() {
         if (result.success && result.data?.content) {
           const content = result.data.content;
           if (typeof content === "object") {
-            if (!cancelled) setRawJson(JSON.stringify(content));
+            setRawJson(JSON.stringify(content));
           } else {
-            if (!cancelled) setRawJson(content);
+            setRawJson(content);
           }
-        } else {
-          // Draft API failed — last resort: local cache
-          const fallback = readLatestSnapshot(projectId);
-          if (fallback && !cancelled) setRawJson(fallback);
+          setLoading(false);
+          return;
+        }
+
+        // 3. Last fallback: Published Content
+        if (project.subdomain) {
+          const published = await loadPublishedContent(project.subdomain);
+          if (!cancelled && published) {
+            setRawJson(published);
+          }
         }
       } catch (error) {
         console.error("Preview: Load error:", error);
-        const fallback = readLatestSnapshot(projectId);
-        if (fallback) setRawJson(fallback);
       } finally {
         if (!cancelled) setLoading(false);
       }

@@ -466,36 +466,74 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef }: {
 // --- Helper for Text Input ---
 const ColorTextValue = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => {
     const [local, setLocal] = useState(value);
+    const keywords = ["transparent", "white", "black", "red", "blue", "green", "yellow", "purple", "orange", "pink", "gray", "grey"];
 
     useEffect(() => {
         setLocal(value);
     }, [value]);
 
-    const submit = (val: string) => {
+    const normalizeColor = (val: string): string | null => {
         let v = val.trim();
-        if (!v) {
-            onChange("transparent");
-            return;
-        }
+        if (!v) return "transparent";
+
         // If it's a 3, 6, or 8 digit hex without #, add it
-        if (/^[0-9A-Fa-f]{3}$|^[0-9A-Fa-f]{6}$|^[0-9A-Fa-f]{8}$/.test(v)) {
-            v = "#" + v;
+        if (/^#?[0-9A-Fa-f]{3}$|^#?[0-9A-Fa-f]{6}$|^#?[0-9A-Fa-f]{8}$/.test(v)) {
+            if (v.startsWith("#")) {
+                v = "#" + v.slice(1).toUpperCase();
+            } else {
+                v = "#" + v.toUpperCase();
+            }
+            return v;
         }
 
-        // Simple validation: if it starts with # or is a known keyword
-        const keywords = ["transparent", "white", "black", "red", "blue", "green", "yellow", "purple", "orange", "pink", "gray", "grey"];
-        if (v.startsWith("#") || keywords.includes(v.toLowerCase())) {
-            onChange(v);
-        } else {
-            setLocal(value); // Revert if garbage
+        if (keywords.includes(v.toLowerCase())) {
+            return v.toLowerCase();
         }
+
+        return null;
     };
+
+    const submit = (val: string) => {
+        const normalized = normalizeColor(val);
+        if (normalized) {
+            onChange(normalized);
+            return;
+        }
+
+        setLocal(value); // Revert if garbage
+    };
+
+    const applyIfValid = (val: string) => {
+        const normalized = normalizeColor(val);
+        if (normalized) onChange(normalized);
+    };
+
+    const handleTextChange = (nextRaw: string) => {
+        setLocal(nextRaw);
+        // Apply immediately once a valid color token is detected (typed or pasted).
+        applyIfValid(nextRaw);
+    };
+
+    const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+        const pasted = e.clipboardData.getData("text");
+        if (!pasted) return;
+
+        const normalized = normalizeColor(pasted);
+        if (!normalized) return;
+
+        e.preventDefault();
+        setLocal(normalized);
+        onChange(normalized);
+    };
+
+    const displayValue = local.startsWith("#") ? local.slice(1).toUpperCase() : local;
 
     return (
         <input
             type="text"
-            value={local.startsWith("#") ? local.replace("#", "").toUpperCase() : local}
-            onChange={(e) => setLocal(e.target.value)}
+            value={displayValue}
+            onChange={(e) => handleTextChange(e.target.value)}
+            onPaste={handlePaste}
             onBlur={(e) => submit(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit(e.currentTarget.value)}
             className="bg-transparent text-[11px] text-[var(--builder-text)] focus:outline-none uppercase tracking-widest px-1 w-full"

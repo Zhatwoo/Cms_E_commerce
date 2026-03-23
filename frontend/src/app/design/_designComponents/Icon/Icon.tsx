@@ -22,6 +22,7 @@ import { ArrowRight } from "../../../_assets/Icon/ArrowRight/ArrowRight";
 import { Cart } from "../../../_assets/Icon/Cart/Cart";
 import { ShoppingBag } from "../../../_assets/Icon/ShoppingBag/ShoppingBag";
 import { ShoppingBasket } from "../../../_assets/Icon/ShoppingBasket/ShoppingBasket";
+import { User } from "../../../_assets/Icon/User/User";
 
 export const Icon = ({
   iconType = "home",
@@ -116,6 +117,9 @@ export const Icon = ({
       break;
     case "shoppingBasket":
       IconComponent = ShoppingBasket;
+      break;
+    case "user":
+      IconComponent = User;
       break;
     case "facebook":
       IconComponent = Facebook;

@@ -8,7 +8,8 @@ import {
   MinimalistSaleHeader,
   LuxuryHeader,
   MobileHeader,
-  DarkModeHeader
+  DarkModeHeader,
+  ProfileLogin
 } from "./Header";
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
 import { FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1 } from "./Content";
@@ -112,6 +113,7 @@ export const TEMPLATES: TemplateEntry[] = [
   LuxuryHeader,
   MobileHeader,
   DarkModeHeader,
+  ProfileLogin,
   CenteredHero,
   HeroWithImage,
   HeroBannerCTA,
@@ -179,6 +181,7 @@ export const GROUPED_TEMPLATES = [
       LuxuryHeader,
       MobileHeader,
       DarkModeHeader,
+      ProfileLogin,
     ],
   },
   {
