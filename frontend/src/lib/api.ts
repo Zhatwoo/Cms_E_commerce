@@ -1356,14 +1356,6 @@ export async function getDomainsManagement(): Promise<{
   data?: WebsiteManagementRow[];
   stats?: WebsiteManagementStats;
 }> {
-  // Same-origin proxy so request works when frontend and backend are on different origins
-  if (typeof window !== 'undefined') {
-    const res = await fetch('/api/domains/management', {
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return handleResponse<{ success: boolean; data?: WebsiteManagementRow[]; stats?: WebsiteManagementStats }>(res);
-  }
   return apiFetch<{
     success: boolean;
     data?: WebsiteManagementRow[];
@@ -1433,19 +1425,13 @@ export async function setClientDomainStatus(
   domainId: string,
   status: string
 ): Promise<{ success: boolean; message?: string }> {
-  if (typeof window !== 'undefined') {
-    const res = await fetch('/api/domains/admin/set-client-status', {
+  return apiFetch<{ success: boolean; message?: string }>(
+    '/api/domains/admin/set-client-status',
+    {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, domainId, status }),
-    });
-    return handleResponse<{ success: boolean; message?: string }>(res);
-  }
-  return apiFetch<{ success: boolean; message?: string }>('/api/domains/admin/set-client-status', {
-    method: 'POST',
-    body: JSON.stringify({ userId, domainId, status }),
-  });
+      body: JSON.stringify({ userId, domainId, status })
+    }
+  );
 }
 
 /** Admin: analytics for Monitoring & Analytics (real data). */

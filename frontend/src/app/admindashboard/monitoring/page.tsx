@@ -5,10 +5,17 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
-import { getDomainsManagement, listProducts, adminWebsiteAction, adminDeleteProduct, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
-import { addNotification } from '@/lib/notifications';
+import { 
+  getDomainsManagement, 
+  listProducts, 
+  adminWebsiteAction, 
+  adminDeleteProduct, 
+  type WebsiteManagementRow, 
+  type ApiProduct 
+} from '@/lib/api';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
+import { addNotification } from '@/lib/notifications';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -226,51 +233,35 @@ function MonitoringPageContent() {
   }, [websites]);
 
   // ── Analytics Data (Filtered for Charts) ──────────────────
-  const analyticsWebsites = useMemo(() => {
-    const q = normalize(search);
-    return websites.filter(w => {
-      const matchSearch = !q || normalize(w.domainName).includes(q) || normalize(w.owner).includes(q);
-      const matchIndustry = !industryFilter || normalize(w.plan) === industryFilter;
-      return matchSearch && matchIndustry;
-    });
-  }, [websites, search, industryFilter]);
+  const websiteChartData = useMemo(() => {
+    const published = websites.filter((w) => ['published','live','active'].includes(normalize(w.status))).length;
+    const offline = websites.filter((w) => ['offline','suspended'].includes(normalize(w.status))).length;
+    const draft = websites.filter((w) => ['draft','pending'].includes(normalize(w.status))).length;
+    return [{ label: 'Published', value: published }, { label: 'Offline', value: offline }, { label: 'Draft', value: draft }];
+  }, [websites]);
 
-  const analyticsProducts = useMemo(() => {
-    const q = normalize(search);
-    return products.filter(p => {
-      const matchSearch = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q) || normalize(p.subdomain).includes(q);
-      const matchIndustry = !industryFilter || normalize(productIndustry(p)) === industryFilter;
-      return matchSearch && matchIndustry;
-    });
-  }, [products, search, industryFilter]);
-
-  const statusChartData = useMemo(() => {
-    const ds = activeTab === 'websites' ? analyticsWebsites : analyticsProducts;
-    const published = ds.filter((item) => ['published', 'live', 'active'].includes(normalize(item.status || ''))).length;
-    const offline = ds.filter((item) => ['offline', 'suspended'].includes(normalize(item.status || ''))).length;
-    const draft = ds.filter((item) => ['draft', 'pending'].includes(normalize(item.status || ''))).length;
-    return [
-      { label: 'Published', value: published },
-      { label: 'Offline', value: offline },
-      { label: 'Draft', value: draft }
-    ];
-  }, [activeTab, analyticsWebsites, analyticsProducts]);
+  const productChartData = useMemo(() => {
+    const live = products.filter((p) => ['published','live','active'].includes(normalize(p.status || ''))).length;
+    const offline = products.filter((p) => ['offline','suspended'].includes(normalize(p.status || ''))).length;
+    const draft = products.filter((p) => ['draft','pending'].includes(normalize(p.status || ''))).length;
+    return [{ label: 'Published', value: live }, { label: 'Offline', value: offline }, { label: 'Draft', value: draft }];
+  }, [products]);
 
   const flaggedChartData = useMemo(() => {
-    const flaggedWebsites = analyticsWebsites.filter((w) => normalize(w.status) === 'flagged').length;
-    const flaggedProducts = analyticsProducts.filter((p) => normalize(p.status) === 'flagged').length;
+    const flaggedWebsites = websites.filter((w) => normalize(w.status) === 'flagged').length;
+    const flaggedProducts = products.filter((p) => normalize(p.status) === 'flagged').length;
     return [{ label: 'Websites', value: flaggedWebsites }, { label: 'Products', value: flaggedProducts }, { label: 'Resolved', value: 0 }];
-  }, [analyticsWebsites, analyticsProducts]);
+  }, [websites, products]);
 
   const historicalChartData = useMemo(() => {
-    const ds = activeTab === 'websites' ? analyticsWebsites : analyticsProducts;
+    const ds = activeTab === 'websites' ? websites : products;
     const daysMap = new Map<string, { p: number; o: number; d: number; rawDate: Date }>();
     ds.forEach((item) => {
       const dateStr = item.createdAt ? new Date(item.createdAt).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Unknown';
       if (dateStr === 'Unknown') return;
       const day = daysMap.get(dateStr) || { p: 0, o: 0, d: 0, rawDate: new Date(item.createdAt!) };
       const s = normalize(item.status || '');
-      if (['published', 'live', 'active'].includes(s)) day.p++;
+      if (['published','live','active'].includes(s)) day.p++;
       else if (['offline', 'suspended'].includes(s)) day.o++;
       else if (['draft', 'pending'].includes(s)) day.d++;
       daysMap.set(dateStr, day);
@@ -279,9 +270,13 @@ function MonitoringPageContent() {
       .sort((a, b) => b[1].rawDate.getTime() - a[1].rawDate.getTime())
       .slice(0, 3).reverse()
       .map(([date, counts]) => ({ date, ...counts }));
-  }, [activeTab, analyticsWebsites, analyticsProducts]);
+  }, [activeTab, websites, products]);
 
-  const maxStatusVal = useMemo(() => Math.max(...statusChartData.map(d => d.value), 1), [statusChartData]);
+  const maxStatusVal = useMemo(() => {
+    const ds = activeTab === 'websites' ? websiteChartData : productChartData;
+    return Math.max(...ds.map(d => d.value), 1);
+  }, [activeTab, websiteChartData, productChartData]);
+  
   const maxFlaggedVal = useMemo(() => Math.max(...flaggedChartData.map(d => d.value), 1), [flaggedChartData]);
   const maxHistVal = useMemo(() => Math.max(...historicalChartData.flatMap(h => [h.p, h.o, h.d]), 1), [historicalChartData]);
 
@@ -309,9 +304,10 @@ function MonitoringPageContent() {
       const res = await adminWebsiteAction({ userId: website.userId, domainId: website.id, action: websiteActionModal.action, reason });
       if (!res.success) throw new Error(res.message || 'Website action failed');
       
+      const actionLabel = websiteActionModal.action === 'take_down' ? 'Taken Down' : 'Deleted';
       await addNotification(
-        websiteActionModal.action === 'take_down' ? 'Website Taken Down' : 'Website Deleted',
-        `${website.domainName} was ${websiteActionModal.action === 'take_down' ? 'taken down' : 'deleted'} by admin.`,
+        `Website ${actionLabel}`,
+        `${website.domainName} was ${actionLabel.toLowerCase()} by admin. Reason: ${reason}`,
         websiteActionModal.action === 'take_down' ? 'warning' : 'error',
         {
           details: `Website: ${website.domainName}\nPublisher: ${website.owner || 'Unknown'}\nAction: ${websiteActionModal.action === 'take_down' ? 'Take Down Website' : 'Delete Website'}\nReason: ${reason}`,
@@ -348,7 +344,7 @@ function MonitoringPageContent() {
       
       await addNotification(
         'Product Deleted',
-        `${product.name || 'Untitled Product'} was deleted by admin.`,
+        `${product.name || 'Untitled Product'} was deleted by admin. Reason: ${reason}`,
         'error',
         {
           details: `Product: ${product.name || 'Untitled Product'}\nSKU: ${product.sku || 'N/A'}\nWebsite: ${product.subdomain || 'N/A'}\nReason: ${reason}`,
@@ -368,6 +364,135 @@ function MonitoringPageContent() {
     } catch (error) {
       setToast({ open: true, message: error instanceof Error ? error.message : 'Failed to delete product', tone: 'error' });
     } finally { setWorkingProductId(null); }
+  };
+
+  /* ── helper: Analytics Column ──────────────────────────── */
+  const renderAnalyticsColumn = () => {
+    const statusData = activeTab === 'websites' ? websiteChartData : productChartData;
+    const title = activeTab === 'websites' ? 'Total Websites' : 'Total Products';
+
+    return (
+      <div className="space-y-4">
+        {/* Total Chart */}
+        <section className="rounded-[24px] p-6 transition-all duration-300" style={panelStyle}>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-2xl font-bold" style={{ color: '#4a1a8a' }}>{title}</h3>
+            <button
+              type="button"
+              onClick={() => setIsExpanded(!isWebsitesExpanded)}
+              className="text-sm font-semibold transition-colors hover:opacity-80"
+              style={{ color: '#a07ad0' }}
+            >
+              {isWebsitesExpanded ? 'View Less' : 'View More'}
+            </button>
+          </div>
+
+          <div className={`rounded-2xl p-4 transition-all duration-300 ${isWebsitesExpanded ? 'h-52' : 'h-40'}`} style={insetStyle}>
+            <div className="flex h-full items-end gap-4">
+              {isWebsitesExpanded ? (
+                <>
+                  <div className="flex flex-col justify-between items-end h-[85%] text-[10px] font-bold w-5 pb-5" style={{ color: '#a090c8' }}>
+                    {['40','32','24','16','8','0'].map(v => <span key={v}>{v}</span>)}
+                  </div>
+                  <div className="flex-1 flex h-full items-end justify-around gap-6 relative" style={{ borderLeft: '1px solid rgba(160,144,200,0.15)', borderBottom: '1px solid rgba(160,144,200,0.15)' }}>
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-5 pr-2">
+                      {[1,2,3,4,5].map(i => <div key={i} className="w-full" style={{ borderTop: '1px solid rgba(160,144,200,0.08)' }} />)}
+                    </div>
+                    {statusData.map((d, idx) => (
+                      <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 z-10 group relative">
+                        <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
+                          {d.value}
+                        </div>
+                        <div className="w-full max-w-[36px] rounded-t-lg transition-all duration-500 group-hover:brightness-110"
+                          style={{ height: getBarHeight(d.value, Math.max(maxStatusVal, 40)), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }}
+                        />
+                        <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-full w-full items-end justify-between gap-3">
+                  {statusData.map((d, idx) => (
+                    <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 group relative">
+                      <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
+                        {d.value}
+                      </div>
+                      <div className="w-full rounded-t-lg transition-all duration-500 group-hover:brightness-110"
+                        style={{ height: getBarHeight(d.value, maxStatusVal), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }}
+                      />
+                      <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Historical (Historical Chart) */}
+          {isWebsitesExpanded && (
+            <div className="mt-6 pt-5" style={{ borderTop: '1px solid rgba(166,61,255,0.1)' }}>
+              <h4 className="text-xs font-bold uppercase tracking-wider mb-4" style={{ color: '#a090c8' }}>Previous Month</h4>
+              <div className="h-40 relative mb-3">
+                <div className="absolute left-0 bottom-5 top-0 w-5 flex flex-col justify-between text-[10px] font-bold items-end pr-1.5" style={{ color: '#a090c8' }}>
+                  {['100','80','60','40','20','0'].map(v => <span key={v}>{v}</span>)}
+                </div>
+                <div className="ml-7 h-full flex items-end justify-around relative" style={{ borderBottom: '1px solid rgba(160,144,200,0.15)', borderLeft: '1px solid rgba(160,144,200,0.15)' }}>
+                  {[1,2,3,4,5].map(i => <div key={i} className="absolute left-0 right-0" style={{ borderTop: '1px solid rgba(160,144,200,0.08)', bottom: `${i*20}%` }} />)}
+                  {historicalChartData.length === 0 ? (
+                    <p className="text-[10px] absolute inset-0 flex items-center justify-center" style={{ color: '#a090c8' }}>No historical data</p>
+                  ) : historicalChartData.map((hist, idx) => (
+                    <div key={idx} className="flex flex-col items-center gap-1.5 w-full h-full justify-end">
+                      <div className="flex items-end gap-0.5 h-[85%] mb-1">
+                        {[
+                          { val: hist.p, bg: '#a855f7' },
+                          { val: hist.o, bg: '#f87171' },
+                          { val: hist.d, bg: '#34d399' },
+                        ].map(({ val, bg }, ci) => (
+                          <div key={ci} className="group relative w-3">
+                            <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-1 py-0.5 rounded text-[9px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-md" style={{ background: '#4a1a8a' }}>{val}</div>
+                            <div className="w-full rounded-t transition-all" style={{ height: `${(val / maxHistVal) * 100}%`, background: bg }} />
+                          </div>
+                        ))}
+                      </div>
+                      <span className="text-[10px] font-semibold whitespace-nowrap" style={{ color: '#7a6aa0' }}>{hist.date}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-center gap-5">
+                {[['#a855f7','Published'],['#f87171','Offline'],['#34d399','Draft']].map(([color, label]) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-sm" style={{ background: color }} />
+                    <span className="text-[10px] font-bold" style={{ color: '#4a1a8a' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* Flagged Issues Chart */}
+        <section className="rounded-[24px] p-6" style={panelStyle}>
+          <h3 className="mb-4 text-2xl font-bold text-center" style={{ color: '#4a1a8a' }}>Flagged Issues</h3>
+          <div className="h-40 rounded-2xl p-4" style={insetStyle}>
+            <div className="flex h-full items-end justify-between gap-3">
+              {flaggedChartData.map((d, idx) => (
+                <div key={`flagged-${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 group relative">
+                  <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#dc2626' }}>
+                    {d.value}
+                  </div>
+                  <div className="w-full rounded-t-lg transition-all duration-500 group-hover:brightness-110"
+                    style={{ height: getBarHeight(d.value, maxFlaggedVal), background: 'linear-gradient(180deg, #fb923c, #ef4444)' }}
+                  />
+                  <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    );
   };
 
   /* ── shared select style ────────────────────────────────── */
@@ -399,409 +524,481 @@ function MonitoringPageContent() {
           )}
         </AnimatePresence>
 
-        <main className="relative flex-1 overflow-y-auto overflow-x-hidden p-6 lg:p-10">
-          <div className="mx-auto max-w-7xl space-y-8">
-            <AdminHeader
-              title={activeTab === 'websites' ? 'Website Monitoring' : 'Product Monitoring'}
-              onToggleSidebar={() => setSidebarOpen(true)}
-              pendingAlerts={pendingTotal}
-              statsValue={activeTab === 'websites' ? websites.length : products.length}
-            />
+        <div className="flex min-h-screen flex-1 flex-col">
+          <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex flex-wrap items-center gap-3">
-                <div className="flex rounded-2xl bg-[white]/60 p-1 backdrop-blur-md shadow-sm border border-[rgba(166,61,255,0.1)]">
-                  <button
-                    onClick={() => handleTabChange('websites')}
-                    className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-300 ${
-                      activeTab === 'websites' ? 'bg-[#7b1de8] text-white shadow-lg shadow-[#7b1de8]/25' : 'text-[#7a6aa0] hover:bg-[#7b1de8]/5'
-                    }`}
-                  >
-                    Websites
-                  </button>
-                  <button
-                    onClick={() => handleTabChange('products')}
-                    className={`rounded-xl px-6 py-2.5 text-sm font-bold transition-all duration-300 ${
-                      activeTab === 'products' ? 'bg-[#7b1de8] text-white shadow-lg shadow-[#7b1de8]/25' : 'text-[#7a6aa0] hover:bg-[#7b1de8]/5'
-                    }`}
-                  >
-                    Products
-                  </button>
-                </div>
-              </div>
+          <main className="flex-1 overflow-y-auto">
+            <div className="p-6 lg:p-8">
 
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="relative min-w-[280px]">
-                  <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-[#a090c8]" />
-                  <input
-                    type="text"
-                    placeholder="Search name or domain..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="w-full rounded-2xl bg-[white]/80 border-1.5 border-[rgba(166,61,255,0.18)] py-3 pl-11 pr-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[rgba(166,61,255,0.2)] backdrop-blur-sm"
-                  />
-                </div>
+              {/* ── Page header ─────────────────────────── */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4 }}
+                className="mb-6"
+              >
+                <h1 className="text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>
+                  Website &amp; Product Monitoring
+                </h1>
+                <p className="mt-1 text-sm font-medium" style={{ color: '#a78bfa' }}>
+                  Website &amp; Product Monitoring
+                </p>
+              </motion.div>
 
-                <div className="relative group">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className={selectCls}
-                    style={selectStyle}
-                  >
+              {/* ── Toolbar ─────────────────────────────── */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.06 }}
+                className="mb-6 flex flex-wrap items-center gap-3"
+              >
+                {/* Search icon btn */}
+                <button
+                  type="button"
+                  suppressHydrationWarning
+                  className="h-11 w-11 rounded-full flex items-center justify-center shadow-sm transition hover:brightness-95"
+                  style={{ background: '#FFCC00', color: '#1a1035' }}
+                  aria-label="Search"
+                >
+                  <SearchIcon className="h-5 w-5" strokeWidth={2.3} />
+                </button>
+
+                {/* Search input */}
+                <input
+                  type="text"
+                  placeholder="Search name or domain…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  suppressHydrationWarning
+                  className="h-11 rounded-2xl px-4 text-sm font-medium outline-none w-full max-w-[280px]"
+                  style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#2d1a50', boxShadow: '0 1px 4px rgba(103,2,191,0.05)' }}
+                />
+
+                {/* Status filter */}
+                <div className="relative">
+                  <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status" suppressHydrationWarning className={selectCls} style={selectStyle}>
                     <option value="">All Status</option>
                     <option value="published">Published</option>
-                    <option value="offline">Offline</option>
+                    <option value="live">Live</option>
+                    <option value="active">Active</option>
                     <option value="flagged">Flagged</option>
-                    <option value="draft">Draft</option>
+                    <option value="offline">Offline</option>
                   </select>
-                  <ChevronDownIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#a090c8] pointer-events-none transition-transform group-focus-within:rotate-180" />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#a07ad0' }}>
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </span>
                 </div>
 
-                <div className="relative group">
-                  <select
-                    value={industryFilter}
-                    onChange={(e) => setIndustryFilter(e.target.value)}
-                    className={`${selectCls} min-w-[160px]`}
-                    style={selectStyle}
-                  >
+                {/* Industry filter */}
+                <div className="relative">
+                  <select value={industryFilter} onChange={(e) => setIndustryFilter(e.target.value)} aria-label="Filter by industry" suppressHydrationWarning className={`${selectCls} min-w-[130px]`} style={selectStyle}>
                     <option value="">Industry</option>
-                    {industryOptions.map((opt) => (<option key={opt} value={normalize(opt)}>{opt}</option>))}
+                    {industryOptions.map((industry) => (
+                      <option key={industry} value={normalize(industry)}>{industry}</option>
+                    ))}
                   </select>
-                  <ChevronDownIcon className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#a090c8] pointer-events-none transition-transform group-focus-within:rotate-180" />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#a07ad0' }}>
+                    <ChevronDownIcon className="h-4 w-4" />
+                  </span>
                 </div>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-[380px,1fr] gap-8 items-start">
-              <AnimatePresence mode="wait">
-                {/* Left Column: Permanent Charts */}
-                <motion.div 
-                  initial={{ opacity: 0, x: -12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.12 }}
-                  className="space-y-4"
+                {/* Pending / approvals button */}
+                <button
+                  type="button"
+                  onClick={() => router.push('/admindashboard/moderationCompliance')}
+                  suppressHydrationWarning
+                  className="relative h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95"
+                  style={{ background: 'rgba(166,61,255,0.08)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#8b1fe8' }}
+                  aria-label="Approval requests"
                 >
-                  {/* Total Websites/Products chart */}
-                  <section className="rounded-[24px] p-6 transition-all duration-300" style={panelStyle}>
-                    <div className="mb-4 flex items-center justify-between">
-                      <h3 className="text-2xl font-bold" style={{ color: '#4a1a8a' }}>
-                        {activeTab === 'websites' ? 'Total Websites' : 'Total Products'}
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={() => setIsExpanded(!isWebsitesExpanded)}
-                        className="text-sm font-semibold transition-colors hover:opacity-80"
-                        style={{ color: '#a07ad0' }}
-                      >
-                        {isWebsitesExpanded ? 'View Less' : 'View More'}
-                      </button>
-                    </div>
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 20h9" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.5 3.5a2.121 2.121 0 013 3L8 18l-4 1 1-4 11.5-11.5z" />
+                  </svg>
+                  {pendingTotal > 0 && (
+                    <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {pendingTotal}
+                    </span>
+                  )}
+                </button>
 
-                    <div className={`rounded-2xl p-4 transition-all duration-300 ${isWebsitesExpanded ? 'h-52' : 'h-40'}`} style={insetStyle}>
-                      <div className="flex h-full items-end gap-4">
-                        {isWebsitesExpanded ? (
-                          <>
-                            <div className="flex flex-col justify-between items-end h-[85%] text-[10px] font-bold w-5 pb-5" style={{ color: '#a090c8' }}>
-                              {['40', '32', '24', '16', '8', '0'].map(v => <span key={v}>{v}</span>)}
-                            </div>
-                            <div className="flex-1 flex h-full items-end justify-around gap-6 relative" style={{ borderLeft: '1px solid rgba(160,144,200,0.15)', borderBottom: '1px solid rgba(160,144,200,0.15)' }}>
-                              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-5 pr-2">
-                                {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-full" style={{ borderTop: '1px solid rgba(160,144,200,0.08)' }} />)}
+                {/* Tab switcher */}
+                <div className="ml-auto flex gap-1 rounded-xl p-1" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
+                  {(['websites', 'products'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => handleTabChange(t)}
+                      suppressHydrationWarning
+                      className="px-6 py-2 text-sm font-semibold rounded-lg transition-colors capitalize"
+                      style={activeTab === t
+                        ? { background: '#FFCC00', color: '#1a1035' }
+                        : { color: '#7a6aa0' }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </motion.div>
+
+              {/* ── Websites tab ─────────────────────────── */}
+              {activeTab === 'websites' && (
+                <motion.div
+                  key="websites-tab"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 xl:grid-cols-[480px_minmax(0,1fr)] gap-4 items-start"
+                >
+                  {/* Left: charts */}
+                  {renderAnalyticsColumn()}
+
+                  {/* Right: website cards */}
+                  <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+                    {loading ? (
+                      <p className="text-sm" style={{ color: '#a090c8' }}>Loading websites…</p>
+                    ) : uniqueFilteredWebsites.length === 0 ? (
+                      <div className="rounded-2xl px-6 py-10 text-center" style={{ ...panelStyle }}>
+                        <p className="text-sm font-medium" style={{ color: '#7a6aa0' }}>No approved websites found.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+                        {uniqueFilteredWebsites.map((w) => {
+                          const status = getWebsiteStatusMeta(w.status);
+                          const viewUrl = websiteViewUrl(w.domainName);
+                          const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
+                          const thumbnail = (w as { thumbnail?: string }).thumbnail;
+
+                          return (
+                            <motion.article
+                              key={`${w.userId}::${w.id}`}
+                              initial={{ opacity: 0, y: 12 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="overflow-hidden rounded-[20px]"
+                              style={{
+                                border: '1px solid rgba(166,61,255,0.15)',
+                                boxShadow: '0 4px 20px rgba(103,2,191,0.08)',
+                                background: 'rgba(255,255,255,0.9)',
+                              }}
+                            >
+                              {/* Thumbnail */}
+                              <div className="relative h-44 overflow-hidden">
+                                {thumbnail ? (
+                                  <img src={thumbnail} alt={w.domainName} className="h-full w-full object-cover" loading="lazy" />
+                                ) : (
+                                  <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill sizes="320px" className="object-cover" />
+                                )}
+                                {/* Status badge */}
+                                <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
+                                  style={{ background: 'rgba(255,255,255,0.95)', color: '#4a1a8a', border: '1px solid rgba(166,61,255,0.15)' }}>
+                                  <span className={`h-2 w-2 rounded-full ${status.dotClass}`} />
+                                  {status.label}
+                                </span>
+                                {/* Industry tag */}
+                                <span className="absolute bottom-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                                  style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
+                                  {industry}
+                                </span>
                               </div>
-                              {statusChartData.map((d, idx) => (
-                                <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 z-10 group relative">
-                                  <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
-                                    {d.value}
+
+                              {/* Card body */}
+                              <div className="px-4 py-4">
+                                <p className="text-base font-bold truncate mb-3" style={{ color: '#2d1a50' }}>{w.domainName}</p>
+                                <div className="flex items-center justify-between gap-3">
+                                  <div>
+                                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#a090c8' }}>Publisher</p>
+                                    <p className="text-sm font-semibold truncate max-w-[140px]" style={{ color: '#4a1a8a' }}>{w.owner || 'Unknown'}</p>
                                   </div>
-                                  <div className="w-full max-w-[36px] rounded-t-lg transition-all duration-500 group-hover:brightness-110"
-                                    style={{ height: getBarHeight(d.value, Math.max(maxStatusVal, 40)), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }}
-                                  />
-                                  <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
+                                  <div className="flex items-center gap-2">
+                                    <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+                                      className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95"
+                                      style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
+                                      View
+                                    </a>
+                                    <button type="button" onClick={() => openWebsiteActionModal(w)}
+                                      disabled={workingWebsiteKey === `${w.userId}::${w.id}`}
+                                      className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                                      style={{ background: '#ef4444' }}>
+                                      {workingWebsiteKey === `${w.userId}::${w.id}` ? 'Working…' : 'Dismiss'}
+                                    </button>
+                                  </div>
                                 </div>
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="flex h-full w-full items-end justify-between gap-3">
-                            {statusChartData.map((d, idx) => (
-                              <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 group relative">
-                                <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
-                                  {d.value}
-                                </div>
-                                <div className="w-full rounded-t-lg transition-all duration-500 group-hover:brightness-110"
-                                  style={{ height: getBarHeight(d.value, maxStatusVal), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }}
-                                />
-                                <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
                               </div>
-                            ))}
-                          </div>
-                        )}
+                            </motion.article>
+                          );
+                        })}
                       </div>
-                    </div>
-                  </section>
-
-                  {/* Flagged Issues chart */}
-                  <section className="rounded-[24px] p-6 transition-all duration-300" style={panelStyle}>
-                    <h3 className="mb-4 text-2xl font-bold text-center" style={{ color: '#4a1a8a' }}>Flagged Issues</h3>
-                    <div className="h-40 rounded-2xl p-4" style={insetStyle}>
-                      <div className="flex h-full items-end justify-between gap-3">
-                        {flaggedChartData.map((d, idx) => (
-                          <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 group relative">
-                            <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
-                              {d.value}
-                            </div>
-                            <div className="w-full rounded-t-lg transition-all duration-500 group-hover:brightness-110"
-                              style={{ height: getBarHeight(d.value, maxFlaggedVal), background: 'linear-gradient(90deg, #ff8a00, #ff4d00)' }}
-                            />
-                            <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-
-                  {/* Previous Month chart */}
-                  <section className="rounded-[24px] p-6 transition-all duration-300" style={panelStyle}>
-                    <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-[#a090c8]">Previous Month</h3>
-                    <div className="h-48 rounded-2xl p-4" style={insetStyle}>
-                      <div className="flex h-full items-end justify-between gap-4">
-                        {historicalChartData.length > 0 ? (
-                          historicalChartData.map((h, i) => (
-                            <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
-                              <div className="flex w-full items-end justify-center gap-1">
-                                <div className="w-2 rounded-t-sm" style={{ height: getBarHeight(h.p, maxHistVal), background: '#8b5cf6' }} title="Published" />
-                                <div className="w-2 rounded-t-sm" style={{ height: getBarHeight(h.o, maxHistVal), background: '#f87171' }} title="Offline" />
-                                <div className="w-2 rounded-t-sm" style={{ height: getBarHeight(h.d, maxHistVal), background: '#34d399' }} title="Draft" />
-                              </div>
-                              <span className="text-[10px] whitespace-nowrap" style={{ color: '#7a6aa0' }}>{h.date}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="flex h-full w-full items-center justify-center text-[11px] font-medium text-[#c0b5e0]">No historical data</div>
-                        )}
-                      </div>
-                      <div className="mt-4 flex justify-center gap-4 text-[10px] font-bold">
-                        <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-[#8b5cf6]" /> <span style={{ color: '#7a6aa0' }}>Published</span></div>
-                        <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-[#f87171]" /> <span style={{ color: '#7a6aa0' }}>Offline</span></div>
-                        <div className="flex items-center gap-1.5"><div className="h-2 w-2 rounded-full bg-[#34d399]" /> <span style={{ color: '#7a6aa0' }}>Draft</span></div>
-                      </div>
-                    </div>
-                  </section>
+                    )}
+                  </div>
                 </motion.div>
-              </AnimatePresence>
+              )}
 
-              {/* Right Column: Dynamic Content */}
-              <div className="min-h-[600px]">
-                <AnimatePresence mode="wait">
-                  {loading ? (
-                    <motion.div 
-                      key="loading"
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="flex h-full w-full items-center justify-center py-20"
-                    >
-                      <div className="text-center space-y-4">
-                        <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-[#7b1de8] border-r-transparent" />
-                        <p className="text-[#7a6aa0] font-medium">Fetching system inventory...</p>
+              {/* ── Products tab ─────────────────────────── */}
+              {activeTab === 'products' && (
+                <motion.div
+                  key="products-tab"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 xl:grid-cols-[480px_minmax(0,1fr)] gap-4 items-start"
+                >
+                  {/* Left: charts (Now consistent with Website tab) */}
+                  {renderAnalyticsColumn()}
+
+                  <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
+                    {loading ? (
+                      <p className="text-sm" style={{ color: '#a090c8' }}>Loading products…</p>
+                    ) : filteredProducts.length === 0 ? (
+                      <div className="rounded-2xl px-6 py-10 text-center" style={{ ...panelStyle }}>
+                        <p className="text-sm font-medium" style={{ color: '#7a6aa0' }}>No products found.</p>
                       </div>
-                    </motion.div>
-                  ) : activeTab === 'websites' ? (
-                    <motion.div 
-                      key="websites-list"
-                      initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ duration: 0.3 }}
-                      className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6"
-                    >
-                      {uniqueFilteredWebsites.map((w) => {
-                        const statusMeta = getWebsiteStatusMeta(w.status);
-                        const isWorking = workingWebsiteKey === `${w.userId}::${w.id}`;
-                        return (
-                          <motion.div key={`${w.userId}::${w.id}`} layout className="group relative overflow-hidden rounded-[24px] p-5 transition-all duration-300 hover:shadow-2xl" 
-                            style={{ ...panelStyle, transform: isWorking ? 'scale(0.98)' : 'none', opacity: isWorking ? 0.7 : 1 }}>
-                            <div className="relative mb-5 aspect-[16/10] overflow-hidden rounded-2xl bg-slate-100 ring-1 ring-black/5">
-                              <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
-                              <div className="absolute inset-0 bg-gradient-to-t from-[#4a1a8a]/40 to-transparent" />
-                              <span className="absolute left-3 top-3 inline-flex items-center rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white shadow-lg backdrop-blur-md" 
-                                style={{ background: statusMeta.bgColor }}>
-                                {w.status}
+                    ) : (
+                      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+                        {filteredProducts.map((p) => (
+                          <motion.article
+                            key={`${p.id}-${p.subdomain || 'site'}`}
+                            initial={{ opacity: 0, y: 12 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="overflow-hidden rounded-[20px] flex flex-col"
+                            style={{
+                              border: '1px solid rgba(166,61,255,0.15)',
+                              boxShadow: '0 4px 20px rgba(103,2,191,0.08)',
+                              background: 'rgba(255,255,255,0.9)',
+                            }}
+                          >
+                            {/* Product image */}
+                            <div className="relative h-52 overflow-hidden flex items-center justify-center" style={{ background: '#f0eeff' }}>
+                              <Image
+                                src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
+                                alt={p.name || 'Product'}
+                                fill sizes="300px"
+                                className="object-contain p-3 scale-105"
+                                unoptimized={Array.isArray(p.images) && !!p.images[0]}
+                              />
+                              <span className="absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10px] font-semibold z-10"
+                                style={{ background: '#FFCC00', color: '#1a1035' }}>
+                                {p.subdomain || 'example.com'}
+                              </span>
+                              <span className="absolute right-2.5 bottom-2.5 rounded-full px-2 py-0.5 text-[10px] font-medium z-10"
+                                style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
+                                {productIndustry(p)}
                               </span>
                             </div>
-                            <div className="space-y-3">
-                              <h4 className="truncate text-lg font-bold text-[#4a1a8a]">{w.domainName}</h4>
-                              <div className="space-y-1.5">
-                                <div className="flex items-center gap-2 text-xs font-medium text-[#7a6aa0]">
-                                  <div className="h-1 w-1 rounded-full bg-[#a07ad0]" />
-                                  <span>Publisher: <span className="font-bold text-[#4a1a8a]">{w.owner}</span></span>
-                                </div>
-                                <div className="flex items-center gap-2 text-xs font-medium text-[#7a6aa0]">
-                                  <div className="h-1 w-1 rounded-full bg-[#a07ad0]" />
-                                  <span>Tier: <span className="font-bold text-[#4a1a8a]">{w.plan || 'General'}</span></span>
-                                </div>
+
+                            {/* Product info */}
+                            <div className="px-4 py-3 flex flex-col gap-2 flex-1">
+                              <div className="flex items-start gap-2">
+                                <p className="text-sm font-bold leading-tight truncate flex-1" style={{ color: '#2d1a50' }}>{p.name || 'Product Name'}</p>
+                                <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap shrink-0"
+                                  style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8' }}>
+                                  {p.subcategory || 'General'}
+                                </span>
                               </div>
-                              <div className="pt-4 flex items-center justify-between border-t border-[rgba(166,61,255,0.08)]">
-                                <a href={websiteViewUrl(w.domainName)} target="_blank" rel="noopener noreferrer" 
-                                  className="rounded-xl bg-[#7b1de8]/5 px-4 py-2 text-xs font-bold text-[#7b1de8] transition-colors hover:bg-[#7b1de8]/10">
-                                  Live View
-                                </a>
-                                <button onClick={() => openWebsiteActionModal(w)} disabled={isWorking}
-                                  className="rounded-xl bg-[#ff4d00]/5 px-4 py-2 text-xs font-bold text-[#ff4d00] transition-colors hover:bg-[#ff4d00]/10 disabled:opacity-50">
-                                  {isWorking ? 'Processing...' : 'Take Down'}
+                              <p className="text-xs truncate" style={{ color: '#a090c8' }}>SKU: {p.sku || 'N/A'}</p>
+                              <div className="flex items-center gap-2 mt-auto pt-1">
+                                <button type="button" onClick={() => setSelectedProduct(p)}
+                                  className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95"
+                                  style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
+                                  View
                                 </button>
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </motion.div>
-                  ) : (
-                    <motion.div 
-                      key="products-list"
-                      initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }}
-                      transition={{ duration: 0.3 }}
-                      className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-6"
-                    >
-                      {filteredProducts.map((p) => {
-                        const isWorking = workingProductId === p.id;
-                        return (
-                          <motion.div key={p.id} layout className="group relative overflow-hidden rounded-[24px] p-5 transition-all duration-300 hover:shadow-2xl" 
-                            style={{ ...panelStyle, opacity: isWorking ? 0.7 : 1 }}>
-                            <div className="relative mb-5 aspect-square overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-black/5">
-                              <Image src={PRODUCT_CARD_IMAGE} alt={p.name} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
-                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-gray-900/60 to-transparent p-4">
-                                <span className="rounded-lg bg-white/20 px-2.5 py-1 text-[10px] font-bold text-white backdrop-blur-md uppercase tracking-wider ring-1 ring-white/30">
-                                  {p.status || 'Active'}
+                                <button type="button" onClick={() => openDeleteProductModal(p)}
+                                  disabled={workingProductId === p.id}
+                                  className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                                  style={{ background: '#ef4444' }}>
+                                  {workingProductId === p.id ? 'Deleting…' : 'Delete'}
+                                </button>
+                                <span className="ml-auto text-xs font-semibold whitespace-nowrap" style={{ color: '#c89000' }}>
+                                  {formatMoney(p.finalPrice ?? p.price)}
                                 </span>
                               </div>
                             </div>
-                            <div className="space-y-4">
-                              <div className="space-y-1">
-                                <h4 className="truncate text-lg font-bold text-[#4a1a8a]" title={p.name}>{p.name}</h4>
-                                <p className="text-[10px] font-bold tracking-widest text-[#a090c8] uppercase">SKU: {p.sku}</p>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
-                                <span className="rounded-lg bg-[#7b1de8]/5 px-2.5 py-1 text-[10px] font-bold text-[#7b1de8]">{productIndustry(p)}</span>
-                              </div>
-                              <div className="flex items-center justify-between pt-4 border-t border-[rgba(166,61,255,0.08)]">
-                                <span className="text-lg font-black text-[#4a1a8a]">{formatMoney(p.price)}</span>
-                                <div className="flex gap-2">
-                                  <button onClick={() => setSelectedProduct(p)} className="rounded-xl px-4 py-2 text-xs font-bold text-[#7b1de8] transition-colors hover:bg-[#7b1de8]/5">View</button>
-                                  <button onClick={() => openDeleteProductModal(p)} disabled={isWorking}
-                                    className="rounded-xl bg-[#ff4d00]/5 px-4 py-2 text-xs font-bold text-[#ff4d00] transition-colors hover:bg-[#ff4d00]/10 disabled:opacity-50">
-                                    {isWorking ? '...' : 'Delete'}
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
+                          </motion.article>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ── Product details modal ─────────────────── */}
+              <AnimatePresence>
+                {selectedProduct && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={overlayStyle}>
+                    <motion.div
+                      initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.2 }}
+                      className="w-full max-w-2xl rounded-[24px] p-6"
+                      style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}
+                    >
+                      <div className="mb-5 flex items-center justify-between">
+                        <h3 className="text-xl font-bold" style={{ color: '#4a1a8a' }}>Product Details</h3>
+                        <button type="button" onClick={() => setSelectedProduct(null)}
+                          className="rounded-xl px-3 py-1.5 text-sm font-medium transition hover:brightness-95"
+                          style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
+                          Close
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        {[
+                          ['Name', selectedProduct.name || '—'],
+                          ['SKU', selectedProduct.sku || '—'],
+                          ['Publisher', websiteBySubdomain.get(normalize(selectedProduct.subdomain))?.owner || 'Unknown'],
+                          ['Website', selectedProduct.subdomain ? `${selectedProduct.subdomain}.localhost:3000` : '—'],
+                          ['Category', productIndustry(selectedProduct)],
+                          ['Status', selectedProduct.status || '—'],
+                          ['Price', formatMoney(selectedProduct.finalPrice ?? selectedProduct.price)],
+                          ['Variants', String(Array.isArray(selectedProduct.variants) ? selectedProduct.variants.length : 0)],
+                        ].map(([label, value]) => (
+                          <div key={label} className="rounded-xl p-3" style={insetStyle}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#a090c8' }}>{label}</p>
+                            <p className="text-sm font-semibold" style={{ color: '#2d1a50' }}>{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-4 rounded-xl p-3" style={insetStyle}>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#a090c8' }}>Description</p>
+                        <p className="text-sm" style={{ color: '#4a1a8a' }}>{selectedProduct.description || 'No description'}</p>
+                      </div>
+                      <div className="mt-5 flex justify-end">
+                        <button type="button" onClick={() => openDeleteProductModal(selectedProduct)}
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95"
+                          style={{ background: '#ef4444' }}>
+                          Delete Product
+                        </button>
+                      </div>
                     </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Website action modal ─────────────────── */}
+              <AnimatePresence>
+                {websiteActionModal.open && websiteActionModal.target && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={overlayStyle}>
+                    <motion.div
+                      initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.97, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-full max-w-xl rounded-[24px] p-6"
+                      style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}
+                    >
+                      <h3 className="text-xl font-bold mb-1" style={{ color: '#4a1a8a' }}>Moderate Website</h3>
+                      <p className="text-sm mb-4" style={{ color: '#7a6aa0' }}>
+                        Choose a moderation action for <span className="font-semibold" style={{ color: '#4a1a8a' }}>{websiteActionModal.target.domainName}</span>.
+                      </p>
+                      <div className="grid gap-2 mb-4">
+                        {[
+                          { action: 'take_down' as const, label: 'Take Down Website (Keep data)' },
+                          { action: 'delete' as const, label: 'Delete Website (Move to trash)' },
+                        ].map(({ action, label }) => (
+                          <button key={action} type="button"
+                            onClick={() => setWebsiteActionModal((prev) => ({ ...prev, action }))}
+                            className="rounded-xl px-4 py-2.5 text-left text-sm font-medium transition"
+                            style={websiteActionModal.action === action
+                              ? action === 'delete'
+                                ? { background: 'rgba(239,68,68,0.08)', border: '1.5px solid rgba(239,68,68,0.3)', color: '#b91c1c' }
+                                : { background: 'rgba(166,61,255,0.08)', border: '1.5px solid rgba(166,61,255,0.3)', color: '#4a1a8a' }
+                              : { background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(166,61,255,0.12)', color: '#7a6aa0' }
+                            }>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#a090c8' }}>Reason (required)</label>
+                      <textarea
+                        value={websiteActionModal.reason}
+                        onChange={(e) => setWebsiteActionModal((prev) => ({ ...prev, reason: e.target.value }))}
+                        className="mt-1.5 w-full rounded-xl p-3 text-sm outline-none resize-none focus:ring-2 focus:ring-[rgba(166,61,255,0.2)]"
+                        style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#2d1a50' }}
+                        rows={4} placeholder="State the moderation reason…"
+                      />
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button type="button" onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
+                          className="rounded-xl px-4 py-2 text-sm font-semibold transition"
+                          style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
+                          Cancel
+                        </button>
+                        <button type="button" onClick={submitWebsiteAction}
+                          disabled={Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}`}
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                          style={{ background: '#7b1de8' }}>
+                          {Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}` ? 'Saving…' : 'Confirm Moderation'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Product delete modal ─────────────────── */}
+              <AnimatePresence>
+                {productDeleteModal.open && productDeleteModal.target && (
+                  <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={overlayStyle}>
+                    <motion.div
+                      initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.97, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="w-full max-w-xl rounded-[24px] p-6"
+                      style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}
+                    >
+                      <h3 className="text-xl font-bold mb-1" style={{ color: '#4a1a8a' }}>Delete Product</h3>
+                      <p className="text-sm mb-4" style={{ color: '#7a6aa0' }}>
+                        Deleting <span className="font-semibold" style={{ color: '#4a1a8a' }}>{productDeleteModal.target.name || 'this product'}</span> will notify the client.
+                      </p>
+                      <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#a090c8' }}>Reason (required)</label>
+                      <textarea
+                        value={productDeleteModal.reason}
+                        onChange={(e) => setProductDeleteModal((prev) => ({ ...prev, reason: e.target.value }))}
+                        className="mt-1.5 w-full rounded-xl p-3 text-sm outline-none resize-none focus:ring-2 focus:ring-[rgba(166,61,255,0.2)]"
+                        style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#2d1a50' }}
+                        rows={4} placeholder="State why this product is being deleted…"
+                      />
+                      <div className="mt-4 flex justify-end gap-2">
+                        <button type="button" onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
+                          className="rounded-xl px-4 py-2 text-sm font-semibold transition"
+                          style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
+                          Cancel
+                        </button>
+                        <button type="button" onClick={submitDeleteProduct}
+                          disabled={Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id}
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                          style={{ background: '#ef4444' }}>
+                          {Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id ? 'Deleting…' : 'Delete and Notify'}
+                        </button>
+                      </div>
+                    </motion.div>
+                  </div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Toast ───────────────────────────────── */}
+              <AnimatePresence>
+                {toast.open && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 12 }} transition={{ duration: 0.2 }}
+                    className="fixed bottom-6 right-6 z-[70] rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-lg"
+                    style={{ background: toast.tone === 'error' ? '#dc2626' : '#16a34a' }}
+                  >
+                    {toast.message}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
-
-      {/* --- Website Action Modal --- */}
-      <AnimatePresence>
-        {websiteActionModal.open && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setWebsiteActionModal(prev => ({ ...prev, open: false }))} className="fixed inset-0" style={overlayStyle} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative w-full max-w-md overflow-hidden rounded-[32px] p-8 shadow-2xl" style={panelStyle}>
-              <h3 className="mb-2 text-2xl font-black text-[#4a1a8a]">{websiteActionModal.action === 'delete' ? 'Delete Website' : 'Take Down Website'}</h3>
-              <p className="mb-6 text-sm font-medium text-[#7a6aa0]">This action will notify <span className="font-bold text-[#4a1a8a]">{websiteActionModal.target?.owner}</span>. Please provide a reason.</p>
-              <textarea value={websiteActionModal.reason} onChange={(e) => setWebsiteActionModal(prev => ({ ...prev, reason: e.target.value }))} placeholder="Explain why this action is being taken..." className="h-32 w-full rounded-2xl bg-[#f0ebff]/50 border-1.5 border-[rgba(166,61,255,0.12)] p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[rgba(166,61,255,0.2)]" />
-              <div className="mt-8 flex gap-3">
-                <button onClick={() => setWebsiteActionModal(prev => ({ ...prev, open: false }))} className="flex-1 rounded-2xl py-3.5 text-sm font-bold text-[#7a6aa0] transition-colors hover:bg-[#4a1a8a]/5">Cancel</button>
-                <button onClick={submitWebsiteAction} className="flex-1 rounded-2xl bg-[#ff4d00] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#ff4d00]/25 transition-all hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]">Confirm Action</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* --- Product Delete Modal --- */}
-      <AnimatePresence>
-        {productDeleteModal.open && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setProductDeleteModal(prev => ({ ...prev, open: false }))} className="fixed inset-0" style={overlayStyle} />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 10 }} className="relative w-full max-w-md overflow-hidden rounded-[32px] p-8 shadow-2xl" style={panelStyle}>
-              <h3 className="mb-2 text-2xl font-black text-[#ff4d00]">Delete Product</h3>
-              <p className="mb-6 text-sm font-medium text-[#7a6aa0]">Are you sure you want to delete <span className="font-bold text-[#4a1a8a]">{productDeleteModal.target?.name}</span>?</p>
-              <textarea value={productDeleteModal.reason} onChange={(e) => setProductDeleteModal(prev => ({ ...prev, reason: e.target.value }))} placeholder="Provide a reason for the client..." className="h-32 w-full rounded-2xl bg-[#f0ebff]/50 border-1.5 border-[rgba(166,61,255,0.12)] p-4 text-sm font-medium outline-none focus:ring-2 focus:ring-[rgba(166,61,255,0.2)]" />
-              <div className="mt-8 flex gap-3">
-                <button onClick={() => setProductDeleteModal(prev => ({ ...prev, open: false }))} className="flex-1 rounded-2xl py-3.5 text-sm font-bold text-[#7a6aa0] transition-colors hover:bg-[#4a1a8a]/5">Cancel</button>
-                <button onClick={submitDeleteProduct} className="flex-1 rounded-2xl bg-[#ff4d00] py-3.5 text-sm font-bold text-white shadow-lg shadow-[#ff4d00]/25 transition-all hover:scale-[1.02] hover:brightness-110 active:scale-[0.98]">Delete Item</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* --- Product Detail Modal --- */}
-      <AnimatePresence>
-        {selectedProduct && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedProduct(null)} className="fixed inset-0" style={overlayStyle} />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-[40px] p-8 md:p-12 shadow-2xl" style={panelStyle}>
-              <button onClick={() => setSelectedProduct(null)} className="absolute right-8 top-8 h-12 w-12 rounded-full bg-[#f0ebff] text-[#7b1de8] transition-all hover:rotate-90 hover:bg-[#7b1de8] hover:text-white">✕</button>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
-                <div className="relative aspect-square overflow-hidden rounded-[32px] shadow-inner" style={insetStyle}>
-                  <Image src={PRODUCT_CARD_IMAGE} alt={selectedProduct.name} fill className="object-cover" />
-                </div>
-                <div className="flex flex-col justify-center space-y-8">
-                  <div className="space-y-2">
-                    <span className="inline-block rounded-xl bg-[#7b1de8]/10 px-4 py-1.5 text-xs font-heavy tracking-widest text-[#7b1de8] uppercase">{productIndustry(selectedProduct)}</span>
-                    <h2 className="text-4xl font-black leading-tight text-[#4a1a8a]">{selectedProduct.name}</h2>
-                    <p className="text-sm font-bold tracking-widest text-[#a090c8] uppercase">SKU: {selectedProduct.sku}</p>
-                  </div>
-                  <div className="space-y-4">
-                    <p className="text-lg font-medium leading-relaxed text-[#7a6aa0]">{selectedProduct.description || 'No description provided.'}</p>
-                    <div className="flex items-center justify-between py-6 border-y border-[rgba(166,61,255,0.1)]">
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold uppercase tracking-wider text-[#a090c8]">Stock Level</p>
-                        <p className="text-2xl font-black text-[#4a1a8a]">{selectedProduct.quantity} units</p>
-                      </div>
-                      <div className="text-right space-y-0.5">
-                        <p className="text-xs font-bold uppercase tracking-wider text-[#a090c8]">Market Price</p>
-                        <p className="text-4xl font-black text-[#7b1de8]">{formatMoney(selectedProduct.price)}</p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 p-5 rounded-2xl" style={insetStyle}>
-                    <div className="h-12 w-12 rounded-xl bg-[#7b1de8] flex items-center justify-center text-white font-bold">🛒</div>
-                    <div>
-                      <p className="text-xs font-bold text-[#a090c8]">Associated Store</p>
-                      <p className="text-sm font-heavy text-[#4a1a8a]">{selectedProduct.subdomain || 'Local Inventory'}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {toast.open && (
-          <motion.div initial={{ opacity: 0, y: 50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 50, scale: 0.9 }} className="fixed bottom-10 left-1/2 z-[200] -translate-x-1/2">
-            <div className={`flex items-center gap-3 rounded-2xl px-8 py-4 shadow-2xl backdrop-blur-xl ${toast.tone === 'success' ? 'bg-[#7b1de8] text-white' : 'bg-[#ff4d00] text-white'}`}>
-              <span className="text-sm font-bold">{toast.message}</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
 
-export default function MonitoringPage() {
+export default function WebsiteProductMonitoringPage() {
   return (
     <Suspense fallback={
-      <div className="admin-dashboard-shell flex min-h-screen items-center justify-center">
-        <div className="text-[#a090c8] font-bold animate-pulse">Initializing monitoring systems...</div>
+      <div className="admin-dashboard-shell flex items-center justify-center min-h-screen">
+        <p className="text-sm" style={{ color: '#a090c8' }}>Loading…</p>
       </div>
     }>
       <MonitoringPageContent />
