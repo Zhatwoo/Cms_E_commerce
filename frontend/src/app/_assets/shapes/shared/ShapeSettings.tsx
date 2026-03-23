@@ -67,7 +67,7 @@ export const ShapeSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Size & Position">
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={typeof width === "number" ? `${width}px` : width}
           height={typeof height === "number" ? `${height}px` : height}

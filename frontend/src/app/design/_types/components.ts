@@ -274,6 +274,8 @@ export interface PaginationProps extends SizeProps, SpacingProps, PositionProps,
 export interface RatingProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, EffectsProps, TypographyProps {
   value?: number;
   max?: number;
+  /** If true, allows fractional values (e.g. 4.6 stars). Defaults to rounding to a whole number. */
+  allowFractional?: boolean;
   size?: number;
   gap?: number;
   valueGap?: number;

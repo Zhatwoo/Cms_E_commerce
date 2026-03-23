@@ -3,11 +3,39 @@ const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const Page = require('../models/Page');
 const User = require('../models/User');
-const { getRealtimeDb, db } = require('../config/firebase');
+const { getRealtimeDb, db, auth } = require('../config/firebase');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const { sendAdminActionEmail } = require('../utils/emailService');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
+
+async function resolveClientContact(userId) {
+  let displayName = 'Client';
+  let email = '';
+
+  if (!userId) return { email, displayName };
+
+  const user = await User.findById(userId);
+  if (user) {
+    displayName = user.displayName || user.fullName || user.email || displayName;
+    email = user.email || '';
+  }
+
+  if (!email) {
+    try {
+      const authUser = await auth.getUser(userId);
+      email = authUser.email || '';
+      if (authUser.displayName && (!user || !user.displayName)) {
+        displayName = authUser.displayName;
+      }
+    } catch {
+      // keep best-effort values
+    }
+  }
+
+  return { email: String(email || '').trim(), displayName };
+}
 
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
@@ -90,6 +118,78 @@ exports.setClientDomainStatus = async (req, res) => {
     res.status(200).json({ success: true, message: 'Status updated', data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+exports.adminWebsiteAction = async (req, res) => {
+  try {
+    const { userId, domainId, action, reason } = req.body || {};
+    const normalizedAction = String(action || '').trim().toLowerCase();
+    const actionReason = String(reason || '').trim();
+
+    if (!userId || !domainId || !normalizedAction) {
+      return res.status(400).json({ success: false, message: 'userId, domainId, and action are required' });
+    }
+
+    if (!['take_down', 'delete'].includes(normalizedAction)) {
+      return res.status(400).json({ success: false, message: 'action must be take_down or delete' });
+    }
+
+    const domain = await Domain.get(userId, domainId);
+    if (!domain) {
+      return res.status(404).json({ success: false, message: 'Website not found' });
+    }
+
+    if (normalizedAction === 'take_down') {
+      if (!domain.projectId) {
+        return res.status(400).json({ success: false, message: 'Cannot take down website: missing project mapping' });
+      }
+      await Domain.unpublishForClient(userId, domain.projectId);
+      await Project.update(userId, domain.projectId, { status: 'draft' });
+    } else {
+      if (!domain.projectId) {
+        const deleted = await Domain.deleteForClient(userId, domainId);
+        if (!deleted) {
+          return res.status(404).json({ success: false, message: 'Website not found' });
+        }
+      } else {
+        await Domain.unpublishForClient(userId, domain.projectId);
+        await Project.update(userId, domain.projectId, { status: 'draft' });
+        await Project.delete(userId, domain.projectId);
+      }
+    }
+
+    const contact = await resolveClientContact(userId);
+    let emailSent = false;
+    let emailError = '';
+    if (contact.email) {
+      const mail = await sendAdminActionEmail({
+        to: contact.email,
+        name: contact.displayName,
+        subject: normalizedAction === 'take_down' ? 'Website taken down by admin' : 'Website deleted by admin',
+        title: normalizedAction === 'take_down' ? 'Your website was taken down' : 'Your website was deleted',
+        intro: normalizedAction === 'take_down'
+          ? `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been taken offline by an administrator.`
+          : `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been deleted by an administrator.`,
+        reason: actionReason,
+      });
+      emailSent = !!mail?.sent;
+      emailError = mail?.error || '';
+    } else {
+      emailError = 'Recipient email not found';
+    }
+
+    return res.status(200).json({
+      success: true,
+      message:
+        normalizedAction === 'take_down'
+          ? (emailSent ? 'Website taken down and client notified by email' : 'Website taken down, but email notification was not sent')
+          : (emailSent ? 'Website deleted and client notified by email' : 'Website deleted, but email notification was not sent'),
+      emailSent,
+      emailError: emailSent ? undefined : emailError,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
 };
 

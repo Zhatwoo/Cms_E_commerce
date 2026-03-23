@@ -242,6 +242,49 @@ async function findAllForUser(filters = {}, pagination = {}) {
   return paginate(items, pagination);
 }
 
+async function findAllGlobal(filters = {}, pagination = {}) {
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  let items = snap.docs.map((d) => docToObject(d));
+
+  if (filters.subdomain) {
+    const normalized = normalizeSubdomain(filters.subdomain);
+    items = items.filter((p) => normalizeSubdomain(p.subdomain) === normalized);
+  }
+
+  if (filters.status) {
+    const statusFilter = String(filters.status).toLowerCase();
+    items = items.filter((p) => String(p.status || '').toLowerCase() === statusFilter);
+  }
+
+  items = sortByCreatedAtDesc(items);
+  items = applySearch(items, filters.search);
+  return paginate(items, pagination);
+}
+
+async function findByIdGlobal(id) {
+  if (!id) return null;
+  const normalizedId = String(id).trim();
+  if (!normalizedId) return null;
+
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  const match = snap.docs.find((doc) => doc.id === normalizedId);
+  if (!match) return null;
+  return docToObject(match);
+}
+
+async function deleteByIdGlobal(id) {
+  if (!id) return null;
+  const normalizedId = String(id).trim();
+  if (!normalizedId) return null;
+
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  const doc = snap.docs.find((entry) => entry.id === normalizedId);
+  if (!doc) return null;
+  const existing = docToObject(doc);
+  await doc.ref.delete();
+  return existing;
+}
+
 async function findByIdForUser(id, userId) {
   if (!id || !userId) return null;
   const subdomains = await getOwnedSubdomains(userId);
@@ -626,12 +669,15 @@ async function findPublicBySubdomain(subdomain, { limit = 100 } = {}) {
 module.exports = {
   createForSubdomain,
   findAllForUser,
+  findAllGlobal,
+  findByIdGlobal,
   findByIdForUser,
   findBySlugForUser,
   findBySkuForUser,
   updateForUser,
   applyInventoryDeltaForUser,
   applyVariantInventoryDeltaForUser,
+  deleteByIdGlobal,
   deleteByIdForUser,
   findPublicBySubdomain,
   normalizeSubdomain,

@@ -35,9 +35,13 @@ const userToResponse = (user) => {
   if (!user) return null;
   return {
     id: user.id,
+    uid: user.uid || user.id,
     email: user.email,
     name: user.displayName || user.email || '',
     avatar: user.avatar || null,
+    username: user.username || '',
+    website: user.website || '',
+    bio: user.bio || '',
     role: user.role,
     subscriptionPlan: user.subscriptionPlan,
     createdAt: user.createdAt,

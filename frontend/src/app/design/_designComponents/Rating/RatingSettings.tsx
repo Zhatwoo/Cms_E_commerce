@@ -60,7 +60,7 @@ export const RatingSettings = () => {
     boxShadow,
     actions: { setProp },
   } = useNode((node) => ({
-    value: node.data.props.value ?? 4.2,
+    value: Math.round(node.data.props.value ?? 4),
     max: node.data.props.max ?? 5,
     size: node.data.props.size ?? 20,
     gap: node.data.props.gap ?? 4,
@@ -121,8 +121,15 @@ export const RatingSettings = () => {
             <input
               type="number"
               value={value}
-              step="0.1"
-              onChange={(e) => typedSetProp((p) => { p.value = Number(e.target.value); })}
+              step="1"
+              min={0}
+              max={Math.max(1, Math.round(Number(max) || 5))}
+              onChange={(e) => {
+                const raw = e.currentTarget.valueAsNumber;
+                const rounded = Number.isFinite(raw) ? Math.round(raw) : 0;
+                const clamped = Math.min(Math.max(0, rounded), Math.max(1, Math.round(Number(max) || 5)));
+                typedSetProp((p) => { p.value = clamped; });
+              }}
               className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>

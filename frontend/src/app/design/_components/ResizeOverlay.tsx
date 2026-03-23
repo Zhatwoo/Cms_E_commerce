@@ -180,6 +180,13 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content", "TabContent"]);
   const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
+  const isSectionNode = (() => {
+    try {
+      return query.getState().nodes[nodeId]?.data?.displayName === "Section";
+    } catch {
+      return false;
+    }
+  })();
 
   const dragRef = useRef<DragState | null>(null);
   const overlayRef = useRef<HTMLDivElement | null>(null);
@@ -545,59 +552,6 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               item.dom.style.transition = "none";
               item.dom.style.setProperty("translate", "0px 0px");
               item.dom.style.willChange = "translate";
-            }
-
-            // Sections: switch to absolute positioning on drag start so they move freely
-            for (const item of dragRef.current.moveItems ?? []) {
-              const displayName = state.nodes[item.nodeId]?.data?.displayName as string | undefined;
-              if (displayName !== "Section") continue;
-              const parentId = state.nodes[item.nodeId]?.data?.parent as string | undefined;
-              const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
-              if (!parentDom) continue;
-
-              const rect = item.dom.getBoundingClientRect();
-              const parentRect = parentDom.getBoundingClientRect();
-              const nextTop = Math.round(rect.top - parentRect.top);
-              const nextLeft = Math.round(rect.left - parentRect.left);
-
-              item.dom.style.position = "absolute";
-              item.dom.style.top = `${nextTop}px`;
-              item.dom.style.left = `${nextLeft}px`;
-              item.dom.style.marginTop = "0px";
-              item.dom.style.marginLeft = "0px";
-              item.startProps = {
-                ...item.startProps,
-                position: "absolute",
-                top: `${nextTop}px`,
-                left: `${nextLeft}px`,
-                marginTop: 0,
-                marginLeft: 0,
-              };
-
-              actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
-                props.position = "absolute";
-                props.top = `${nextTop}px`;
-                props.left = `${nextLeft}px`;
-                props.marginTop = 0;
-                props.marginLeft = 0;
-                if (props.right == null) props.right = "auto";
-                if (props.bottom == null) props.bottom = "auto";
-              });
-
-              item.moveMode = "offset";
-              if (dragRef.current) {
-                dragRef.current.moveMode = "offset";
-                dragRef.current.disableClamp = true;
-              }
-
-              if (parentId) {
-                actions.setProp(parentId, (props: Record<string, unknown>) => {
-                  const parentPosition = String(props.position ?? "static");
-                  if (!parentPosition || parentPosition === "static") {
-                    props.position = "relative";
-                  }
-                });
-              }
             }
 
             if (hasPageCanvasMove) {
@@ -980,6 +934,10 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         }
 
         ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+        if (isSectionNode) {
+          newW = startW;
+          extraML = 0;
+        }
 
         if (
           isNearlyEqual(newW, startW) &&
@@ -1028,7 +986,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           : null;
 
         // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
-        dom.style.width = `${newW}px`;
+        if (!isSectionNode) {
+          dom.style.width = `${newW}px`;
+        }
         if (isTextNode || isAccordionNode) {
           dom.style.height = "auto";
           if (isAccordionNode) {
@@ -1091,7 +1051,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       }
       processDragRef.current = null;
     };
-  }, [isDragging, actions, nodeId, setGuidesIfChanged, clampResizeToBounds]);
+  }, [isDragging, actions, nodeId, setGuidesIfChanged, clampResizeToBounds, isSectionNode]);
 
   // Global move/up listeners
   useEffect(() => {
@@ -1240,16 +1200,16 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           }
 
           resetPreviewStyles();
-        } else if (d.type === "resize" && d.handle) {
-          const h = d.handle;
-          const startW = d.startRect.width / zoom;
-          const startH = d.startRect.height / zoom;
-          const ratio = startW / Math.max(startH, 1);
-          let newW = startW, newH = startH, extraMT = 0, extraML = 0;
-          if (h.includes("e")) newW = Math.max(20, startW + dx);
-          if (h.includes("w")) { newW = Math.max(20, startW - dx); extraML = dx; }
-          if (h.includes("s")) newH = Math.max(20, startH + dy);
-          if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
+      } else if (d.type === "resize" && d.handle) {
+        const h = d.handle;
+        const startW = d.startRect.width / zoom;
+        const startH = d.startRect.height / zoom;
+        const ratio = startW / Math.max(startH, 1);
+        let newW = startW, newH = startH, extraMT = 0, extraML = 0;
+        if (h.includes("e")) newW = Math.max(20, startW + dx);
+        if (h.includes("w")) { newW = Math.max(20, startW - dx); extraML = dx; }
+        if (h.includes("s")) newH = Math.max(20, startH + dy);
+        if (h.includes("n")) { newH = Math.max(20, startH - dy); extraMT = dy; }
           if (d.constrainRatio && ["ne", "nw", "se", "sw"].includes(h)) {
             const dw = newW - startW, dh = newH - startH;
             if (Math.abs(dw) >= Math.abs(dh)) {
@@ -1262,30 +1222,37 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               if (h.includes("n")) extraMT = newH - startH;
             }
           }
-          if (d.resizeFromCenter) {
-            const dw = newW - startW, dh = newH - startH;
-            if (h.includes("e") || h.includes("w")) extraML = -dw / 2;
-            if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
-          }
-          ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+        if (d.resizeFromCenter) {
+          const dw = newW - startW, dh = newH - startH;
+          if (h.includes("e") || h.includes("w")) extraML = -dw / 2;
+          if (h.includes("n") || h.includes("s")) extraMT = -dh / 2;
+        }
+        ({ newW, newH, extraMT, extraML } = clampResizeToBounds(h, d, { newW, newH, extraMT, extraML }));
+        if (isSectionNode) {
+          newW = startW;
+          extraML = 0;
+        }
 
-          const currentNode = query.getState().nodes[nodeId];
-          const isTextNode = currentNode?.data?.displayName === "Text";
-          const isAccordionNode = currentNode?.data?.displayName === "Accordion";
-          const isImageNode = currentNode?.data?.displayName === "Image";
-          const startFontSize = parsePxOrAuto(d.startProps.fontSize);
-          const nextFontSize = isTextNode
-            ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
-            : null;
+        const currentNode = query.getState().nodes[nodeId];
+        const isTextNode = currentNode?.data?.displayName === "Text";
+        const isAccordionNode = currentNode?.data?.displayName === "Accordion";
+        const isImageNode = currentNode?.data?.displayName === "Image";
+        const isSection = currentNode?.data?.displayName === "Section";
+        const startFontSize = parsePxOrAuto(d.startProps.fontSize);
+        const nextFontSize = isTextNode
+          ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
+          : null;
 
-          actions.setProp(nodeId, (props: Record<string, unknown>) => {
+        actions.setProp(nodeId, (props: Record<string, unknown>) => {
+          if (!isSection) {
             props.width = `${Math.round(newW)}px`;
-            if (isTextNode || isAccordionNode) {
-              props.height = "auto";
-              if (isAccordionNode) {
-                props.minHeight = `${Math.round(newH)}px`;
-              } else {
-                delete props.minHeight;
+          }
+          if (isTextNode || isAccordionNode) {
+            props.height = "auto";
+            if (isAccordionNode) {
+              props.minHeight = `${Math.round(newH)}px`;
+            } else {
+              delete props.minHeight;
               }
               delete props.maxHeight;
             } else {
@@ -1309,15 +1276,17 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
             }
           });
 
-          // Resize preview writes inline DOM styles during drag; ensure they do not linger
-          // and override committed Craft props (notably Accordion height:auto behavior).
+        // Resize preview writes inline DOM styles during drag; ensure they do not linger
+        // and override committed Craft props (notably Accordion height:auto behavior).
+        if (!isSection) {
           dom.style.width = `${Math.round(newW)}px`;
-          if (isTextNode || isAccordionNode) {
-            dom.style.height = "auto";
-            if (isAccordionNode) {
-              dom.style.minHeight = `${Math.round(newH)}px`;
-            } else {
-              dom.style.removeProperty("min-height");
+        }
+        if (isTextNode || isAccordionNode) {
+          dom.style.height = "auto";
+          if (isAccordionNode) {
+            dom.style.minHeight = `${Math.round(newH)}px`;
+          } else {
+            dom.style.removeProperty("min-height");
             }
             dom.style.removeProperty("max-height");
           } else {
@@ -1357,7 +1326,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, actions, nodeId, applyOverlayRect, dom, clampMoveDeltaToBounds, clampResizeToBounds]);
+  }, [isDragging, actions, nodeId, applyOverlayRect, dom, clampMoveDeltaToBounds, clampResizeToBounds, isSectionNode]);
 
   const locked = query.getState().nodes[nodeId]?.data?.props?.locked === true;
   if (locked) return null;
@@ -1374,7 +1343,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
     { key: "w", style: { left: -half, top: "50%", transform: "translateY(-50%)" } },
     { key: "e", style: { right: -half, top: "50%", transform: "translateY(-50%)" } },
   ];
-  const handles = disableResize ? [] : allHandles;
+  const handles = disableResize
+    ? []
+    : (isSectionNode ? allHandles.filter((h) => h.key === "n" || h.key === "s") : allHandles);
   const centerX = rect.left + rect.width / 2;
   const centerY = rect.top + rect.height / 2;
   const currentRotation = (() => {

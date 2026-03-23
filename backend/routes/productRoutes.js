@@ -2,8 +2,8 @@
 const express = require('express');
 const multer = require('multer');
 const router = express.Router();
-const { getAll, getOne, create, update, delete: deleteProduct, uploadImage } = require('../controllers/productController');
-const { protect } = require('../middleware/auth');
+const { getAll, getOne, create, update, delete: deleteProduct, uploadImage, adminDelete } = require('../controllers/productController');
+const { protect, admin } = require('../middleware/auth');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -15,6 +15,7 @@ const upload = multer({
 });
 
 router.get('/', protect, getAll);
+router.delete('/admin/:id', protect, admin, adminDelete);
 router.post('/upload-image', protect, (req, res, next) => {
   upload.single('image')(req, res, (err) => {
     if (err) {

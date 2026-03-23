@@ -252,7 +252,7 @@ export const TabsSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Outer Size & Position">
+      <DesignSection title="Outer Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}
@@ -268,7 +268,7 @@ export const TabsSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Outer Position & Display" defaultOpen={false}>
+      <DesignSection title="Outer Layout & Layer" defaultOpen={false}>
         <PositionGroup
           position={position}
           display={display}

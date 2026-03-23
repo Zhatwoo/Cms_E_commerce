@@ -78,7 +78,7 @@ export default function SubscriptionDistribution({ distribution, loading }: Prop
                                     />
                                 );
                             })}
-                            <circle cx="180" cy="180" r="68" fill="#ffffff" />
+                            <circle cx="180" cy="180" r="68" fill="#f8f6ff" />
                             <text x="180" y="175" fontSize="16" fill="#471396" textAnchor="middle" fontWeight="600">
                                 {loading ? '…' : 'Clients'}
                             </text>

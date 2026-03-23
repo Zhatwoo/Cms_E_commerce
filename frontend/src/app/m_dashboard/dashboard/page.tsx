@@ -18,6 +18,8 @@ import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
+import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
+import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { span } from 'framer-motion/m';
 
 const INDUSTRIES = [
@@ -47,12 +49,12 @@ const INDUSTRY_CONFIG = {
   'creative': { icon: <path d="M12 19l7-7 3 3-7 7-3-3zM18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5zM2 2l5 5" /> },
 };
 
-const DASHBOARD_TABS = [
-  { id: 'designs' as const, label: 'YOUR DESIGNS' },
-  { id: 'templates' as const, label: 'TEMPLATES' },
-];
-
 type HeroTab = 'designs' | 'templates';
+
+const DASHBOARD_TABS: readonly TabBarItem<HeroTab>[] = [
+  { id: 'designs', label: 'YOUR DESIGNS' },
+  { id: 'templates', label: 'TEMPLATES' },
+];
 
 function formatLastEdited(dateStr?: string) {
   if (!dateStr) return 'Last edited recently';
@@ -363,98 +365,20 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </span>
           </h1>
 
-          <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
-            {DASHBOARD_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                /* Casting tab.id to HeroTab fixes the TS error Severity 8 */
-                onClick={() => setActiveTab(tab.id as HeroTab)}
-                className={`
-                  cursor-pointer relative pb-1 transition-all duration-300
-                  ${activeTab === tab.id 
-                    ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]') 
-                    : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
-                  }
-                  hover:opacity-70
-                `}
-              >
-                {tab.label}
-                
-                {activeTab === tab.id && (
-                  <motion.span
-                    layoutId="dashboard-tab-underline"
-                    className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
-                    style={{ 
-                      background: theme === 'dark'
-                        ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
-                        : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)' 
-                    }}
-                    transition={{ 
-                      type: 'spring', 
-                      stiffness: 520, 
-                      damping: 38 
-                    }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+          <TabBar
+            tabs={DASHBOARD_TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            theme={theme}
+            underlineLayoutId="dashboard-tab-underline"
+          />
 
-          <div 
-            className={`
-              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
-              transition-all duration-500
-              
-              ${theme === 'dark' 
-                ? 'bg-[#141446] border-[#1F1F51]' 
-                : 'admin-dashboard-panel-soft border-0'
-              }
-
-              ${theme === 'light' && 'shadow-[0_0_15px_rgba(139,92,246,0.1),0_0_1px_rgba(139,92,246,0.2)]'}
-              ${theme === 'dark' && 'shadow-[0_0_12px_rgba(31,31,81,0.4)]'}
-
-              ${theme === 'dark'
-                ? 'hover:border-[#2a2a6e] focus-within:border-[#3b3b8a]'
-                : 'hover:border-[#8B5CF6]/40 focus-within:border-[#8B5CF6] focus-within:shadow-[0_0_25px_rgba(139,92,246,0.2)]'
-              }
-            `}
-          >
-            <div className="relative">
-              {theme === 'light' && (
-                <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
-              )}
-              
-              <svg 
-                viewBox="0 0 20 20" 
-                className={`
-                  h-4 w-4 shrink-0 relative z-10 transition-all duration-300
-                  ${theme === 'dark' 
-                    ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' 
-                    : 'text-[#8B5CF6]'
-                  }
-                `} 
-                fill="none"
-              >
-                <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
-              </svg>
-            </div>
-
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search templates, designs, or actions"
-              className={`
-                w-full bg-transparent text-sm outline-none font-medium
-                ${theme === 'dark'
-                  ? 'text-white placeholder:text-[#6F70A8]'
-                  : 'text-[#120533] placeholder:text-[#120533]/30'
-                }
-              `}
-            />
-          </div>
+          <SearchBar
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder="Search templates, designs, or actions"
+            theme={theme}
+          />
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
