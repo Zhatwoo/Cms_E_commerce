@@ -92,7 +92,7 @@ export default function AdminLogin() {
 	return (
 		<>
 			<style>{`
-				@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
+				@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap');
 
 				* { box-sizing: border-box; }
 
@@ -169,19 +169,23 @@ export default function AdminLogin() {
 
 				.al-card {
 					background: rgba(255,255,255,0.82);
-					border: 1px solid rgba(166,61,255,0.14);
-					border-radius: 28px;
-					backdrop-filter: blur(20px);
-					box-shadow:
-						0 0 0 1px rgba(166,61,255,0.06),
-						0 24px 56px rgba(103,2,191,0.1),
-						0 4px 16px rgba(103,2,191,0.06),
-						inset 0 1px 0 rgba(255,255,255,0.9);
+    				border: 1px solid rgba(166,61,255,0.14);
+   			 		border-radius: 28px;
+    				backdrop-filter: blur(20px);
+    				box-shadow:
+        				0 0 0 1px rgba(166,61,255,0.06),
+        				0 24px 56px rgba(103,2,191,0.1),
+        				0 4px 16px rgba(103,2,191,0.06),
+       					inset 0 1px 0 rgba(255,255,255,0.9);
 					padding: 48px 44px;
 					position: relative;
 					overflow: hidden;
 					transition: box-shadow .3s ease;
+					max-width: 480px;
+					width: 100%;
+					margin: 0 auto;
 				}
+					
 				.al-card::before {
 					content: '';
 					position: absolute;
@@ -226,7 +230,7 @@ export default function AdminLogin() {
 				}
 
 				.al-title {
-					font-family: 'Syne', sans-serif;
+					font-family: 'Outfit', sans-serif;  /* was 'Syne' */
 					font-size: 2.5rem; font-weight: 800;
 					line-height: 1; letter-spacing: -.03em;
 					background: linear-gradient(135deg, #2d0060 0%, #7b1de8 50%, #A63DFF 100%);
@@ -352,7 +356,7 @@ export default function AdminLogin() {
 					border-radius: 14px;
 					background: linear-gradient(135deg, #7b1de8 0%, #A63DFF 100%);
 					color: #fff;
-					font-family: 'Syne', sans-serif;
+					font-family: 'Outfit', sans-serif;
 					font-size: 1rem; font-weight: 700;
 					letter-spacing: .05em; text-transform: uppercase;
 					cursor: pointer; position: relative; overflow: hidden;
@@ -413,7 +417,7 @@ export default function AdminLogin() {
 					margin-bottom: 32px; text-decoration: none;
 				}
 				.al-logo-text {
-					font-family: 'Syne', sans-serif;
+					font-family: 'Outfit', sans-serif;  /* was 'Syne' */
 					font-size: 1.7rem; font-weight: 800;
 					background: linear-gradient(90deg, #6702BF 0%, #B36760 52%, #FFAC27 100%);
 					-webkit-background-clip: text;
@@ -458,8 +462,9 @@ export default function AdminLogin() {
 					display: 'flex', minHeight: '100dvh',
 					alignItems: 'center', justifyContent: 'center',
 					padding: '32px 16px',
+					boxSizing: 'border-box',
 				}}>
-					<div style={{ width: '100%', maxWidth: '480px' }} className={mounted ? 'al-mount' : ''}>
+					<div style={{ width: '100%', maxWidth: '480px', flexShrink: 0 }} className={mounted ? 'al-mount' : ''}>
 
 						<Link href="/" className="al-logo-wrap">
 							<Image src="/lggo%201.svg" alt="Centric" width={36} height={36} priority style={{ width: 36, height: 'auto' }} />
@@ -474,7 +479,7 @@ export default function AdminLogin() {
 								<span className="al-badge-text">Admin Portal</span>
 							</div>
 
-							<h1 className="al-title">Welcome back</h1>
+							<h1 className="al-title">Welcome Back!</h1>
 							<p className="al-subtitle">Sign in to access your dashboard</p>
 							<div className="al-divider" />
 
