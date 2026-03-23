@@ -587,17 +587,15 @@ function PreviewContent() {
   // Fetch project metadata so we know the subdomain
   useEffect(() => {
     let cancelled = false;
-    if (project) return;
-    (async () => {
+    async function loadProject() {
       try {
         const res = await getProject(projectId);
-        if (!cancelled && res.success && res.project) {
-          setProject(res.project);
-        }
+        if (!cancelled && res.success && res.project) setProject(res.project);
       } catch { /* ignore */ }
-    })();
+    }
+    loadProject();
     return () => { cancelled = true; };
-  }, [projectId, project]);
+  }, [projectId]);
 
   // Main data loader: load published content (same as live subdomain) when available.
   // Depends on `project` so it re-runs once project metadata (with subdomain) arrives.
@@ -653,7 +651,7 @@ function PreviewContent() {
 
     loadData();
     return () => { cancelled = true; };
-  }, [projectId, project, loadPublishedContent]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
   // Re-fetch published content when tab becomes visible
   useEffect(() => {
@@ -671,21 +669,6 @@ function PreviewContent() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  useEffect(() => {
-    let active = true;
-    async function loadProject() {
-      try {
-        const res = await getProject(projectId);
-        if (active && res.success && res.project) {
-          setProject(res.project);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    loadProject();
-    return () => { active = false; };
-  }, [projectId]);
 
   // Fetch products for the preview store context
   useEffect(() => {
