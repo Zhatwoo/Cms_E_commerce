@@ -4026,6 +4026,8 @@ function RenderNode({
 
 function getPageSlug(page: any, index: number): string {
   return page?.slug || (page?.props?.pageSlug as string) || `page-${index}`;
+function getPageSlug(page: any, index: number): string {
+  return page?.slug || (page?.props?.pageSlug as string) || `page-${index}`;
 }
 
 type PreviewPageMeta = {
@@ -4056,6 +4058,7 @@ function resolveInternalPageId(destination: string | undefined, pages: PreviewPa
 
   // Match by page name
   const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
+  if (byName) return byName.id;
   if (byName) return byName.id;
 
   // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
@@ -4578,30 +4581,19 @@ export function LiveSite({
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
       <div
+        key={currentPageSlug}
+        ref={ref}
         style={{
           width: isPhoneSize ? "100%" : width,
-          maxWidth: isPhoneSize ? "100%" : width,
-          margin: isPhoneSize ? 0 : "40px auto",
-          borderRadius: isPhoneSize ? 0 : 16,
-          background: "#fff",
-          boxShadow: isPhoneSize ? undefined : "0 2px 16px rgba(0,0,0,0.08)",
-          overflow: "hidden",
+          maxWidth: isPhoneSize ? "100%" : undefined,
+          minHeight,
+          backgroundColor: background,
+          margin: isPhoneSize ? 0 : "0 auto",
+          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+          transformOrigin: "center center",
+          ...transitionStyle,
         }}
       >
-        <div
-          key={currentPageId}
-          ref={ref}
-          style={{
-            width: isPhoneSize ? "100%" : width,
-            maxWidth: isPhoneSize ? "100%" : undefined,
-            minHeight,
-            backgroundColor: background,
-            margin: 0,
-            transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-            transformOrigin: "center center",
-            ...transitionStyle,
-          }}
-        >
         {isPhoneSize ? (
           <div
             ref={liveSiteWrapperRef}
