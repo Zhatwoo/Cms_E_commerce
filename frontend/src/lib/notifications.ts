@@ -9,7 +9,9 @@ export interface NotificationItem {
   id: string;
   title: string;
   message: string;
-  time: string;
+  details?: string;
+  metadata?: Record<string, string>;
+  time: string; // ISO string for consistency
   read: boolean;
   type: 'success' | 'warning' | 'error' | 'info';
 }
@@ -23,6 +25,7 @@ export function getNotifications(): NotificationItem[] {
   try {
     const s = localStorage.getItem('mercato_admin_notifications');
     const list = s ? JSON.parse(s) : [];
+    // Sort by time descending
     return list.sort((a: any, b: any) => new Date(b.time).getTime() - new Date(a.time).getTime());
   } catch {
     return [];
@@ -62,19 +65,23 @@ export function saveNotifications(notifications: NotificationItem[]) {
  */
 export async function addNotification(
   title: string,
-  message: string,
-  type: 'success' | 'warning' | 'error' | 'info' = 'info'
+  message: string = '',
+  type: NotificationItem['type'] = 'info',
+  options?: { details?: string; metadata?: Record<string, string> }
 ) {
   try {
-    await addSharedNotification({ title, message, type });
+    // Try backend first
+    await addSharedNotification({ title, message, type, ...options });
     await fetchSharedNotifications();
   } catch (e) {
-    console.error('Failed to add shared notification:', e);
+    console.error('Failed to add shared notification, falling back to local:', e);
     const list = getNotifications();
     const newItem: NotificationItem = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: `local-${Date.now()}`,
       title,
       message,
+      details: options?.details,
+      metadata: options?.metadata,
       time: new Date().toISOString(),
       read: false,
       type,

@@ -9,6 +9,7 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 export const Rating = ({
   value = 4.2,
   max = 5,
+  allowFractional = false,
   size = 36,
   gap = 12,
   valueGap = 8,
@@ -70,7 +71,9 @@ export const Rating = ({
   const rawValue = Number.isFinite(value) ? value : 0;
   const safeValue = clamp(rawValue, 0, safeMax);
   const effectiveValue = hoverValue ?? safeValue;
-  const displayValue = valueText !== undefined ? valueText : `${effectiveValue}/${safeMax}`;
+  const normalizedValue = allowFractional ? effectiveValue : Math.round(effectiveValue);
+  const safeNormalizedValue = clamp(normalizedValue, 0, safeMax);
+  const displayValue = valueText !== undefined ? valueText : `${safeNormalizedValue}/${safeMax}`;
 
   const p = typeof padding === "number" ? padding : 0;
   const pt = paddingTop ?? p;
@@ -141,7 +144,7 @@ export const Rating = ({
         }}
       >
         {Array.from({ length: safeMax }).map((_, index) => {
-          const fillRatio = clamp(effectiveValue - index, 0, 1);
+          const fillRatio = clamp(safeNormalizedValue - index, 0, 1);
           const starValue = index + 1;
 
           const starScale = interactive && hoverValue !== null && starValue <= hoverValue ? 1.04 : 1;
@@ -203,7 +206,7 @@ export const Rating = ({
 };
 
 export const RatingDefaultProps: Partial<RatingProps> = {
-  value: 4.2,
+  value: 4,
   max: 5,
   size: 36,
   gap: 12,

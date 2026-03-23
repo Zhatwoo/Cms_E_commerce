@@ -322,7 +322,19 @@ export function UserManagement() {
           prev.map((c) => (c.id === userId ? { ...c, subscriptionPlan: newPlan } : c))
         );
         const client = clients.find(c => c.id === userId);
-        addNotification("User Plan Updated", `Updated ${client?.displayName || client?.email || 'user'}'s plan to ${getPlanLabel(newPlan)}.`, 'info');
+        addNotification(
+          "User Plan Updated",
+          `Updated ${client?.displayName || client?.email || 'user'}'s plan to ${getPlanLabel(newPlan)}.`,
+          'info',
+          {
+            details: `User: ${client?.displayName || client?.email || 'Unknown'}\nEmail: ${client?.email || 'N/A'}\nNew Plan: ${getPlanLabel(newPlan)}`,
+            metadata: {
+              userId,
+              email: client?.email || 'N/A',
+              newPlan: getPlanLabel(newPlan),
+            },
+          }
+        );
         setToast(`Plan updated to ${getPlanLabel(newPlan)}`);
         setTimeout(() => setToast(null), 2500);
       } else {
@@ -345,7 +357,19 @@ export function UserManagement() {
         setClients((prev) =>
           prev.map((c) => (c.id === client.id ? { ...c, status: 'Suspended', isActive: false } : c))
         );
-        addNotification("User Suspended", `Suspended ${client.displayName || client.email}${suspensionReason ? `: ${suspensionReason}` : ''}.`, 'warning');
+        addNotification(
+          "User Suspended",
+          `Suspended ${client.displayName || client.email}${suspensionReason ? `: ${suspensionReason}` : ''}.`,
+          'warning',
+          {
+            details: `User: ${client.displayName || 'N/A'}\nEmail: ${client.email || 'N/A'}\nAction: Suspended\nReason: ${suspensionReason || 'No reason provided.'}`,
+            metadata: {
+              userId: client.id,
+              email: client.email || 'N/A',
+              reason: suspensionReason || 'No reason provided.',
+            },
+          }
+        );
         setToast('Client suspended.');
         setTimeout(() => setToast(null), 2500);
       } else {
@@ -368,7 +392,18 @@ export function UserManagement() {
         setClients((prev) =>
           prev.map((c) => (c.id === client.id ? { ...c, status: 'Published', isActive: true } : c))
         );
-        addNotification("User Activated", `Activated ${client.displayName || client.email}.`, 'success');
+        addNotification(
+          "User Activated",
+          `Activated ${client.displayName || client.email}.`,
+          'success',
+          {
+            details: `User: ${client.displayName || 'N/A'}\nEmail: ${client.email || 'N/A'}\nAction: Activated`,
+            metadata: {
+              userId: client.id,
+              email: client.email || 'N/A',
+            },
+          }
+        );
         setToast('Client activated.');
         setTimeout(() => setToast(null), 2500);
       } else {
@@ -487,7 +522,18 @@ export function UserManagement() {
       const res = await deleteClient(id);
       if (res.success) {
         const client = clients.find(c => c.id === id);
-        addNotification("User Deleted", `Permanently removed user ${client?.displayName || client?.email || id}.`, 'error');
+        addNotification(
+          "User Deleted",
+          `Permanently removed user ${client?.displayName || client?.email || id}.`,
+          'error',
+          {
+            details: `User: ${client?.displayName || 'N/A'}\nEmail: ${client?.email || 'N/A'}\nAction: Deleted`,
+            metadata: {
+              userId: id,
+              email: client?.email || 'N/A',
+            },
+          }
+        );
         setClients((prev) => prev.filter((c) => c.id !== id));
         setToast('Client removed.');
         setTimeout(() => setToast(null), 2500);
@@ -524,7 +570,19 @@ export function UserManagement() {
       : c));
     selection.clearSelection();
     const actionLabel = shouldUnsuspend ? 'Unsuspended' : 'Suspended';
-    addNotification(`Bulk ${actionLabel}`, `${actionLabel} ${done} user(s).`, shouldUnsuspend ? 'success' : 'warning');
+    addNotification(
+      `Bulk ${actionLabel}`,
+      `${actionLabel} ${done} user(s).`,
+      shouldUnsuspend ? 'success' : 'warning',
+      {
+        details: `Action: ${actionLabel}\nAffected users: ${done}\nFailed: ${failed}\nReason: ${suspensionReason || 'No reason provided.'}`,
+        metadata: {
+          action: actionLabel,
+          affected: String(done),
+          failed: String(failed),
+        },
+      }
+    );
     setToast(failed > 0 ? `${actionLabel} ${done}, failed ${failed}` : `${actionLabel} ${done} client(s)`);
     setTimeout(() => setToast(null), 2500);
   };
@@ -545,7 +603,18 @@ export function UserManagement() {
 
     setClients((prev) => prev.filter((c) => !selection.selectedIds.has(c.id)));
     selection.clearSelection();
-    addNotification("Bulk Delete", `Deleted ${done} user(s).`, 'error');
+    addNotification(
+      "Bulk Delete",
+      `Deleted ${done} user(s).`,
+      'error',
+      {
+        details: `Action: Bulk Delete\nAffected users: ${done}\nFailed: ${failed}`,
+        metadata: {
+          affected: String(done),
+          failed: String(failed),
+        },
+      }
+    );
     setToast(failed > 0 ? `Deleted ${done}, failed ${failed}` : `Deleted ${done} client(s)`);
     setTimeout(() => setToast(null), 2500);
   };

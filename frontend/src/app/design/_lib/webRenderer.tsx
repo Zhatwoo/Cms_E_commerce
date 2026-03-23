@@ -3360,8 +3360,11 @@ function RenderNode({
     }
 
     case "Rating": {
-      const value = Math.max(0, toNumber(props.value, 4.2));
+      const rawValue = Math.max(0, toNumber(props.value, 4.2));
       const max = Math.max(1, Math.round(toNumber(props.max, 5)));
+      const allowFractional = props.allowFractional === true;
+      const value = allowFractional ? rawValue : Math.round(rawValue);
+      const clampedValue = Math.max(0, Math.min(max, value));
       const baseSize = Math.max(10, toNumber(props.size, 24));
       const size = isNarrowPreview ? Math.max(12, Math.min(baseSize, 22)) : baseSize;
       const gap = Math.max(0, toNumber(props.gap, 8));
@@ -3386,7 +3389,7 @@ function RenderNode({
         >
           <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px`, flexWrap: "wrap", maxWidth: "100%" }}>
             {Array.from({ length: max }).map((_, index) => {
-              const fillRatio = Math.max(0, Math.min(1, value - index));
+              const fillRatio = Math.max(0, Math.min(1, clampedValue - index));
               return (
                 <span key={index} style={{ position: "relative", width: `${size}px`, height: `${size}px`, display: "inline-flex" }}>
                   <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
@@ -3403,7 +3406,7 @@ function RenderNode({
           </div>
           {showValue ? (
             <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2, useFixedPx), color: (props.color as string) || "#e2e8f0" }}>
-              {String(props.valueText ?? `${value}/${max}`)}
+              {String(props.valueText ?? `${clampedValue}/${max}`)}
             </span>
           ) : null}
         </div>
