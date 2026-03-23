@@ -13,7 +13,7 @@ import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
+import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
@@ -415,22 +415,6 @@ function CraftCanvasPreview({ data }: { data: string }) {
   );
 }
 
-function toPxNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value !== "string") return null;
-
-  const normalized = value.trim().toLowerCase();
-  if (!normalized) return null;
-
-  if (normalized.endsWith("px")) {
-    const parsed = Number.parseFloat(normalized.slice(0, -2));
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  const numeric = Number.parseFloat(normalized);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
 function readPageDimensionsFromCraftSnapshot(
   craftJson: string,
   preferredPageSlug?: string
@@ -549,45 +533,93 @@ function PreviewContent() {
     return null;
   };
 
-  const handleRefresh = React.useCallback(async () => {
-    const latest = readLatestSnapshot(projectId);
-    if (latest) {
-      setRawJson(latest);
-      console.log("Preview: Refreshed from sessionStorage (latest from editor)");
-      return;
+  /** Fetch published content from the same API the live subdomain uses. */
+  const loadPublishedContent = React.useCallback(async (subdomain: string): Promise<string | null> => {
+    try {
+      const data = await apiFetch<{
+        success?: boolean;
+        data?: { content?: unknown };
+        projectTitle?: string;
+      }>(`/api/public/sites/${encodeURIComponent(subdomain.trim().toLowerCase())}?t=${Date.now()}`, {
+        method: "GET",
+      });
+      const content = data?.data?.content;
+      if (!content) return null;
+      let clean = parseContentToCleanDoc(content);
+      if (!clean) return null;
+      clean = migratePublishedContent(clean) as any;
+      return JSON.stringify(clean);
+    } catch {
+      return null;
     }
+  }, []);
+
+  const clearSnapshotCache = (targetProjectId: string) => {
+    if (typeof window === "undefined") return;
+    try { window.sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
+    try { window.sessionStorage.removeItem(STORAGE_KEY_PREFIX); } catch { /* ignore */ }
+    try { window.localStorage.removeItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
+  };
+
+  const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
+      if (project?.subdomain) {
+        const published = await loadPublishedContent(project.subdomain);
+        if (published) {
+          clearSnapshotCache(projectId);
+          setRawJson(published);
+          return;
+        }
+      }
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
         setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
-        console.log("Preview: Refreshed from API");
       }
     } catch (e) {
       console.error("Preview refresh error:", e);
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
+  // Fetch project metadata so we know the subdomain
+  useEffect(() => {
+    let cancelled = false;
+    if (project) return;
+    (async () => {
+      try {
+        const res = await getProject(projectId);
+        if (!cancelled && res.success && res.project) {
+          setProject(res.project);
+        }
+      } catch { /* ignore */ }
+    })();
+    return () => { cancelled = true; };
+  }, [projectId, project]);
+
+  // Main data loader: load published content (same as live subdomain) when available.
+  // Depends on `project` so it re-runs once project metadata (with subdomain) arrives.
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
+      if (!project) return;
       setLoading(true);
       try {
-        const latest = readLatestSnapshot(projectId);
-        if (latest) {
-          console.log('✅ Preview: Loaded latest snapshot from local cache (session/local storage)');
-          if (!cancelled) {
-            setRawJson(latest);
+        // If project has a subdomain, always load published content first
+        if (project.subdomain) {
+          const published = await loadPublishedContent(project.subdomain);
+          if (!cancelled && published) {
+            clearSnapshotCache(projectId);
+            setRawJson(published);
             setLoading(false);
+            return;
           }
-          return;
         }
 
-        console.log(`📡 Preview: Fetching draft for Project: ${projectId}...`);
+        // No subdomain or published content unavailable — load from draft API
         const timeoutMs = 12000;
         const result = await Promise.race([
           getDraft(projectId),
@@ -598,72 +630,46 @@ function PreviewContent() {
 
         if (cancelled) return;
 
-        if ((result as { timeout?: boolean }).timeout) {
-          console.warn(`⚠️ Preview: getDraft timeout after ${timeoutMs}ms`);
-        }
-
-        let loaded = false;
-
-        if (result.success && result.data) {
-          console.log('✅ Preview: API result success. Keys in data:', Object.keys(result.data));
-
-          if (result.data.content) {
-            const content = result.data.content;
-
-            // If already clean object, we still keep it as "rawJson" (as string) 
-            // for the rest of the existing preview logic to work (it formats it etc.)
-            if (typeof content === 'object') {
-              console.log('✨ Data is CLEAN format (version:', content.version, ')');
-              if (!cancelled) setRawJson(JSON.stringify(content));
-            } else {
-              if (!cancelled) setRawJson(content);
-            }
-            loaded = true;
-            console.log('✅ Preview: Data loaded');
+        if (result.success && result.data?.content) {
+          const content = result.data.content;
+          if (typeof content === "object") {
+            if (!cancelled) setRawJson(JSON.stringify(content));
           } else {
-            console.warn('⚠️ Preview: No content found in result data');
+            if (!cancelled) setRawJson(content);
           }
         } else {
-          console.warn('⚠️ Preview: API success=false or no data found');
-        }
-
-        if (!loaded) {
+          // Draft API failed — last resort: local cache
           const fallback = readLatestSnapshot(projectId);
-          if (fallback) {
-            console.log('✅ Preview: Loaded fallback snapshot from local cache');
-            if (!cancelled) setRawJson(fallback);
-          }
+          if (fallback && !cancelled) setRawJson(fallback);
         }
       } catch (error) {
-        console.error('❌ Preview: Load error:', error);
+        console.error("Preview: Load error:", error);
         const fallback = readLatestSnapshot(projectId);
-        if (fallback) {
-          console.log('✅ Preview: Loaded fallback snapshot after API error');
-          if (!cancelled) setRawJson(fallback);
-        }
+        if (fallback) setRawJson(fallback);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
     loadData();
+    return () => { cancelled = true; };
+  }, [projectId, project, loadPublishedContent]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId]);
-
-  // Re-read sessionStorage when tab becomes visible (user switched back from Editor)
+  // Re-fetch published content when tab becomes visible
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const latest = readLatestSnapshot(projectId);
-        if (latest) setRawJson(latest);
+      if (document.visibilityState === "visible" && project?.subdomain) {
+        loadPublishedContent(project.subdomain).then((published) => {
+          if (published) {
+            clearSnapshotCache(projectId);
+            setRawJson(published);
+          }
+        });
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
-  }, [projectId]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
   useEffect(() => {
     let active = true;
@@ -823,42 +829,6 @@ function PreviewContent() {
     return idx >= 0 ? idx : 0;
   }, [cleanDoc, selectedPreviewPage?.slug]);
 
-  const desktopPreviewWidth = useMemo(() => {
-    const selectedIndex = selectedPreviewPage
-      ? previewPages.findIndex((page) => page.slug === selectedPreviewPage.slug)
-      : 0;
-    const targetPage = selectedIndex >= 0 ? cleanDoc?.pages?.[selectedIndex] : cleanDoc?.pages?.[0];
-    const rawWidth = targetPage?.props?.width;
-    if (typeof rawWidth === "number" && Number.isFinite(rawWidth) && rawWidth > 0) {
-      return `${rawWidth}px`;
-    }
-    if (typeof rawWidth === "string" && rawWidth.trim()) {
-      return rawWidth.trim();
-    }
-    return "1920px";
-  }, [cleanDoc, previewPages, selectedPreviewPage]);
-
-  const desktopPreviewStyle = useMemo<React.CSSProperties>(() => {
-    const lower = desktopPreviewWidth.toLowerCase();
-    const isFluid =
-      lower.includes("%") ||
-      lower.includes("vw") ||
-      lower.startsWith("min(") ||
-      lower.startsWith("max(") ||
-      lower.startsWith("clamp(");
-
-    if (isFluid) {
-      return {
-        width: desktopPreviewWidth,
-      };
-    }
-
-    return {
-      width: desktopPreviewWidth,
-      minWidth: desktopPreviewWidth,
-    };
-  }, [desktopPreviewWidth]);
-
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
     try {
@@ -878,15 +848,6 @@ function PreviewContent() {
   }, [rawJson]);
 
   const activeJson = viewMode === "clean" ? cleanJson : viewMode === "raw" ? rawFormatted : null;
-
-  const desktopResponsiveViewportWidth = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return undefined;
-    const idx = selectedPreviewPageSlug
-      ? previewPages.findIndex((p) => p.slug === selectedPreviewPageSlug)
-      : 0;
-    const targetPage = idx >= 0 ? cleanDoc.pages[idx] : cleanDoc.pages[0];
-    return toPxNumber(targetPage?.props?.width) ?? 1920;
-  }, [cleanDoc, previewPages, selectedPreviewPageSlug]);
 
   const capturePreviewThumbnail = async () => {
     if (thumbnailCaptureRef.current || !previewRef.current || !projectId) return;
@@ -1357,17 +1318,17 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`py-6 h-full ${previewViewport === "desktop" ? "overflow-x-auto" : "flex justify-center"}`}>
+          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden ${previewViewport === "desktop" ? "" : "flex justify-center"}`}>
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
-                className={`bg-white transition-[width] duration-300 ease-out ${previewViewport === "desktop"
-                  ? "min-h-[calc(100vh-200px)] mx-auto"
-                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10 overflow-hidden"
+                className={`bg-white transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
+                  ? "min-h-[calc(100vh-200px)] w-full min-w-0"
+                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
                   }`}
                 style={
                   previewViewport === "desktop"
-                    ? desktopPreviewStyle
+                    ? { width: "100%" }
                     : previewViewport === "tablet"
                       ? { width: 768, maxWidth: "100%" }
                       : previewViewport === "mobile"
@@ -1383,16 +1344,10 @@ function PreviewContent() {
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
                   builderParityMode={useBuilderParityMode}
+                  fillViewport
                   storeContext={previewStoreContext}
                   simulatedWidth={
-                    previewViewport === "desktop"
-                      ? (desktopResponsiveViewportWidth ?? 1920)
-                      : previewViewport === "tablet"
-                        ? 768
-                        : 390
-                  }
-                  responsiveViewportWidth={
-                    previewViewport === "desktop" ? (desktopResponsiveViewportWidth ?? 1920) : undefined
+                    previewViewport === "tablet" ? 768 : previewViewport === "mobile" ? 390 : undefined
                   }
                 />
               </div>

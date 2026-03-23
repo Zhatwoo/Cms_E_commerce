@@ -164,11 +164,6 @@ export interface ContainerProps
   children?: ReactNode;
 }
 
-export interface SectionProps extends ContainerProps {
-  contentWidth?: "full" | "constrained";
-  contentMaxWidth?: string;
-}
-
 /** Text component props — combines typography, spacing, and basic effects. */
 export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps {
   text: string;

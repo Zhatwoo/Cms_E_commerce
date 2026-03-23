@@ -3,11 +3,17 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { login, setStoredUser } from '@/lib/api';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { login, logout, setStoredUser } from '@/lib/api';
+
+function resolveAdminRedirectPath(nextParam: string | null): string {
+	if (!nextParam) return '/admindashboard';
+	return nextParam.startsWith('/admindashboard') ? nextParam : '/admindashboard';
+}
 
 export default function AdminLogin() {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
@@ -29,6 +35,14 @@ export default function AdminLogin() {
 			const data = await login(email.trim().toLowerCase(), password);
 
 			if (data.success && data.user) {
+				const role = (data.user.role || '').toLowerCase();
+				if (role !== 'admin' && role !== 'super_admin') {
+					await logout();
+					setError('This page is for admin accounts only.');
+					setLoading(false);
+					return;
+				}
+
 				setStoredUser({
 					id: data.user.id,
 					name: data.user.name ?? data.user.email,
@@ -36,14 +50,8 @@ export default function AdminLogin() {
 					role: data.user.role,
 				});
 
-				const role = (data.user.role || '').toLowerCase();
-				if (role !== 'admin' && role !== 'super_admin') {
-					setError('This page is for admin accounts only.');
-					setLoading(false);
-					return;
-				}
-
-				router.push('/admindashboard');
+				const nextParam = searchParams.get('next');
+				router.push(resolveAdminRedirectPath(nextParam));
 				router.refresh();
 			} else {
 				setError(data.message || 'Login failed.');
@@ -56,13 +64,14 @@ export default function AdminLogin() {
 	};
 
 	return (
-		<div className="admin-dashboard-shell relative min-h-screen overflow-hidden px-4 py-8 sm:py-14">
+		<div className="admin-dashboard-shell relative min-h-[100dvh] overflow-hidden">
 			<div className="pointer-events-none absolute inset-0">
 				<div className="admin-dashboard-bg-spot-1 absolute left-[-4rem] top-[-3rem] h-56 w-56 rounded-full blur-3xl" />
 				<div className="admin-dashboard-bg-spot-2 absolute bottom-[-4rem] right-[-3rem] h-64 w-64 rounded-full blur-3xl" />
 			</div>
 
-			<div className="relative mx-auto w-full max-w-[540px]">
+			<div className="relative z-10 mx-auto flex min-h-[100dvh] w-full max-w-[540px] items-center px-4 py-8 sm:py-10">
+				<div className="w-full">
 				<Link href="/" className="mb-6 inline-flex items-center gap-2.5">
 					<Image
 						src="/lggo%201.svg"
@@ -167,6 +176,7 @@ export default function AdminLogin() {
 							</Link>
 						</p>
 					</div>
+				</div>
 				</div>
 			</div>
 		</div>

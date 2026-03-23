@@ -25,14 +25,14 @@ export const BREAKPOINTS: Record<BreakpointId, BreakpointConfig> = {
   tablet: {
     id: "tablet",
     label: "Tablet",
-    maxWidth: 1024,
-    defaultViewportWidth: 768,
+    maxWidth: 950,
+    defaultViewportWidth: 834,
   },
   mobile: {
     id: "mobile",
     label: "Mobile",
-    maxWidth: 768,
-    defaultViewportWidth: 375,
+    maxWidth: 640,
+    defaultViewportWidth: 390,
   },
 };
 

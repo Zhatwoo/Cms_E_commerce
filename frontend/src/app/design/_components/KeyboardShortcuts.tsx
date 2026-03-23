@@ -167,7 +167,8 @@ function resolvePasteTarget(state: {
 export const KeyboardShortcuts = () => {
   const { actions, query } = useEditor();
 
-  // Track the latest mouse position so paste lands under the cursor.
+  // Track the latest mouse position (for internal reference if needed, 
+  // but OS-image pasting is handled by CanvasPasteHandler now).
   const lastMousePos = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -599,6 +600,13 @@ export const KeyboardShortcuts = () => {
             }
           }
           if (deletable.length > 0) {
+            // Proactively clear selection before delete to ensure any overlays dependent 
+            // on the selected node are unmounted immediately.
+            try {
+              actions.selectNode(undefined);
+            } catch {
+              // ignore
+            }
             actions.delete(
               deletable.length === 1 ? deletable[0] : deletable
             );
@@ -609,157 +617,9 @@ export const KeyboardShortcuts = () => {
       }
     };
 
-    // ── Paste handler ─────────────────────────────────────────────────────────
-    // Handles both OS-clipboard web images and internal canvas clipboard.
-    // Images are placed at the cursor position (absolute) inside the Page that is
-    // currently under the mouse pointer.
-    const handlePaste = (e: ClipboardEvent) => {
-      if (isEditableTarget(e.target)) return;
-
-      const data = e.clipboardData;
-      if (!data) return;
-
-      const items = Array.from(data.items ?? []);
-      const imageItem = items.find((item) => item.type.startsWith("image/"));
-      const imageFile = imageItem?.getAsFile() ?? null;
-      const text = (data.getData("text/plain") || "").trim();
-      const html = data.getData("text/html") || "";
-      const imageUrlFromText = isLikelyImageUrl(text) ? text : null;
-      const imageUrlFromHtml = imageUrlFromText
-        ? null
-        : extractImageUrlFromHtml(html);
-
-      // ── No OS image: try internal canvas clipboard ──
-      if (!imageFile && !imageUrlFromText && !imageUrlFromHtml) {
-        const clip = getClipboard();
-        if (!clip || clip.nodeIds.length === 0) return;
-        e.preventDefault();
-        const state = query.getState();
-        const { parentId, atIndex } = resolvePasteTarget(state);
-        pasteClipboard(actions as any, query as any, { parentId, atIndex });
-        return;
-      }
-
-      // ── OS clipboard has image content ──
-      e.preventDefault();
-
-      (async () => {
-        try {
-          const src =
-            imageUrlFromText ||
-            imageUrlFromHtml ||
-            (imageFile ? await fileToDataUrl(imageFile) : "");
-          if (!src) return;
-
-          const IMG_W = 320;
-          const IMG_H = 220;
-
-          const state = query.getState();
-          const nodes = state.nodes as Record<string, any>;
-
-          // Resolve which Page node the cursor is currently over.
-          const { x, y } = lastMousePos.current;
-          const elUnderCursor = document.elementFromPoint(x, y) as HTMLElement | null;
-          const nodeEl = elUnderCursor?.closest("[data-node-id]") as HTMLElement | null;
-          const hitNodeId = nodeEl?.getAttribute("data-node-id") ?? null;
-          const pageId = resolvePageId(hitNodeId, nodes) ??
-            Object.keys(nodes).find(
-              (id) => String(nodes[id]?.data?.displayName ?? "") === "Page"
-            ) ??
-            null;
-
-          // Calculate absolute position inside the page (matching ShapeToolHandler).
-          let imageLeft: number | undefined;
-          let imageTop: number | undefined;
-          let targetParentId: string | undefined;
-
-          if (pageId) {
-            targetParentId = pageId;
-            try {
-              const pageDom = (query.node(pageId).get() as any)?.dom as HTMLElement | null;
-              if (pageDom) {
-                const rect = pageDom.getBoundingClientRect();
-                const { scaleX, scaleY } = getRenderedScale(pageDom);
-                imageLeft = Math.max(
-                  0,
-                  Math.round((x - rect.left) / scaleX) - IMG_W / 2
-                );
-                imageTop = Math.max(
-                  0,
-                  Math.round((y - rect.top) / scaleY) - IMG_H / 2
-                );
-              }
-            } catch {
-              // DOM not available yet; fall through to flow placement
-            }
-          }
-
-          if (!targetParentId) {
-            const fallback = resolvePasteTarget(state);
-            targetParentId = fallback.parentId;
-          }
-          if (!targetParentId) return;
-
-          const nodeId = `image-${Date.now()}-${Math.random()
-            .toString(36)
-            .slice(2, 8)}`;
-
-          const imageProps: Record<string, unknown> = {
-            src,
-            alt: imageFile?.name || "Pasted Image",
-            objectFit: "cover",
-            width: `${IMG_W}px`,
-            height: `${IMG_H}px`,
-            _autoFitInTabs: false,
-          };
-
-          // Only apply absolute positioning when we successfully hit a Page.
-          if (imageLeft !== undefined && imageTop !== undefined) {
-            imageProps.position = "absolute";
-            imageProps.left = `${imageLeft}px`;
-            imageProps.top = `${imageTop}px`;
-          }
-
-          const tree = {
-            rootNodeId: nodeId,
-            nodes: {
-              [nodeId]: {
-                type: { resolvedName: "Image" },
-                isCanvas: false,
-                props: imageProps,
-                displayName: "Image",
-                nodes: [],
-                linkedNodes: {},
-                custom: {},
-                hidden: false,
-              },
-            },
-          };
-
-          const maybeAddNodeTree = (actions as any).addNodeTree as
-            | ((tree: any, parentId?: string, index?: number) => void)
-            | undefined;
-
-          if (typeof maybeAddNodeTree !== "function") {
-            console.warn(
-              "Clipboard image paste skipped: addNodeTree is unavailable"
-            );
-            return;
-          }
-
-          maybeAddNodeTree(tree, targetParentId);
-          actions.selectNode(nodeId);
-        } catch (error) {
-          console.warn("Clipboard image paste failed:", error);
-        }
-      })();
-    };
-
     window.addEventListener("keydown", handleKeyDown, true);
-    window.addEventListener("paste", handlePaste, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
-      window.removeEventListener("paste", handlePaste, true);
     };
   }, [actions, query]);
 

@@ -203,7 +203,7 @@ export function FreeDropPlacementHandler() {
         left = Math.max(0, Math.round(left));
         top = Math.max(0, Math.round(top));
 
-        if (isFlexParent && !parentIsFreeform) {
+        if (parentIsFlexParent && !parentIsFreeform) {
           let insertIndex = 0;
           try {
             const parentDom = query.node(parentId).get()?.dom ?? null;

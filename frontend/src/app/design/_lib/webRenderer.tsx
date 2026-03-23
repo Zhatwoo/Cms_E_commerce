@@ -1086,8 +1086,6 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 0,
-    contentWidth: "constrained",
-    contentMaxWidth: "1200px",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -2102,9 +2100,6 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
-  if (prototype?.interactions?.length) {
-    console.log("[Prototype] Node", nodeId, "type:", type, "has prototype:", JSON.stringify(prototype));
-  }
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
@@ -2471,11 +2466,6 @@ function RenderNode({
         builderParityMode,
       );
       const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
-      const sectionContentWidth = (props.contentWidth as string | undefined) === "full" ? "full" : "constrained";
-      const sectionContentMaxWidth =
-        sectionContentWidth === "constrained"
-          ? ((props.contentMaxWidth as string | undefined)?.trim() || "1200px")
-          : "none";
       return wrap(
         <section
           data-fluid-space="true"
@@ -2497,17 +2487,20 @@ function RenderNode({
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
-            minHeight: normalizedHeight && normalizedHeight !== "auto" ? normalizedHeight : undefined,
-            height: normalizedHeight === "auto" ? "auto" : undefined,
+            height: normalizedHeight ?? (props.height as string),
             containerType: "inline-size",
-            position: "relative",
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
               ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
               : sectionBorderDecl
                 ? { border: sectionBorderDecl }
                 : {}),
-            display: "block",
+            display: "flex",
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
+            alignItems: props.alignItems as string,
+            justifyContent: props.justifyContent as string,
+            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -2515,38 +2508,7 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          <div
-            data-section-shell="true"
-            style={{
-              width: "100%",
-              maxWidth: "100%",
-              minWidth: 0,
-              marginLeft: "auto",
-              marginRight: "auto",
-            }}
-          >
-            <div
-              data-section-content="true"
-              data-layout={(props.flexDirection as string) === "row" ? "row" : "column"}
-              style={{
-                width: "100%",
-                maxWidth: sectionContentMaxWidth,
-                minWidth: 0,
-                marginLeft: "auto",
-                marginRight: "auto",
-                boxSizing: "border-box",
-                position: "relative",
-                display: (props.display as React.CSSProperties["display"]) ?? "flex",
-                flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
-                flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
-                alignItems: props.alignItems as string,
-                justifyContent: props.justifyContent as string,
-                gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
-              }}
-            >
-              {children}
-            </div>
-          </div>
+          {children}
         </section>
       );
     }
@@ -4187,15 +4149,6 @@ export function WebPreview({
     [doc]
   );
 
-  React.useEffect(() => {
-    const nodesWithPrototype = Object.entries(safeNodes).filter(
-      ([, n]) => n?.props?.prototype && (n.props.prototype as PrototypeConfig).interactions?.length > 0
-    );
-    console.log("[WebPreview] Pages:", safePages.map((p, i) => ({ id: p.id, name: p.name, slug: getPageSlug(p, i) })));
-    console.log("[WebPreview] Nodes with prototype:", nodesWithPrototype.map(([id, n]) => ({ id, type: n.type, prototype: n.props.prototype })));
-    console.log("[WebPreview] Total nodes:", Object.keys(safeNodes).length);
-  }, [safePages, safeNodes]);
-
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
@@ -4215,13 +4168,9 @@ export function WebPreview({
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
-      console.log("[Prototype] Action fired:", JSON.stringify(interaction));
-      console.log("[Prototype] Available pages:", JSON.stringify(pageMeta));
-      console.log("[Prototype] Current page:", currentPageSlug);
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
         const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
-        console.log("[Prototype] Resolved slug:", internalSlug, "from destination:", interaction.destination);
         if (internalSlug) {
           setHistory((h) => [...h, currentPageSlug]);
           const trans = interaction.transition ?? "dissolve";
@@ -4396,7 +4345,7 @@ export function WebPreview({
           margin: fillViewport ? 0 : "0 auto",
           boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
           borderRadius: isDesktopMode || fillViewport ? 0 : 8,
-          overflow: isDesktopMode ? "hidden" : "visible",
+          overflow: "hidden",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",
           ...transitionStyle,
