@@ -295,7 +295,7 @@ export const BooleanFieldSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Size & Position" defaultOpen={false}>
+      <DesignSection title="Size & Spacing" defaultOpen={false}>
         <SizePositionGroup
           width={width}
           height={height}

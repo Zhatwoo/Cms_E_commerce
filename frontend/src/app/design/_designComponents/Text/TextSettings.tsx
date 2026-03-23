@@ -5,6 +5,7 @@ import { TransformGroup } from "../../_components/rightPanel/settings/TransformG
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
@@ -16,6 +17,7 @@ export const TextSettings = () => {
     padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     previewEditable,
     isCodeBlock,
     codeLanguage,
@@ -51,6 +53,14 @@ export const TextSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
     previewEditable: node.data.props.previewEditable,
     toggleTarget: node.data.props.toggleTarget,
     triggerAction: node.data.props.triggerAction,
@@ -67,12 +77,26 @@ export const TextSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Position & Transform">
+      <DesignSection title="Transform">
         <TransformGroup
           rotation={rotation}
           flipHorizontal={flipHorizontal}
           flipVertical={flipVertical}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
