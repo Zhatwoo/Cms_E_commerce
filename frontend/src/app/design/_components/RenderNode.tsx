@@ -89,7 +89,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const isHandTool = activeTool === "hand";
   const isDrawingTool = activeTool === "text" || activeTool === "shape";
   const isTextNode = name === "Text";
-  const isSectionNode = name === "Section";
   const canShowResizeOverlay =
     !isHandTool &&
     !isDrawingTool &&
@@ -329,8 +328,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         <ResizeOverlay
           nodeId={id}
           dom={dom}
-          disableResize={isSectionNode}
-          disableRotate={isSectionNode}
+          disableRotate={name === "Section"}
         />
       ) : null}
 

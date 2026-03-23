@@ -6,6 +6,7 @@ const User = require('../models/User');
 const { getRealtimeDb, db } = require('../config/firebase');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const { sendAdminActionEmail } = require('../utils/emailService');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
@@ -90,6 +91,68 @@ exports.setClientDomainStatus = async (req, res) => {
     res.status(200).json({ success: true, message: 'Status updated', data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+exports.adminWebsiteAction = async (req, res) => {
+  try {
+    const { userId, domainId, action, reason } = req.body || {};
+    const normalizedAction = String(action || '').trim().toLowerCase();
+    const actionReason = String(reason || '').trim();
+
+    if (!userId || !domainId || !normalizedAction) {
+      return res.status(400).json({ success: false, message: 'userId, domainId, and action are required' });
+    }
+
+    if (!['take_down', 'delete'].includes(normalizedAction)) {
+      return res.status(400).json({ success: false, message: 'action must be take_down or delete' });
+    }
+
+    const domain = await Domain.get(userId, domainId);
+    if (!domain) {
+      return res.status(404).json({ success: false, message: 'Website not found' });
+    }
+
+    if (normalizedAction === 'take_down') {
+      if (!domain.projectId) {
+        return res.status(400).json({ success: false, message: 'Cannot take down website: missing project mapping' });
+      }
+      await Domain.unpublishForClient(userId, domain.projectId);
+      await Project.update(userId, domain.projectId, { status: 'draft' });
+    } else {
+      if (!domain.projectId) {
+        const deleted = await Domain.deleteForClient(userId, domainId);
+        if (!deleted) {
+          return res.status(404).json({ success: false, message: 'Website not found' });
+        }
+      } else {
+        await Domain.unpublishForClient(userId, domain.projectId);
+        await Project.update(userId, domain.projectId, { status: 'draft' });
+        await Project.delete(userId, domain.projectId);
+      }
+    }
+
+    const owner = await User.findById(userId);
+    const ownerEmail = owner?.email || '';
+    if (ownerEmail) {
+      await sendAdminActionEmail({
+        to: ownerEmail,
+        name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
+        subject: normalizedAction === 'take_down' ? 'Website taken down by admin' : 'Website deleted by admin',
+        title: normalizedAction === 'take_down' ? 'Your website was taken down' : 'Your website was deleted',
+        intro: normalizedAction === 'take_down'
+          ? `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been taken offline by an administrator.`
+          : `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been deleted by an administrator.`,
+        reason: actionReason,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: normalizedAction === 'take_down' ? 'Website taken down successfully' : 'Website deleted successfully',
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
 };
 
