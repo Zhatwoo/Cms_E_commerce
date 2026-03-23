@@ -174,15 +174,15 @@ function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, Cl
       })
       .sort((a, b) => b.score - a.score)[0]?.score > 0
       ? textCandidates
-          .map((candidate) => {
-            let score = 0;
-            if (candidate.explicitField === "price") score += 1000;
-            if (looksLikePriceText(candidate.text)) score += 180;
-            score += Math.min(50, candidate.fontWeight / 20);
-            if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
-            return { id: candidate.id, score };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+        .map((candidate) => {
+          let score = 0;
+          if (candidate.explicitField === "price") score += 1000;
+          if (looksLikePriceText(candidate.text)) score += 180;
+          score += Math.min(50, candidate.fontWeight / 20);
+          if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
+          return { id: candidate.id, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.id ?? null
       : null;
 
   const remainingTextCandidates = textCandidates.filter((candidate) => candidate.id !== priceNodeId);
@@ -203,19 +203,19 @@ function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, Cl
       })
       .sort((a, b) => b.score - a.score)[0]?.score > 0
       ? remainingTextCandidates
-          .map((candidate) => {
-            let score = 0;
-            const lower = candidate.text.toLowerCase();
-            if (candidate.explicitField === "name") score += 1000;
-            if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
-            if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
-            if (candidate.fontWeight >= 600) score += 35;
-            if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
-            if (candidate.text.length <= 40) score += 10;
-            if (looksLikeBadgeText(candidate.text)) score -= 150;
-            return { id: candidate.id, score };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+        .map((candidate) => {
+          let score = 0;
+          const lower = candidate.text.toLowerCase();
+          if (candidate.explicitField === "name") score += 1000;
+          if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
+          if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
+          if (candidate.fontWeight >= 600) score += 35;
+          if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
+          if (candidate.text.length <= 40) score += 10;
+          if (looksLikeBadgeText(candidate.text)) score -= 150;
+          return { id: candidate.id, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.id ?? null
       : null;
 
   const descriptionNodeId =
@@ -233,18 +233,18 @@ function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, Cl
       })
       .sort((a, b) => b.score - a.score)[0]?.score > 0
       ? remainingTextCandidates
-          .filter((candidate) => candidate.id !== nameNodeId)
-          .map((candidate) => {
-            let score = 0;
-            const lower = candidate.text.toLowerCase();
-            if (candidate.explicitField === "description") score += 1000;
-            if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
-            if (candidate.text.length >= 24) score += 60;
-            if (candidate.fontSize <= 14) score += 25;
-            if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
-            return { id: candidate.id, score };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+        .filter((candidate) => candidate.id !== nameNodeId)
+        .map((candidate) => {
+          let score = 0;
+          const lower = candidate.text.toLowerCase();
+          if (candidate.explicitField === "description") score += 1000;
+          if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
+          if (candidate.text.length >= 24) score += 60;
+          if (candidate.fontSize <= 14) score += 25;
+          if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
+          return { id: candidate.id, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.id ?? null
       : null;
 
   return {
@@ -1906,8 +1906,8 @@ function PreviewTabs({
             props.tabAlignment === "center"
               ? "center"
               : props.tabAlignment === "right"
-              ? "flex-end"
-              : "flex-start",
+                ? "flex-end"
+                : "flex-start",
         }}
       >
         {tabs.map((tab) => {
@@ -1983,7 +1983,7 @@ function PreviewTabs({
                     viewportWidth={props.viewportWidth || 1200}
                     interactionState={props.interactionState || {}}
                     availableTriggerTargets={props.availableTriggerTargets || new Set()}
-                    onToggle={props.onToggle || (() => {})}
+                    onToggle={props.onToggle || (() => { })}
                     storeContext={props.storeContext || null}
                     nodeId={contentNodeId}
                     onPrototypeAction={props.onPrototypeAction}
@@ -2106,11 +2106,11 @@ function RenderNode({
   const directProductTemplateIds =
     storeContext && !productBinding
       ? childIds.filter((id) => {
-          const childNode = nodes[id];
-          return Boolean(childNode) &&
-            String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
-            hasAddToCartButton(id, nodes);
-        })
+        const childNode = nodes[id];
+        return Boolean(childNode) &&
+          String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
+          hasAddToCartButton(id, nodes);
+      })
       : [];
   const productTemplateIdSet = new Set(directProductTemplateIds);
   const hasExplicitTemplateBinding = directProductTemplateIds.some((id) =>
@@ -2153,26 +2153,26 @@ function RenderNode({
 
   const children = directProductTemplateIds.length > 0
     ? childIds.flatMap((id) => {
-        if (!productTemplateIdSet.has(id)) {
-          const rendered = renderChildNode(id);
-          return rendered ? [rendered] : [];
-        }
-        if (hasExplicitTemplateBinding) {
-          const fallbackProductIndex = Math.max(0, directProductTemplateIds.indexOf(id));
-          const binding = createProductBinding(id, fallbackProductIndex, nodes, storeContext!);
-          const rendered = renderChildNode(id, binding);
-          return rendered ? [rendered] : [];
-        }
-        if (id !== directProductTemplateIds[0]) return [];
+      if (!productTemplateIdSet.has(id)) {
+        const rendered = renderChildNode(id);
+        return rendered ? [rendered] : [];
+      }
+      if (hasExplicitTemplateBinding) {
+        const fallbackProductIndex = Math.max(0, directProductTemplateIds.indexOf(id));
+        const binding = createProductBinding(id, fallbackProductIndex, nodes, storeContext!);
+        const rendered = renderChildNode(id, binding);
+        return rendered ? [rendered] : [];
+      }
+      if (id !== directProductTemplateIds[0]) return [];
 
-        return storeContext!.products.map((_, productIndex) => {
-          const templateId = directProductTemplateIds[
-            Math.min(productIndex, directProductTemplateIds.length - 1)
-          ] ?? directProductTemplateIds[0];
-          const binding = createProductBinding(templateId, productIndex, nodes, storeContext!);
-          return renderChildNode(templateId, binding, `${templateId}::product-${productIndex}`);
-        });
-      })
+      return storeContext!.products.map((_, productIndex) => {
+        const templateId = directProductTemplateIds[
+          Math.min(productIndex, directProductTemplateIds.length - 1)
+        ] ?? directProductTemplateIds[0];
+        const binding = createProductBinding(templateId, productIndex, nodes, storeContext!);
+        return renderChildNode(templateId, binding, `${templateId}::product-${productIndex}`);
+      });
+    })
     : childIds.map((id) => renderChildNode(id));
 
   const withNodeMeta = (el: React.ReactElement): React.ReactElement => {
@@ -2837,20 +2837,20 @@ function RenderNode({
       const baseOptions = Array.isArray(props.options) && props.options.length > 0
         ? props.options
         : [
-            {
-              id: "opt-1",
-              label: (props.label as string) || "Option 1",
-              checked: Boolean(props.checked),
-            },
-            { id: "opt-2", label: "Option 2", checked: false },
-            { id: "opt-3", label: "Option 3", checked: false },
-          ];
+          {
+            id: "opt-1",
+            label: (props.label as string) || "Option 1",
+            checked: Boolean(props.checked),
+          },
+          { id: "opt-2", label: "Option 2", checked: false },
+          { id: "opt-3", label: "Option 3", checked: false },
+        ];
 
       const normalizedWidth =
         normalizeLayoutWidthForNarrow(
           normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) ||
-            (props.width as string) ||
-            "fit-content",
+          (props.width as string) ||
+          "fit-content",
           isNarrowPreview,
           builderParityMode,
         ) || "fit-content";
@@ -3072,7 +3072,7 @@ function RenderNode({
       const link =
         explicitLink ||
         (storeContext ? getDefaultLinkForLabel(labelStr) : "");
-      const internalTargetSlug = link ? resolveInternalPageSlug(link, pages) : null;
+      const internalTargetId = link ? resolveInternalPageId(link, pages) : null;
       const btnRot = toNumber(props.rotation, 0);
       const btnFlipH = props.flipHorizontal === true;
       const btnFlipV = props.flipVertical === true;
@@ -3155,7 +3155,7 @@ function RenderNode({
           </button>
         );
       }
-      if (internalTargetSlug && onPrototypeAction) {
+      if (internalTargetId && onPrototypeAction) {
         return wrap(
           <button
             type="button"
@@ -3166,7 +3166,7 @@ function RenderNode({
               onPrototypeAction({
                 trigger: "click",
                 action: "navigateTo",
-                destination: internalTargetSlug,
+                destination: internalTargetId,
               });
             }}
             style={{
@@ -3203,9 +3203,9 @@ function RenderNode({
       const items = itemsRaw.length > 0
         ? itemsRaw
         : [
-            { title: "Item 1", content: "Accordion content" },
-            { title: "Item 2", content: "Accordion content" },
-          ];
+          { title: "Item 1", content: "Accordion content" },
+          { title: "Item 2", content: "Accordion content" },
+        ];
 
       // Respect authored colors from the canvas to keep preview/theme parity.
       const headerBg = String(props.headerBg ?? "#1e1e2e");
@@ -3593,13 +3593,13 @@ function RenderNode({
         totalPages <= 5
           ? Array.from({ length: totalPages }, (_, i) => i + 1)
           : [1, Math.max(2, currentPage - 1), currentPage, Math.min(totalPages - 1, currentPage + 1), totalPages]
-              .filter((value, idx, arr) => arr.indexOf(value) === idx)
-              .sort((a, b) => a - b)
-              .flatMap((value, idx, arr) => {
-                if (idx === 0) return [value];
-                const prev = arr[idx - 1];
-                return value - prev > 1 ? ["...", value] : [value];
-              });
+            .filter((value, idx, arr) => arr.indexOf(value) === idx)
+            .sort((a, b) => a - b)
+            .flatMap((value, idx, arr) => {
+              if (idx === 0) return [value];
+              const prev = arr[idx - 1];
+              return value - prev > 1 ? ["...", value] : [value];
+            });
 
       const buttonBase: React.CSSProperties = {
         fontSize: fluidFont(fontSize, 10, 3),
@@ -3799,10 +3799,10 @@ function RenderNode({
       `;
       const scopedCss = blockCss
         ? blockCss.replace(/([^{}]+)\{/g, (_: string, sel: string) => {
-            const s = sel.trim();
-            if (s.startsWith("@keyframes") || s.startsWith("@media") || s.startsWith("@")) return `${s} {`;
-            return `.${scopeId} ${s} {`;
-          })
+          const s = sel.trim();
+          if (s.startsWith("@keyframes") || s.startsWith("@media") || s.startsWith("@")) return `${s} {`;
+          return `.${scopeId} ${s} {`;
+        })
         : "";
       const m = toNumber(props.margin, 0);
       const p = toNumber(props.padding, 0);
@@ -4026,288 +4026,264 @@ function RenderNode({
 
 function getPageSlug(page: any, index: number): string {
   return page?.slug || (page?.props?.pageSlug as string) || `page-${index}`;
-function getPageSlug(page: any, index: number): string {
-  return page?.slug || (page?.props?.pageSlug as string) || `page-${index}`;
-}
-
-type PreviewPageMeta = {
-  id: string;
-  name: string;
-  slug: string;
-};
-
-function normalizeNavToken(value: string): string {
-  return value.trim().replace(/^\/+/, "").toLowerCase();
-}
-
-function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
-  if (!destination) return null;
-
-  const raw = destination.trim();
-  if (!raw) return null;
-
-  const normalized = normalizeNavToken(raw);
-
-  // Match by page ID (priority)
-  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
-  if (byId) return byId.id;
-
-  // Exact slug match
-  const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
-  if (bySlug) return bySlug.id;
-
-  // Match by page name
-  const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
-  if (byName) return byName.id;
-  if (byName) return byName.id;
-
-  // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
-  const pageIndexMatch = raw.match(/^page-(\d+)$/i);
-  if (pageIndexMatch) {
-    const idx = parseInt(pageIndexMatch[1], 10);
-    // Try exact index first
-    if (idx >= 0 && idx < pages.length) return pages[idx].id;
-    // Try index-1 (editor uses 1-based, serializer uses 0-based)
-    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
+  function getPageSlug(page: { slug?: string } | null | undefined, index: number): string {
+    return page?.slug ?? `page-${index}`;
   }
 
-  // Slug contains the destination as substring (fuzzy)
-  const fuzzy = pages.find((p) =>
-    normalizeNavToken(p.slug).includes(normalized) ||
-    normalized.includes(normalizeNavToken(p.slug))
-  );
-  if (fuzzy) return fuzzy.id;
+  type PreviewPageMeta = {
+    id: string;
+    name: string;
+    slug: string;
+  };
 
-  if (raw.startsWith("?")) {
-    try {
-      const q = new URLSearchParams(raw.replace(/^\?/, ""));
-      const pageParam = q.get("page") ?? "";
-      const resolvedId = resolveInternalPageId(pageParam, pages);
-      if (resolvedId) return resolvedId;
-    } catch {
-      return null;
-    }
+  function normalizeNavToken(value: string): string {
+    return value.trim().replace(/^\/+/, "").toLowerCase();
   }
 
-  if (raw.startsWith("#")) return null;
-  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("mailto:")) return null;
+  function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+    if (!destination) return null;
 
-  return null;
-}
+    const raw = destination.trim();
+    if (!raw) return null;
 
-const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
-  instant: {},
-  dissolve: { animation: "page-dissolve 0.3s ease forwards" },
-  slideLeft: { animation: "page-slide-left 0.3s ease forwards" },
-  slideRight: { animation: "page-slide-right 0.3s ease forwards" },
-  slideUp: { animation: "page-slide-up 0.3s ease forwards" },
-  slideDown: { animation: "page-slide-down 0.3s ease forwards" },
-  push: { animation: "page-push 0.3s ease forwards" },
-  moveIn: { animation: "page-move-in 0.3s ease forwards" },
-};
+    const normalized = normalizeNavToken(raw);
 
-export function WebPreview({
-  doc,
-  pageIndex = 0,
-  initialPageSlug,
-  storeContext,
-  onNavigate,
-  simulatedWidth,
-  responsiveViewportWidth,
-  mobileBreakpoint,
-  enableFormInputs = false,
-  builderParityMode = false,
-  fillViewport = false,
-  renderAllNodes = false,
-}: {
-  doc: BuilderDocument;
-  pageIndex?: number;
-  /** Initial page slug for multi-page (overrides pageIndex when set). */
-  initialPageSlug?: string;
-  storeContext?: StoreContext | null;
-  /** Notify parent when prototype navigation changes the visible page. */
-  onNavigate?: (pageSlug: string) => void;
-  simulatedWidth?: number;
-  /** Optional viewport width used only for responsive visibility/breakpoint logic. */
-  responsiveViewportWidth?: number;
-  mobileBreakpoint?: number;
-  enableFormInputs?: boolean;
-  /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
-  builderParityMode?: boolean;
-  /** When true, content fills full viewport width (no max-width box, no side margins). */
-  fillViewport?: boolean;
-  /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
-  renderAllNodes?: boolean;
-}): React.ReactElement {
-  const safePages = React.useMemo(
-    () => (Array.isArray(doc?.pages)
-      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
-      : []),
-    [doc]
-  );
-  const safeNodes = React.useMemo(
-    () => (doc?.nodes && typeof doc.nodes === "object"
-      ? (doc.nodes as Record<string, CleanNode>)
-      : {}),
-    [doc]
-  );
+    // Match by page ID first (most stable)
+    const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+    if (byId) return byId.id;
 
-  const initialPage = safePages[pageIndex] ?? safePages[0];
-  const initialResolvedId = React.useMemo(() => {
-    if (initialPageSlug) {
-      const bySlug = safePages.find((p, i) => getPageSlug(p, i) === initialPageSlug);
-      if (bySlug) return bySlug.id;
+    // Match by exact slug
+    const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
+    if (bySlug) return bySlug.id;
+
+    // Match by page name
+    const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
+    if (byName) return byName.id;
+    if (byName) return byName.id;
+
+    // Partial matches and page index patterns
+    const pageIndexMatch = raw.match(/^page-(\d+)$/i);
+    if (pageIndexMatch) {
+      const idx = parseInt(pageIndexMatch[1], 10);
+      if (idx >= 0 && idx < pages.length) return pages[idx].id;
+      if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
     }
-    return initialPage?.id;
-  }, [initialPageSlug, safePages, initialPage]);
 
-  const [currentPageId, setCurrentPageId] = useState(initialResolvedId);
-  const [history, setHistory] = useState<string[]>([]);
-  const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
-
-  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
-  const pageMeta = React.useMemo<PreviewPageMeta[]>(
-    () => safePages.map((p, i) => ({
-      id: p.id,
-      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
-      slug: getPageSlug(p, i),
-    })),
-    [safePages]
-  );
-
-  const onPrototypeAction = useCallback(
-    (interaction: Interaction) => {
-      const duration = (interaction.duration ?? 300) / 1000;
-      if (interaction.action === "navigateTo" && interaction.destination) {
-        const destId = resolveInternalPageId(interaction.destination, pageMeta);
-        if (destId) {
-          if (currentPageId) setHistory((h) => [...h, currentPageId]);
-          const trans = interaction.transition ?? "dissolve";
-          setTransitionStyle({
-            ...PAGE_TRANSITION_STYLES[trans],
-            animationDuration: `${duration}s`,
-          });
-          setCurrentPageId(destId);
-          const destSlug = pageMeta.find(p => p.id === destId)?.slug;
-          if (destSlug) onNavigate?.(destSlug);
-        } else if (interaction.destination.startsWith("#")) {
-          document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
-        } else if (
-          interaction.destination.startsWith("http://") ||
-          interaction.destination.startsWith("https://") ||
-          interaction.destination.startsWith("mailto:")
-        ) {
-          window.open(interaction.destination, "_blank", "noopener");
-        }
-      } else if (interaction.action === "back") {
-        if (history.length > 0) {
-          const prevId = history[history.length - 1];
-          setHistory((h) => h.slice(0, -1));
-          setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-          setCurrentPageId(prevId);
-          const prevSlug = pageMeta.find(p => p.id === prevId)?.slug;
-          if (prevSlug) onNavigate?.(prevSlug);
-        }
-      } else if (interaction.action === "openUrl" && interaction.destination) {
-        window.open(interaction.destination, "_blank", "noopener");
-      } else if (interaction.action === "scrollTo" && interaction.destination) {
-        document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
-      }
-    },
-    [currentPageId, history, pageMeta, onNavigate]
-  );
-
-  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
-  const width = (pageProps.width as string) || "1920px";
-  const background = (pageProps.background as string) || "#ffffff";
-  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
-  const pageRotation = toNumber(pageProps.pageRotation, 0);
-  const frameStyles = resolvePageFrameStyles(width);
-  const { ref, width: measuredWidth } = useContainerWidth(1000);
-  const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
-  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
-  const isPhonePreview = viewportWidth <= effectiveMobileBreakpoint;
-  const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
-  const isNarrowBuilderPreview = builderParityMode && !isDesktopMode;
-  const isNarrowViewport = !isDesktopMode;
-  const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (!isDesktopMode && mobileWrapperRef.current) {
-      mobileWrapperRef.current.removeAttribute("data-nav-preview-done");
-      const t = setTimeout(() => {
-        if (mobileWrapperRef.current) enhanceNavInPreview(mobileWrapperRef.current);
-      }, 200);
-      return () => clearTimeout(t);
-    }
-  }, [isDesktopMode, currentPageId]);
-  const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
-  const availableTriggerTargets = React.useMemo(() => {
-    const targets = new Set<string>();
-    for (const node of Object.values(safeNodes)) {
-      const target = node?.props?.toggleTarget;
-      if (typeof target === "string" && target.trim()) {
-        targets.add(target.trim());
-      }
-    }
-    return targets;
-  }, [safeNodes]);
-  const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
-    setInteractionState((prev) => {
-      const current = prev[target] ?? false;
-      const next =
-        action === "open" ? true :
-          action === "close" ? false :
-            !current;
-      return { ...prev, [target]: next };
-    });
-  }, []);
-
-  if (!currentPage) {
-    const hasPages = safePages.length > 0;
-    return (
-      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-      </div>
+    const fuzzy = pages.find((p) =>
+      normalizeNavToken(p.slug).includes(normalized) ||
+      normalized.includes(normalizeNavToken(p.slug))
     );
+    if (fuzzy) return fuzzy.id;
+
+    return null;
   }
 
-  const pageContent = (
-    <>
-      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
-        const node = safeNodes[id];
-        if (!node) return null;
-        const childType = String(node.type || "").toLowerCase();
-        if (childType === "page") return null;
-        return (
-          <RenderNode
-            key={id}
-            node={node}
-            nodes={safeNodes}
-            pages={pageMeta}
-            pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={viewportWidth}
-            interactionState={interactionState}
-            availableTriggerTargets={availableTriggerTargets}
-            onToggle={handleToggle}
-            storeContext={storeContext}
-            nodeId={id}
-            onPrototypeAction={onPrototypeAction}
-            mobileBreakpoint={mobileBreakpoint}
-            enableFormInputs={enableFormInputs}
-            builderParityMode={builderParityMode}
-            renderAllNodes={renderAllNodes}
-          />
-        );
-      })}
-    </>
-  );
+  const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
+    instant: {},
+    dissolve: { animation: "page-dissolve 0.3s ease forwards" },
+    slideLeft: { animation: "page-slide-left 0.3s ease forwards" },
+    slideRight: { animation: "page-slide-right 0.3s ease forwards" },
+    slideUp: { animation: "page-slide-up 0.3s ease forwards" },
+    slideDown: { animation: "page-slide-down 0.3s ease forwards" },
+    push: { animation: "page-push 0.3s ease forwards" },
+    moveIn: { animation: "page-move-in 0.3s ease forwards" },
+  };
 
-  return (
-    <>
-      <style>{`
+  export function WebPreview({
+    doc,
+    pageIndex = 0,
+    initialPageSlug,
+    storeContext,
+    onNavigate,
+    simulatedWidth,
+    responsiveViewportWidth,
+    mobileBreakpoint,
+    enableFormInputs = false,
+    builderParityMode = false,
+    fillViewport = false,
+    renderAllNodes = false,
+  }: {
+    doc: BuilderDocument;
+    pageIndex?: number;
+    /** Initial page slug for multi-page (overrides pageIndex when set). */
+    initialPageSlug?: string;
+    storeContext?: StoreContext | null;
+    /** Notify parent when prototype navigation changes the visible page. */
+    onNavigate?: (pageSlug: string) => void;
+    simulatedWidth?: number;
+    /** Optional viewport width used only for responsive visibility/breakpoint logic. */
+    responsiveViewportWidth?: number;
+    mobileBreakpoint?: number;
+    enableFormInputs?: boolean;
+    /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
+    builderParityMode?: boolean;
+    /** When true, content fills full viewport width (no max-width box, no side margins). */
+    fillViewport?: boolean;
+    /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
+    renderAllNodes?: boolean;
+  }): React.ReactElement {
+    const safePages = React.useMemo(
+      () => (Array.isArray(doc?.pages)
+        ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+        : []),
+      [doc]
+    );
+    const safeNodes = React.useMemo(
+      () => (doc?.nodes && typeof doc.nodes === "object"
+        ? (doc.nodes as Record<string, CleanNode>)
+        : {}),
+      [doc]
+    );
+
+    const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+    const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
+    const [history, setHistory] = React.useState<string[]>([]);
+    const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+
+    const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+    const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
+    const pageMeta = React.useMemo<PreviewPageMeta[]>(
+      () => safePages.map((p, i) => ({
+        id: p.id,
+        name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+        slug: getPageSlug(p, i),
+      })),
+      [safePages]
+    );
+
+    const onPrototypeAction = React.useCallback(
+      (interaction: Interaction) => {
+        const duration = (interaction.duration ?? 300) / 1000;
+        if (interaction.action === "navigateTo" && interaction.destination) {
+          const destId = resolveInternalPageId(interaction.destination, pageMeta);
+          if (destId) {
+            setHistory((h) => [...h, currentPageId]);
+            const trans = interaction.transition ?? "dissolve";
+            setTransitionStyle({
+              ...PAGE_TRANSITION_STYLES[trans],
+              animationDuration: `${duration}s`,
+            });
+            setCurrentPageId(destId);
+            const destPage = safePages.find((p) => p.id === destId);
+            if (destPage) onNavigate?.(getPageSlug(destPage, safePages.indexOf(destPage)));
+          } else if (interaction.destination.startsWith("#")) {
+            document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
+          } else if (
+            interaction.destination.startsWith("http://") ||
+            interaction.destination.startsWith("https://") ||
+            interaction.destination.startsWith("mailto:")
+          ) {
+            window.open(interaction.destination, "_blank", "noopener");
+          }
+        } else if (interaction.action === "back") {
+          if (history.length > 0) {
+            const prevId = history[history.length - 1];
+            setHistory((h) => h.slice(0, -1));
+            setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+            setCurrentPageId(prevId);
+            const prevPage = safePages.find((p) => p.id === prevId);
+            if (prevPage) onNavigate?.(getPageSlug(prevPage, safePages.indexOf(prevPage)));
+          }
+        } else if (interaction.action === "openUrl" && interaction.destination) {
+          window.open(interaction.destination, "_blank", "noopener");
+        } else if (interaction.action === "scrollTo" && interaction.destination) {
+          document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
+        }
+      },
+      [currentPageId, history, pageMeta, onNavigate, safePages]
+    );
+
+    const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
+    const width = (pageProps.width as string) || "1920px";
+    const background = (pageProps.background as string) || "#ffffff";
+    const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+    const pageRotation = toNumber(pageProps.pageRotation, 0);
+    const frameStyles = resolvePageFrameStyles(width);
+    const { ref, width: measuredWidth } = useContainerWidth(1000);
+    const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
+    const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
+    const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
+    const isPhoneSize = !isDesktopMode;
+    const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+      if (!isDesktopMode && mobileWrapperRef.current) {
+        mobileWrapperRef.current.removeAttribute("data-nav-preview-done");
+        const t = setTimeout(() => {
+          if (mobileWrapperRef.current) enhanceNavInPreview(mobileWrapperRef.current);
+        }, 200);
+        return () => clearTimeout(t);
+      }
+    }, [isDesktopMode, currentPageId]);
+    const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
+    const availableTriggerTargets = React.useMemo(() => {
+      const targets = new Set<string>();
+      for (const node of Object.values(safeNodes)) {
+        const target = node?.props?.toggleTarget;
+        if (typeof target === "string" && target.trim()) {
+          targets.add(target.trim());
+        }
+      }
+      return targets;
+    }, [safeNodes]);
+    const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
+      setInteractionState((prev) => {
+        const current = prev[target] ?? false;
+        const next =
+          action === "open" ? true :
+            action === "close" ? false :
+              !current;
+        return { ...prev, [target]: next };
+      });
+    }, []);
+
+    if (!currentPage) {
+      const hasPages = safePages.length > 0;
+      return (
+        <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+          {hasPages
+            ? "No page to display."
+            : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+        </div>
+      );
+    }
+
+    const pageWidthPx = parsePixelValue(width) ?? 1920;
+    const scale = (!isPhoneSize && !fillViewport && measuredWidth < pageWidthPx) ? measuredWidth / pageWidthPx : 1;
+
+    const pageContent = (
+      <>
+        {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+          const node = safeNodes[id];
+          if (!node) return null;
+          const childType = String(node.type || "").toLowerCase();
+          if (childType === "page") return null;
+          return (
+            <RenderNode
+              key={id}
+              node={node}
+              nodes={safeNodes}
+              pages={pageMeta}
+              pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+              viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
+              interactionState={interactionState}
+              availableTriggerTargets={availableTriggerTargets}
+              onToggle={handleToggle}
+              storeContext={storeContext}
+              nodeId={id}
+              onPrototypeAction={onPrototypeAction}
+              mobileBreakpoint={mobileBreakpoint}
+              enableFormInputs={enableFormInputs}
+              builderParityMode={builderParityMode}
+              renderAllNodes={renderAllNodes}
+            />
+          );
+        })}
+      </>
+    );
+
+    return (
+      <>
+        <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
         @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -4326,251 +4302,240 @@ export function WebPreview({
           color: var(--placeholder-color, #94a3b8);
           opacity: 1;
         }
-        .responsive-preview,
-        .responsive-preview * {
-          box-sizing: border-box;
-        }
-        .responsive-preview {
-          container-type: inline-size;
-        }
-        @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
-          .responsive-preview {
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-          }
-        }
       `}</style>
-      {!isDesktopMode && frameResponsiveStyles}
-      <div
-        key={currentPageId}
-        className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
-        style={{
-          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : width),
-          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : undefined),
-          minHeight,
-          backgroundColor: background,
-          margin: fillViewport ? 0 : "0 auto",
-          boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
-          borderRadius: isDesktopMode || fillViewport ? 0 : 8,
-          overflow: "hidden",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
-          ...transitionStyle,
-          ...(!isDesktopMode ? { containerType: "inline-size" as const } : {}),
-        }}
-        ref={ref}
-      >
-        {!isDesktopMode ? (
+        {isPhoneSize && frameResponsiveStyles}
+        <div
+          key={currentPageId}
+          ref={ref}
+          style={{
+            width: "100%",
+            minHeight: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            overflowX: "hidden",
+            overflowY: "auto",
+            padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
+            backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+          }}
+        >
           <div
-            ref={mobileWrapperRef}
-            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}${isNarrowBuilderPreview ? " builder-parity-narrow" : ""}`}
             style={{
-              width: "100%",
-              minHeight: "100%",
-              boxSizing: "border-box",
-              containerType: "inline-size",
+              width: isPhoneSize || fillViewport ? "100%" : width,
+              maxWidth: isPhoneSize || fillViewport ? "100%" : undefined,
+              minHeight: isPhoneSize ? "100vh" : minHeight,
+              backgroundColor: background,
+              boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
+              borderRadius: isPhoneSize || fillViewport ? 0 : 4,
+              transform: `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}`,
+              transformOrigin: "top center",
+              transition: "transform 0.2s ease, width 0.3s ease",
+              ...transitionStyle,
             }}
           >
-            {pageContent}
+            {isPhoneSize ? (
+              <div
+                ref={mobileWrapperRef}
+                className="frame-responsive-inner frame-fluid frame-mobile"
+                style={{
+                  width: "100%",
+                  minHeight: "100vh",
+                  boxSizing: "border-box",
+                  containerType: "inline-size",
+                }}
+              >
+                {pageContent}
+              </div>
+            ) : (
+              pageContent
+            )}
           </div>
-        ) : (
-          pageContent
-        )}
-      </div>
-    </>
-  );
-}
-
-/**
- * Full-width live site renderer. No shadow, no border-radius, no max-width box.
- * The design fills the entire browser viewport as a real website.
- * Supports multi-page prototype navigation (Navigate to page) via currentPageSlug state.
- */
-export function LiveSite({
-  doc,
-  pageIndex = 0,
-  storeContext,
-  initialPageSlug,
-  mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
-  enableFormInputs = false,
-}: {
-  doc: BuilderDocument;
-  pageIndex?: number;
-  storeContext?: StoreContext | null;
-  /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
-  initialPageSlug?: string;
-  /** Width threshold (px) before switching to mobile frame behavior. */
-  mobileBreakpoint?: number;
-  enableFormInputs?: boolean;
-}): React.ReactElement {
-  const safePages = React.useMemo(
-    () => (Array.isArray(doc?.pages)
-      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
-      : []),
-    [doc]
-  );
-  const safeNodes = React.useMemo(
-    () => (doc?.nodes && typeof doc.nodes === "object"
-      ? (doc.nodes as Record<string, CleanNode>)
-      : {}),
-    [doc]
-  );
-  const initialPage = safePages[pageIndex] ?? safePages[0];
-  const initialResolvedId = React.useMemo(() => {
-    if (initialPageSlug) {
-      const bySlug = safePages.find((p, i) => getPageSlug(p, i) === initialPageSlug);
-      if (bySlug) return bySlug.id;
-    }
-    return initialPage?.id;
-  }, [initialPageSlug, safePages, initialPage]);
-
-  const [currentPageId, setCurrentPageId] = useState(initialResolvedId);
-  const [history, setHistory] = useState<string[]>([]);
-  const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
-
-  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
-  const pageMeta = React.useMemo<PreviewPageMeta[]>(
-    () => safePages.map((p, i) => ({
-      id: p.id,
-      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
-      slug: getPageSlug(p, i),
-    })),
-    [safePages]
-  );
-
-  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
-  const width = (pageProps.width as string) || "1920px";
-  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
-  const background = (pageProps.background as string) || "#ffffff";
-  const pageRotation = toNumber(pageProps.pageRotation, 0);
-  const pageWidthPx = parsePixelValue(width) ?? 1920;
-  const { ref, width: measuredWidth } = useContainerWidth();
-  const isPhoneSize = measuredWidth <= mobileBreakpoint;
-  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
-  const layoutReferenceWidth = pageWidthPx;
-  const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
-  const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
-  React.useEffect(() => {
-    if (isPhoneSize && liveSiteWrapperRef.current) {
-      liveSiteWrapperRef.current.removeAttribute("data-nav-preview-done");
-      const t = setTimeout(() => {
-        if (liveSiteWrapperRef.current) enhanceNavInPreview(liveSiteWrapperRef.current);
-      }, 200);
-      return () => clearTimeout(t);
-    }
-  }, [isPhoneSize, currentPageId]);
-  const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
-  const availableTriggerTargets = React.useMemo(() => {
-    const targets = new Set<string>();
-    for (const node of Object.values(safeNodes)) {
-      const target = node?.props?.toggleTarget;
-      if (typeof target === "string" && target.trim()) {
-        targets.add(target.trim());
-      }
-    }
-    return targets;
-  }, [safeNodes]);
-  const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
-    setInteractionState((prev) => {
-      const current = prev[target] ?? false;
-      const next =
-        action === "open" ? true :
-          action === "close" ? false :
-            !current;
-      return { ...prev, [target]: next };
-    });
-  }, []);
-
-  const onPrototypeAction = React.useCallback((interaction: Interaction) => {
-    if (interaction.action === "openUrl" && interaction.destination) {
-      window.open(interaction.destination, "_blank", "noopener");
-    } else if (interaction.action === "scrollTo" && interaction.destination) {
-      document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
-    } else if (interaction.action === "navigateTo" && interaction.destination) {
-      const destId = resolveInternalPageId(interaction.destination, pageMeta);
-      if (destId) {
-        if (currentPageId) setHistory((h) => [...h, currentPageId]);
-        const duration = (interaction.duration ?? 300) / 1000;
-        const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
-        setTransitionStyle({
-          ...PAGE_TRANSITION_STYLES[trans],
-          animationDuration: `${duration}s`,
-        });
-        setCurrentPageId(destId);
-      } else {
-        const dest = interaction.destination;
-        const el = document.getElementById(dest.startsWith("#") ? dest.slice(1) : dest);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-        } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
-          window.location.href = dest;
-        }
-      }
-    } else if (interaction.action === "back") {
-      if (history.length > 0) {
-        const prevId = history[history.length - 1];
-        setHistory((h) => h.slice(0, -1));
-        setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-        setCurrentPageId(prevId);
-      } else {
-        window.history.back();
-      }
-    }
-  }, [currentPageId, history, pageMeta]);
-
-  if (!currentPage) {
-    const hasPages = safePages.length > 0;
-    return (
-      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-      </div>
+        </div>
+      </>
     );
   }
 
-  const pageChildren = (
-    <>
-      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
-        const node = safeNodes[id];
-        if (!node) return null;
-        const childType = String(node.type || "").toLowerCase();
-        if (childType === "page") return null;
-        return (
-          <RenderNode
-            key={id}
-            node={node}
-            nodes={safeNodes}
-            pages={pageMeta}
-            pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={viewportWidth}
-            interactionState={interactionState}
-            availableTriggerTargets={availableTriggerTargets}
-            onToggle={handleToggle}
-            storeContext={storeContext}
-            nodeId={id}
-            onPrototypeAction={onPrototypeAction}
-            mobileBreakpoint={mobileBreakpoint}
-            enableFormInputs={enableFormInputs}
-            builderParityMode={true}
-            preserveAuthoredPositioning={true}
-            layoutReferenceWidth={layoutReferenceWidth}
-            layoutReferenceHeight={layoutReferenceHeight}
-          />
-        );
-      })}
-    </>
-  );
+  /**
+   * Full-width live site renderer. No shadow, no border-radius, no max-width box.
+   * The design fills the entire browser viewport as a real website.
+   * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
+   */
+  export function LiveSite({
+    doc,
+    pageIndex = 0,
+    storeContext,
+    initialPageSlug,
+    mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
+    enableFormInputs = false,
+  }: {
+    doc: BuilderDocument;
+    pageIndex?: number;
+    storeContext?: StoreContext | null;
+    /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
+    initialPageSlug?: string;
+    /** Width threshold (px) before switching to mobile frame behavior. */
+    mobileBreakpoint?: number;
+    enableFormInputs?: boolean;
+  }): React.ReactElement {
+    const safePages = React.useMemo(
+      () => (Array.isArray(doc?.pages)
+        ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+        : []),
+      [doc]
+    );
+    const safeNodes = React.useMemo(
+      () => (doc?.nodes && typeof doc.nodes === "object"
+        ? (doc.nodes as Record<string, CleanNode>)
+        : {}),
+      [doc]
+    );
 
-  return (
-    <>
-      <style>{`
+    const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+    const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
+    const [history, setHistory] = React.useState<string[]>([]);
+    const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+
+    const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+    const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
+    const pageMeta = React.useMemo<PreviewPageMeta[]>(
+      () => safePages.map((p, i) => ({
+        id: p.id,
+        name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+        slug: getPageSlug(p, i),
+      })),
+      [safePages]
+    );
+
+    const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
+    const width = (pageProps.width as string) || "1920px";
+    const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+    const background = (pageProps.background as string) || "#ffffff";
+    const pageRotation = toNumber(pageProps.pageRotation, 0);
+    const pageWidthPx = parsePixelValue(width) ?? 1920;
+
+    const { ref, width: measuredWidth } = useContainerWidth();
+    const isPhoneSize = measuredWidth <= mobileBreakpoint;
+    const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+    const layoutReferenceWidth = pageWidthPx;
+    const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
+
+    const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
+    React.useEffect(() => {
+      if (isPhoneSize && liveSiteWrapperRef.current) {
+        liveSiteWrapperRef.current.removeAttribute("data-nav-preview-done");
+        const t = setTimeout(() => {
+          if (liveSiteWrapperRef.current) enhanceNavInPreview(liveSiteWrapperRef.current);
+        }, 200);
+        return () => clearTimeout(t);
+      }
+    }, [isPhoneSize, currentPageId]);
+
+    const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
+    const availableTriggerTargets = React.useMemo(() => {
+      const targets = new Set<string>();
+      for (const node of Object.values(safeNodes)) {
+        const target = node?.props?.toggleTarget;
+        if (typeof target === "string" && target.trim()) {
+          targets.add(target.trim());
+        }
+      }
+      return targets;
+    }, [safeNodes]);
+
+    const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
+      setInteractionState((prev) => {
+        const current = prev[target] ?? false;
+        const next =
+          action === "open" ? true :
+            action === "close" ? false :
+              !current;
+        return { ...prev, [target]: next };
+      });
+    }, []);
+
+    const onPrototypeAction = React.useCallback((interaction: Interaction) => {
+      if (interaction.action === "openUrl" && interaction.destination) {
+        window.open(interaction.destination, "_blank", "noopener");
+      } else if (interaction.action === "scrollTo" && interaction.destination) {
+        document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
+      } else if (interaction.action === "navigateTo" && interaction.destination) {
+        const destId = resolveInternalPageId(interaction.destination, pageMeta);
+        if (destId) {
+          setHistory((h) => [...h, currentPageId]);
+          const duration = (interaction.duration ?? 300) / 1000;
+          const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
+          setTransitionStyle({
+            ...PAGE_TRANSITION_STYLES[trans],
+            animationDuration: `${duration}s`,
+          });
+          setCurrentPageId(destId);
+        } else {
+          const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth" });
+          } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
+            window.location.href = interaction.destination;
+          }
+        }
+      } else if (interaction.action === "back") {
+        if (history.length > 0) {
+          const prevId = history[history.length - 1];
+          setHistory((h) => h.slice(0, -1));
+          setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+          setCurrentPageId(prevId);
+        } else {
+          window.history.back();
+        }
+      }
+    }, [currentPageId, history, pageMeta]);
+
+    if (!currentPage) {
+      const hasPages = safePages.length > 0;
+      return (
+        <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+          {hasPages
+            ? "No page to display."
+            : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+        </div>
+      );
+    }
+
+    const pageChildren = (
+      <>
+        {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+          const node = safeNodes[id];
+          if (!node) return null;
+          const childType = String(node.type || "").toLowerCase();
+          if (childType === "page") return null;
+          return (
+            <RenderNode
+              key={id}
+              node={node}
+              nodes={safeNodes}
+              pages={pageMeta}
+              pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+              viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
+              interactionState={interactionState}
+              availableTriggerTargets={availableTriggerTargets}
+              onToggle={handleToggle}
+              storeContext={storeContext}
+              nodeId={id}
+              onPrototypeAction={onPrototypeAction}
+              mobileBreakpoint={mobileBreakpoint}
+              enableFormInputs={enableFormInputs}
+              builderParityMode={true}
+              preserveAuthoredPositioning={true}
+              layoutReferenceWidth={layoutReferenceWidth}
+              layoutReferenceHeight={layoutReferenceHeight}
+            />
+          );
+        })}
+      </>
+    );
+
+    return (
+      <>
+        <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
         @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -4579,38 +4544,38 @@ export function LiveSite({
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
-      {isPhoneSize && frameResponsiveStyles}
-      <div
-        key={currentPageSlug}
-        ref={ref}
-        style={{
-          width: isPhoneSize ? "100%" : width,
-          maxWidth: isPhoneSize ? "100%" : undefined,
-          minHeight,
-          backgroundColor: background,
-          margin: isPhoneSize ? 0 : "0 auto",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
-          ...transitionStyle,
-        }}
-      >
-        {isPhoneSize ? (
-          <div
-            ref={liveSiteWrapperRef}
-            className="frame-responsive-inner frame-fluid frame-mobile"
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              containerType: "inline-size",
-            }}
-          >
-            {pageChildren}
-          </div>
-        ) : (
-          pageChildren
-        )}
+        {isPhoneSize && frameResponsiveStyles}
+        <div
+          key={currentPageSlug}
+          ref={ref}
+          style={{
+            width: isPhoneSize ? "100%" : width,
+            maxWidth: isPhoneSize ? "100%" : undefined,
+            minHeight,
+            backgroundColor: background,
+            margin: isPhoneSize ? 0 : "0 auto",
+            transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+            transformOrigin: "center center",
+            ...transitionStyle,
+          }}
+        >
+          {isPhoneSize ? (
+            <div
+              ref={liveSiteWrapperRef}
+              className="frame-responsive-inner frame-fluid frame-mobile"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                containerType: "inline-size",
+              }}
+            >
+              {pageChildren}
+            </div>
+          ) : (
+            pageChildren
+          )}
         </div>
-      </div>
+      </div >
     </>
   );
-}
+  }
