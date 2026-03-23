@@ -2100,9 +2100,6 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
-  if (prototype?.interactions?.length) {
-    console.log("[Prototype] Node", nodeId, "type:", type, "has prototype:", JSON.stringify(prototype));
-  }
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
@@ -4152,15 +4149,6 @@ export function WebPreview({
     [doc]
   );
 
-  React.useEffect(() => {
-    const nodesWithPrototype = Object.entries(safeNodes).filter(
-      ([, n]) => n?.props?.prototype && (n.props.prototype as PrototypeConfig).interactions?.length > 0
-    );
-    console.log("[WebPreview] Pages:", safePages.map((p, i) => ({ id: p.id, name: p.name, slug: getPageSlug(p, i) })));
-    console.log("[WebPreview] Nodes with prototype:", nodesWithPrototype.map(([id, n]) => ({ id, type: n.type, prototype: n.props.prototype })));
-    console.log("[WebPreview] Total nodes:", Object.keys(safeNodes).length);
-  }, [safePages, safeNodes]);
-
   const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
   const initialPage = safePages[pageIndex] ?? safePages[0];
   const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
@@ -4180,13 +4168,9 @@ export function WebPreview({
 
   const onPrototypeAction = useCallback(
     (interaction: Interaction) => {
-      console.log("[Prototype] Action fired:", JSON.stringify(interaction));
-      console.log("[Prototype] Available pages:", JSON.stringify(pageMeta));
-      console.log("[Prototype] Current page:", currentPageSlug);
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
         const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
-        console.log("[Prototype] Resolved slug:", internalSlug, "from destination:", interaction.destination);
         if (internalSlug) {
           setHistory((h) => [...h, currentPageSlug]);
           const trans = interaction.transition ?? "dissolve";
@@ -4361,7 +4345,7 @@ export function WebPreview({
           margin: fillViewport ? 0 : "0 auto",
           boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
           borderRadius: isDesktopMode || fillViewport ? 0 : 8,
-          overflow: isDesktopMode ? "hidden" : "visible",
+          overflow: "hidden",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",
           ...transitionStyle,
