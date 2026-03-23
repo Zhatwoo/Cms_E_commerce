@@ -1322,7 +1322,7 @@ function PreviewContent() {
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
-                className={`bg-white transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
+                className={`transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
                   ? "min-h-[calc(100vh-200px)] w-full min-w-0"
                   : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
                   }`}
@@ -1344,7 +1344,7 @@ function PreviewContent() {
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
                   builderParityMode={useBuilderParityMode}
-                  fillViewport
+                  fillViewport={previewViewport !== "desktop"}
                   storeContext={previewStoreContext}
                   simulatedWidth={
                     previewViewport === "tablet" ? 768 : previewViewport === "mobile" ? 390 : undefined
