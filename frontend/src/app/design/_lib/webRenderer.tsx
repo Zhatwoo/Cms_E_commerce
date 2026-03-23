@@ -4578,26 +4578,36 @@ export function LiveSite({
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
       <div
-        key={currentPageId}
-        ref={ref}
         style={{
           width: isPhoneSize ? "100%" : width,
-          maxWidth: isPhoneSize ? "100%" : undefined,
-          minHeight,
-          backgroundColor: background,
-          margin: isPhoneSize ? 0 : "0 auto",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
-          ...transitionStyle,
+          maxWidth: isPhoneSize ? "100%" : width,
+          margin: isPhoneSize ? 0 : "40px auto",
+          borderRadius: isPhoneSize ? 0 : 16,
+          background: "#fff",
+          boxShadow: isPhoneSize ? undefined : "0 2px 16px rgba(0,0,0,0.08)",
+          overflow: "hidden",
         }}
       >
+        <div
+          key={currentPageId}
+          ref={ref}
+          style={{
+            width: isPhoneSize ? "100%" : width,
+            maxWidth: isPhoneSize ? "100%" : undefined,
+            minHeight,
+            backgroundColor: background,
+            margin: 0,
+            transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+            transformOrigin: "center center",
+            ...transitionStyle,
+          }}
+        >
         {isPhoneSize ? (
           <div
             ref={liveSiteWrapperRef}
             className="frame-responsive-inner frame-fluid frame-mobile"
             style={{
               width: "100%",
-              minHeight: "100vh",
               boxSizing: "border-box",
               containerType: "inline-size",
             }}
@@ -4607,6 +4617,7 @@ export function LiveSite({
         ) : (
           pageChildren
         )}
+        </div>
       </div>
     </>
   );

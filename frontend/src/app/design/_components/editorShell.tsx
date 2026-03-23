@@ -715,10 +715,23 @@ if (typeof window !== "undefined") {
       if (concat.includes("Accessing element.ref was removed")) return;
       // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
       if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
-      // Known broken Unsplash image (content migration replaces; suppress noisy load error)
-      if (concat.includes("Error loading image") && concat.includes("photo-1581093458791-9f3c3900df4b")) return;
-      // Firebase Storage tokens may expire in old snapshots; surface visually in canvas but suppress noisy console spam.
-      if (concat.includes("Error loading image") && concat.includes("firebasestorage.googleapis.com")) return;
+      // Suppress ALL image-related errors from external CDNs (Firebase, Unsplash, etc.)
+      // Images have visual fallbacks, so console noise is unnecessary
+      if (
+        (
+          (concat.includes("Error loading") || concat.includes("error loading")) &&
+          concat.includes("image") &&
+          (concat.includes("firebasestorage") || concat.includes("firebasestorage.app") || concat.includes("firebasestorage.googleapis.com"))
+        ) ||
+        (
+          concat.includes("firebasestorage") &&
+          (concat.includes("image") || concat.includes("Error"))
+        ) ||
+        concat.includes("firebasestorage.app") ||
+        concat.includes("firebasestorage.googleapis.com")
+      ) {
+        return;
+      }
       originalError(...args);
     };
     win.__craftConsoleErrorPatched__ = true;

@@ -459,11 +459,16 @@ export function AnimationWrapper({
 
   const MotionComponent = motion[as as "div"] ?? motion.div;
 
+  // Optimization: Don't use willChange for continuous animations (pulse, float, spin, etc.)
+  // These cause excessive paint/layout thrashing, especially during zoom or previews.
+  // Only set willChange for entrance/exit animations which are one-time events.
+  const shouldUseWillChange = hasIn || hasOut;
+
   return (
     <MotionComponent
       ref={ref}
       className={className}
-      style={{ ...style, willChange: hasAny ? "transform, opacity" : undefined }}
+      style={{ ...style, willChange: shouldUseWillChange ? "transform, opacity" : undefined }}
       initial={combinedInitial as any}
       animate={combinedAnimate as any}
       exit={hasOut ? (outVariants.exit as any) : undefined}

@@ -12,9 +12,21 @@ import type { BuilderDocument } from '@/app/design/_types/schema';
 export default function SubdomainSitePage() {
   const params = useParams();
   const subdomain = typeof params.subdomain === 'string' ? params.subdomain : null;
+  const [viewportWidth, setViewportWidth] = useState<number>(
+    typeof window === 'undefined' ? 1440 : window.innerWidth
+  );
   const [cleanDoc, setCleanDoc] = useState<BuilderDocument | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const useBuilderParityMode = viewportWidth > PREVIEW_MOBILE_BREAKPOINT;
 
   useEffect(() => {
     if (!subdomain) {
@@ -86,7 +98,13 @@ export default function SubdomainSitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs builderParityMode />
+      <WebPreview
+        doc={cleanDoc}
+        pageIndex={0}
+        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+        enableFormInputs
+        builderParityMode={useBuilderParityMode}
+      />
     </div>
   );
 }

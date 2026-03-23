@@ -73,10 +73,22 @@ function PublicSiteContent() {
   const params = useParams();
   const { setSiteTitle, addToCart } = useStorefront();
   const subdomain = (params?.subdomain as string) || '';
+  const [viewportWidth, setViewportWidth] = useState<number>(
+    typeof window === 'undefined' ? 1440 : window.innerWidth
+  );
   const [doc, setDoc] = useState<BuilderDocument | null>(null);
   const [products, setProducts] = useState<StorefrontProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const useBuilderParityMode = viewportWidth > PREVIEW_MOBILE_BREAKPOINT;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !subdomain) return;
@@ -195,8 +207,7 @@ function PublicSiteContent() {
           pageIndex={0}
           mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
           enableFormInputs
-          builderParityMode={true}
-          fillViewport
+          builderParityMode={useBuilderParityMode}
           storeContext={{ products, addToCart }}
         />
         <CartFab />
