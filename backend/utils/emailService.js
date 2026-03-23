@@ -219,10 +219,54 @@ async function sendCollaborationInviteEmail({ to, fromName, projectId, projectTi
   }
 }
 
+async function sendAdminActionEmail({ to, name, subject, title, intro, reason }) {
+  const recipient = typeof to === 'string' ? to.trim().toLowerCase() : '';
+  if (!recipient) {
+    return { sent: false, error: 'No recipient email' };
+  }
+
+  const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
+  const greeting = name ? `Hi ${String(name).trim()},` : 'Hi,';
+  const safeSubject = String(subject || 'Account update from admin').trim();
+  const safeTitle = String(title || 'Update from admin').trim();
+  const safeIntro = String(intro || 'An administrator made a change to your account resources.').trim();
+  const safeReason = String(reason || '').trim();
+
+  const html = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 36px 20px;">
+      <h1 style="color: #0a0d14; font-size: 24px; font-weight: 600; margin-bottom: 18px; line-height: 1.25;">${safeTitle}</h1>
+      <p style="font-size: 15px; color: #333; line-height: 1.6; margin-bottom: 16px;">${greeting}</p>
+      <p style="font-size: 15px; color: #555; line-height: 1.7; margin-bottom: 18px;">${safeIntro}</p>
+      ${safeReason ? `<div style="margin: 18px 0; padding: 12px; border-radius: 8px; background: #f5f5f5; border: 1px solid #e7e7e7;"><p style="margin: 0; font-size: 13px; color: #4a4a4a;"><strong>Reason:</strong> ${safeReason}</p></div>` : ''}
+      <p style="color: #777; font-size: 13px; margin-top: 24px;">If you need help, please contact support.</p>
+      <p style="color: #999; font-size: 13px; margin-top: 18px;">Mercato Team</p>
+    </div>
+  `;
+
+  if (!transporter) {
+    console.log('[emailService] 📧 No SMTP config. Admin action email skipped for:', recipient);
+    return { sent: false, error: 'Email not configured' };
+  }
+
+  try {
+    const info = await transporter.sendMail({
+      from: `"${fromLabel}" <${gmailUser}>`,
+      to: recipient,
+      subject: safeSubject,
+      html,
+    });
+    return { sent: true, messageId: info.messageId || '' };
+  } catch (err) {
+    console.error('[emailService] ❌ Admin action send error:', err.message);
+    return { sent: false, error: err.message };
+  }
+}
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendCollaborationInviteEmail,
+  sendAdminActionEmail,
   getConfirmUrl,
   getResetPasswordUrl
 };
