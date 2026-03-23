@@ -127,8 +127,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [failedAvatarSrc, setFailedAvatarSrc] = useState<string | null>(null);
     const emailPrefix = (user?.email || '').split('@')[0] || 'user';
     const usernameValue = String(user?.username || emailPrefix || '').replace(/^@+/, '');
-    const headerIdentity = `@${usernameValue || 'user'}`;
-    const avatarAlt = user?.name || headerIdentity || 'User avatar';
+    const profileName = String(user?.name || '').trim();
+    const fallbackHandle = `@${usernameValue || 'user'}`;
+    const headerIdentity = profileName || fallbackHandle;
+    const avatarAlt = profileName || fallbackHandle || 'User avatar';
 
     const resolveAvatarUrl = (raw?: string): string => {
         const value = String(raw || '').trim();
