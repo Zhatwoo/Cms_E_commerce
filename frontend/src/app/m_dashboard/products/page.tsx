@@ -238,7 +238,7 @@ const ProductCard = ({ product, colors, onView, onEdit, onDelete, isTransitionin
       exit={{ opacity: 0 }}
       transition={{ duration: 0.12, ease: 'easeOut' }}
       onClick={() => onView(product)}
-      className="group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex flex-col h-full cursor-pointer"
+      className="group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex w-full max-w-[324px] h-[365px] mx-auto flex-col cursor-pointer"
       style={{
         backgroundColor: '#141446',
         borderColor: '#2D3A90',
@@ -1325,7 +1325,7 @@ export default function ProductsPage() {
           {filteredProducts.length > 0 ? (
             <>
               {viewMode === 'tile' ? (
-                <div id="products-grid" className="max-w-[1090px] mx-auto grid gap-3 md:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-4">
+                <div id="products-grid" className="max-w-[1360px] mx-auto grid justify-center gap-3 md:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   <AnimatePresence>
                     {paginatedProducts.map((product) => (
                       <ProductCard

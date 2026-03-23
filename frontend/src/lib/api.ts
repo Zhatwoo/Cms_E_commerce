@@ -176,7 +176,12 @@ export async function apiFetch<T>(
     ...((options.headers as Record<string, string>) || {}),
   };
 
-  if (activeProjectId && !headers['x-project-id']) {
+  const skipActiveProjectScope = headers['x-skip-active-project-scope'] === '1';
+  if (skipActiveProjectScope) {
+    delete headers['x-skip-active-project-scope'];
+  }
+
+  if (!skipActiveProjectScope && activeProjectId && !headers['x-project-id']) {
     headers['x-project-id'] = activeProjectId;
   }
 
@@ -656,6 +661,8 @@ export async function removeCustomDomain(
 export type ApiProduct = {
   id: string;
   name: string;
+  userId?: string;
+  projectId?: string | null;
   sku?: string;
   category?: string;
   subcategory?: string;
@@ -698,12 +705,36 @@ export type ApiProduct = {
   updatedAt?: string;
 };
 
+export async function adminDeleteProduct(
+  id: string,
+  reason: string
+): Promise<{ success: boolean; message?: string; data?: { id: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { id: string } }>(`/api/products/admin/${id}`, {
+    method: 'DELETE',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+export async function adminWebsiteAction(params: {
+  userId: string;
+  domainId: string;
+  action: 'take_down' | 'delete';
+  reason?: string;
+}): Promise<{ success: boolean; message?: string }> {
+  return apiFetch<{ success: boolean; message?: string }>('/api/domains/admin/website-action', {
+    method: 'POST',
+    body: JSON.stringify(params),
+  });
+}
+
 export async function listProducts(params?: {
   subdomain?: string;
   status?: string;
   search?: string;
   page?: number;
   limit?: number;
+  ignoreActiveProjectScope?: boolean;
+  includeAllUsers?: boolean;
 }): Promise<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }> {
   const query = new URLSearchParams();
   if (params?.subdomain) query.set('subdomain', params.subdomain);
@@ -711,9 +742,15 @@ export async function listProducts(params?: {
   if (params?.search) query.set('search', params.search);
   if (params?.page) query.set('page', String(params.page));
   if (params?.limit) query.set('limit', String(params.limit));
+  if (params?.includeAllUsers) query.set('scope', 'all');
   const qs = query.toString();
   const path = qs ? `/api/products?${qs}` : '/api/products';
-  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path);
+  const headers = params?.ignoreActiveProjectScope
+    ? { 'x-skip-active-project-scope': '1' }
+    : undefined;
+  return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path, {
+    headers,
+  });
 }
 
 // For uploading prodcut images to Firebase Storage 
@@ -1272,6 +1309,7 @@ export type WebsiteManagementRow = {
   id: string;
   userId: string;
   domainName: string;
+  thumbnail?: string;
   owner: string;
   status: string;
   plan: string;
