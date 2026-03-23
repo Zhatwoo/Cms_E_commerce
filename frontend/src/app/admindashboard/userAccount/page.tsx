@@ -36,12 +36,8 @@ export function UserAccountShell({ activePath, children }: UserAccountShellProps
 				<main className="flex-1 min-h-0 overflow-y-auto">
 					<div className="space-y-6 p-8">
 						<div>
-							<h1 className="mb-2 text-3xl font-bold text-[#B13BFF] sm:text-4xl">Account &amp; Settings</h1>
-							<div className="mt-1 flex items-center gap-2 text-sm text-[#A78BFA]">
-								<span>Account &amp; Settings</span>
-								<ChevronRightIcon />
-								<span className="font-semibold text-[#8A78FF]">{activePath}</span>
-							</div>
+							<h1 className="admin-dashboard-purple mb-2 text-3xl font-bold sm:text-4xl text-[#4a1a8a]">Account Settings</h1>
+							<p className="admin-dashboard-soft-text text-[#7a6aa0]">Manage your personal information, security preferences, and billing.</p>
 						</div>
 						{children}
 					</div>
