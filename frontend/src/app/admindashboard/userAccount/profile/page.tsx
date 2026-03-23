@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
 import { getStoredUser, setStoredUser, updateProfile, uploadAvatarApi, type User } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
 
 export default function ProfilePage() {
 
@@ -323,6 +324,10 @@ export default function ProfilePage() {
 												setSavedProfile({ ...profile, avatar: res.user.avatar || finalAvatarUrl });
 												setStoredUser(res.user);
 												setSelectedFile(null); // Clear selected file after success
+												
+												// Add Audit Notification
+												addNotification("Profile Updated", `Your profile settings (username: ${profile.username}) were successfully saved.`, 'success');
+
 												// Notify header and others
 												window.dispatchEvent(new Event('userUpdate'));
 											}

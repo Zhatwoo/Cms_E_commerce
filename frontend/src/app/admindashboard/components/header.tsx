@@ -17,6 +17,7 @@ import {
     type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
+import { getNotifications, markAsRead, type NotificationItem } from '@/lib/notifications';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,6 +121,18 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const searchContainerRef = useRef<HTMLDivElement | null>(null);
     const profileMenuRef = useRef<HTMLDivElement | null>(null);
     const notificationsRef = useRef<HTMLDivElement | null>(null);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+    useEffect(() => {
+        const load = () => {
+            setNotifications(getNotifications());
+        };
+        load();
+        window.addEventListener('notificationsUpdate', load);
+        return () => window.removeEventListener('notificationsUpdate', load);
+    }, []);
+
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     const handleProfileClick = () => {
         setShowProfileMenu(false);
@@ -142,6 +155,11 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const handleNotificationsClick = () => {
         setShowNotifications((prev) => !prev);
         setShowProfileMenu(false);
+    };
+
+    const handleMarkSingleRead = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        markAsRead(id);
     };
 
     const handleSearchNavigate = (href: string) => {
@@ -467,6 +485,11 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] text-[#4a1a8a]" fill="currentColor">
                                 <path d="M12 22a2.98 2.98 0 0 0 2.818-2H9.182A2.98 2.98 0 0 0 12 22zm7-6V9a7 7 0 1 0-14 0v7l-2 2v1h18v-1l-2-2z" />
                             </svg>
+                            {unreadCount > 0 && (
+                                <span className="absolute right-2.5 top-2.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-[#FF5252] px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
                         </button>
 
                         {showNotifications ? (
@@ -474,8 +497,34 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                 <div className="border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-3">
                                     <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
                                 </div>
-                                <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
-                                    <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
+                                <div className="max-h-[22rem] overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
+                                            <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-[rgba(177,59,255,0.08)]">
+                                            {notifications.slice(0, 10).map((n) => (
+                                                <div 
+                                                    key={n.id} 
+                                                    className={`group relative flex cursor-default flex-col gap-0.5 px-4 py-3 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/20' : ''}`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <span className={`text-[13px] font-bold leading-tight ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
+                                                        {!n.read && (
+                                                            <button 
+                                                                onClick={(e) => handleMarkSingleRead(n.id, e)}
+                                                                className="h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform hover:scale-125"
+                                                                title="Mark as read"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
+                                                    <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/30 px-4 py-2 text-center">
                                     <button

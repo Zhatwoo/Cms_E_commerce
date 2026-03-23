@@ -9,6 +9,7 @@ import {
     ADMIN_RECENT_USER_ACTIONS,
     ADMIN_STATS,
 } from '@/lib/config/adminDashboardMocks';
+import { getNotifications, type NotificationItem } from '@/lib/notifications';
 
 // ─── DashboardPanel ──────────────────────────────────────────────────────────
 
@@ -151,7 +152,7 @@ function DashboardActivityPanel({ items }: { items: readonly { title: string; ac
 
 // ─── DashboardNotificationsPanel ─────────────────────────────────────────────
 
-function DashboardNotificationsPanel({ items }: { items: readonly { title: string; date: string }[] }) {
+function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
     return (
         <motion.div
             initial={{ opacity: 0, x: 18 }}
@@ -161,15 +162,31 @@ function DashboardNotificationsPanel({ items }: { items: readonly { title: strin
             <DashboardPanel className="min-h-[15.6rem] p-5 sm:p-6">
                 <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Notifications</h2>
                 <div className="mt-6 space-y-4">
-                    {items.map((item) => (
-                        <div key={item.title} className="flex items-start justify-between gap-4">
-                            <div className="flex items-start gap-4">
-                                <span className="mt-1.5 h-3 w-3 rounded-full" style={{ background: '#f5c000' }} />
-                                <p className="text-sm font-medium" style={{ color: '#4a1a8a' }}>{item.title}</p>
+                    {items.length === 0 ? (
+                        <p className="text-sm text-[#a090c8]">No recent notifications.</p>
+                    ) : (
+                        items.map((item) => (
+                            <div key={item.id} className="flex items-start justify-between gap-4">
+                                <div className="flex items-start gap-4">
+                                    <span 
+                                        className="mt-1.5 h-3 w-3 rounded-full shrink-0" 
+                                        style={{ 
+                                            background: item.type === 'error' ? '#FF4343' : 
+                                                       item.type === 'warning' ? '#f5c000' : 
+                                                       item.type === 'success' ? '#10B981' : '#B13BFF' 
+                                        }} 
+                                    />
+                                    <div>
+                                        <p className="text-sm font-semibold" style={{ color: '#4a1a8a' }}>{item.title}</p>
+                                        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: '#7a6aa0' }}>{item.message}</p>
+                                    </div>
+                                </div>
+                                <p className="text-right text-[10px] whitespace-nowrap mt-1" style={{ color: '#a090c8' }}>
+                                    {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                </p>
                             </div>
-                            <p className="text-right text-xs" style={{ color: '#a090c8' }}>{item.date}</p>
-                        </div>
-                    ))}
+                        ))
+                    )}
                 </div>
             </DashboardPanel>
         </motion.div>
@@ -184,6 +201,18 @@ export function AdminDashboard() {
         const baseName = (stored as any)?.username || stored?.name || stored?.email || 'Admin';
         return String(baseName).includes("John Lloyd") ? "kurohara" : String(baseName).trim();
     });
+
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+
+    useEffect(() => {
+        const load = () => {
+            const all = getNotifications();
+            setNotifications(all.slice(0, 5)); // Only show top 5 on dashboard
+        };
+        load();
+        window.addEventListener('notificationsUpdate', load);
+        return () => window.removeEventListener('notificationsUpdate', load);
+    }, []);
 
     useEffect(() => {
         const updateFromStored = () => {
@@ -268,7 +297,7 @@ export function AdminDashboard() {
 
                 <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
                     <DashboardActivityPanel items={ADMIN_RECENT_USER_ACTIONS} />
-                    <DashboardNotificationsPanel items={ADMIN_NOTIFICATIONS} />
+                    <DashboardNotificationsPanel items={notifications} />
                 </div>
             </div>
         </main>
