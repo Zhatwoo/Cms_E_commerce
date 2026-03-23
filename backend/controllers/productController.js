@@ -2,8 +2,36 @@ const Product = require('../models/Product');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const User = require('../models/User');
+const { auth } = require('../config/firebase');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
 const { sendAdminActionEmail } = require('../utils/emailService');
+
+async function resolveClientContact(userId) {
+  let displayName = 'Client';
+  let email = '';
+
+  if (!userId) return { email, displayName };
+
+  const user = await User.findById(userId);
+  if (user) {
+    displayName = user.displayName || user.fullName || user.email || displayName;
+    email = user.email || '';
+  }
+
+  if (!email) {
+    try {
+      const authUser = await auth.getUser(userId);
+      email = authUser.email || '';
+      if (authUser.displayName && (!user || !user.displayName)) {
+        displayName = authUser.displayName;
+      }
+    } catch {
+      // keep best-effort values
+    }
+  }
+
+  return { email: String(email || '').trim(), displayName };
+}
 
 function getAllowedProductImagePrefixes(userId) {
   // Keep previous path for backwards compatibility and cleanup of older uploads.
@@ -366,20 +394,31 @@ exports.adminDelete = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    const owner = existing.userId ? await User.findById(existing.userId) : null;
-    const ownerEmail = owner?.email || '';
-    if (ownerEmail) {
-      await sendAdminActionEmail({
-        to: ownerEmail,
-        name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
+    const contact = await resolveClientContact(existing.userId);
+    let emailSent = false;
+    let emailError = '';
+    if (contact.email) {
+      const mail = await sendAdminActionEmail({
+        to: contact.email,
+        name: contact.displayName,
         subject: 'Product removed by admin',
         title: 'Your product was removed',
         intro: `Product \"${existing.name || 'Untitled Product'}\" was removed by an administrator.`,
         reason: deleteReason,
       });
+      emailSent = !!mail?.sent;
+      emailError = mail?.error || '';
+    } else {
+      emailError = 'Recipient email not found';
     }
 
-    res.status(200).json({ success: true, message: 'Product deleted', data: { id: req.params.id } });
+    res.status(200).json({
+      success: true,
+      message: emailSent ? 'Product deleted and client notified by email' : 'Product deleted, but email notification was not sent',
+      data: { id: req.params.id },
+      emailSent,
+      emailError: emailSent ? undefined : emailError,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }

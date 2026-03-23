@@ -114,9 +114,11 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
         const node = nodes[id];
         if (node?.data?.displayName === "Page") {
           const props = node.data.props ?? {};
+          const rawName = props.pageName as string | undefined;
+          const name = (!rawName || rawName === "Page Name") ? `Page ${index + 1}` : rawName;
           list.push({
             id,
-            name: (props.pageName as string) ?? `Page ${index + 1}`,
+            name,
             slug: (props.pageSlug as string) ?? `page-${index}`,
           });
         }
@@ -176,8 +178,8 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
     [readPrototype, commitPrototype]
   );
 
-  const isPageSlug = (dest: string | undefined) =>
-    dest && pages.some((p) => p.slug === dest);
+  const isPageReference = (dest: string | undefined) =>
+    dest && pages.some((p) => p.id === dest || p.slug === dest);
 
   return (
     <div className="flex flex-col pb-4">
@@ -248,7 +250,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                     <div className="flex flex-col gap-1">
                       <label className={labelClass}>
                         {interaction.action === "openUrl" ? "URL" : "Destination"}
-                        {interaction.action === "navigateTo" && isPageSlug(interaction.destination) && (
+                        {interaction.action === "navigateTo" && isPageReference(interaction.destination) && (
                           <span className="ml-1 text-blue-400" title="Page">📄</span>
                         )}
                       </label>
@@ -262,7 +264,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                         >
                           <option value="">Select page</option>
                           {pages.map((p) => (
-                            <option key={p.id} value={p.slug}>
+                            <option key={p.id} value={p.id}>
                               {p.name} ({p.slug})
                             </option>
                           ))}

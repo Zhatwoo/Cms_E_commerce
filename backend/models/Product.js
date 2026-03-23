@@ -1,4 +1,4 @@
-const { db, admin } = require('../config/firebase');
+const { db } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
 
 const ROOT_COLLECTION = 'published_subdomains';
@@ -263,24 +263,23 @@ async function findAllGlobal(filters = {}, pagination = {}) {
 
 async function findByIdGlobal(id) {
   if (!id) return null;
-  const snap = await db
-    .collectionGroup(PRODUCT_COLLECTION)
-    .where(admin.firestore.FieldPath.documentId(), '==', String(id).trim())
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  return docToObject(snap.docs[0]);
+  const normalizedId = String(id).trim();
+  if (!normalizedId) return null;
+
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  const match = snap.docs.find((doc) => doc.id === normalizedId);
+  if (!match) return null;
+  return docToObject(match);
 }
 
 async function deleteByIdGlobal(id) {
   if (!id) return null;
-  const snap = await db
-    .collectionGroup(PRODUCT_COLLECTION)
-    .where(admin.firestore.FieldPath.documentId(), '==', String(id).trim())
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
+  const normalizedId = String(id).trim();
+  if (!normalizedId) return null;
+
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  const doc = snap.docs.find((entry) => entry.id === normalizedId);
+  if (!doc) return null;
   const existing = docToObject(doc);
   await doc.ref.delete();
   return existing;
