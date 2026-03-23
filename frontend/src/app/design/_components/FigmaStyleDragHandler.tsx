@@ -58,7 +58,17 @@ function getEffectiveZoom(el: HTMLElement | null): number {
     }
     current = current.parentElement;
   }
-  return zoom > 0.01 ? zoom : 1;
+
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+  const transformScale =
+    Number.isFinite(scaleX) && Number.isFinite(scaleY) ? (scaleX + scaleY) / 2 : 1;
+
+  const effective = zoom * transformScale;
+  return effective > 0.01 ? effective : 1;
 }
 
 function parsePxOrAuto(value: unknown): number {
@@ -149,13 +159,15 @@ function getDropTargetAt(
   clientY: number,
   nodes: NodesMap,
   excludeIds: string[],
-  _doms: HTMLElement[]
+  doms: HTMLElement[]
 ): string | null {
   const exclude = new Set(excludeIds);
+  const draggedRoots = doms.filter((dom) => !!dom);
   const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
   for (const el of elements) {
     const withNode = el.closest("[data-node-id]") as HTMLElement | null;
     if (!withNode) continue;
+    if (draggedRoots.some((root) => root.contains(withNode))) continue;
     const id = withNode.getAttribute("data-node-id");
     if (!id || exclude.has(id)) continue;
     const node = nodes[id];
@@ -242,6 +254,7 @@ function getMoveModeForNode(nodeId: string, state: { nodes: NodesMap }): MoveMod
   const position = String(props.position ?? "static").toLowerCase();
   const isAbsoluteLike = position === "absolute" || position === "fixed";
 
+  if (displayName === "Section") return "margin";
   if (isAbsoluteLike) return "offset";
   if (parentIsFreeform) return "offset";
   if (OFFSET_MOVE_TYPES.has(displayName)) return "offset";
@@ -258,12 +271,18 @@ function computeInsertIndex(
   queryNode: (id: string) => { get: () => { dom: HTMLElement | null } | null }
 ): number {
   try {
+    const targetNode = nodes[targetId] as any;
     const targetDom = queryNode(targetId).get()?.dom;
     if (!targetDom) return 0;
 
     const computedStyle = window.getComputedStyle(targetDom);
-    const isRow = computedStyle.flexDirection === "row";
-    const childIds = ((nodes[targetId] as any)?.data?.nodes as string[] | undefined) ?? [];
+    const display = (computedStyle.display || "").toLowerCase();
+    const isFlex = display.includes("flex");
+    const isRow = isFlex && computedStyle.flexDirection === "row";
+    let childIds = ((targetNode?.data?.nodes ?? targetNode?.nodes) as string[] | undefined) ?? [];
+    if (!childIds.length) {
+      childIds = Object.keys(nodes).filter((id) => nodes[id]?.data?.parent === targetId);
+    }
     const validChildren = childIds.filter((id) => !draggedIds.includes(id));
 
     for (let i = 0; i < validChildren.length; i++) {
@@ -273,6 +292,35 @@ function computeInsertIndex(
       const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
       const cursor = isRow ? clientX : clientY;
       if (cursor < midpoint) return i;
+    }
+
+    return validChildren.length;
+  } catch {
+    return 0;
+  }
+}
+
+function computeVerticalInsertIndex(
+  targetId: string,
+  clientY: number,
+  nodes: NodesMap,
+  draggedIds: string[],
+  queryNode: (id: string) => { get: () => { dom: HTMLElement | null } | null }
+): number {
+  try {
+    const targetNode = nodes[targetId] as any;
+    let childIds = ((targetNode?.data?.nodes ?? targetNode?.nodes) as string[] | undefined) ?? [];
+    if (!childIds.length) {
+      childIds = Object.keys(nodes).filter((id) => nodes[id]?.data?.parent === targetId);
+    }
+    const validChildren = childIds.filter((id) => !draggedIds.includes(id));
+
+    for (let i = 0; i < validChildren.length; i++) {
+      const childDom = queryNode(validChildren[i]).get()?.dom;
+      if (!childDom) continue;
+      const rect = childDom.getBoundingClientRect();
+      const midpoint = rect.top + rect.height / 2;
+      if (clientY < midpoint) return i;
     }
 
     return validChildren.length;
@@ -611,7 +659,6 @@ export const FigmaStyleDragHandler = () => {
         document.body.style.userSelect = "none";
         return;
       }
-
       const node = nodesMap[nodeIdFromTarget];
       const locked = node?.data?.props?.locked === true;
       if (locked) return;
@@ -959,6 +1006,8 @@ export const FigmaStyleDragHandler = () => {
         const nodes = state.nodes as NodesMap;
         const ids = d.nodeMargins.map((n) => n.id);
         const currentParentId = nodes[ids[0]]?.data?.parent ?? null;
+        const isSectionDrag = ids.length > 0 && ids.every((id) => String(nodes[id]?.data?.displayName ?? "") === "Section");
+        let handledSectionReorder = false;
 
         const doms = getDraggedDoms(ids, queryRef.current.node);
         let dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
@@ -966,11 +1015,43 @@ export const FigmaStyleDragHandler = () => {
           dropTargetId = findPageTargetAt(d.lastX, d.lastY, nodes, ids);
         }
 
-        if (
+        if (isSectionDrag && currentParentId) {
+          try {
+            const insertIndex = computeVerticalInsertIndex(currentParentId, d.lastY, nodes, ids, queryRef.current.node);
+            ids.forEach((nodeId, i) => {
+              actionsRef.current.move(nodeId, currentParentId, insertIndex + i);
+            });
+            ids.forEach((id) => {
+              actionsRef.current.setProp(id, (props: Record<string, unknown>) => {
+                const currentPosition = String(props.position ?? "static").toLowerCase();
+                if (currentPosition !== "relative") {
+                  props.position = "relative";
+                }
+                if (props.top != null && String(props.top) !== "auto") props.top = "auto";
+                if (props.left != null && String(props.left) !== "auto") props.left = "auto";
+                if (props.right != null && String(props.right) !== "auto") props.right = "auto";
+                if (props.bottom != null && String(props.bottom) !== "auto") props.bottom = "auto";
+              });
+            });
+          } catch {
+            // If reorder fails, fall back to bounded move so the drag still applies.
+            const nodes = queryRef.current?.getState()?.nodes ?? {};
+            const dx = (d.lastX - d.startX) / d.zoom;
+            const dy = (d.lastY - d.startY) / d.zoom;
+            d.nodeMargins.filter((e) => e.id && nodes[e.id]).forEach((entry) => {
+              actionsRef.current.setProp(entry.id, (props: Record<string, unknown>) => {
+                applyBoundedMove(entry, dx, dy, props);
+              });
+            });
+          }
+          handledSectionReorder = true;
+        }
+
+        if (!handledSectionReorder && (
           dropTargetId &&
           dropTargetId !== currentParentId &&
           ids.every((id) => canAcceptNode(nodes, dropTargetId, id))
-        ) {
+        )) {
           try {
             const insertIndex = computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
             const dropTargetDom = queryRef.current.node(dropTargetId).get()?.dom ?? null;
@@ -1042,7 +1123,7 @@ export const FigmaStyleDragHandler = () => {
               });
             });
           }
-        } else {
+        } else if (!handledSectionReorder) {
           const nodes = queryRef.current?.getState()?.nodes ?? {};
           let dx = (d.lastX - d.startX) / d.zoom;
           let dy = (d.lastY - d.startY) / d.zoom;
@@ -1176,6 +1257,8 @@ export const FigmaStyleDragHandler = () => {
         backface-visibility: hidden;
         transform-style: preserve-3d;
         transition: none !important;
+        pointer-events: none !important;
+        box-shadow: none !important;
       }
     `}</style>
   );

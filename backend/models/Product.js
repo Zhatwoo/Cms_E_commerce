@@ -1,6 +1,5 @@
 const { db } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
-const Project = require('./Project');
 
 const ROOT_COLLECTION = 'published_subdomains';
 const PRODUCT_COLLECTION = 'products';
@@ -137,17 +136,6 @@ async function getOwnedSubdomains(userId, subdomain) {
   return snap.docs.map((d) => d.id);
 }
 
-async function getAllSubdomains(subdomain) {
-  const normalized = normalizeSubdomain(subdomain);
-  if (normalized) {
-    const snap = await db.collection(ROOT_COLLECTION).doc(normalized).get();
-    return snap.exists ? [normalized] : [];
-  }
-
-  const snap = await db.collection(ROOT_COLLECTION).get();
-  return snap.docs.map((d) => d.id);
-}
-
 async function createForSubdomain({ subdomain, userId, projectId, domainId, data }) {
   const normalized = normalizeSubdomain(subdomain);
   if (!normalized) throw new Error('subdomain is required');
@@ -254,48 +242,47 @@ async function findAllForUser(filters = {}, pagination = {}) {
   return paginate(items, pagination);
 }
 
-async function findAllForAdmin(filters = {}, pagination = {}) {
-  const groupSnap = await db.collectionGroup(PRODUCT_COLLECTION).get();
-  let items = groupSnap.docs.map((d) => docToObject(d));
+async function findAllGlobal(filters = {}, pagination = {}) {
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  let items = snap.docs.map((d) => docToObject(d));
+
   if (filters.subdomain) {
     const normalized = normalizeSubdomain(filters.subdomain);
     items = items.filter((p) => normalizeSubdomain(p.subdomain) === normalized);
   }
+
   if (filters.status) {
     const statusFilter = String(filters.status).toLowerCase();
     items = items.filter((p) => String(p.status || '').toLowerCase() === statusFilter);
   }
 
-  if (filters.includeProjectIndustry) {
-    const projectIndustryCache = new Map();
-
-    await Promise.all(
-      items.map(async (item) => {
-        const ownerId = String(item.userId || '').trim();
-        const projectId = String(item.projectId || '').trim();
-        if (!ownerId || !projectId) {
-          item.projectIndustry = null;
-          return;
-        }
-
-        const cacheKey = `${ownerId}:${projectId}`;
-        if (!projectIndustryCache.has(cacheKey)) {
-          try {
-            const project = await Project.get(ownerId, projectId);
-            projectIndustryCache.set(cacheKey, project?.industry || null);
-          } catch {
-            projectIndustryCache.set(cacheKey, null);
-          }
-        }
-
-        item.projectIndustry = projectIndustryCache.get(cacheKey) || null;
-      })
-    );
-  }
-
   items = sortByCreatedAtDesc(items);
   items = applySearch(items, filters.search);
   return paginate(items, pagination);
+}
+
+async function findByIdGlobal(id) {
+  if (!id) return null;
+  const normalizedId = String(id).trim();
+  if (!normalizedId) return null;
+
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  const match = snap.docs.find((doc) => doc.id === normalizedId);
+  if (!match) return null;
+  return docToObject(match);
+}
+
+async function deleteByIdGlobal(id) {
+  if (!id) return null;
+  const normalizedId = String(id).trim();
+  if (!normalizedId) return null;
+
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  const doc = snap.docs.find((entry) => entry.id === normalizedId);
+  if (!doc) return null;
+  const existing = docToObject(doc);
+  await doc.ref.delete();
+  return existing;
 }
 
 async function findByIdForUser(id, userId) {
@@ -682,13 +669,15 @@ async function findPublicBySubdomain(subdomain, { limit = 100 } = {}) {
 module.exports = {
   createForSubdomain,
   findAllForUser,
-  findAllForAdmin,
+  findAllGlobal,
+  findByIdGlobal,
   findByIdForUser,
   findBySlugForUser,
   findBySkuForUser,
   updateForUser,
   applyInventoryDeltaForUser,
   applyVariantInventoryDeltaForUser,
+  deleteByIdGlobal,
   deleteByIdForUser,
   findPublicBySubdomain,
   normalizeSubdomain,

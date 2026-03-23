@@ -1,7 +1,37 @@
 const Product = require('../models/Product');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const User = require('../models/User');
+const { auth } = require('../config/firebase');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
+const { sendAdminActionEmail } = require('../utils/emailService');
+
+async function resolveClientContact(userId) {
+  let displayName = 'Client';
+  let email = '';
+
+  if (!userId) return { email, displayName };
+
+  const user = await User.findById(userId);
+  if (user) {
+    displayName = user.displayName || user.fullName || user.email || displayName;
+    email = user.email || '';
+  }
+
+  if (!email) {
+    try {
+      const authUser = await auth.getUser(userId);
+      email = authUser.email || '';
+      if (authUser.displayName && (!user || !user.displayName)) {
+        displayName = authUser.displayName;
+      }
+    } catch {
+      // keep best-effort values
+    }
+  }
+
+  return { email: String(email || '').trim(), displayName };
+}
 
 function getAllowedProductImagePrefixes(userId) {
   // Keep previous path for backwards compatibility and cleanup of older uploads.
@@ -42,14 +72,24 @@ async function resolveOwnedDomain(userId, subdomainInput) {
 
 exports.getAll = async (req, res) => {
   try {
-    const { status, search, page, limit, subdomain } = req.query;
+    const { status, search, page, limit, subdomain, scope } = req.query;
     const headerProjectId = String(req.headers['x-project-id'] || '').trim();
-    const normalizedRole = String(req.user.role || '').trim().toLowerCase();
-    const isAdmin = normalizedRole === 'admin' || normalizedRole === 'super_admin';
-    const filters = isAdmin ? {} : { userId: req.user.id };
+    const isAdmin = req.user?.role === 'admin' || req.user?.role === 'super_admin';
+    const wantsGlobalScope = String(scope || '').toLowerCase() === 'all';
+
+    if (isAdmin && wantsGlobalScope) {
+      const filters = {};
+      if (status) filters.status = status;
+      if (search) filters.search = search;
+      if (subdomain) filters.subdomain = Product.normalizeSubdomain(subdomain);
+      const result = await Product.findAllGlobal(filters, { page, limit });
+      return res.status(200).json({ success: true, ...result });
+    }
+
+    const filters = { userId: req.user.id };
     if (status) filters.status = status;
     if (search) filters.search = search;
-    if (!isAdmin && !subdomain && headerProjectId) {
+    if (!subdomain && headerProjectId) {
       const selectedProject = await Project.get(req.user.id, headerProjectId);
       const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
       if (selectedProjectSubdomain) {
@@ -60,19 +100,13 @@ exports.getAll = async (req, res) => {
       }
     }
     if (subdomain) {
-      if (isAdmin) {
-        filters.subdomain = Product.normalizeSubdomain(subdomain);
-      } else {
       const owned = await resolveOwnedDomain(req.user.id, subdomain);
       if (owned.error) {
         return res.status(400).json({ success: false, message: owned.error });
       }
       filters.subdomain = owned.subdomain;
-      }
     }
-    const result = isAdmin
-      ? await Product.findAllForAdmin({ ...filters, includeProjectIndustry: true }, { page, limit })
-      : await Product.findAllForUser(filters, { page, limit });
+    const result = await Product.findAllForUser(filters, { page, limit });
     res.status(200).json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
@@ -337,6 +371,54 @@ exports.delete = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product deleted' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
+  }
+};
+
+exports.adminDelete = async (req, res) => {
+  try {
+    const { reason } = req.body || {};
+    const deleteReason = String(reason || '').trim();
+    if (!deleteReason) {
+      return res.status(400).json({ success: false, message: 'Deletion reason is required' });
+    }
+
+    const existing = await Product.findByIdGlobal(req.params.id);
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const deleted = await Product.deleteByIdGlobal(req.params.id);
+    if (!deleted) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const contact = await resolveClientContact(existing.userId);
+    let emailSent = false;
+    let emailError = '';
+    if (contact.email) {
+      const mail = await sendAdminActionEmail({
+        to: contact.email,
+        name: contact.displayName,
+        subject: 'Product removed by admin',
+        title: 'Your product was removed',
+        intro: `Product \"${existing.name || 'Untitled Product'}\" was removed by an administrator.`,
+        reason: deleteReason,
+      });
+      emailSent = !!mail?.sent;
+      emailError = mail?.error || '';
+    } else {
+      emailError = 'Recipient email not found';
+    }
+
+    res.status(200).json({
+      success: true,
+      message: emailSent ? 'Product deleted and client notified by email' : 'Product deleted, but email notification was not sent',
+      data: { id: req.params.id },
+      emailSent,
+      emailError: emailSent ? undefined : emailError,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }

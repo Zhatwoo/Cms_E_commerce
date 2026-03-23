@@ -79,7 +79,10 @@ class FrameErrorBoundary extends React.Component<
   { children: React.ReactNode; onError: () => void },
   { hasError: boolean }
 > {
-  state = { hasError: false };
+  constructor(props: { children: React.ReactNode; onError: () => void }) {
+    super(props);
+    this.state = { hasError: false };
+  }
 
   static getDerivedStateFromError() {
     return { hasError: true };
@@ -87,9 +90,7 @@ class FrameErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('❌ FrameErrorBoundary caught error:', error, errorInfo);
-    if (this.props && typeof this.props.onError === 'function') {
-      this.props.onError();
-    }
+    this.props?.onError?.();
   }
 
   render() {
@@ -206,6 +207,7 @@ function normalizeResolvedName(rawName: unknown): string {
   if (lowered.includes("divider")) return "Divider";
   if (lowered.includes("banner")) return "Banner";
   if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("profilelogin") || lowered.includes("profile login") || lowered.includes("profile-login")) return "ProfileLogin";
   if (lowered.includes("pagination")) return "Pagination";
   if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
@@ -627,25 +629,7 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
 function prepareFrameData(jsonString: string): { valid: boolean; data?: string } {
   // Always run through validator so component type names are canonicalized
   // against resolver keys (e.g. Image/image/Text/text) before Frame mount.
-  const validated = validateCraftData(jsonString);
-  if (!validated.valid || !validated.data) {
-    return { valid: false };
-  }
-
-  try {
-    // Round-trip through the clean document schema to strip malformed node metadata
-    // that can still survive direct validation and later crash Craft Frame mounts.
-    const cleanDoc = serializeCraftToClean(validated.data);
-    const roundTripped = deserializeCleanToCraft(cleanDoc);
-    const revalidated = validateCraftData(roundTripped);
-    if (revalidated.valid && revalidated.data) {
-      return revalidated;
-    }
-  } catch {
-    // Fall back to the directly validated payload below.
-  }
-
-  return validated;
+  return validateCraftData(jsonString);
 }
 
 function ensureFrameDataResolverCompatibility(
@@ -655,6 +639,19 @@ function ensureFrameDataResolverCompatibility(
   try {
     const parsed = JSON.parse(jsonString) as Record<string, any>;
     if (!parsed || typeof parsed !== "object") return jsonString;
+
+    const canonicalByLower = new Map<string, string>();
+    Object.keys(resolver).forEach((key) => {
+      const lowered = key.trim().toLowerCase();
+      if (!lowered) return;
+      if (!canonicalByLower.has(lowered)) canonicalByLower.set(lowered, key);
+    });
+
+    const containerFallback =
+      canonicalByLower.get("container") ??
+      canonicalByLower.get("viewport") ??
+      Object.keys(resolver)[0] ??
+      "Container";
 
     const booleanResolverCandidates = [
       "BooleanField",
@@ -671,7 +668,7 @@ function ensureFrameDataResolverCompatibility(
 
     const resolvedBooleanType =
       booleanResolverCandidates.find((name) => name in resolver) ??
-      ("Container" in resolver ? "Container" : "container");
+      containerFallback;
 
     let changed = false;
     Object.keys(parsed).forEach((id) => {
@@ -684,7 +681,37 @@ function ensureFrameDataResolverCompatibility(
           : "";
       if (!current) return;
 
-      const lowered = current.trim().toLowerCase();
+      const trimmedCurrent = current.trim();
+      const loweredCurrent = trimmedCurrent.toLowerCase();
+      const resolverMatch =
+        (trimmedCurrent in resolver ? trimmedCurrent : undefined) ??
+        canonicalByLower.get(loweredCurrent) ??
+        canonicalByLower.get(loweredCurrent.replace(/[-_\s]+/g, "")) ??
+        canonicalByLower.get(loweredCurrent.replace(/component$/, ""));
+
+      const safeResolvedName = resolverMatch ?? containerFallback;
+
+      if (typeof node.type === "string") {
+        if (node.type !== safeResolvedName) {
+          node.type = safeResolvedName;
+          changed = true;
+        }
+      } else if (node.type && typeof node.type === "object") {
+        if (node.type.resolvedName !== safeResolvedName) {
+          node.type.resolvedName = safeResolvedName;
+          changed = true;
+        }
+      } else {
+        node.type = { resolvedName: safeResolvedName };
+        changed = true;
+      }
+
+      if (node.displayName !== safeResolvedName) {
+        node.displayName = safeResolvedName;
+        changed = true;
+      }
+
+      const lowered = loweredCurrent;
       if (!(lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio"))) {
         return;
       }
@@ -734,6 +761,8 @@ if (typeof window !== "undefined") {
       if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
       // Known broken Unsplash image (content migration replaces; suppress noisy load error)
       if (concat.includes("Error loading image") && concat.includes("photo-1581093458791-9f3c3900df4b")) return;
+      // Firebase Storage tokens may expire in old snapshots; surface visually in canvas but suppress noisy console spam.
+      if (concat.includes("Error loading image") && concat.includes("firebasestorage.googleapis.com")) return;
       originalError(...args);
     };
     win.__craftConsoleErrorPatched__ = true;
@@ -968,7 +997,7 @@ const CollabSyncHandler = () => {
       console.log("[CollabSync] Received remote change, type:", data.type, "hasJson:", !!data.json);
       if (data.type !== "nodes_change" || !data.json) return;
       try {
-        const validated = prepareFrameData(data.json);
+        const validated = validateCraftData(data.json);
         if (validated.valid && validated.data) {
           console.log("[CollabSync] Applying remote deserialization");
           isApplyingRemoteRef.current = true;
@@ -1231,31 +1260,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           return prev === next ? prev : next;
         });
       }
-
-      // If panels were previously saved as both closed, they can look like the editor UI broke.
-      // Auto-restore both panels for non-viewer permissions.
-      const nextLeftPanelOpen =
-        permission === "viewer"
-          ? false
-          : typeof parsed.leftPanelOpen === "boolean"
-            ? parsed.leftPanelOpen
-            : true;
-      const nextRightPanelOpen =
-        permission === "viewer"
-          ? false
-          : typeof parsed.rightPanelOpen === "boolean"
-            ? parsed.rightPanelOpen
-            : true;
-
-      const bothClosed = nextLeftPanelOpen === false && nextRightPanelOpen === false;
-      if (bothClosed) {
-        setLeftPanelOpen(true);
-        setRightPanelOpen(true);
-      } else {
-        setLeftPanelOpen(nextLeftPanelOpen);
-        setRightPanelOpen(nextRightPanelOpen);
-      }
-
+      if (typeof parsed.leftPanelOpen === "boolean") setLeftPanelOpen(permission === "viewer" ? false : parsed.leftPanelOpen);
+      if (typeof parsed.rightPanelOpen === "boolean") setRightPanelOpen(permission === "viewer" ? false : parsed.rightPanelOpen);
       if (parsed.rightPanelTab) setRightPanelTab(parsed.rightPanelTab);
       if (typeof parsed.showDualView === "boolean") setShowDualView(parsed.showDualView);
       if (parsed.currentPageId) setCurrentPageId(parsed.currentPageId);
@@ -1286,16 +1292,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   // Prevents stale hidden state from making the panel appear missing.
   useEffect(() => {
     if (!panelsReady || hasForcedRightPanelOpenRef.current || permission === "viewer") return;
-    // If both panels are hidden, restore both so TopPanel + BottomPanel tools are visible.
-    if (leftPanelOpen === false && rightPanelOpen === false) {
-      hasForcedRightPanelOpenRef.current = true;
-      setLeftPanelOpen(true);
-      setRightPanelOpen(true);
-      return;
-    }
     hasForcedRightPanelOpenRef.current = true;
     setRightPanelOpen(true);
-  }, [panelsReady, permission, leftPanelOpen, rightPanelOpen]);
+  }, [panelsReady, permission]);
 
   // Load pages from document
   const loadPages = useCallback((content: string) => {
@@ -1316,62 +1315,33 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     }
   }, []);
 
-  const updatePagesDocument = useCallback((
-    updater: (doc: BuilderDocument) => BuilderDocument | null
-  ): string | null => {
-    if (!initialJson) return null;
-    try {
-      const parsed = JSON.parse(initialJson);
-      let doc: BuilderDocument;
-
-      if (parsed?.version !== undefined && Array.isArray(parsed?.pages) && parsed?.nodes && typeof parsed.nodes === "object") {
-        doc = parsed as BuilderDocument;
-      } else {
-        doc = serializeCraftToClean(initialJson);
-      }
-
-      const nextDoc = updater(doc);
-      if (!nextDoc) return null;
-
-      const craftJson = deserializeCleanToCraft(nextDoc);
-      const prepared = prepareFrameData(craftJson);
-      if (!prepared.valid || !prepared.data) return null;
-
-      loadPages(JSON.stringify(nextDoc));
-      return prepared.data;
-    } catch {
-      return null;
-    }
-  }, [initialJson, loadPages]);
-
   const handleAddPage = useCallback(() => {
     if (!initialJson) return;
     try {
       const id = `page-${Date.now()}`;
-      const updated = updatePagesDocument((doc) => ({
-        ...doc,
-        pages: [
-          ...(Array.isArray(doc.pages) ? doc.pages : []),
-          {
-            id,
-            name: `Page ${pages.length + 1}`,
-            slug: `page-${pages.length}`,
-            props: { width: "1920px", height: "1200px" },
-            children: [],
-          },
-        ],
-      }));
-      if (!updated) throw new Error("Failed to update page document");
+      const newPage = {
+        id,
+        name: `Page ${pages.length + 1}`,
+        props: { width: "100%", height: "auto" },
+        children: [],
+      };
+      const parsed = JSON.parse(initialJson);
+      if (!Array.isArray(parsed.pages)) parsed.pages = [];
+      parsed.pages.push(newPage);
+      const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
+      // Save to sessionStorage for persistence across refreshes
       safeSessionSet(storageKey, updated);
-      safeLocalSet(getPersistentStorageKey(projectId), updated);
+      // Optionally, also save to localStorage for backup (uncomment if needed)
+      // localStorage.setItem(storageKey, updated);
+      loadPages(updated);
       setCurrentPageId(id);
       setInitialJson(updated);
     } catch (error) {
       console.error("Failed to add page:", error);
       showAlert("Failed to add page", "error");
     }
-  }, [initialJson, pages, projectId, showAlert, updatePagesDocument]);
+  }, [initialJson, pages, projectId, loadPages, showAlert]);
 
   /** Sync pages list when a new page is added to the canvas via Craft (Add Page button / FAB) */
   const handlePageAdded = useCallback((id: string, name: string) => {
@@ -1386,46 +1356,40 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const handleDeletePage = useCallback((pageId: string) => {
     if (!initialJson || pages.length <= 1) return;
     try {
-      const updated = updatePagesDocument((doc) => ({
-        ...doc,
-        pages: (Array.isArray(doc.pages) ? doc.pages : []).filter((p) => p.id !== pageId),
-      }));
-      if (!updated) throw new Error("Failed to update page document");
+      const parsed = JSON.parse(initialJson);
+      parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
+      const updated = JSON.stringify(parsed);
       const storageKey = getStorageKey(projectId);
       safeSessionSet(storageKey, updated);
-      safeLocalSet(getPersistentStorageKey(projectId), updated);
-      const doc = serializeCraftToClean(updated);
-      if (currentPageId === pageId && doc.pages.length > 0) {
-        setCurrentPageId(doc.pages[0].id);
+      loadPages(updated);
+      if (currentPageId === pageId && parsed.pages.length > 0) {
+        setCurrentPageId(parsed.pages[0].id);
       }
       setInitialJson(updated);
     } catch (error) {
       console.error("Failed to delete page:", error);
       showAlert("Failed to delete page", "error");
     }
-  }, [initialJson, currentPageId, pages, projectId, showAlert, updatePagesDocument]);
+  }, [initialJson, currentPageId, pages, projectId, loadPages, showAlert]);
 
   const handleRenamePage = useCallback((pageId: string, newName: string) => {
     if (!initialJson) return;
     try {
-      const updated = updatePagesDocument((doc) => ({
-        ...doc,
-        pages: (Array.isArray(doc.pages) ? doc.pages : []).map((page) =>
-          page.id === pageId
-            ? { ...page, name: newName }
-            : page
-        ),
-      }));
-      if (!updated) throw new Error("Failed to update page document");
-      const storageKey = getStorageKey(projectId);
-      safeSessionSet(storageKey, updated);
-      safeLocalSet(getPersistentStorageKey(projectId), updated);
-      setInitialJson(updated);
+      const parsed = JSON.parse(initialJson);
+      const page = (parsed.pages || []).find((p: any) => p.id === pageId);
+      if (page) {
+        page.name = newName;
+        const updated = JSON.stringify(parsed);
+        const storageKey = getStorageKey(projectId);
+        safeSessionSet(storageKey, updated);
+        loadPages(updated);
+        setInitialJson(updated);
+      }
     } catch (error) {
       console.error("Failed to rename page:", error);
       showAlert("Failed to rename page", "error");
     }
-  }, [initialJson, projectId, showAlert, updatePagesDocument]);
+  }, [initialJson, projectId, loadPages, showAlert]);
 
   const mousePosRef = useRef({ x: 0, y: 0 });
 
@@ -2132,7 +2096,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             if (!parsed || typeof parsed !== "object") return null;
 
             if (parsed.ROOT && Array.isArray(parsed.ROOT?.nodes)) {
-              const validated = prepareFrameData(JSON.stringify(parsed));
+              const validated = validateCraftData(JSON.stringify(parsed));
               return validated.valid && validated.data ? validated.data : null;
             }
             if (
@@ -2142,7 +2106,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
               typeof parsed.nodes === "object"
             ) {
               const craftJson = deserializeCleanToCraft(parsed as Parameters<typeof deserializeCleanToCraft>[0]);
-              const validated = prepareFrameData(craftJson);
+              const validated = validateCraftData(craftJson);
               return validated.valid && validated.data ? validated.data : null;
             }
             return null;
@@ -2265,16 +2229,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const id = requestAnimationFrame(() => setPanelsReady(true));
     return () => cancelAnimationFrame(id);
   }, [frameReady]);
-
-  // Fail-safe: if the frame mounted but panelsReady never flips to true (rare),
-  // re-enable panels after a short delay so the editor tools/shortcuts come back.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (permission === "viewer") return;
-    if (panelsReady) return;
-    const t = window.setTimeout(() => setPanelsReady(true), 2500);
-    return () => window.clearTimeout(t);
-  }, [panelsReady, permission, initialJson, frameReady]);
 
   // Hide Craft drop indicator only when dragging the special New Page source item
   useEffect(() => {
@@ -2680,6 +2634,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
 
+    // Keep legacy ProfileLogin node names resolvable in existing saved snapshots.
+    const profileLoginComp = asComponent(
+      CRAFT_RESOLVER.ProfileLoginNode ?? CRAFT_RESOLVER.ProfileLogin ?? SAFE_CONTAINER
+    );
+    base.ProfileLogin = profileLoginComp;
+    base.profilelogin = profileLoginComp;
+    base.ProfileLoginNode = profileLoginComp;
+    base.profileloginnode = profileLoginComp;
+
     // Explicitly ensure Tabs and TabContent are in the resolver
     base.Tabs = asComponent(CRAFT_RESOLVER.Tabs ?? Tabs);
     base.tabs = asComponent(CRAFT_RESOLVER.tabs ?? Tabs);
@@ -2708,7 +2671,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     if (initialJson === undefined || initialJson === null || initialJson === "") return null;
     try {
       const raw = typeof initialJson === "string" ? initialJson : JSON.stringify(initialJson);
-      const validated = prepareFrameData(raw);
+      const validated = validateCraftData(raw);
       return validated.valid && validated.data
         ? ensureFrameDataResolverCompatibility(validated.data, resolver)
         : null;
@@ -2717,20 +2680,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     }
   }, [initialJson, resolver]);
 
-  const shouldForceFluidCanvas = canvasWidth <= 1024;
-  const fluidCanvasTier = canvasWidth <= 640 ? "mobile" : canvasWidth <= 1024 ? "tablet" : "desktop";
-
   return (
-    <div
-      data-web-builder-root
-      data-force-fluid-canvas={shouldForceFluidCanvas ? "true" : "false"}
-      data-fluid-canvas-tier={fluidCanvasTier}
-      data-device-switching={isDeviceSwitching ? "true" : "false"}
-      className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}
-      style={{
-        ["--builder-device-width" as string]: `${canvasWidth}px`,
-      } as React.CSSProperties}
-    >
+    <div data-web-builder-root className={`h-screen bg-builder-bg text-builder-text overflow-hidden font-sans relative${isDarkMode ? "" : " light"}`}>
       <style>{`
           div[style*="position: fixed"][style*="z-index: 99999"][style*="border-style: solid"],
           div[style*="position: fixed"][style*="z-index: 99999"][style*="background-color: rgb(98, 196, 98)"],
@@ -2741,119 +2692,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             opacity: 0 !important;
             border-width: 0 !important;
             background: transparent !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] {
-            width: min(100%, var(--builder-device-width, 1024px)) !important;
-            max-width: 100% !important;
-            min-width: 0 !important;
-            overflow-x: hidden !important;
-            box-sizing: border-box !important;
-            transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1), max-width 220ms cubic-bezier(0.22, 1, 0.36, 1);
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] [data-node-id] {
-            max-width: 100% !important;
-            min-width: 0 !important;
-            overflow-wrap: break-word;
-            transition:
-              width 180ms ease,
-              max-width 180ms ease,
-              min-width 180ms ease,
-              margin 180ms ease,
-              padding 180ms ease,
-              transform 180ms ease,
-              opacity 160ms ease;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-layout="row"] {
-            flex-wrap: wrap !important;
-            align-items: stretch !important;
-            gap: clamp(8px, 2cqw, 18px) !important;
-            height: auto !important;
-            min-height: 0 !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-node-id][style*="display: flex"][style*="flex-direction: row"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
-            flex-wrap: wrap !important;
-            align-items: stretch !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            gap: clamp(8px, 2cqw, 18px) !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [data-layout="row"] > * {
-            min-width: 0 !important;
-            max-width: 100% !important;
-            flex: 0 1 min(320px, 100%) !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-layout="row"] {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            height: auto !important;
-            min-height: 0 !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-node-id][style*="display: flex"][style*="flex-direction: row"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
-            flex-direction: column !important;
-            align-items: stretch !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            gap: clamp(8px, 2.4cqw, 16px) !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [data-layout="row"] > * {
-            max-width: 100% !important;
-            min-width: 0 !important;
-            flex: 0 1 auto !important;
-            align-self: stretch !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] img,
-          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] video,
-          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] iframe,
-          [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] [data-fluid-media="true"] {
-            max-width: 100% !important;
-            min-width: 0 !important;
-            height: auto !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position: absolute"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position:absolute"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position: fixed"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="mobile"] [data-page-node="true"] [style*="position:fixed"] {
-            position: relative !important;
-            left: auto !important;
-            right: auto !important;
-            top: auto !important;
-            bottom: auto !important;
-            transform: none !important;
-            max-width: 100% !important;
-            min-width: 0 !important;
-            align-self: stretch !important;
-          }
-
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position: absolute"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position:absolute"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position: fixed"],
-          [data-web-builder-root][data-force-fluid-canvas="true"][data-fluid-canvas-tier="tablet"] [data-page-node="true"] [style*="position:fixed"] {
-            max-width: 100% !important;
-            min-width: 0 !important;
-          }
-
-          [data-web-builder-root][data-device-switching="true"] [data-page-node="true"] [data-node-id] {
-            transition-duration: 240ms !important;
-            transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1) !important;
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"],
-            [data-web-builder-root][data-force-fluid-canvas="true"] [data-page-node="true"] [data-node-id] {
-              transition: none !important;
-            }
           }
         `}</style>
       <Editor

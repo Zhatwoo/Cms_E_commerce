@@ -3,11 +3,13 @@ import { useNode } from "@craftjs/core";
 import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { uploadMediaApi } from "@/lib/api";
+import { addFileToMediaLibrary } from "../../_lib/mediaActions";
 import type { ImageProps, SetProp } from "../../_types/components";
 
 export const ImageSettings = () => {
@@ -19,6 +21,7 @@ export const ImageSettings = () => {
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     actions: { setProp }
   } = useNode(node => ({
     src: node.data.props.src,
@@ -44,6 +47,14 @@ export const ImageSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
   }));
 
   const typedSetProp = setProp as SetProp<ImageProps>;
@@ -65,11 +76,9 @@ export const ImageSettings = () => {
       setUploading(true);
       setUploadProgress(0);
       try {
-        const { url } = await uploadMediaApi(projectId, file, {
-          folder: "images",
-          onProgress: (percent) => setUploadProgress(percent),
-        });
-        typedSetProp((props) => { props.src = url; });
+        // Use addFileToMediaLibrary to ensure this upload shows up in the 'Media' tab in the left panel
+        const item = await addFileToMediaLibrary(projectId, file);
+        typedSetProp((props) => { props.src = item.url; });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("Upload failed:", err);
@@ -108,12 +117,26 @@ export const ImageSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Position & Transform">
+      <DesignSection title="Transform">
         <TransformGroup
           rotation={rotation}
           flipHorizontal={flipHorizontal}
           flipVertical={flipVertical}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
@@ -190,6 +213,9 @@ export const ImageSettings = () => {
                 Using local preview (not in Storage)
               </p>
             )}
+            <p className="text-[9px] text-[var(--builder-text-faint)] mt-2 italic px-1">
+              Tip: Drag & drop from the Media tab to replace instantly.
+            </p>
           </div>
 
           {/* Alt Text */}
@@ -224,7 +250,7 @@ export const ImageSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Size & Position">
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}

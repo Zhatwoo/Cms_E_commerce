@@ -6,7 +6,7 @@ import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
-import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
+import { PREVIEW_MOBILE_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -364,17 +364,10 @@ function toNumber(value: unknown, fallback: number): number {
 function shouldRenderNodeAtWidth(props: Record<string, unknown>, viewportWidth: number, defaultBreakpoint: number = PREVIEW_MOBILE_BREAKPOINT): boolean {
   const breakpoint = toNumber(props.mobileBreakpoint, defaultBreakpoint);
   const isMobile = viewportWidth <= breakpoint;
-  const isTablet = viewportWidth > breakpoint && viewportWidth <= PREVIEW_TABLET_BREAKPOINT;
-  const isDesktop = viewportWidth > PREVIEW_TABLET_BREAKPOINT;
   const showOn = (props.showOn as string | undefined)?.toLowerCase();
 
-  // Handle showOn property - support mobile, tablet, desktop, or mobile+tablet
   if (showOn === "mobile") return isMobile;
-  if (showOn === "tablet") return isTablet;
-  if (showOn === "desktop") return isDesktop;
-  if (showOn === "mobile-tablet" || showOn === "mobile,tablet") return isMobile || isTablet;
-  if (showOn === "tablet-desktop" || showOn === "tablet,desktop") return isTablet || isDesktop;
-  
+  if (showOn === "desktop") return !isMobile;
   return true;
 }
 
@@ -455,7 +448,7 @@ const frameResponsiveStyles = (
       .frame-responsive-inner iframe,
       .frame-responsive-inner [data-responsive-asset] {
         max-width: 100%;
-        width: auto;
+        width: 100%;
         min-width: 0;
         height: auto;
         object-fit: cover;
@@ -468,8 +461,6 @@ const frameResponsiveStyles = (
         width: 100% !important;
         max-width: 100% !important;
         min-width: 0 !important;
-        overflow-x: hidden !important;
-        box-sizing: border-box !important;
       }
       .frame-responsive-inner.frame-fluid * { box-sizing: border-box; }
       .frame-responsive-inner.frame-fluid > * {
@@ -480,6 +471,7 @@ const frameResponsiveStyles = (
       .frame-responsive-inner.frame-fluid video,
       .frame-responsive-inner.frame-fluid iframe {
         max-width: 100% !important;
+        width: 100% !important;
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
@@ -538,41 +530,13 @@ const frameResponsiveStyles = (
 
       .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
         object-fit: cover !important;
+        width: 100%;
         height: auto;
         max-width: 100% !important;
         aspect-ratio: var(--media-aspect-ratio, auto);
       }
 
-      @container (max-width: 1024px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
-          flex-wrap: wrap !important;
-          align-items: stretch !important;
-          height: auto !important;
-          min-height: 0 !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: flex"][style*="flex-direction: row"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
-          flex-wrap: wrap !important;
-          align-items: stretch !important;
-          min-width: 0 !important;
-          max-width: 100% !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
-          min-width: 0 !important;
-          max-width: 100% !important;
-          flex: 0 1 min(320px, 100%) !important;
-        }
-      }
-
       .frame-responsive-inner.frame-fluid [data-fluid-space="true"] {
-        max-width: 100% !important;
-      }
-
-      .frame-responsive-inner.frame-fluid [data-node-id][style*="display: grid"],
-      .frame-responsive-inner.frame-fluid [data-node-id][style*="display:grid"] {
-        min-width: 0 !important;
         max-width: 100% !important;
       }
 
@@ -584,43 +548,6 @@ const frameResponsiveStyles = (
         from { opacity: 0.96; transform: translateY(4px); }
         to { opacity: 1; transform: translateY(0); }
       }
-
-      @container (min-width: 641px) and (max-width: 950px) {
-        /* Tablet-optimized spacing and typography */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          font-size: clamp(14px, var(--fluid-font-cqw, 3.6cqw), var(--fluid-font-max, 48px)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-top: clamp(12px, 2.2cqw, 24px) !important;
-          padding-bottom: clamp(12px, 2.2cqw, 24px) !important;
-          padding-left: clamp(12px, 2.8cqw, 24px) !important;
-          padding-right: clamp(12px, 2.8cqw, 24px) !important;
-          column-gap: clamp(12px, 2.6cqw, 28px) !important;
-          row-gap: clamp(12px, 2.6cqw, 28px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          padding-left: clamp(14px, 2.4cqw, 28px) !important;
-          padding-right: clamp(14px, 2.4cqw, 28px) !important;
-          padding-top: clamp(10px, 1.8cqw, 14px) !important;
-          padding-bottom: clamp(10px, 1.8cqw, 14px) !important;
-          gap: clamp(8px, 1.8cqw, 16px) !important;
-          font-size: clamp(14px, 3.2cqw, 16px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
-          width: clamp(18px, 3.8cqw, 32px) !important;
-          height: clamp(18px, 3.8cqw, 32px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          border-radius: clamp(8px, 2.6cqw, 16px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
-          gap: clamp(12px, 2.4cqw, 20px) !important;
-        }
-      }
-
       @container (max-width: 960px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
           font-size: clamp(12px, var(--fluid-font-cqw, 3.2cqw), var(--fluid-font-max, 48px)) !important;
@@ -641,109 +568,11 @@ const frameResponsiveStyles = (
           height: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
         }
       }
-
-      @container (min-width: 641px) and (max-width: 950px) {
-        /* Re-apply tablet tuning after generic <=960 rules so tablet does not inherit mobile-tight spacing. */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          font-size: clamp(14px, var(--fluid-font-cqw, 3.6cqw), var(--fluid-font-max, 48px)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-top: clamp(12px, 2.2cqw, 24px) !important;
-          padding-bottom: clamp(12px, 2.2cqw, 24px) !important;
-          padding-left: clamp(12px, 2.8cqw, 24px) !important;
-          padding-right: clamp(12px, 2.8cqw, 24px) !important;
-          column-gap: clamp(12px, 2.6cqw, 28px) !important;
-          row-gap: clamp(12px, 2.6cqw, 28px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          padding-left: clamp(14px, 2.4cqw, 28px) !important;
-          padding-right: clamp(14px, 2.4cqw, 28px) !important;
-          padding-top: clamp(10px, 1.8cqw, 14px) !important;
-          padding-bottom: clamp(10px, 1.8cqw, 14px) !important;
-          gap: clamp(8px, 1.8cqw, 16px) !important;
-          font-size: clamp(14px, 3.2cqw, 16px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
-          width: clamp(18px, 3.8cqw, 32px) !important;
-          height: clamp(18px, 3.8cqw, 32px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          border-radius: clamp(8px, 2.6cqw, 16px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
-          gap: clamp(12px, 2.4cqw, 20px) !important;
-        }
-      }
       @container (max-width: 900px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
           grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: grid"][style*="grid-template-columns"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:grid"][style*="grid-template-columns"] {
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
-        }
       }
-
-      @container (max-width: 950px) {
-        /* Balanced tablet pass: keep components intact while improving responsiveness. */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
-          flex-wrap: wrap !important;
-          align-items: stretch !important;
-          gap: clamp(10px, 2.2cqw, 18px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
-          flex: 1 1 min(320px, 100%) !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          height: auto !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          white-space: normal !important;
-          overflow-wrap: break-word !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          overflow-wrap: anywhere !important;
-          word-break: break-word !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu > * {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
-      }
-
-      @container (max-width: 760px) {
-        /* Strong stack mode only for smaller mobile/tablet widths. */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
-          flex: 1 1 100% !important;
-          align-self: stretch !important;
-        }
-      }
-
       @container (max-width: 640px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
           padding-left: clamp(10px, 3.2cqw, 16px) !important;
@@ -761,6 +590,7 @@ const frameResponsiveStyles = (
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * {
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
         }
@@ -775,19 +605,11 @@ const frameResponsiveStyles = (
           height: auto !important;
           min-height: 0 !important;
         }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: flex"][style*="flex-direction: row"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:flex"][style*="flex-direction:row"] {
-          flex-direction: column !important;
-          align-items: stretch !important;
-          min-width: 0 !important;
-          max-width: 100% !important;
-        }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
-          flex: 0 1 auto !important;
-          align-self: stretch !important;
+          flex: 1 1 100% !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
@@ -839,6 +661,7 @@ const frameResponsiveStyles = (
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           height: auto !important;
@@ -850,20 +673,10 @@ const frameResponsiveStyles = (
           grid-template-columns: minmax(0, 1fr) !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display: grid"][style*="grid-template-columns"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="display:grid"][style*="grid-template-columns"] {
-          grid-template-columns: minmax(0, 1fr) !important;
-        }
-
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
           max-width: 100% !important;
           min-width: 0 !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="overflow-x: scroll"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][style*="overflow-x:scroll"] {
-          overflow-x: auto !important;
-          -webkit-overflow-scrolling: touch;
+          width: 100% !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
@@ -875,15 +688,16 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[data-fluid-space="true"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button[data-fluid-space="true"] {
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
-          align-self: stretch !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           height: auto !important;
@@ -899,9 +713,9 @@ const frameResponsiveStyles = (
           top: auto !important;
           bottom: auto !important;
           transform: none !important;
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
-          align-self: stretch !important;
         }
 
         /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
@@ -914,12 +728,12 @@ const frameResponsiveStyles = (
           right: auto !important;
           top: auto !important;
           bottom: auto !important;
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           margin-left: 0 !important;
           margin-right: 0 !important;
           transform: none !important;
-          align-self: stretch !important;
           animation: responsive-reflow-in 180ms ease;
         }
       }
@@ -937,10 +751,10 @@ const frameResponsiveStyles = (
           right: auto !important;
           top: auto !important;
           bottom: auto !important;
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           transform: none !important;
-          align-self: stretch !important;
         }
       }
 
@@ -949,6 +763,7 @@ const frameResponsiveStyles = (
         .frame-responsive-inner.frame-fluid video,
         .frame-responsive-inner.frame-fluid iframe,
         .frame-responsive-inner.frame-fluid [data-responsive-asset] {
+          width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           object-fit: cover !important;
@@ -1082,7 +897,7 @@ function enhanceNavInPreview(innerEl: HTMLElement | null) {
     const menuWrapper = document.createElement("div");
     menuWrapper.className = "nav-menu";
     toDrop.forEach((c) => menuWrapper.appendChild(c));
-    if (!menuWrapper.children || menuWrapper.children.length === 0) return false;
+    if (menuWrapper.children.length === 0) return false;
     container.setAttribute("data-nav-enhanced", "true");
     container.setAttribute("data-nav-container", "true");
     container.append(menuWrapper);
@@ -1271,8 +1086,6 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 0,
-    contentWidth: "constrained",
-    contentMaxWidth: "1200px",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -1669,22 +1482,13 @@ function getResponsiveTypographySpec(
   };
 }
 
-function getDeviceMode(viewportWidth: number, builderParityMode?: boolean, mobileBreakpoint?: number): "mobile" | "tablet" | "desktop" {
-  if (builderParityMode) return "desktop";
-  const effectiveMobileBreakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
-  if (viewportWidth <= effectiveMobileBreakpoint) return "mobile";
-  if (viewportWidth <= PREVIEW_TABLET_BREAKPOINT) return "tablet";
-  return "desktop";
-}
-
 function normalizePreviewWidth(
   widthValue: unknown,
   viewportWidth: number,
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
 ): string | undefined {
-  const deviceMode = getDeviceMode(viewportWidth, builderParityMode, mobileBreakpoint);
-  const isNarrow = deviceMode !== "desktop";
+  const isNarrow = !builderParityMode && viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
   if (typeof widthValue === "number") {
     if (!isNarrow) return `${widthValue}px`;
     return `min(100%, ${Math.max(1, widthValue)}px)`;
@@ -1818,8 +1622,7 @@ function isNarrowResponsivePreview(
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
   const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
-  const effectiveTabletBreakpoint = Math.max(breakpoint, PREVIEW_TABLET_BREAKPOINT);
-  return viewportWidth <= effectiveTabletBreakpoint;
+  return viewportWidth <= breakpoint;
 }
 
 function parsePixelValue(value: unknown): number | null {
@@ -2297,9 +2100,6 @@ function RenderNode({
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
-  if (prototype?.interactions?.length) {
-    console.log("[Prototype] Node", nodeId, "type:", type, "has prototype:", JSON.stringify(prototype));
-  }
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
@@ -2598,20 +2398,11 @@ function RenderNode({
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
+        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
         gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
-        columnGap:
-          displayVal === "grid"
-            ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
-            : displayVal === "flex"
-              ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
-              : undefined,
-        rowGap:
-          displayVal === "grid"
-            ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
-            : displayVal === "flex"
-              ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx)
-              : undefined,
+        columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+        rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
         overflow: props.overflow as string,
@@ -2675,11 +2466,6 @@ function RenderNode({
         builderParityMode,
       );
       const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
-      const sectionContentWidth = (props.contentWidth as string | undefined) === "full" ? "full" : "constrained";
-      const sectionContentMaxWidth =
-        sectionContentWidth === "constrained"
-          ? ((props.contentMaxWidth as string | undefined)?.trim() || "1200px")
-          : "none";
       return wrap(
         <section
           data-fluid-space="true"
@@ -2701,17 +2487,20 @@ function RenderNode({
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
-            minHeight: normalizedHeight && normalizedHeight !== "auto" ? normalizedHeight : undefined,
-            height: normalizedHeight === "auto" ? "auto" : undefined,
+            height: normalizedHeight ?? (props.height as string),
             containerType: "inline-size",
-            position: "relative",
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
               ? { border: "none", outline: sectionBorderDecl, outlineOffset: 0 }
               : sectionBorderDecl
                 ? { border: sectionBorderDecl }
                 : {}),
-            display: "block",
+            display: "flex",
+            flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
+            flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
+            alignItems: props.alignItems as string,
+            justifyContent: props.justifyContent as string,
+            gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             overflow: props.overflow as string,
@@ -2719,38 +2508,7 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          <div
-            data-section-shell="true"
-            style={{
-              width: "100%",
-              maxWidth: "100%",
-              minWidth: 0,
-              marginLeft: "auto",
-              marginRight: "auto",
-            }}
-          >
-            <div
-              data-section-content="true"
-              data-layout={(props.flexDirection as string) === "row" ? "row" : "column"}
-              style={{
-                width: "100%",
-                maxWidth: sectionContentMaxWidth,
-                minWidth: 0,
-                marginLeft: "auto",
-                marginRight: "auto",
-                boxSizing: "border-box",
-                position: "relative",
-                display: (props.display as React.CSSProperties["display"]) ?? "flex",
-                flexDirection: props.flexDirection as React.CSSProperties["flexDirection"],
-                flexWrap: props.flexWrap as React.CSSProperties["flexWrap"],
-                alignItems: props.alignItems as string,
-                justifyContent: props.justifyContent as string,
-                gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
-              }}
-            >
-              {children}
-            </div>
-          </div>
+          {children}
         </section>
       );
     }
@@ -3045,6 +2803,12 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedImageWidth,
             height: resolvedImageHeight,
             maxWidth: "100%",
@@ -3223,6 +2987,12 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
+              position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+              top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+              left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+              right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+              bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+              zIndex: (props.zIndex as number | undefined) ?? 2,
               width: resolvedVideoWidth,
               height: resolvedVideoHeight,
               maxWidth: "100%",
@@ -3259,6 +3029,12 @@ function RenderNode({
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedVideoWidth,
             height: resolvedVideoHeight,
             maxWidth: "100%",
@@ -3314,7 +3090,7 @@ function RenderNode({
       const link =
         explicitLink ||
         (storeContext ? getDefaultLinkForLabel(labelStr) : "");
-      const internalTargetSlug = link ? resolveInternalPageSlug(link, pages) : null;
+      const internalTargetId = link ? resolveInternalPageId(link, pages) : null;
       const btnRot = toNumber(props.rotation, 0);
       const btnFlipH = props.flipHorizontal === true;
       const btnFlipV = props.flipVertical === true;
@@ -3330,6 +3106,12 @@ function RenderNode({
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 2,
             backgroundColor: bg,
             color,
             fontSize: fluidFont(rawButtonFontSize, 12, 3, useFixedPx),
@@ -3397,7 +3179,7 @@ function RenderNode({
           </button>
         );
       }
-      if (internalTargetSlug && onPrototypeAction) {
+      if (internalTargetId && onPrototypeAction) {
         return wrap(
           <button
             type="button"
@@ -3408,7 +3190,7 @@ function RenderNode({
               onPrototypeAction({
                 trigger: "click",
                 action: "navigateTo",
-                destination: internalTargetSlug,
+                destination: internalTargetId,
               });
             }}
             style={{
@@ -3602,8 +3384,11 @@ function RenderNode({
     }
 
     case "Rating": {
-      const value = Math.max(0, toNumber(props.value, 4.2));
+      const rawValue = Math.max(0, toNumber(props.value, 4.2));
       const max = Math.max(1, Math.round(toNumber(props.max, 5)));
+      const allowFractional = props.allowFractional === true;
+      const value = allowFractional ? rawValue : Math.round(rawValue);
+      const clampedValue = Math.max(0, Math.min(max, value));
       const baseSize = Math.max(10, toNumber(props.size, 24));
       const size = isNarrowPreview ? Math.max(12, Math.min(baseSize, 22)) : baseSize;
       const gap = Math.max(0, toNumber(props.gap, 8));
@@ -3628,7 +3413,7 @@ function RenderNode({
         >
           <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px`, flexWrap: "wrap", maxWidth: "100%" }}>
             {Array.from({ length: max }).map((_, index) => {
-              const fillRatio = Math.max(0, Math.min(1, value - index));
+              const fillRatio = Math.max(0, Math.min(1, clampedValue - index));
               return (
                 <span key={index} style={{ position: "relative", width: `${size}px`, height: `${size}px`, display: "inline-flex" }}>
                   <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
@@ -3645,7 +3430,7 @@ function RenderNode({
           </div>
           {showValue ? (
             <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2, useFixedPx), color: (props.color as string) || "#e2e8f0" }}>
-              {String(props.valueText ?? `${value}/${max}`)}
+              {String(props.valueText ?? `${clampedValue}/${max}`)}
             </span>
           ) : null}
         </div>
@@ -3710,6 +3495,12 @@ function RenderNode({
           data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 1,
             width,
             height,
             maxWidth: "100%",
@@ -3717,15 +3508,15 @@ function RenderNode({
             boxSizing: "border-box",
             display: "block",
             flexShrink: 0,
-            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
-            background: (props.background as string) || "transparent",
-            borderRadius: px(props.borderRadius),
-            border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
             opacity: toNumber(props.opacity, 1),
             boxShadow: props.boxShadow as string,
             transform: spacerTransform,
             transformOrigin: "center center",
+            backgroundColor: (props.background as string) || "transparent",
+            borderRadius: px(props.borderRadius),
+            border: bw > 0 ? `${bw}px ${(props.borderStyle as string) || "solid"} ${(props.borderColor as string) || "transparent"}` : undefined,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
           }}
         />
       );
@@ -3958,6 +3749,12 @@ function RenderNode({
           data-fluid-space="true"
           data-smooth="true"
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 1,
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
             maxWidth: "100%",
@@ -3982,6 +3779,12 @@ function RenderNode({
           data-smooth="true"
           onClick={interactiveClick}
           style={{
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            zIndex: (props.zIndex as number | undefined) ?? 3,
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
             minWidth: 0,
@@ -4056,11 +3859,11 @@ function RenderNode({
             minWidth: 1,
             minHeight: 1,
             maxWidth: "100%",
-            position: (props.position as React.CSSProperties["position"]) ?? "relative",
-            top: props.top as string | undefined,
-            left: props.left as string | undefined,
-            right: props.right as string | undefined,
-            bottom: props.bottom as string | undefined,
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
+            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
+            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
             margin: toNumber(props.margin, 0),
             marginTop: toNumber(props.marginTop ?? m, 0),
             marginRight: toNumber(props.marginRight ?? m, 0),
@@ -4118,7 +3921,7 @@ function RenderNode({
             height: h,
             minWidth: w,
             minHeight: h,
-            position: props.position as React.CSSProperties["position"],
+            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
             display: props.display as React.CSSProperties["display"],
             zIndex: toNumber(props.zIndex, 0) || undefined,
             top: (props.position as string) !== "static" ? (props.top as string) : undefined,
@@ -4280,7 +4083,7 @@ function normalizeNavToken(value: string): string {
   return value.trim().replace(/^\/+/, "").toLowerCase();
 }
 
-function resolveInternalPageSlug(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
   if (!destination) return null;
 
   const raw = destination.trim();
@@ -4288,48 +4091,31 @@ function resolveInternalPageSlug(destination: string | undefined, pages: Preview
 
   const normalized = normalizeNavToken(raw);
 
-  // Exact slug match
+  // Match by page ID first (most stable)
+  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+  if (byId) return byId.id;
+
+  // Match by exact slug
   const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
-  if (bySlug) return bySlug.slug;
+  if (bySlug) return bySlug.id;
 
   // Match by page name
   const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
-  if (byName) return byName.slug;
+  if (byName) return byName.id;
 
-  // Match by page ID
-  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
-  if (byId) return byId.slug;
-
-  // Partial slug match: "page-N" patterns may differ by offset (page-0 vs page-1)
+  // Partial matches and page index patterns
   const pageIndexMatch = raw.match(/^page-(\d+)$/i);
   if (pageIndexMatch) {
     const idx = parseInt(pageIndexMatch[1], 10);
-    // Try exact index first
-    if (idx >= 0 && idx < pages.length) return pages[idx].slug;
-    // Try index-1 (editor uses 1-based, serializer uses 0-based)
-    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].slug;
+    if (idx >= 0 && idx < pages.length) return pages[idx].id;
+    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
   }
 
-  // Slug contains the destination as substring (fuzzy)
   const fuzzy = pages.find((p) =>
     normalizeNavToken(p.slug).includes(normalized) ||
     normalized.includes(normalizeNavToken(p.slug))
   );
-  if (fuzzy) return fuzzy.slug;
-
-  if (raw.startsWith("?")) {
-    try {
-      const q = new URLSearchParams(raw.replace(/^\?/, ""));
-      const pageParam = q.get("page") ?? "";
-      const resolved = resolveInternalPageSlug(pageParam, pages);
-      if (resolved) return resolved;
-    } catch {
-      return null;
-    }
-  }
-
-  if (raw.startsWith("#")) return null;
-  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("mailto:")) return null;
+  if (fuzzy) return fuzzy.id;
 
   return null;
 }
@@ -4391,23 +4177,13 @@ export function WebPreview({
     [doc]
   );
 
-  React.useEffect(() => {
-    const nodesWithPrototype = Object.entries(safeNodes).filter(
-      ([, n]) => n?.props?.prototype && (n.props.prototype as PrototypeConfig).interactions?.length > 0
-    );
-    console.log("[WebPreview] Pages:", safePages.map((p, i) => ({ id: p.id, name: p.name, slug: getPageSlug(p, i) })));
-    console.log("[WebPreview] Nodes with prototype:", nodesWithPrototype.map(([id, n]) => ({ id, type: n.type, prototype: n.props.prototype })));
-    console.log("[WebPreview] Total nodes:", Object.keys(safeNodes).length);
-  }, [safePages, safeNodes]);
+  const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+  const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
 
-  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
-  const initialPage = safePages[pageIndex] ?? safePages[0];
-  const [currentPageSlug, setCurrentPageSlug] = useState(initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug);
-  const [history, setHistory] = useState<string[]>([]);
-  const [transitionStyle, setTransitionStyle] = useState<React.CSSProperties>({});
-
-  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
   const pageMeta = React.useMemo<PreviewPageMeta[]>(
     () => safePages.map((p, i) => ({
       id: p.id,
@@ -4417,24 +4193,21 @@ export function WebPreview({
     [safePages]
   );
 
-  const onPrototypeAction = useCallback(
+  const onPrototypeAction = React.useCallback(
     (interaction: Interaction) => {
-      console.log("[Prototype] Action fired:", JSON.stringify(interaction));
-      console.log("[Prototype] Available pages:", JSON.stringify(pageMeta));
-      console.log("[Prototype] Current page:", currentPageSlug);
       const duration = (interaction.duration ?? 300) / 1000;
       if (interaction.action === "navigateTo" && interaction.destination) {
-        const internalSlug = resolveInternalPageSlug(interaction.destination, pageMeta);
-        console.log("[Prototype] Resolved slug:", internalSlug, "from destination:", interaction.destination);
-        if (internalSlug) {
-          setHistory((h) => [...h, currentPageSlug]);
+        const destId = resolveInternalPageId(interaction.destination, pageMeta);
+        if (destId) {
+          setHistory((h) => [...h, currentPageId]);
           const trans = interaction.transition ?? "dissolve";
           setTransitionStyle({
             ...PAGE_TRANSITION_STYLES[trans],
             animationDuration: `${duration}s`,
           });
-          setCurrentPageSlug(internalSlug);
-          onNavigate?.(internalSlug);
+          setCurrentPageId(destId);
+          const destPage = safePages.find((p) => p.id === destId);
+          if (destPage) onNavigate?.(getPageSlug(destPage, safePages.indexOf(destPage)));
         } else if (interaction.destination.startsWith("#")) {
           document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
         } else if (
@@ -4446,11 +4219,12 @@ export function WebPreview({
         }
       } else if (interaction.action === "back") {
         if (history.length > 0) {
-          const prev = history[history.length - 1];
+          const prevId = history[history.length - 1];
           setHistory((h) => h.slice(0, -1));
           setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-          setCurrentPageSlug(prev);
-          onNavigate?.(prev);
+          setCurrentPageId(prevId);
+          const prevPage = safePages.find((p) => p.id === prevId);
+          if (prevPage) onNavigate?.(getPageSlug(prevPage, safePages.indexOf(prevPage)));
         }
       } else if (interaction.action === "openUrl" && interaction.destination) {
         window.open(interaction.destination, "_blank", "noopener");
@@ -4458,7 +4232,7 @@ export function WebPreview({
         document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
     },
-    [currentPageSlug, history, pageMeta, onNavigate]
+    [currentPageId, history, pageMeta, onNavigate, safePages]
   );
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
@@ -4470,10 +4244,8 @@ export function WebPreview({
   const { ref, width: measuredWidth } = useContainerWidth(1000);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
-  const isPhonePreview = viewportWidth <= effectiveMobileBreakpoint;
   const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
-  const isNarrowBuilderPreview = builderParityMode && !isDesktopMode;
-  const isNarrowViewport = !isDesktopMode;
+  const isPhoneSize = !isDesktopMode;
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
     if (!isDesktopMode && mobileWrapperRef.current) {
@@ -4483,7 +4255,7 @@ export function WebPreview({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageSlug]);
+  }, [isDesktopMode, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4517,9 +4289,12 @@ export function WebPreview({
     );
   }
 
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
+  const scale = (!isPhoneSize && !fillViewport && measuredWidth < pageWidthPx) ? measuredWidth / pageWidthPx : 1;
+
   const pageContent = (
     <>
-      {(Array.isArray(currentPage?.children) ? currentPage.children : []).map((id) => {
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
         const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
@@ -4531,7 +4306,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={viewportWidth}
+            viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4569,62 +4344,54 @@ export function WebPreview({
           color: var(--placeholder-color, #94a3b8);
           opacity: 1;
         }
-        .responsive-preview,
-        .responsive-preview * {
-          box-sizing: border-box;
-        }
-        .responsive-preview {
-          container-type: inline-size;
-        }
-        @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
-          .responsive-preview {
-            width: 100% !important;
-            min-width: 0 !important;
-            max-width: 100% !important;
-            border-radius: 0 !important;
-            margin: 0 !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-          }
-        }
       `}</style>
-      {!isDesktopMode && frameResponsiveStyles}
+      {isPhoneSize && frameResponsiveStyles}
       <div
-        key={currentPageSlug}
-        className={`responsive-preview ${isNarrowBuilderPreview ? "builder-parity-narrow" : ""} ${isNarrowViewport ? "responsive-narrow" : ""}`.trim()}
-        style={{
-          width: fillViewport ? "100%" : (isDesktopMode ? (frameStyles.width ?? "100%") : "100%"),
-          maxWidth: fillViewport ? "none" : (isDesktopMode ? frameStyles.maxWidth : "100%"),
-          minHeight,
-          backgroundColor: background,
-          margin: fillViewport ? 0 : "0 auto",
-          boxShadow: isDesktopMode || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25)",
-          borderRadius: isDesktopMode || fillViewport ? 0 : 8,
-          overflowX: "hidden",
-          overflowY: isDesktopMode ? "hidden" : "visible",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
-          ...transitionStyle,
-          ...(!isDesktopMode ? { containerType: "inline-size" as const } : {}),
-        }}
+        key={currentPageId}
         ref={ref}
+        style={{
+          width: "100%",
+          minHeight: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          overflowX: "hidden",
+          overflowY: "auto",
+          padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
+          backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+        }}
       >
-        {!isDesktopMode ? (
-          <div
-            ref={mobileWrapperRef}
-            className={`frame-responsive-inner frame-fluid${isPhonePreview ? " frame-mobile" : ""}${isNarrowBuilderPreview ? " builder-parity-narrow" : ""}`}
-            style={{
-              width: "100%",
-              minHeight: "100%",
-              boxSizing: "border-box",
-              containerType: "inline-size",
-            }}
-          >
-            {pageContent}
-          </div>
-        ) : (
-          pageContent
-        )}
+        <div
+          style={{
+            width: isPhoneSize || fillViewport ? "100%" : width,
+            maxWidth: isPhoneSize || fillViewport ? "100%" : undefined,
+            minHeight: isPhoneSize ? "100vh" : minHeight,
+            backgroundColor: background,
+            boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
+            borderRadius: isPhoneSize || fillViewport ? 0 : 4,
+            transform: `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}`,
+            transformOrigin: "top center",
+            transition: "transform 0.2s ease, width 0.3s ease",
+            ...transitionStyle,
+          }}
+        >
+          {isPhoneSize ? (
+            <div
+              ref={mobileWrapperRef}
+              className="frame-responsive-inner frame-fluid frame-mobile"
+              style={{
+                width: "100%",
+                minHeight: "100vh",
+                boxSizing: "border-box",
+                containerType: "inline-size",
+              }}
+            >
+              {pageContent}
+            </div>
+          ) : (
+            pageContent
+          )}
+        </div>
       </div>
     </>
   );
@@ -4633,7 +4400,7 @@ export function WebPreview({
 /**
  * Full-width live site renderer. No shadow, no border-radius, no max-width box.
  * The design fills the entire browser viewport as a real website.
- * Supports multi-page prototype navigation (Navigate to page) via currentPageSlug state.
+ * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
  */
 export function LiveSite({
   doc,
@@ -4664,16 +4431,14 @@ export function LiveSite({
       : {}),
     [doc]
   );
-  const firstSlug = safePages[0] ? getPageSlug(safePages[0], 0) : "page";
-  const initialPage = safePages[pageIndex] ?? safePages[0];
-  const [currentPageSlug, setCurrentPageSlug] = React.useState(
-    initialPageSlug ?? getPageSlug(initialPage, pageIndex) ?? firstSlug
-  );
+
+  const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+  const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
   const [history, setHistory] = React.useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
 
-  const currentPage = safePages.find((p, i) => getPageSlug(p, i) === currentPageSlug) ?? safePages[0];
-  const currentPageIndex = safePages.findIndex((p, i) => getPageSlug(p, i) === currentPageSlug);
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
   const pageMeta = React.useMemo<PreviewPageMeta[]>(
     () => safePages.map((p, i) => ({
       id: p.id,
@@ -4689,21 +4454,24 @@ export function LiveSite({
   const background = (pageProps.background as string) || "#ffffff";
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
+  
   const { ref, width: measuredWidth } = useContainerWidth();
-  const isConstrainedViewport = measuredWidth < pageWidthPx;
-  const viewportWidth = !isConstrainedViewport ? pageWidthPx : measuredWidth;
+  const isPhoneSize = measuredWidth <= mobileBreakpoint;
+  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
+
   const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (isConstrainedViewport && liveSiteWrapperRef.current) {
+    if (isPhoneSize && liveSiteWrapperRef.current) {
       liveSiteWrapperRef.current.removeAttribute("data-nav-preview-done");
       const t = setTimeout(() => {
         if (liveSiteWrapperRef.current) enhanceNavInPreview(liveSiteWrapperRef.current);
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isConstrainedViewport, currentPageSlug]);
+  }, [isPhoneSize, currentPageId]);
+
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4715,6 +4483,7 @@ export function LiveSite({
     }
     return targets;
   }, [safeNodes]);
+
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
@@ -4732,36 +4501,35 @@ export function LiveSite({
     } else if (interaction.action === "scrollTo" && interaction.destination) {
       document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
     } else if (interaction.action === "navigateTo" && interaction.destination) {
-      const dest = interaction.destination;
-      const internalSlug = resolveInternalPageSlug(dest, pageMeta);
-      if (internalSlug) {
-        setHistory((h) => [...h, currentPageSlug]);
+      const destId = resolveInternalPageId(interaction.destination, pageMeta);
+      if (destId) {
+        setHistory((h) => [...h, currentPageId]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
         setTransitionStyle({
           ...PAGE_TRANSITION_STYLES[trans],
           animationDuration: `${duration}s`,
         });
-        setCurrentPageSlug(internalSlug);
+        setCurrentPageId(destId);
       } else {
-        const el = document.getElementById(dest.startsWith("#") ? dest.slice(1) : dest);
+        const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
         if (el) {
           el.scrollIntoView({ behavior: "smooth" });
-        } else if (dest.startsWith("http://") || dest.startsWith("https://") || dest.startsWith("mailto:") || dest.startsWith("/")) {
-          window.location.href = dest;
+        } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
+          window.location.href = interaction.destination;
         }
       }
     } else if (interaction.action === "back") {
       if (history.length > 0) {
-        const prev = history[history.length - 1];
+        const prevId = history[history.length - 1];
         setHistory((h) => h.slice(0, -1));
         setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-        setCurrentPageSlug(prev);
+        setCurrentPageId(prevId);
       } else {
         window.history.back();
       }
     }
-  }, [currentPageSlug, history, pageMeta]);
+  }, [currentPageId, history, pageMeta]);
 
   if (!currentPage) {
     const hasPages = safePages.length > 0;
@@ -4776,8 +4544,8 @@ export function LiveSite({
 
   const pageChildren = (
     <>
-      {currentPage.children.map((id) => {
-        const node = doc.nodes[id];
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
         if (!node) return null;
         const childType = String(node.type || "").toLowerCase();
         if (childType === "page") return null;
@@ -4788,7 +4556,7 @@ export function LiveSite({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={viewportWidth}
+            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4818,22 +4586,22 @@ export function LiveSite({
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
-      {isConstrainedViewport && frameResponsiveStyles}
+      {isPhoneSize && frameResponsiveStyles}
       <div
-        key={currentPageSlug}
+        key={currentPageId}
         ref={ref}
         style={{
-          width: isConstrainedViewport ? "100%" : width,
-          maxWidth: isConstrainedViewport ? "100%" : undefined,
+          width: isPhoneSize ? "100%" : width,
+          maxWidth: isPhoneSize ? "100%" : undefined,
           minHeight,
           backgroundColor: background,
-          margin: isConstrainedViewport ? 0 : "0 auto",
+          margin: isPhoneSize ? 0 : "0 auto",
           transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
           transformOrigin: "center center",
           ...transitionStyle,
         }}
       >
-        {isConstrainedViewport ? (
+        {isPhoneSize ? (
           <div
             ref={liveSiteWrapperRef}
             className="frame-responsive-inner frame-fluid frame-mobile"

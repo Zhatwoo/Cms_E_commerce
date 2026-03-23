@@ -166,6 +166,7 @@ const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const collaborationRoutes = require('./routes/collaborationRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -183,6 +184,7 @@ app.use('/api/domains', domainRoutes);
 app.use('/api/projects', commentRoutes); // Merged into projects path for comments
 app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Home route
 app.get('/', (req, res) => {
@@ -340,6 +342,9 @@ function tryListen(port) {
     path: '/socket.io',
     transports: ['websocket', 'polling'],
   });
+
+  // Share io instance with the app so controllers can use it via req.app.get('io')
+  app.set('io', io);
 
   io.on('connection', (socket) => {
     console.log('[Socket.IO] New connection:', socket.id);

@@ -272,17 +272,94 @@ export function PanelDropFreePlacementHandler() {
 
       if (forcedDropTargetId) {
         const latestState = query.getState();
-        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; nodes?: string[]; displayName?: string } }>;
+        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; nodes?: string[]; displayName?: string; props?: Record<string, unknown> } }>;
+        const resolveChildIds = (targetId: string): string[] => {
+          const node = latestNodes[targetId];
+          const fromNodes = (node?.data?.nodes as string[] | undefined) ?? [];
+          if (fromNodes.length > 0) return fromNodes;
+          return Object.keys(latestNodes).filter((id) => latestNodes[id]?.data?.parent === targetId);
+        };
+
+        const computeFlowInsertIndex = (targetId: string, newSet: Set<string>): number | null => {
+          try {
+            const targetDom = query.node(targetId).get()?.dom ?? null;
+            if (!targetDom) return null;
+            const childIds = resolveChildIds(targetId).filter((id) => !newSet.has(id));
+            if (childIds.length === 0) return 0;
+            const style = window.getComputedStyle(targetDom);
+            const isRow = (style.display ?? "").includes("flex") && String(style.flexDirection ?? "").startsWith("row");
+            const cursor = isRow ? pointerRef.current.x : pointerRef.current.y;
+            for (let i = 0; i < childIds.length; i++) {
+              const childDom = query.node(childIds[i]).get()?.dom ?? null;
+              if (!childDom) continue;
+              const rect = childDom.getBoundingClientRect();
+              const midpoint = isRow ? rect.left + rect.width / 2 : rect.top + rect.height / 2;
+              if (cursor <= midpoint) return i;
+            }
+            return childIds.length;
+          } catch {
+            return null;
+          }
+        };
+
+        const newRootDisplayNames = rootNewIds.map((id) => latestNodes[id]?.data?.displayName ?? "");
+        const anyNewSection = newRootDisplayNames.some((name) => name === "Section");
+        let resolvedTargetId = forcedDropTargetId;
+        let preferredInsertIndex: number | null = null;
+
+        if (anyNewSection) {
+          const dropTargetName = latestNodes[forcedDropTargetId]?.data?.displayName ?? "";
+          if (dropTargetName === "Section") {
+            const parentId = latestNodes[forcedDropTargetId]?.data?.parent;
+            if (parentId) {
+              resolvedTargetId = parentId;
+              const siblings = resolveChildIds(parentId).filter((id) => !newSet.has(id));
+              const dropIndex = siblings.indexOf(forcedDropTargetId);
+              if (dropIndex >= 0) {
+                const dropDom = query.node(forcedDropTargetId).get()?.dom ?? null;
+                if (dropDom) {
+                  const rect = dropDom.getBoundingClientRect();
+                  preferredInsertIndex = pointerRef.current.y < rect.top + rect.height / 2
+                    ? dropIndex
+                    : dropIndex + 1;
+                } else {
+                  preferredInsertIndex = dropIndex + 1;
+                }
+              }
+            }
+          }
+        }
+
         rootNewIds.forEach((id, idx) => {
           const currentParent = latestNodes[id]?.data?.parent;
-          if (!currentParent || currentParent === forcedDropTargetId) return;
+          if (!currentParent) return;
           const nodeName = (latestNodes as any)[id]?.data?.displayName as string | undefined;
-          const targetName = (latestNodes as any)[forcedDropTargetId]?.data?.displayName as string | undefined;
+          const targetName = (latestNodes as any)[resolvedTargetId]?.data?.displayName as string | undefined;
           const targetId =
             targetName === "Viewport" && nodeName !== "Page" && fallbackPageId
               ? fallbackPageId
-              : forcedDropTargetId;
-          const insertAt = ((latestNodes[targetId]?.data?.nodes as string[] | undefined) ?? []).length;
+              : resolvedTargetId;
+          const targetNodes = (latestNodes[targetId]?.data?.nodes as string[] | undefined) ?? [];
+          let insertAt = targetNodes.length;
+
+          if (preferredInsertIndex != null && targetId === resolvedTargetId) {
+            insertAt = preferredInsertIndex;
+          } else {
+            const targetDisplayName = latestNodes[targetId]?.data?.displayName ?? "";
+            const targetProps = (latestNodes[targetId]?.data?.props ?? {}) as Record<string, unknown>;
+            const targetDisplay = String(targetProps.display ?? "").toLowerCase();
+            const isFlowTarget =
+              targetDisplay === "flex" ||
+              targetDisplay === "grid" ||
+              FLOW_PARENT_DISPLAY_NAMES.has(targetDisplayName) ||
+              targetDisplayName === "Page";
+            const isLayoutRoot = FLOW_LAYOUT_TYPES.has(nodeName ?? "");
+            if (isFlowTarget && isLayoutRoot) {
+              const computed = computeFlowInsertIndex(targetId, newSet);
+              if (computed != null) insertAt = computed;
+            }
+          }
+
           try {
             actions.move(id, targetId as string, insertAt + idx);
           } catch {
@@ -345,6 +422,11 @@ export function PanelDropFreePlacementHandler() {
           const parentIsFreeform =
             parentFreeformPref === true ||
             (!parentIsFlexParent && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+          const forceFlowInFreeform =
+            !!displayName &&
+            FLOW_LAYOUT_TYPES.has(displayName) &&
+            !!parentDisplayName &&
+            FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName);
           const allowFreeformLayout = parentFreeformPref !== false;
           const forceFlowPlacement =
             parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
@@ -396,14 +478,16 @@ export function PanelDropFreePlacementHandler() {
           } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
               // Tab panels should keep normal flow; don't apply pixel offsets that can push nodes outside.
-              if (forceFlowPlacement || !allowFreeformLayout) {
+              if (forceFlowPlacement || !allowFreeformLayout || forceFlowInFreeform) {
                 props.position = "relative";
                 props.left = "auto";
                 props.top = "auto";
                 props.right = "auto";
                 props.bottom = "auto";
-                props.marginTop = 0;
-                props.marginLeft = 0;
+                if (!forceFlowInFreeform) {
+                  props.marginTop = 0;
+                  props.marginLeft = 0;
+                }
 
                 if (shouldImageFillParent) {
                   props.width = "100%";

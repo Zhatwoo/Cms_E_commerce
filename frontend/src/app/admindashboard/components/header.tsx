@@ -3,18 +3,56 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+    getApiUrl,
     getClients,
     getDomainsManagement,
+    getMe,
+    getStoredUser,
+    setStoredUser,
     listProducts,
+    logout,
     type ApiProduct,
     type ClientRow,
+    type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
+import { getNotifications, markAsRead, type NotificationItem } from '@/lib/notifications';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+);
+
+const ProfileChevronIcon = () => (
+    <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="h-3 w-3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+    >
+        <path d="M6 9l6 6 6-6" />
+    </svg>
+);
+
+const ProfileMenuIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+        <circle cx="12" cy="7" r="4" />
+    </svg>
+);
+
+const LogoutMenuIcon = () => (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" y1="12" x2="9" y2="12" />
     </svg>
 );
 
@@ -67,6 +105,10 @@ function includesQuery(value: string, query: string): boolean {
 
 export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const router = useRouter();
+    const [currentUser, setCurrentUser] = useState<User | null>(() => getStoredUser());
+    const [showProfileMenu, setShowProfileMenu] = useState(false);
+    const [showNotifications, setShowNotifications] = useState(false);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const [query, setQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -78,12 +120,82 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const [hasLoadedWebsites, setHasLoadedWebsites] = useState(false);
     const [hasLoadedProducts, setHasLoadedProducts] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement | null>(null);
+    const profileMenuRef = useRef<HTMLDivElement | null>(null);
+    const notificationsRef = useRef<HTMLDivElement | null>(null);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [activeToast, setActiveToast] = useState<{ id: string; title: string; message: string; type: string } | null>(null);
+
+    useEffect(() => {
+        const load = () => {
+            setNotifications(getNotifications());
+        };
+        load();
+        window.addEventListener('notificationsUpdate', load);
+
+        const onNewReceived = (e: any) => {
+            const newItem = e.detail;
+            if (!newItem) return;
+
+            // Only show toast if it's NOT from the current user (don't double notify)
+            // Or if current user is null (maybe just for testing)
+            if (currentUser && newItem.adminId === currentUser.id) {
+                return;
+            }
+
+            setActiveToast({
+                id: newItem.id || `toast-${Date.now()}`,
+                title: newItem.title,
+                message: newItem.message,
+                type: newItem.type || 'info'
+            });
+
+            // Auto dismiss toast
+            setTimeout(() => {
+                setActiveToast(prev => (prev?.id === newItem.id ? null : prev));
+            }, 5000);
+        };
+
+        window.addEventListener('notification:new_received', onNewReceived);
+
+        return () => {
+            window.removeEventListener('notificationsUpdate', load);
+            window.removeEventListener('notification:new_received', onNewReceived);
+        };
+    }, [currentUser]);
+
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     const handleProfileClick = () => {
+        setShowProfileMenu(false);
         router.push('/admindashboard/userAccount/profile');
     };
 
+    const handleLogout = async () => {
+        if (isLoggingOut) return;
+        setIsLoggingOut(true);
+        try {
+            await logout();
+        } finally {
+            setShowProfileMenu(false);
+            router.replace('/adminauth/login');
+            router.refresh();
+            setIsLoggingOut(false);
+        }
+    };
+
     const handleNotificationsClick = () => {
+        setShowNotifications((prev) => !prev);
+        setShowProfileMenu(false);
+    };
+
+    const handleMarkSingleRead = (id: string, e: React.SyntheticEvent) => {
+        e.stopPropagation();
+        markAsRead(id);
+    };
+
+    const handleOpenNotification = (id: string) => {
+        markAsRead(id);
+        setShowNotifications(false);
         router.push('/admindashboard/notifications');
     };
 
@@ -93,6 +205,53 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         setDebouncedQuery('');
         router.push(href);
     };
+
+    useEffect(() => {
+        const handleUserUpdate = () => {
+            setCurrentUser(getStoredUser());
+        };
+
+        window.addEventListener('userUpdate', handleUserUpdate);
+        return () => window.removeEventListener('userUpdate', handleUserUpdate);
+    }, []);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        const syncUser = async () => {
+            try {
+                // Prioritize local state first
+                const local = getStoredUser();
+                if (local) {
+                    setCurrentUser(local);
+                }
+
+                const res = await getMe();
+                if (!isMounted) return;
+                if (res.success && res.user) {
+                    // Only update if we don't have local mock-saved data or if it's a fresh login
+                    const updated = { 
+                        ...res.user,
+                        // Preserve our session-only mock data if it exists
+                        avatar: local?.avatar || res.user.avatar,
+                        username: (local as any)?.username || (res.user as any).username
+                    };
+                    setStoredUser(updated);
+                    setCurrentUser(updated);
+                }
+            } catch {
+                // keep stored user fallback
+                const local = getStoredUser();
+                if (local) setCurrentUser(local);
+            }
+        };
+
+        syncUser();
+
+        return () => {
+            isMounted = false;
+        };
+    }, []);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -107,10 +266,22 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             if (!searchContainerRef.current.contains(event.target as Node)) {
                 setIsSearchOpen(false);
             }
+
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setShowProfileMenu(false);
+            }
+
+            if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+                setShowNotifications(false);
+            }
         };
 
         const onEscape = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') setIsSearchOpen(false);
+            if (event.key === 'Escape') {
+                setIsSearchOpen(false);
+                setShowProfileMenu(false);
+                setShowNotifications(false);
+            }
         };
 
         document.addEventListener('mousedown', onClickOutside);
@@ -155,7 +326,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
                 if (!hasLoadedProducts) {
                     loadTasks.push(
-                        listProducts({ limit: 500 }).then((res) => {
+                        listProducts({ limit: 500, ignoreActiveProjectScope: true, includeAllUsers: true }).then((res) => {
                             if (cancelled) return;
                             setProducts(res.success && Array.isArray(res.items) ? res.items : []);
                             setHasLoadedProducts(true);
@@ -248,8 +419,65 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         return [...pageResults, ...clientResults, ...websiteResults, ...productResults].slice(0, 14);
     }, [clients, debouncedQuery, products, websites]);
 
+    const resolveAvatarUrl = (raw?: string): string => {
+        const value = String(raw || '').trim();
+        if (!value) return '';
+        if (/^(https?:|data:|blob:)/i.test(value)) return value;
+        if (value.startsWith('/')) return `${getApiUrl()}${value}`;
+        return value;
+    };
+
+    const avatarSrc = resolveAvatarUrl(currentUser?.avatar);
+    const namePart = (currentUser as any)?.username || currentUser?.name || currentUser?.email || 'Admin';
+    const profileDisplayName = namePart.includes("John Lloyd") ? "kurohara" : String(namePart).trim();
+    const avatarAlt = profileDisplayName || 'Admin profile';
+    const initials = profileDisplayName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part.charAt(0).toUpperCase())
+        .join('') || 'A';
+
     return (
         <header className="relative z-20 px-4 pt-4 sm:px-6 lg:px-6 lg:pt-6">
+            {/* Real-time Notification Toast (Framer Motion) */}
+            <AnimatePresence>
+                {activeToast && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 100, scale: 0.9 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+                        className="fixed right-4 top-20 z-[9999] flex w-[320px] cursor-pointer items-start gap-3 rounded-2xl bg-white/95 p-4 shadow-[0_12px_45px_rgba(109,40,217,0.18)] backdrop-blur-md"
+                        style={{ border: '1.5px solid rgba(177,59,255,0.2)' }}
+                        onClick={() => router.push('/admindashboard/notifications')}
+                    >
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${
+                            activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
+                            activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
+                            'from-[#B13BFF] to-[#8B5CF6]'
+                        }`}>
+                            <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                            </svg>
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                            <h4 className="truncate text-sm font-bold text-[#4a1a8a]">{activeToast.title}</h4>
+                            <p className="mt-0.5 line-clamp-2 text-xs leading-normal text-[#7a6aa0]">{activeToast.message}</p>
+                            <div className="mt-1 text-[10px] font-bold uppercase tracking-tighter text-[#B13BFF]/60 underline decoration-[#B13BFF]/30">Click to expand</div>
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setActiveToast(null); }}
+                            className="text-[#B13BFF]/50 hover:text-[#B13BFF]"
+                        >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
             <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex flex-1 items-center gap-3">
                     {onMenuClick ? (
@@ -321,25 +549,138 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <button
-                        type="button"
-                        onClick={handleNotificationsClick}
-                        suppressHydrationWarning
-                        className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:-translate-y-0.5"
-                        aria-label="Notifications"
-                    >
-                        <Image src="/admin-dashboard/icons/notification.png" alt="Notifications" width={20} height={20} className="object-contain w-auto h-auto" />
-                    </button>
+                    <div ref={notificationsRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={handleNotificationsClick}
+                            suppressHydrationWarning
+                            className={`admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-all hover:-translate-y-0.5 ${showNotifications ? 'shadow-[0_0_20px_rgba(177,59,255,0.2)] border-[rgba(177,59,255,0.3)]' : ''}`}
+                            aria-label="Notifications"
+                        >
+                            <svg viewBox="0 0 24 24" className="h-[22px] w-[22px] text-[#4a1a8a]" fill="currentColor">
+                                <path d="M12 22a2.98 2.98 0 0 0 2.818-2H9.182A2.98 2.98 0 0 0 12 22zm7-6V9a7 7 0 1 0-14 0v7l-2 2v1h18v-1l-2-2z" />
+                            </svg>
+                            {unreadCount > 0 && (
+                                <span className="absolute right-2.5 top-2.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-[#FF5252] px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                                    {unreadCount > 9 ? '9+' : unreadCount}
+                                </span>
+                            )}
+                        </button>
 
-                    <button
-                        type="button"
-                        onClick={handleProfileClick}
-                        suppressHydrationWarning
-                        className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-transform hover:-translate-y-0.5"
-                        aria-label="Profile"
-                    >
-                        <Image src="/admin-dashboard/icons/account-circle.png" alt="Profile" width={22} height={22} className="object-contain" />
-                    </button>
+                        {showNotifications ? (
+                            <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-[18rem] overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
+                                <div className="border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-3">
+                                    <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
+                                </div>
+                                <div className="max-h-[22rem] overflow-y-auto">
+                                    {notifications.length === 0 ? (
+                                        <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
+                                            <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="divide-y divide-[rgba(177,59,255,0.08)]">
+                                            {notifications.slice(0, 10).map((n) => (
+                                                <button
+                                                    key={n.id} 
+                                                    type="button"
+                                                    onClick={() => handleOpenNotification(n.id)}
+                                                    className={`group relative flex w-full cursor-pointer flex-col gap-0.5 px-4 py-3 text-left transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/20' : ''}`}
+                                                >
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <span className={`text-[13px] font-bold leading-tight ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
+                                                        {!n.read && (
+                                                            <span
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                onClick={(e) => handleMarkSingleRead(n.id, e)}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                                        handleMarkSingleRead(n.id, e);
+                                                                    }
+                                                                }}
+                                                                className="h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform hover:scale-125"
+                                                                title="Mark as read"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
+                                                    <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/30 px-4 py-2 text-center">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setShowNotifications(false);
+                                            router.push('/admindashboard/notifications');
+                                        }}
+                                        className="text-xs font-bold text-[#4a1a8a] transition-colors hover:text-[#B13BFF]"
+                                    >
+                                        See all
+                                    </button>
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div ref={profileMenuRef} className="relative">
+                        <button
+                            type="button"
+                            onClick={() => setShowProfileMenu((prev) => !prev)}
+                            suppressHydrationWarning
+                            className="admin-dashboard-panel relative inline-flex h-12 w-12 items-center justify-center overflow-visible rounded-full transition-transform hover:-translate-y-0.5"
+                            aria-label="Profile menu"
+                        >
+                            <span className="inline-flex h-full w-full items-center justify-center overflow-hidden rounded-full">
+                                {avatarSrc ? (
+                                    <img
+                                        src={avatarSrc}
+                                        alt={avatarAlt}
+                                        className="h-full w-full object-cover"
+                                        onError={() => setCurrentUser((prev) => (prev ? { ...prev, avatar: '' } : prev))}
+                                    />
+                                ) : (
+                                    <span className="inline-flex h-full w-full items-center justify-center bg-gradient-to-br from-[#B13BFF] to-[#8B5CF6] text-sm font-bold text-white">
+                                        {initials}
+                                    </span>
+                                )}
+                            </span>
+
+                            <span
+                                className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-[rgba(177,59,255,0.25)] bg-white text-[#6D28D9] shadow-[0_4px_10px_rgba(123,78,192,0.22)]"
+                                aria-hidden="true"
+                            >
+                                <span className={`transition-transform duration-200 ${showProfileMenu ? 'rotate-180' : 'rotate-0'}`}>
+                                    <ProfileChevronIcon />
+                                </span>
+                            </span>
+                        </button>
+
+                        {showProfileMenu ? (
+                            <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-44 rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-1.5 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
+                                <button
+                                    type="button"
+                                    onClick={handleProfileClick}
+                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#4E2A8A] transition hover:bg-white/70"
+                                >
+                                    <ProfileMenuIcon />
+                                    Profile
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleLogout}
+                                    disabled={isLoggingOut}
+                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#B13BFF] transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    <LogoutMenuIcon />
+                                    {isLoggingOut ? 'Logging out...' : 'Log out'}
+                                </button>
+                            </div>
+                        ) : null}
+                    </div>
                 </div>
             </div>
         </header>

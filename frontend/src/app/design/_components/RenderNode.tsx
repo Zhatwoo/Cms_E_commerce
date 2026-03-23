@@ -89,11 +89,9 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const isHandTool = activeTool === "hand";
   const isDrawingTool = activeTool === "text" || activeTool === "shape";
   const isTextNode = name === "Text";
-  const isSectionNode = name === "Section";
   const canShowResizeOverlay =
     !isHandTool &&
     !isDrawingTool &&
-    !isSectionNode &&
     isActive &&
     dom &&
     (!isTextNode || editingTextNodeId !== id);
@@ -327,7 +325,11 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
 
       {/* Resize / Move overlay — active nodes, including Text when not inline editing */}
       {canShowResizeOverlay ? (
-        <ResizeOverlay nodeId={id} dom={dom} />
+        <ResizeOverlay
+          nodeId={id}
+          dom={dom}
+          disableRotate={name === "Section"}
+        />
       ) : null}
 
       <div
