@@ -155,7 +155,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
                 if (!hasLoadedProducts) {
                     loadTasks.push(
-                        listProducts({ limit: 500 }).then((res) => {
+                        listProducts({ limit: 500, ignoreActiveProjectScope: true, includeAllUsers: true }).then((res) => {
                             if (cancelled) return;
                             setProducts(res.success && Array.isArray(res.items) ? res.items : []);
                             setHasLoadedProducts(true);
