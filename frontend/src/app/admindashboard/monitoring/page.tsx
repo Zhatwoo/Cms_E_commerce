@@ -6,6 +6,7 @@ import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import { getDomainsManagement, listProducts, adminWebsiteAction, adminDeleteProduct, type WebsiteManagementRow, type ApiProduct } from '@/lib/api';
+import { addNotification } from '@/lib/notifications';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 
@@ -311,6 +312,20 @@ function MonitoringPageContent() {
         reason,
       });
       if (!res.success) throw new Error(res.message || 'Website action failed');
+      addNotification(
+        websiteActionModal.action === 'take_down' ? 'Website Taken Down' : 'Website Deleted',
+        `${website.domainName} was ${websiteActionModal.action === 'take_down' ? 'taken down' : 'deleted'} by admin.`,
+        websiteActionModal.action === 'take_down' ? 'warning' : 'error',
+        {
+          details: `Website: ${website.domainName}\nPublisher: ${website.owner || 'Unknown'}\nAction: ${websiteActionModal.action === 'take_down' ? 'Take Down Website' : 'Delete Website'}\nReason: ${reason}`,
+          metadata: {
+            action: websiteActionModal.action,
+            domain: website.domainName,
+            publisher: website.owner || 'Unknown',
+            reason,
+          },
+        }
+      );
       setToast({ open: true, message: res.message || 'Website updated.', tone: 'success' });
       setWebsites((prev) => prev.filter((w) => `${w.userId}::${w.id}` !== key));
       setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' });
@@ -346,6 +361,20 @@ function MonitoringPageContent() {
       setWorkingProductId(product.id);
       const res = await adminDeleteProduct(product.id, reason);
       if (!res.success) throw new Error(res.message || 'Failed to delete product');
+      addNotification(
+        'Product Deleted',
+        `${product.name || 'Untitled Product'} was deleted by admin.`,
+        'error',
+        {
+          details: `Product: ${product.name || 'Untitled Product'}\nSKU: ${product.sku || 'N/A'}\nWebsite: ${product.subdomain || 'N/A'}\nReason: ${reason}`,
+          metadata: {
+            productId: product.id,
+            sku: product.sku || 'N/A',
+            website: product.subdomain || 'N/A',
+            reason,
+          },
+        }
+      );
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
       if (selectedProduct?.id === product.id) setSelectedProduct(null);
       setProductDeleteModal({ open: false, target: null, reason: '' });

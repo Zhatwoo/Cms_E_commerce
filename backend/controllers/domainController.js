@@ -3,12 +3,39 @@ const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const Page = require('../models/Page');
 const User = require('../models/User');
-const { getRealtimeDb, db } = require('../config/firebase');
+const { getRealtimeDb, db, auth } = require('../config/firebase');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const { sendAdminActionEmail } = require('../utils/emailService');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
+
+async function resolveClientContact(userId) {
+  let displayName = 'Client';
+  let email = '';
+
+  if (!userId) return { email, displayName };
+
+  const user = await User.findById(userId);
+  if (user) {
+    displayName = user.displayName || user.fullName || user.email || displayName;
+    email = user.email || '';
+  }
+
+  if (!email) {
+    try {
+      const authUser = await auth.getUser(userId);
+      email = authUser.email || '';
+      if (authUser.displayName && (!user || !user.displayName)) {
+        displayName = authUser.displayName;
+      }
+    } catch {
+      // keep best-effort values
+    }
+  }
+
+  return { email: String(email || '').trim(), displayName };
+}
 
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
@@ -132,12 +159,13 @@ exports.adminWebsiteAction = async (req, res) => {
       }
     }
 
-    const owner = await User.findById(userId);
-    const ownerEmail = owner?.email || '';
-    if (ownerEmail) {
-      await sendAdminActionEmail({
-        to: ownerEmail,
-        name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
+    const contact = await resolveClientContact(userId);
+    let emailSent = false;
+    let emailError = '';
+    if (contact.email) {
+      const mail = await sendAdminActionEmail({
+        to: contact.email,
+        name: contact.displayName,
         subject: normalizedAction === 'take_down' ? 'Website taken down by admin' : 'Website deleted by admin',
         title: normalizedAction === 'take_down' ? 'Your website was taken down' : 'Your website was deleted',
         intro: normalizedAction === 'take_down'
@@ -145,11 +173,20 @@ exports.adminWebsiteAction = async (req, res) => {
           : `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been deleted by an administrator.`,
         reason: actionReason,
       });
+      emailSent = !!mail?.sent;
+      emailError = mail?.error || '';
+    } else {
+      emailError = 'Recipient email not found';
     }
 
     return res.status(200).json({
       success: true,
-      message: normalizedAction === 'take_down' ? 'Website taken down successfully' : 'Website deleted successfully',
+      message:
+        normalizedAction === 'take_down'
+          ? (emailSent ? 'Website taken down and client notified by email' : 'Website taken down, but email notification was not sent')
+          : (emailSent ? 'Website deleted and client notified by email' : 'Website deleted, but email notification was not sent'),
+      emailSent,
+      emailError: emailSent ? undefined : emailError,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
