@@ -98,6 +98,11 @@ class FrameErrorBoundary extends React.Component<
       return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
+    // Add safety check for children
+    if (!this.props.children) {
+      return <DeferredFrame data={EMPTY_FRAME_DATA} />;
+    }
+
     return this.props.children;
   }
 }
@@ -109,8 +114,8 @@ const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
 const PAGE_GRID_ORIGIN_Y = 30000;
-const PAGE_BASE_WIDTH = 1920;
-const PAGE_BASE_HEIGHT = 1200;
+const PAGE_BASE_WIDTH = 1440;
+const PAGE_BASE_HEIGHT = 900;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -131,7 +136,8 @@ const EMPTY_FRAME_DATA = JSON.stringify({
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
-      height: "1200px",
+      height: "900px",
+      width: "1440px",
       background: "#ffffff"
     },
     displayName: "Page",

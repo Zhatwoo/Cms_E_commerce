@@ -12,8 +12,8 @@ type NodeHelper = (nodeId: string) => { ancestors: () => string[]; get: () => No
 
 export const Page = ({
   children,
-  width = "1920px",
-  height = "1200px",
+  width = "1440px",
+  height = "900px",
   background = "#ffffff",
   pageRotation = 0,
   canvasX = 0,
@@ -109,8 +109,8 @@ export const Page = ({
 };
 
 export const PageDefaultProps: Partial<PageProps> = {
-  width: "1920px",
-  height: "1200px",
+  width: "1440px",
+  height: "900px",
   background: "#ffffff",
   pageRotation: 0,
   canvasX: 0,
