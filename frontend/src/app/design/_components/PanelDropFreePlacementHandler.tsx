@@ -376,6 +376,8 @@ export function PanelDropFreePlacementHandler() {
           if (!parentId) continue;
           const nodeDisplayName = latestNodes[nodeId]?.data?.displayName;
           const parentDisplayName = latestNodes[parentId]?.data?.displayName;
+          const nodeCustom = (latestNodes[nodeId] as any)?.data?.custom as Record<string, unknown> | undefined;
+          const isPrebuiltBlock = nodeCustom?.isPrebuiltBlock === true;
           if (parentDisplayName === "Viewport" && nodeDisplayName !== "Page" && (fallbackPageId || forcedDropTargetId)) {
             const nextParent = fallbackPageId || forcedDropTargetId;
             if (nextParent) {
@@ -423,6 +425,7 @@ export function PanelDropFreePlacementHandler() {
             parentFreeformPref === true ||
             (!parentIsFlexParent && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
           const forceFlowInFreeform =
+            !isPrebuiltBlock &&
             !!displayName &&
             FLOW_LAYOUT_TYPES.has(displayName) &&
             !!parentDisplayName &&
@@ -465,7 +468,7 @@ export function PanelDropFreePlacementHandler() {
             continue;
           }
 
-          if (displayName && FLOW_LAYOUT_TYPES.has(displayName) && !allowFreeformLayout) {
+          if (displayName && FLOW_LAYOUT_TYPES.has(displayName) && !allowFreeformLayout && !isPrebuiltBlock) {
             continue;
           }
 

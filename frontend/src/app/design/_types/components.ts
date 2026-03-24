@@ -187,6 +187,10 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  /** Optional badge label rendered as an overlay on the image (e.g. "50% Off") */
+  badge?: string;
+  /** Background color of the badge overlay. Defaults to #1e293b */
+  badgeColor?: string;
   _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
