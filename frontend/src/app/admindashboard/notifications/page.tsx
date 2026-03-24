@@ -6,6 +6,7 @@ import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
 import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+import { formatToPHTime } from "@/lib/dateUtils";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -303,13 +304,12 @@ function NotificationsPageContent() {
 																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
 																			{item.title}
 																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
-																			{getPublisherLabel(item) && <span className="ml-2 font-normal text-[#6C48A6]">(Publisher: {getPublisherLabel(item)})</span>}
 																		</div>
 																		<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																	</div>
 																</div>
 																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
-																	<span>{item.date}</span>
+																	<span>{formatToPHTime(item.time)}</span>
 																	<span className={item.read ? "text-[#1AA54B]" : "text-[#FF5252]"}>{item.read ? <CheckIcon /> : "×"}</span>
 																</div>
 															</motion.div>
@@ -403,7 +403,7 @@ function NotificationsPageContent() {
 																			<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																		</div>
 																	</div>
-																	<div className="pl-4 text-sm text-[#8B85A5]">{item.date}</div>
+																	<div className="pl-4 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																</motion.div>
 															))}
 														</div>
