@@ -498,14 +498,21 @@ exports.publish = async (req, res) => {
     // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
     await Project.update(ownerId, projectId, { subdomain, status: 'published' });
 
+    const publisherName = [
+      req.user?.displayName,
+      req.user?.fullName,
+      req.user?.name,
+      req.user?.email,
+    ].find((value) => typeof value === 'string' && value.trim()) || 'Unknown publisher';
+
     // Broadcast to Admins: New Content Published
     try {
       const notif = await Notification.create({
         title: 'Website Published',
-        message: `${project.title || subdomain} has just gone live!`,
+        message: `${project.title || subdomain} has just gone live! Published by ${publisherName}.`,
         type: 'success',
         adminId: req.user?.id || 'system',
-        adminName: req.user?.name || 'System'
+        adminName: publisherName
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {

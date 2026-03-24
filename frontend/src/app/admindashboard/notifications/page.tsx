@@ -113,6 +113,20 @@ function NotificationsPageContent() {
 	const [trash, setTrash] = useState<NotificationItem[]>([]);
 	const [detailItem, setDetailItem] = useState<NotificationItem | null>(null);
 
+	const isPublishOrLiveNotification = (item: NotificationItem) => {
+		const text = `${item.title} ${item.message}`.toLowerCase();
+		const isWebsiteOrProject = text.includes('website') || text.includes('project');
+		const isPublishOrLive = text.includes('published') || text.includes('live');
+		return isWebsiteOrProject && isPublishOrLive;
+	};
+
+	const getPublisherLabel = (item: NotificationItem) => {
+		const publisher = item.adminName?.trim();
+		if (!publisher) return null;
+		if (!isPublishOrLiveNotification(item)) return null;
+		return publisher;
+	};
+
 	useEffect(() => {
 		const load = () => {
 			setNotifications(getNotifications());
@@ -334,6 +348,7 @@ function NotificationsPageContent() {
 																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
 																			{item.title}
 																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
+																			{getPublisherLabel(item) && <span className="ml-2 font-normal text-[#6C48A6]">(Publisher: {getPublisherLabel(item)})</span>}
 																		</div>
 																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
 																	</div>
@@ -472,6 +487,12 @@ function NotificationsPageContent() {
 								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Summary</p>
 								<p className="mt-1 whitespace-pre-wrap text-sm text-[#5D517D]">{detailItem.message || 'No summary provided.'}</p>
 							</div>
+							{getPublisherLabel(detailItem) && (
+								<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
+									<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Publisher</p>
+									<p className="mt-1 text-sm font-medium text-[#5D517D]">{getPublisherLabel(detailItem)}</p>
+								</div>
+							)}
 							<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
 								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Full Info</p>
 								<p className="mt-1 whitespace-pre-wrap text-sm text-[#5D517D]">{detailItem.details || detailItem.message || 'No additional details.'}</p>
