@@ -88,41 +88,140 @@ exports.getMyDomains = async (req, res) => {
 exports.getManagementList = async (req, res) => {
   try {
     const published = await Domain.listAllFromPublishedSubdomains();
-    const rows = [];
+    const clients = await User.findAll({ role: 'client' });
+    const ownerMap = new Map();
+    clients.forEach((user) => {
+      const owner = user.displayName || user.fullName || user.email || 'Unknown User';
+      const plan = (user.subscriptionPlan || 'free').toString().trim().toLowerCase();
+      const planDisplay = plan.charAt(0).toUpperCase() + plan.slice(1);
+      ownerMap.set(user.id, { owner, planDisplay });
+    });
+
+    const rowsByKey = new Map();
+    const rowKeyByProject = new Map();
+    const rowKeyBySubdomain = new Map();
+    const publishedSubdomains = new Set();
+    const normalizeStatus = (rawStatus, fallback = 'draft') => {
+      const status = (rawStatus || fallback).toString().trim().toLowerCase();
+      if (status === 'live' || status === 'active') return 'published';
+      return status;
+    };
+
     for (const doc of published) {
       const subdomain = doc.id || '';
       const userId = doc.userId || doc.user_id;
-      const status = (doc.status || 'published').toString().toLowerCase();
-      const statusDisplay = status === 'published' ? 'Live' : status === 'draft' ? 'Draft' : status === 'flagged' ? 'Flagged' : status;
+      const rawProjectId = doc.projectId || doc.project_id || '';
+      const status = normalizeStatus(doc.status, 'published');
       const domainName = subdomain ? `${subdomain}.${BASE_DOMAIN}` : '—';
-      let owner = 'Unknown User';
-      let planDisplay = 'Free';
+      let projectId = rawProjectId ? String(rawProjectId).trim() : '';
+      let projectThumbnail = null;
+      const ownerInfo = ownerMap.get(userId) || { owner: 'Unknown User', planDisplay: 'Free' };
       if (userId) {
+        // Best-effort project lookup so admin cards can render real thumbnails.
         try {
-          const user = await User.findById(userId);
-          if (user) {
-            owner = user.displayName || user.fullName || user.email || owner;
-            const plan = (user.subscriptionPlan || 'free').toString().trim().toLowerCase();
-            planDisplay = plan.charAt(0).toUpperCase() + plan.slice(1);
+          let project = null;
+          if (projectId) {
+            project = await Project.get(userId, projectId);
+          }
+          if (!project && subdomain) {
+            project = await Project.getBySubdomain(userId, subdomain);
+          }
+          if (project) {
+            projectId = String(project.id || projectId || '').trim();
+            projectThumbnail = project.thumbnail || null;
           }
         } catch (e) {
           // keep defaults
         }
       }
-      rows.push({
-        id: doc.domainId || doc.id || subdomain,
+
+      const key = projectId ? `${userId}::${projectId}` : `subdomain::${subdomain}`;
+      rowsByKey.set(key, {
+        id: doc.domainId || doc.domain_id || doc.id || subdomain,
+        projectId,
         userId: userId || '',
         domainName,
-        owner,
-        status: statusDisplay,
-        plan: planDisplay,
+        thumbnail: projectThumbnail || undefined,
+        owner: ownerInfo.owner,
+        status,
+        plan: ownerInfo.planDisplay,
         domainType: 'Subdomain',
       });
+      if (projectId) {
+        rowKeyByProject.set(`${userId}::${projectId}`, key);
+      }
+      if (subdomain) {
+        const normalizedSubdomain = String(subdomain).trim().toLowerCase();
+        if (status === 'published') {
+          publishedSubdomains.add(normalizedSubdomain);
+        }
+        rowKeyBySubdomain.set(`${userId}::${normalizedSubdomain}`, key);
+      }
     }
+
+    for (const client of clients) {
+      const projects = await Project.list(client.id);
+      projects.forEach((project) => {
+        const projectId = String(project.id || '').trim();
+        if (!projectId) return;
+        const projectKey = `${client.id}::${projectId}`;
+        const normalizedSubdomain = String(project.subdomain || '').trim().toLowerCase();
+        const subdomainKey = normalizedSubdomain ? `${client.id}::${normalizedSubdomain}` : '';
+        const existingRowKey = rowKeyByProject.get(projectKey) || (subdomainKey ? rowKeyBySubdomain.get(subdomainKey) : null);
+        const existing = existingRowKey ? rowsByKey.get(existingRowKey) : null;
+        if (existing) {
+          if (!existing.thumbnail && project.thumbnail) {
+            existing.thumbnail = project.thumbnail;
+          }
+          if ((!existing.domainName || existing.domainName === '—') && project.subdomain) {
+            existing.domainName = `${project.subdomain}.${BASE_DOMAIN}`;
+          }
+          if (!existing.projectId) {
+            existing.projectId = projectId;
+          }
+          if (existing.status !== 'published') {
+            const projectStatus = normalizeStatus(project.status, 'draft');
+            const isPublishedByLookup = normalizedSubdomain && publishedSubdomains.has(normalizedSubdomain);
+            existing.status = isPublishedByLookup ? 'published' : projectStatus;
+          }
+          rowsByKey.set(existingRowKey || projectKey, existing);
+          rowKeyByProject.set(projectKey, existingRowKey || projectKey);
+          if (subdomainKey) {
+            rowKeyBySubdomain.set(subdomainKey, existingRowKey || projectKey);
+          }
+          return;
+        }
+
+        const isPublishedByLookup = normalizedSubdomain && publishedSubdomains.has(normalizedSubdomain);
+        const normalizedStatus = isPublishedByLookup ? 'published' : normalizeStatus(project.status, 'draft');
+        const domainName = project.subdomain
+          ? `${project.subdomain}.${BASE_DOMAIN}`
+          : `${project.title || 'Untitled Project'} (Draft)`;
+        rowsByKey.set(projectKey, {
+          id: projectId,
+          projectId,
+          userId: client.id,
+          domainName,
+          thumbnail: project.thumbnail || undefined,
+          owner: client.displayName || client.fullName || client.email || 'Unknown User',
+          status: normalizedStatus,
+          plan: ((client.subscriptionPlan || 'free').toString().trim().toLowerCase().replace(/^./, (ch) => ch.toUpperCase())),
+          domainType: project.subdomain ? 'Subdomain' : 'Project',
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        });
+        rowKeyByProject.set(projectKey, projectKey);
+        if (subdomainKey) {
+          rowKeyBySubdomain.set(subdomainKey, projectKey);
+        }
+      });
+    }
+
+    const rows = Array.from(rowsByKey.values());
     const total = rows.length;
-    const live = rows.filter((r) => r.status === 'Live').length;
-    const underReview = rows.filter((r) => r.status === 'Draft').length;
-    const flagged = rows.filter((r) => r.status === 'Flagged').length;
+    const live = rows.filter((r) => r.status === 'published').length;
+    const underReview = rows.filter((r) => r.status === 'draft' || r.status === 'pending').length;
+    const flagged = rows.filter((r) => r.status === 'flagged').length;
     res.status(200).json({
       success: true,
       data: rows,

@@ -1380,6 +1380,7 @@ export async function getMyDomains(): Promise<{
 
 export type WebsiteManagementRow = {
   id: string;
+  projectId?: string;
   userId: string;
   domainName: string;
   thumbnail?: string;

@@ -5,6 +5,12 @@ import {
   deleteSharedNotification
 } from './api';
 
+function isMissingNotificationsRoute(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  const normalized = message.toLowerCase();
+  return normalized.includes('route not found') || normalized.includes('not found');
+}
+
 export interface NotificationItem {
   id: string;
   title: string;
@@ -51,7 +57,9 @@ export async function fetchSharedNotifications(): Promise<NotificationItem[]> {
       return mapped;
     }
   } catch (e) {
-    console.error('Failed to fetch shared notifications:', e);
+    if (!isMissingNotificationsRoute(e)) {
+      console.warn('Failed to fetch shared notifications, using local cache.');
+    }
   }
   return getNotifications();
 }
@@ -76,7 +84,9 @@ export async function addNotification(
     await addSharedNotification({ title, message, type, ...options });
     await fetchSharedNotifications();
   } catch (e) {
-    console.error('Failed to add shared notification, falling back to local:', e);
+    if (!isMissingNotificationsRoute(e)) {
+      console.warn('Failed to add shared notification, falling back to local cache.');
+    }
     const list = getNotifications();
     const newItem: NotificationItem = {
       id: `local-${Date.now()}`,
@@ -98,7 +108,11 @@ export async function markAsRead(id: string) {
     const list = getNotifications().map(n => n.id === id ? { ...n, read: true } : n);
     saveNotifications(list);
   } catch (e) {
-    console.error('Failed to mark read:', e);
+    const list = getNotifications().map(n => n.id === id ? { ...n, read: true } : n);
+    saveNotifications(list);
+    if (!isMissingNotificationsRoute(e)) {
+      console.warn('Failed to sync mark-as-read remotely; updated local cache only.');
+    }
   }
 }
 
@@ -108,6 +122,10 @@ export async function deleteNotificationItem(id: string) {
     const list = getNotifications().filter(n => n.id !== id);
     saveNotifications(list);
   } catch (e) {
-    console.error('Failed to delete notification:', e);
+    const list = getNotifications().filter(n => n.id !== id);
+    saveNotifications(list);
+    if (!isMissingNotificationsRoute(e)) {
+      console.warn('Failed to sync deletion remotely; updated local cache only.');
+    }
   }
 }
