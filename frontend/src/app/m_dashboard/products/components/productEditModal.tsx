@@ -1,4 +1,14 @@
 'use client';
+/**
+ * ProductEditModal Component
+ * 
+ * Modal for editing existing products. Loads product data on open and preserves
+ * the product ID and creation timestamp. Supports all the same features as ProductAddModal
+ * including variants, pricing, stock, and image management.
+ * 
+ * Reuses all types and utility functions exported from ProductAddModal to avoid
+ * code duplication while maintaining separate component logic for add vs. edit flows.
+ */
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
@@ -7,217 +17,46 @@ import { useAlert } from '../../components/context/alert-context';
 import { type Product } from '../../lib/productsData';
 import { uploadProductImageApi } from '@/lib/api';
 import { getIndustryCategories, INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
-
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-export interface VariantOption {
-  id: string;
-  name: string;
-  priceAdjustment: number;
-  image?: string;
-}
-
-export interface Variant {
-  id: string;
-  name: string;
-  pricingMode: 'modifier' | 'override';
-  options: VariantOption[];
-}
-
-export interface ProductImage {
-  id: string;
-  src: string;
-  file?: File;
-}
-
-export type VariantStockMap = Record<string, number>;
-export type VariantPriceMap = Record<string, number>;
-
-export interface FormData {
-  name: string;
-  sku: string;
-  category: string;
-  subcategory: string;
-  description: string;
-  status: 'active' | 'inactive' | 'draft';
-  price: number;
-  costPrice: number;
-  discount: number;
-  images: string[];
-  stock: number;
-  lowStockThreshold: number;
-  trackInventory: boolean;
-  inventoryStatus: 'in_stock' | 'out_of_stock';
-  hasVariants: boolean;
-  variants: Variant[];
-  variantStocks: VariantStockMap;
-  variantPrices: VariantPriceMap;
-}
-
-export const MAX_VARIANTS = 2;
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-// Pure, side-effect-free utility functions for:
-// - ID generation and validation
-// - Image source validation (data URIs, https, blobs, relative paths)
-// - Variant combination generation (cartesian product)
-// - SKU auto-generation from product names
-// - HSV/Hex color conversion for the color picker
-// - Color name to hex mapping
-
-export const uid = () => Math.random().toString(36).substr(2, 9);
-
-export function isImageSource(value: string): boolean {
-  const v = (value || '').trim();
-  if (!v) return false;
-  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(v)) return true;
-  if (/^https?:\/\//i.test(v)) return true;
-  if (v.startsWith('blob:')) return true;
-  if (v.startsWith('/')) return true;
-  return false;
-}
-
-export function cartesian<T>(arrays: T[][]): T[][] {
-  return arrays.reduce<T[][]>(
-    (acc, curr) => acc.flatMap(a => curr.map(b => [...a, b])),
-    [[]]
-  );
-}
-
-export function buildVariantStockKey(parts: Array<{ variantId: string; optionId: string }>): string {
-  return parts
-    .map((part) => `${part.variantId}:${part.optionId}`)
-    .join('__');
-}
-
-export function generateAutoSku(name?: string): string {
-  const cleaned = String(name || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s-]/g, ' ')
-    .trim();
-  const prefix = cleaned
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((chunk) => chunk.slice(0, 3))
-    .join('')
-    .slice(0, 9) || 'ITEM';
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}-${suffix}`;
-}
-
-export function hsvToHex(h: number, s: number, v: number, clamp: (value: number, min: number, max: number) => number): string {
-  const hh = ((h % 360) + 360) % 360;
-  const sat = clamp(s, 0, 100) / 100;
-  const val = clamp(v, 0, 100) / 100;
-
-  const chroma = val * sat;
-  const x = chroma * (1 - Math.abs(((hh / 60) % 2) - 1));
-  const m = val - chroma;
-
-  let r = 0;
-  let g = 0;
-  let b = 0;
-
-  if (hh < 60) {
-    r = chroma; g = x; b = 0;
-  } else if (hh < 120) {
-    r = x; g = chroma; b = 0;
-  } else if (hh < 180) {
-    r = 0; g = chroma; b = x;
-  } else if (hh < 240) {
-    r = 0; g = x; b = chroma;
-  } else if (hh < 300) {
-    r = x; g = 0; b = chroma;
-  } else {
-    r = chroma; g = 0; b = x;
-  }
-
-  const toHex = (channel: number) => Math.round((channel + m) * 255).toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
-}
-
-export function hexToHsv(hex: string, normalizeHexFn: (value: string) => string | null): { h: number; s: number; v: number } | null {
-  const normalized = normalizeHexFn(hex);
-  if (!normalized) return null;
-
-  const r = parseInt(normalized.slice(1, 3), 16) / 255;
-  const g = parseInt(normalized.slice(3, 5), 16) / 255;
-  const b = parseInt(normalized.slice(5, 7), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-
-  let h = 0;
-  if (delta !== 0) {
-    if (max === r) h = 60 * (((g - b) / delta) % 6);
-    else if (max === g) h = 60 * ((b - r) / delta + 2);
-    else h = 60 * ((r - g) / delta + 4);
-  }
-  if (h < 0) h += 360;
-
-  const s = max === 0 ? 0 : (delta / max) * 100;
-  const v = max * 100;
-
-  return { h: Math.round(h), s: Math.round(s), v: Math.round(v) };
-}
-
-export function normalizeHex(value: string): string | null {
-  const v = value.trim();
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) {
-    if (v.length === 4) {
-      return `#${v[1]}${v[1]}${v[2]}${v[2]}${v[3]}${v[3]}`.toUpperCase();
-    }
-    return v.toUpperCase();
-  }
-  return null;
-}
-
-export function colorToBg(name: string): string {
-  const v = name.trim();
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) return v;
-  const map: Record<string, string> = {
-    white: '#DBD5D5',
-    red: '#F62424',
-    black: '#1F2937',
-    blue: '#3B82F6',
-    green: '#22C55E',
-    yellow: '#FACC15',
-    pink: '#EC4899',
-    purple: '#A855F7',
-    gray: '#9CA3AF',
-  };
-  return map[v.toLowerCase()] || '#DBD5D5';
-}
-
-export function isTextOnlyVariantName(variantName: string): boolean {
-  const normalizedName = variantName.trim().toLowerCase();
-  return normalizedName === 'size' || normalizedName === 'frequency';
-}
+import {
+  uid,
+  isImageSource,
+  cartesian,
+  buildVariantStockKey,
+  generateAutoSku,
+  hsvToHex,
+  hexToHsv,
+  normalizeHex,
+  colorToBg,
+  isTextOnlyVariantName,
+  type VariantOption,
+  type Variant,
+  type ProductImage,
+  type VariantStockMap,
+  type VariantPriceMap,
+  type FormData,
+  MAX_VARIANTS,
+} from './productAddModal';
 
 /**
- * ProductAddModal Component
+ * ProductEditModal Component
  * 
- * Creates new products from scratch. Handles form state, image uploads, variant
- * configuration, and pricing calculations. Automatically generates SKUs and manages
- * variant combinations with stock and price overrides.
+ * Edit mode for existing products. Loads product data into the form when opened
+ * and preserves the original product ID and createdAt timestamp. Supports full
+ * editing of variants, pricing, stock, images, and other product properties.
  * 
  * Props:
  * - `isOpen`: Controls modal visibility
  * - `onClose`: Callback to close the modal
- * - `onSave`: Async callback with form data to save product (returns success boolean)
+ * - `onSave`: Async callback with updated form data (returns success boolean)
+ * - `editingProduct`: The Product object being edited (required, not optional)
  * - `uploadSubdomain`: Subdomain for image upload API calls (optional)
- * - `projectIndustry`: Industry type for locked category selection (optional)
+ * - `projectIndustry`: Industry type for locked category display (optional)
  */
-export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdomain, projectIndustry }: {
+export default function ProductEditModal({ isOpen, onClose, onSave, editingProduct, uploadSubdomain, projectIndustry }: {
   isOpen: boolean;
   onClose: () => void;
   onSave: (p: Partial<Product> & Partial<FormData>) => Promise<boolean> | boolean;
+  editingProduct: Product;
   uploadSubdomain?: string | null;
   projectIndustry?: string | null;
 }) {
@@ -239,9 +78,24 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
   const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
 
   const [fd, setFd] = useState<FormData>({
-    name: '', sku: generateAutoSku(''), category: '', subcategory: '', description: '',
-    status: 'active', price: 0, costPrice: 0, discount: 0,
-    images: [], stock: 100, lowStockThreshold: 20, trackInventory: true, inventoryStatus: 'in_stock', hasVariants: false, variants: [], variantStocks: {}, variantPrices: {},
+    name: '',
+    sku: '',
+    category: '',
+    subcategory: '',
+    description: '',
+    status: 'active',
+    price: 0,
+    costPrice: 0,
+    discount: 0,
+    images: [],
+    stock: 100,
+    lowStockThreshold: 20,
+    trackInventory: true,
+    inventoryStatus: 'in_stock',
+    hasVariants: false,
+    variants: [],
+    variantStocks: {},
+    variantPrices: {},
   });
 
   const projectSubcategoryOptions = useMemo(
@@ -267,37 +121,102 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
       .join(' ');
   }, [projectIndustry]);
 
-  // Reset form on open
+  // Load product data on open
   useEffect(() => {
     if (isOpen) {
-      const imageList: string[] = [];
-      const initialCategory = lockedProjectCategory || '';
-      setImages([]);
+      const existingVariants: Variant[] = Array.isArray(editingProduct?.variants)
+        ? editingProduct.variants.map((variant, variantIndex): Variant => ({
+          id: String(variant?.id || uid() || `var-${variantIndex + 1}`),
+          name: String(variant?.name || ''),
+          pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
+          options: Array.isArray(variant?.options)
+            ? variant.options.map((option, optionIndex) => {
+              const optionRecord = option as {
+                id?: unknown;
+                name?: unknown;
+                priceAdjustment?: unknown;
+                image?: unknown;
+                imageUrl?: unknown;
+                image_url?: unknown;
+                imgUrl?: unknown;
+                img_url?: unknown;
+              };
+              return {
+                id: String(optionRecord?.id || `opt-${variantIndex + 1}-${optionIndex + 1}`),
+                name: String(optionRecord?.name || ''),
+                priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+                image: String(
+                  optionRecord?.image
+                  ?? optionRecord?.imageUrl
+                  ?? optionRecord?.image_url
+                  ?? optionRecord?.imgUrl
+                  ?? optionRecord?.img_url
+                  ?? ''
+                ).trim(),
+              };
+            })
+            : [],
+        }))
+        : [];
+      const existingImages = Array.isArray(editingProduct?.images)
+        ? editingProduct.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
+        : [];
+      const imageList = existingImages.length > 0
+        ? existingImages
+        : (editingProduct?.image && isImageSource(editingProduct.image) ? [editingProduct.image] : []);
+      const basePrice = Number(editingProduct?.price ?? 0);
+      const discount = Number(editingProduct?.compareAtPrice ?? editingProduct?.basePrice ?? 0);
+      const hasVariants = typeof editingProduct?.hasVariants === 'boolean'
+        ? editingProduct.hasVariants
+        : existingVariants.length > 0;
+      const existingVariantStocks: VariantStockMap =
+        editingProduct?.variantStocks && typeof editingProduct.variantStocks === 'object'
+          ? Object.entries(editingProduct.variantStocks as Record<string, unknown>).reduce<VariantStockMap>((acc, [key, value]) => {
+            const parsed = Number(value);
+            acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+            return acc;
+          }, {})
+          : {};
+      const existingVariantPrices: VariantPriceMap =
+        (editingProduct as Product & { variantPrices?: unknown } | undefined)?.variantPrices
+        && typeof (editingProduct as Product & { variantPrices?: unknown }).variantPrices === 'object'
+          ? Object.entries(((editingProduct as Product & { variantPrices?: Record<string, unknown> }).variantPrices || {})).reduce<VariantPriceMap>((acc, [key, value]) => {
+            const parsed = Number(value);
+            acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+            return acc;
+          }, {})
+          : {};
+      const inferredInventoryStatus: 'in_stock' | 'out_of_stock' = (editingProduct?.stock ?? 0) > 0 ? 'in_stock' : 'out_of_stock';
+
+      setImages(imageList.map((src) => ({ id: uid(), src })));
       setRemovedVariantRows([]);
       setSlide(0);
-      setEnableVariationImages(false);
+      setEnableVariationImages(existingVariants.some((variant) =>
+        variant.options.some((option) => Boolean(String(option.image || '').trim())) || existingVariants.length > 0
+      ));
+      const initialCategory = editingProduct?.category || lockedProjectCategory || '';
       setFd({
-        name: '',
-        sku: generateAutoSku(''),
+        name: editingProduct?.name || '',
+        sku: editingProduct?.sku || generateAutoSku(editingProduct?.name || ''),
         category: initialCategory,
-        subcategory: '',
-        description: '',
-        status: 'active',
-        price: 0,
-        costPrice: 0,
-        discount: 0,
+        subcategory: editingProduct?.subcategory || '',
+        description: editingProduct?.description || '',
+        status: editingProduct?.status || 'active',
+        price: basePrice,
+        costPrice: typeof editingProduct?.costPrice === 'number' ? editingProduct.costPrice : 0,
+        discount,
         images: imageList,
-        stock: 100,
-        lowStockThreshold: 20,
+        stock: editingProduct?.stock ?? 100,
+        lowStockThreshold: typeof editingProduct?.lowStockThreshold === 'number' ? editingProduct.lowStockThreshold : 20,
         trackInventory: true,
-        inventoryStatus: 'in_stock',
-        hasVariants: false,
-        variants: [],
-        variantStocks: {},
-        variantPrices: {},
+        inventoryStatus: inferredInventoryStatus,
+        hasVariants,
+        variants: existingVariants,
+        variantStocks: existingVariantStocks,
+        variantPrices: existingVariantPrices,
       });
     }
-  }, [isOpen, lockedProjectCategory]);
+  }, [isOpen, editingProduct, lockedProjectCategory]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -661,9 +580,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
         lowStockThreshold: fd.lowStockThreshold,
         trackInventory: true,
         inventoryStatus: computedInventoryStatus,
-        // *** NEW PRODUCT: Generate new ID and timestamp ***
-        id: uid(),
-        createdAt: new Date().toISOString(),
+        // *** CRITICAL: Preserve original product ID and creation timestamp ***
+        id: editingProduct.id,
+        createdAt: editingProduct.createdAt,
       }));
       if (saved === false) return;
       onClose();
@@ -676,17 +595,18 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
 
   const hasDraft = () => {
     return (
-      fd.name.trim() !== '' ||
-      fd.category !== '' ||
-      fd.subcategory !== '' ||
-      fd.description !== '' ||
-      fd.price > 0 ||
-      fd.costPrice > 0 ||
-      fd.discount > 0 ||
-      fd.stock !== 100 ||
-      images.length > 0 ||
-      fd.variants.length > 0 ||
-      Object.values(fd.variantStocks || {}).some((amount) => Number(amount) > 0)
+      fd.name.trim() !== (editingProduct?.name || '') ||
+      fd.category !== (editingProduct?.category || '') ||
+      fd.subcategory !== (editingProduct?.subcategory || '') ||
+      fd.description !== (editingProduct?.description || '') ||
+      fd.price !== (editingProduct?.price || editingProduct?.basePrice || 0) ||
+      fd.costPrice !== (editingProduct?.costPrice || 0) ||
+      fd.discount !== (editingProduct?.compareAtPrice || 0) ||
+      fd.stock !== (editingProduct?.stock || 0) ||
+      images.length !== (Array.isArray(editingProduct?.images) ? editingProduct.images.length : 0) ||
+      fd.variants.length !== (Array.isArray(editingProduct?.variants) ? editingProduct.variants.length : 0) ||
+      Object.values(fd.variantStocks || {}).some((amount) => Number(amount) > 0) ||
+      Object.values(fd.variantPrices || {}).some((amount) => Number(amount) > 0)
     );
   };
 
@@ -1236,9 +1156,9 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
               <div className="flex items-start justify-between px-8 pt-7 pb-4 flex-shrink-0">
                 <div>
                   <h2 className="text-[44px] leading-none font-bold" style={{ color: titleColor }}>
-                    New Product
+                    Edit Product
                   </h2>
-                  <p className="text-base mt-2" style={{ color: subtitleColor }}>Fill in the details to add a new product</p>
+                  <p className="text-base mt-2" style={{ color: subtitleColor }}>Update the product details and save your changes</p>
                 </div>
                 <button
                   type="button"
@@ -1263,7 +1183,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                       setFd((prev) => ({
                         ...prev,
                         name: nextName,
-                        sku: generateAutoSku(nextName),
+                        sku: prev.sku || generateAutoSku(nextName),
                       }));
                     }}
                     placeholder="e.g. Classic White Tee"
@@ -1872,25 +1792,10 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                           <input
                             type="text"
                             value={fd.sku}
-                            readOnly
+                            onChange={e => set('sku', e.target.value)}
                             className={iCls}
-                            style={{ ...iSt, opacity: 0.9, paddingRight: '2.75rem' }}
+                            style={iSt}
                           />
-                          <button
-                            type="button"
-                            onClick={() => set('sku', generateAutoSku(fd.name))}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-lg flex items-center justify-center"
-                            style={{
-                              backgroundColor: isLight ? '#EDE6FF' : '#24327A',
-                              color: isLight ? '#5B3EA3' : '#C9D8FF',
-                              border: isLight ? '1px solid #D2C7EA' : '1px solid transparent',
-                            }}
-                            title="Regenerate SKU"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v6h6M20 20v-6h-6M20 8a8 8 0 0 0-14.9-3M4 16a8 8 0 0 0 14.9 3" />
-                            </svg>
-                          </button>
                         </div>
                       </div>
                     </div>
@@ -1921,7 +1826,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                   className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none text-white transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:brightness-110 active:scale-95'}`}
                   style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#FFFFFF', boxShadow: '0 10px 24px rgba(217,70,239,0.4)' }}
                 >
-                  {saving ? 'Saving...' : 'Add Product'}
+                  {saving ? 'Updating...' : 'Update Product'}
                 </button>
               </div>
             </div>
