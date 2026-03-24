@@ -19,7 +19,7 @@ export const ImageSettings = () => {
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
-    opacity, boxShadow,
+    opacity, boxShadow, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     actions: { setProp }
@@ -44,6 +44,8 @@ export const ImageSettings = () => {
     marginBottom: node.data.props.marginBottom,
     opacity: node.data.props.opacity,
     boxShadow: node.data.props.boxShadow,
+    overflow: node.data.props.overflow,
+    cursor: node.data.props.cursor,
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
@@ -117,29 +119,6 @@ export const ImageSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Transform">
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
-          setProp={typedSetProp as any}
-        />
-      </DesignSection>
-
       <DesignSection title="Image">
         <div className="flex flex-col gap-3">
           {/* Source URL */}
@@ -250,6 +229,29 @@ export const ImageSettings = () => {
         </div>
       </DesignSection>
 
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
+        />
+      </DesignSection>
+
       <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
@@ -281,7 +283,6 @@ export const ImageSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
-          showBackgroundImageOption={false}
           setProp={typedSetProp}
         />
       </DesignSection>
@@ -290,6 +291,8 @@ export const ImageSettings = () => {
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
+          overflow={overflow}
+          cursor={cursor}
           setProp={typedSetProp}
         />
       </DesignSection>

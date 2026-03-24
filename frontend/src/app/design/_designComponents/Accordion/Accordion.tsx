@@ -22,6 +22,7 @@ export interface AccordionProps extends PositionProps {
   animationDurationMs?: number;
   // Container
   width?: string;
+  minHeight?: number;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
@@ -77,6 +78,7 @@ export const Accordion = ({
   defaultOpenIndex = 0,
   animationDurationMs = 280,
   width = "100%",
+  minHeight = 0,
   marginTop = 0,
   marginRight = 0,
   marginBottom = 0,
@@ -100,6 +102,7 @@ export const Accordion = ({
   left = "auto",
   zIndex = 0,
   display,
+  editorVisibility = "auto",
 }: AccordionProps) => {
   const { id, connectors: { connect } } = useNode();
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -116,6 +119,12 @@ export const Accordion = ({
   const edgeGlow = hexToRgba(iconColor, 0.26);
   const contentGlow = hexToRgba(contentTextColor, 0.12);
   const isWix = stylePreset === "wix";
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "flex"
+        : (display ?? "flex");
 
   // Keep open state valid and responsive when settings are edited (items/default index/modes).
   useEffect(() => {
@@ -218,6 +227,7 @@ export const Accordion = ({
       style={{
         width,
         height: "auto",
+        minHeight: minHeight > 0 ? `${minHeight}px` : undefined,
         alignSelf: "flex-start",
         backgroundColor,
         marginTop: fluidSpace(marginTop),
@@ -227,7 +237,7 @@ export const Accordion = ({
         borderRadius: `${borderRadius}px`,
         overflow: "hidden",
         cursor: "pointer",
-        display: display ?? "flex",
+        display: effectiveDisplay,
         flexDirection: "column",
         gap: isWix ? "0px" : "10px",
         border: isWix ? `${borderWidth}px solid ${borderColor}` : undefined,

@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
-import { getNotifications, saveNotifications, type NotificationItem as LibNotificationItem, addNotification } from "@/lib/notifications";
+import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -111,6 +111,7 @@ function NotificationsPageContent() {
 	const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
 	const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 	const [trash, setTrash] = useState<NotificationItem[]>([]);
+	const [detailItem, setDetailItem] = useState<NotificationItem | null>(null);
 
 	useEffect(() => {
 		const load = () => {
@@ -236,11 +237,10 @@ function NotificationsPageContent() {
 											key={tab.key}
 											type="button"
 											onClick={() => setActiveTab(tab.key)}
-											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${
-												activeTab === tab.key
+											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${activeTab === tab.key
 													? "bg-[#FFCC00] text-[#2F1859]"
 													: "text-[#787593] hover:bg-white/60"
-											}`}
+												}`}
 										>
 											<span className="inline-flex items-center gap-2">
 												<span>{tab.label}</span>
@@ -297,14 +297,15 @@ function NotificationsPageContent() {
 																	<NotificationCheckbox
 																		checked={selectedIds.includes(item.id)}
 																		onChange={(checked) => toggleSelectOne(item.id, checked)}
-																		label={`Select notification at ${item.time}`}
+																		label={`Select notification at ${formatToPHTime(item.time)}`}
 																	/>
 																	<div className="min-w-0">
 																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
 																			{item.title}
 																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
+																			{getPublisherLabel(item) && <span className="ml-2 font-normal text-[#6C48A6]">(Publisher: {getPublisherLabel(item)})</span>}
 																		</div>
-																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																		<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																	</div>
 																</div>
 																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
@@ -395,11 +396,11 @@ function NotificationsPageContent() {
 																		<NotificationCheckbox
 																			checked={trashSelectedIds.includes(item.id)}
 																			onChange={(checked) => toggleTrashSelectOne(item.id, checked)}
-																			label={`Select trashed notification at ${item.time}`}
+																			label={`Select trashed notification at ${formatToPHTime(item.time)}`}
 																		/>
 																		<div className="min-w-0">
 																			<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
-																			<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																			<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																		</div>
 																	</div>
 																	<div className="pl-4 text-sm text-[#8B85A5]">{item.date}</div>
@@ -417,6 +418,53 @@ function NotificationsPageContent() {
 					</main>
 				</div>
 			</div>
+
+			<ModalShell isOpen={Boolean(detailItem)} onClose={() => setDetailItem(null)}>
+				{detailItem && (
+					<div>
+						<h2 className="text-2xl font-bold text-[#4C1D95]">Notification Details</h2>
+						<p className="mt-1 text-sm text-[#7D739D]">Double-click opens this view. Single-click marks as read.</p>
+
+						<div className="mt-5 max-h-[58vh] space-y-4 overflow-y-auto pr-1">
+							<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
+								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Title</p>
+								<p className="mt-1 text-base font-semibold text-[#3E228C]">{detailItem.title}</p>
+							</div>
+							<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
+								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Summary</p>
+								<p className="mt-1 whitespace-pre-wrap text-sm text-[#5D517D]">{detailItem.message || 'No summary provided.'}</p>
+							</div>
+							<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
+								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Full Info</p>
+								<p className="mt-1 whitespace-pre-wrap text-sm text-[#5D517D]">{detailItem.details || detailItem.message || 'No additional details.'}</p>
+							</div>
+							{detailItem.metadata && Object.keys(detailItem.metadata).length > 0 && (
+								<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
+									<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Metadata</p>
+									<div className="mt-2 space-y-2">
+										{Object.entries(detailItem.metadata).map(([key, value]) => (
+											<div key={key} className="flex items-start justify-between gap-4 rounded-lg bg-[#FAF7FF] px-3 py-2">
+												<span className="text-xs font-semibold uppercase tracking-wide text-[#8A7CB0]">{key}</span>
+												<span className="text-sm text-[#4F4371]">{value}</span>
+											</div>
+										))}
+									</div>
+								</div>
+							)}
+						</div>
+
+						<div className="mt-6 flex justify-end">
+							<button
+								type="button"
+								onClick={() => setDetailItem(null)}
+								className="rounded-[14px] bg-[#A148FF] px-5 py-2 text-sm font-semibold text-white hover:bg-[#8D36E7]"
+							>
+								Close
+							</button>
+						</div>
+					</div>
+				)}
+			</ModalShell>
 
 			<ModalShell isOpen={showRestoreModal} onClose={() => setShowRestoreModal(false)}>
 				<h3 className="text-2xl font-semibold text-[#471396]">Restore notifications</h3>

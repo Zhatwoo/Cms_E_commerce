@@ -26,6 +26,15 @@ export const Spacer = ({
     rotation = 0,
     flipHorizontal = false,
     flipVertical = false,
+    position = "static",
+    display = "block",
+    zIndex = 0,
+    top = "auto",
+    right = "auto",
+    bottom = "auto",
+    left = "auto",
+    editorVisibility = "auto",
+    visibility = "visible",
     customClassName = "",
     background = "transparent",
     borderRadius = 0,
@@ -38,6 +47,8 @@ export const Spacer = ({
     borderStyle = "solid",
     opacity = 1,
     boxShadow = "none",
+    overflow = "visible",
+    cursor = "default",
 }: SpacerProps) => {
     const { connectors: { connect, drag } } = useNode();
 
@@ -60,6 +71,13 @@ export const Spacer = ({
     const rtr = radiusTopRight ?? br;
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
+
+    const effectiveDisplay =
+        editorVisibility === "hide"
+            ? "none"
+            : editorVisibility === "show" && display === "none"
+                ? "block"
+                : display;
 
     return (
         <div
@@ -89,7 +107,6 @@ export const Spacer = ({
                 borderStyle,
                 opacity,
                 boxShadow,
-                containerType: "inline-size",
                 transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
             }}
         >

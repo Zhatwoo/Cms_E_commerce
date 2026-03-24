@@ -40,6 +40,8 @@ export const Image = ({
   marginLeft,
   opacity = 1,
   boxShadow = "none",
+  overflow = "visible",
+  cursor = "default",
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
@@ -50,6 +52,8 @@ export const Image = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
+  display = "block",
+  editorVisibility = "auto",
   _autoFitInTabs = false,
   _isDraggingSource = false,
 }: ImageProps) => {
@@ -126,6 +130,13 @@ export const Image = ({
     isContainerLikeParent && isAutoHeight && parentHasExplicitHeight
       ? "100%"
       : (height ?? "auto");
+
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "block"
+        : display;
 
   // Handle empty or invalid src
   const imageSrc = src && src.trim() !== ""
@@ -248,11 +259,14 @@ export const Image = ({
         marginBottom: fluidSpace(mb),
         marginLeft: fluidSpace(ml),
         position: position as any,
-        top,
-        left,
-        right,
-        bottom,
-        zIndex,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        display: effectiveDisplay,
+        overflow,
+        cursor,
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
       }}
     >

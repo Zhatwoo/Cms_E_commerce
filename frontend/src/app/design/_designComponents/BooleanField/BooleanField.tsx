@@ -14,10 +14,10 @@ function ensureOptions(props: Pick<BooleanFieldProps, "options" | "label" | "che
 }
 
 function fluidFontSize(value: number, min = 10): string {
-    if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
-    const preferred = (value / 16 * 2.1).toFixed(2);
-    const floor = Math.max(min, Math.round(value * 0.8));
-    return `clamp(${floor}px, ${preferred}cqw, ${value}px)`;
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = (value / 16 * 2.1).toFixed(2);
+  const floor = Math.max(min, Math.round(value * 0.8));
+  return `clamp(${floor}px, ${preferred}cqw, ${value}px)`;
 }
 
 function fluidSpace(value: number, min = 0): string {
@@ -54,13 +54,21 @@ export const BooleanField = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
-  display,
+  display = "inline-flex",
+  editorVisibility = "auto",
   options,
   // back-compat single option
   label,
   checked,
   opacity = 1,
+  boxShadow = "none",
+  overflow = "visible",
+  cursor = "default",
+  visibility = "visible",
   customClassName = "",
+  rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
@@ -103,6 +111,22 @@ export const BooleanField = ({
 
   const fluidFSize = useMemo(() => fluidFontSize(fontSize, 8), [fontSize]);
 
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
+
+  const transformStyle =
+    [
+      rotation ? `rotate(${rotation}deg)` : null,
+      flipHorizontal ? "scaleX(-1)" : null,
+      flipVertical ? "scaleY(-1)" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
     <div
       data-node-id={id}
@@ -123,7 +147,7 @@ export const BooleanField = ({
         height: height ?? "auto",
         gap: fluidSpace(itemGap, 4),
         opacity,
-        cursor: disabled ? "not-allowed" : "default",
+        cursor: disabled ? "not-allowed" : cursor,
         userSelect: "none",
         position,
         top: position !== "static" ? top : undefined,
@@ -132,7 +156,6 @@ export const BooleanField = ({
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         display: display ?? "inline-flex",
-        containerType: "inline-size",
       }}
     >
       {normalizedOptions.map((opt, idx) => {

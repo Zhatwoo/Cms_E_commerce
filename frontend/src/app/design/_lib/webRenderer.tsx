@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
@@ -8,6 +9,7 @@ import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
 import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
+import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
@@ -1995,6 +1997,9 @@ function RenderNode({
     spacer: "Spacer",
     pagination: "Pagination",
     badge: "Badge",
+    profilelogin: "ProfileLogin",
+    "profile-login": "ProfileLogin",
+    "profile login": "ProfileLogin",
     circle: "Circle",
     square: "Square",
     triangle: "Triangle",
@@ -4044,6 +4049,57 @@ function RenderNode({
       );
     }
 
+    case "ProfileLogin":
+      return wrapWithAnimation(
+        <ProfileLoginBlock
+          text={typeof props.text === "string" ? props.text : undefined}
+          fontSize={typeof props.fontSize === "number" ? props.fontSize : undefined}
+          fontFamily={typeof props.fontFamily === "string" ? props.fontFamily : undefined}
+          fontWeight={typeof props.fontWeight === "string" ? props.fontWeight : undefined}
+          fontStyle={props.fontStyle as "normal" | "italic" | undefined}
+          lineHeight={props.lineHeight as number | string | undefined}
+          letterSpacing={props.letterSpacing as number | string | undefined}
+          color={typeof props.color === "string" ? props.color : undefined}
+          iconColor={typeof props.iconColor === "string" ? props.iconColor : undefined}
+          arrowSize={typeof props.arrowSize === "number" ? props.arrowSize : undefined}
+          avatarSrc={typeof props.avatarSrc === "string" ? props.avatarSrc : undefined}
+          avatarSize={typeof props.avatarSize === "number" ? props.avatarSize : undefined}
+          width={typeof props.width === "number" || typeof props.width === "string" ? props.width : undefined}
+          height={typeof props.height === "number" || typeof props.height === "string" ? props.height : undefined}
+          display={props.display as "inline-flex" | "flex" | "block" | undefined}
+          alignItems={props.alignItems as "flex-start" | "center" | "flex-end" | "stretch" | undefined}
+          justifyContent={props.justifyContent as "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | undefined}
+          gap={typeof props.gap === "number" ? props.gap : undefined}
+          paddingTop={typeof props.paddingTop === "number" ? props.paddingTop : undefined}
+          paddingRight={typeof props.paddingRight === "number" ? props.paddingRight : undefined}
+          paddingBottom={typeof props.paddingBottom === "number" ? props.paddingBottom : undefined}
+          paddingLeft={typeof props.paddingLeft === "number" ? props.paddingLeft : undefined}
+          marginTop={typeof props.marginTop === "number" ? props.marginTop : undefined}
+          marginRight={typeof props.marginRight === "number" ? props.marginRight : undefined}
+          marginBottom={typeof props.marginBottom === "number" ? props.marginBottom : undefined}
+          marginLeft={typeof props.marginLeft === "number" ? props.marginLeft : undefined}
+          background={typeof props.background === "string" ? props.background : undefined}
+          borderRadius={typeof props.borderRadius === "number" ? props.borderRadius : undefined}
+          borderColor={typeof props.borderColor === "string" ? props.borderColor : undefined}
+          borderWidth={typeof props.borderWidth === "number" ? props.borderWidth : undefined}
+          borderStyle={typeof props.borderStyle === "string" ? props.borderStyle : undefined}
+          boxShadow={typeof props.boxShadow === "string" ? props.boxShadow : undefined}
+          opacity={typeof props.opacity === "number" ? props.opacity : undefined}
+          overflow={typeof props.overflow === "string" ? props.overflow : undefined}
+          position={props.position as "static" | "relative" | "absolute" | "fixed" | "sticky" | undefined}
+          top={typeof props.top === "string" ? props.top : undefined}
+          right={typeof props.right === "string" ? props.right : undefined}
+          bottom={typeof props.bottom === "string" ? props.bottom : undefined}
+          left={typeof props.left === "string" ? props.left : undefined}
+          zIndex={typeof props.zIndex === "number" ? props.zIndex : undefined}
+          rotation={typeof props.rotation === "number" ? props.rotation : undefined}
+          customClassName={typeof props.customClassName === "string" ? props.customClassName : undefined}
+          interactive
+          nodeId={nodeId}
+        />,
+        animation,
+      );
+
     default:
       return <div data-unknown-type={type}>{children}</div>;
   }
@@ -4232,16 +4288,7 @@ export function WebPreview({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isPhoneSize, currentPageId]);
-
-  React.useEffect(() => {
-    if (typeof document !== "undefined") {
-      const oldBg = document.body.style.backgroundColor;
-      document.body.style.backgroundColor = background;
-      return () => { document.body.style.backgroundColor = oldBg; };
-    }
-  }, [background]);
-
+  }, [isDesktopMode, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4315,6 +4362,7 @@ export function WebPreview({
       <div
         key={currentPageId}
         ref={ref}
+        data-preview-scroll-root="true"
         style={{
           width: "100%",
           minHeight: "100vh",

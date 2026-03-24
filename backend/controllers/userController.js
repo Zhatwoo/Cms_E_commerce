@@ -1,5 +1,7 @@
 // controllers/userController.js
 const User = require('../models/User');
+const { auth } = require('../config/firebase');
+const { sendAdminActionEmail } = require('../utils/emailService');
 
 // No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
@@ -96,7 +98,7 @@ exports.createUser = async (req, res) => {
     }
     const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase(),
       password,
       role: normalizedRole,
       status: status || 'Published',
@@ -104,6 +106,18 @@ exports.createUser = async (req, res) => {
       bio,
       avatar
     });
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'New User Created',
+        message: `Admin created user: ${name} (${email})`,
+        type: 'info',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('User creation notification failed:', e.message); }
 
     res.status(201).json({
       success: true,
@@ -145,6 +159,19 @@ exports.updateUser = async (req, res) => {
     if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
     const updated = await User.update(req.params.id, updates);
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'User Updated',
+        message: `Admin updated profile for: ${updated.name || updated.email}`,
+        type: 'info',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('User update notification failed:', e.message); }
+
     res.status(200).json({
       success: true,
       message: 'User updated successfully',
@@ -201,6 +228,19 @@ exports.deleteUser = async (req, res) => {
     }
 
     await User.delete(req.params.id);
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'User Deleted',
+        message: `Admin removed user: ${user.name || user.email}`,
+        type: 'error',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('User deletion notification failed:', e.message); }
+
     res.status(200).json({
       success: true,
       message: 'User deleted successfully'
@@ -237,6 +277,19 @@ exports.updateUserRole = async (req, res) => {
     }
 
     const updated = await User.update(req.params.id, { role });
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'Role Updated',
+        message: `User ${updated.name || updated.email} role changed to ${role}`,
+        type: 'info',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('Role update notification failed:', e.message); }
+
     res.status(200).json({
       success: true,
       message: 'User role updated successfully',
@@ -278,6 +331,36 @@ exports.updateUserStatus = async (req, res) => {
       isActive: status === 'Published',
       suspensionReason: status === 'Suspended' ? reason : ''
     });
+
+    let emailSent = false;
+    let emailError = '';
+    if (status === 'Suspended') {
+      let recipientEmail = String(user.email || '').trim();
+      if (!recipientEmail) {
+        try {
+          const authUser = await auth.getUser(req.params.id);
+          recipientEmail = String(authUser.email || '').trim();
+        } catch {
+          // keep as empty
+        }
+      }
+
+      if (recipientEmail) {
+        const mail = await sendAdminActionEmail({
+          to: recipientEmail,
+          name: user.displayName || user.fullName || recipientEmail,
+          subject: 'Your account has been suspended',
+          title: 'Account Suspension Notice',
+          intro: 'Your account was suspended by an administrator.',
+          reason: reason || 'No reason provided.',
+        });
+        emailSent = !!mail?.sent;
+        emailError = mail?.error || '';
+      } else {
+        emailError = 'Recipient email not found';
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: 'User status updated successfully',

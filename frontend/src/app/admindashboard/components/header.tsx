@@ -18,7 +18,8 @@ import {
     type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
-import { getNotifications, markAsRead, type NotificationItem } from '@/lib/notifications';
+import { getNotifications, markAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
+import { formatToPHTime } from '@/lib/dateUtils';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,12 +133,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         load();
         window.addEventListener('notificationsUpdate', load);
 
-        const onNewReceived = (e: any) => {
+        const onNewReceived = async (e: any) => {
             const newItem = e.detail;
             if (!newItem) return;
 
+            // Refresh the whole notification list from backend
+            await fetchSharedNotifications();
+
             // Only show toast if it's NOT from the current user (don't double notify)
-            // Or if current user is null (maybe just for testing)
             if (currentUser && newItem.adminId === currentUser.id) {
                 return;
             }
@@ -145,7 +148,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             setActiveToast({
                 id: newItem.id || `toast-${Date.now()}`,
                 title: newItem.title,
-                message: newItem.message,
+                message: `${newItem.adminName ? `${newItem.adminName}: ` : ''}${newItem.message}`,
                 type: newItem.type || 'info'
             });
 
@@ -224,7 +227,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 if (!isMounted) return;
                 if (res.success && res.user) {
                     // Only update if we don't have local mock-saved data or if it's a fresh login
-                    const updated = { 
+                    const updated = {
                         ...res.user,
                         // Preserve our session-only mock data if it exists
                         avatar: local?.avatar || res.user.avatar,
@@ -445,11 +448,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         style={{ border: '1.5px solid rgba(177,59,255,0.2)' }}
                         onClick={() => router.push('/admindashboard/notifications')}
                     >
-                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${
-                            activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
-                            activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
-                            'from-[#B13BFF] to-[#8B5CF6]'
-                        }`}>
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
+                                activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
+                                    'from-[#B13BFF] to-[#8B5CF6]'
+                            }`}>
                             <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
                             </svg>
@@ -459,7 +461,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             <p className="mt-0.5 line-clamp-2 text-xs leading-normal text-[#7a6aa0]">{activeToast.message}</p>
                             <div className="mt-1 text-[10px] font-bold uppercase tracking-tighter text-[#B13BFF]/60 underline decoration-[#B13BFF]/30">Click to expand</div>
                         </div>
-                        <button 
+                        <button
                             type="button"
                             onClick={(e) => { e.stopPropagation(); setActiveToast(null); }}
                             className="text-[#B13BFF]/50 hover:text-[#B13BFF]"
@@ -519,7 +521,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     isDataLoading ? (
                                         <p className="px-3 py-2 text-xs text-[#7C7393]">Loading searchable data...</p>
                                     ) : (
-                                    <p className="px-3 py-2 text-xs text-[#7C7393]">No matches found.</p>
+                                        <p className="px-3 py-2 text-xs text-[#7C7393]">No matches found.</p>
                                     )
                                 ) : (
                                     <div className="space-y-1">
@@ -574,14 +576,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     ) : (
                                         <div className="divide-y divide-[rgba(177,59,255,0.08)]">
                                             {notifications.slice(0, 10).map((n) => (
-                                                <div 
-                                                    key={n.id} 
+                                                <div
+                                                    key={n.id}
                                                     className={`group relative flex cursor-default flex-col gap-0.5 px-4 py-3 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/20' : ''}`}
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
                                                         <span className={`text-[13px] font-bold leading-tight ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
                                                         {!n.read && (
-                                                            <button 
+                                                            <button
                                                                 onClick={(e) => handleMarkSingleRead(n.id, e)}
                                                                 className="h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform hover:scale-125"
                                                                 title="Mark as read"
@@ -590,7 +592,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                     </div>
                                                     <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
                                                     <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
-                                                </div>
+                                                </button>
                                             ))}
                                         </div>
                                     )}

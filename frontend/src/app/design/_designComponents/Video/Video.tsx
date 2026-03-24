@@ -43,6 +43,8 @@ export const Video = ({
     marginLeft,
     opacity = 1,
     boxShadow = "none",
+    overflow = "visible",
+    cursor = "default",
     rotation = 0,
     flipHorizontal = false,
     flipVertical = false,
@@ -53,6 +55,8 @@ export const Video = ({
     bottom = "auto",
     left = "auto",
     zIndex = 0,
+    display = "block",
+    editorVisibility = "auto",
     _isDraggingSource = false,
 }: VideoProps) => {
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -120,6 +124,13 @@ export const Video = ({
     const rtr = radiusTopRight ?? br;
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
+
+    const effectiveDisplay =
+        editorVisibility === "hide"
+            ? "none"
+            : editorVisibility === "show" && display === "none"
+                ? "block"
+                : display;
 
     // We use native listeners with capture: true to beat Craft.js event interception.
     React.useEffect(() => {
@@ -221,11 +232,14 @@ export const Video = ({
                 marginBottom: fluidSpace(mb),
                 marginLeft: fluidSpace(ml),
                 position: position as any,
-                top,
-                left,
-                right,
-                bottom,
-                zIndex,
+                top: position !== "static" ? top : undefined,
+                right: position !== "static" ? right : undefined,
+                bottom: position !== "static" ? bottom : undefined,
+                left: position !== "static" ? left : undefined,
+                zIndex: zIndex !== 0 ? zIndex : undefined,
+                display: effectiveDisplay,
+                overflow,
+                cursor,
                 transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
             }}
         >

@@ -11,6 +11,42 @@ const Notification = require('../models/Notification');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
+async function buildOwnerSnapshot(userId) {
+  if (!userId) return null;
+
+  let user = null;
+  try {
+    user = await User.findById(userId);
+  } catch {
+    user = null;
+  }
+
+  if (!user) {
+    try {
+      const authUser = await auth.getUser(userId);
+      return {
+        id: userId,
+        email: authUser.email || '',
+        name: authUser.displayName || authUser.email || 'Client',
+        avatar: authUser.photoURL || null,
+        username: '',
+        subscriptionPlan: null,
+      };
+    } catch {
+      return { id: userId };
+    }
+  }
+
+  return {
+    id: user.id || userId,
+    email: user.email || '',
+    name: user.displayName || user.fullName || user.name || user.email || 'Client',
+    avatar: user.avatar || null,
+    username: user.username || '',
+    subscriptionPlan: user.subscriptionPlan || null,
+  };
+}
+
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
   try {
@@ -25,41 +61,140 @@ exports.getMyDomains = async (req, res) => {
 exports.getManagementList = async (req, res) => {
   try {
     const published = await Domain.listAllFromPublishedSubdomains();
-    const rows = [];
+    const clients = await User.findAll({ role: 'client' });
+    const ownerMap = new Map();
+    clients.forEach((user) => {
+      const owner = user.displayName || user.fullName || user.email || 'Unknown User';
+      const plan = (user.subscriptionPlan || 'free').toString().trim().toLowerCase();
+      const planDisplay = plan.charAt(0).toUpperCase() + plan.slice(1);
+      ownerMap.set(user.id, { owner, planDisplay });
+    });
+
+    const rowsByKey = new Map();
+    const rowKeyByProject = new Map();
+    const rowKeyBySubdomain = new Map();
+    const publishedSubdomains = new Set();
+    const normalizeStatus = (rawStatus, fallback = 'draft') => {
+      const status = (rawStatus || fallback).toString().trim().toLowerCase();
+      if (status === 'live' || status === 'active') return 'published';
+      return status;
+    };
+
     for (const doc of published) {
       const subdomain = doc.id || '';
       const userId = doc.userId || doc.user_id;
-      const status = (doc.status || 'published').toString().toLowerCase();
-      const statusDisplay = status === 'published' ? 'Live' : status === 'draft' ? 'Draft' : status === 'flagged' ? 'Flagged' : status;
+      const rawProjectId = doc.projectId || doc.project_id || '';
+      const status = normalizeStatus(doc.status, 'published');
       const domainName = subdomain ? `${subdomain}.${BASE_DOMAIN}` : '—';
-      let owner = 'Unknown User';
-      let planDisplay = 'Free';
+      let projectId = rawProjectId ? String(rawProjectId).trim() : '';
+      let projectThumbnail = null;
+      const ownerInfo = ownerMap.get(userId) || { owner: 'Unknown User', planDisplay: 'Free' };
       if (userId) {
+        // Best-effort project lookup so admin cards can render real thumbnails.
         try {
-          const user = await User.findById(userId);
-          if (user) {
-            owner = user.displayName || user.fullName || user.email || owner;
-            const plan = (user.subscriptionPlan || 'free').toString().trim().toLowerCase();
-            planDisplay = plan.charAt(0).toUpperCase() + plan.slice(1);
+          let project = null;
+          if (projectId) {
+            project = await Project.get(userId, projectId);
+          }
+          if (!project && subdomain) {
+            project = await Project.getBySubdomain(userId, subdomain);
+          }
+          if (project) {
+            projectId = String(project.id || projectId || '').trim();
+            projectThumbnail = project.thumbnail || null;
           }
         } catch (e) {
           // keep defaults
         }
       }
-      rows.push({
-        id: doc.domainId || doc.id || subdomain,
+
+      const key = projectId ? `${userId}::${projectId}` : `subdomain::${subdomain}`;
+      rowsByKey.set(key, {
+        id: doc.domainId || doc.domain_id || doc.id || subdomain,
+        projectId,
         userId: userId || '',
         domainName,
-        owner,
-        status: statusDisplay,
-        plan: planDisplay,
+        thumbnail: projectThumbnail || undefined,
+        owner: ownerInfo.owner,
+        status,
+        plan: ownerInfo.planDisplay,
         domainType: 'Subdomain',
       });
+      if (projectId) {
+        rowKeyByProject.set(`${userId}::${projectId}`, key);
+      }
+      if (subdomain) {
+        const normalizedSubdomain = String(subdomain).trim().toLowerCase();
+        if (status === 'published') {
+          publishedSubdomains.add(normalizedSubdomain);
+        }
+        rowKeyBySubdomain.set(`${userId}::${normalizedSubdomain}`, key);
+      }
     }
+
+    for (const client of clients) {
+      const projects = await Project.list(client.id);
+      projects.forEach((project) => {
+        const projectId = String(project.id || '').trim();
+        if (!projectId) return;
+        const projectKey = `${client.id}::${projectId}`;
+        const normalizedSubdomain = String(project.subdomain || '').trim().toLowerCase();
+        const subdomainKey = normalizedSubdomain ? `${client.id}::${normalizedSubdomain}` : '';
+        const existingRowKey = rowKeyByProject.get(projectKey) || (subdomainKey ? rowKeyBySubdomain.get(subdomainKey) : null);
+        const existing = existingRowKey ? rowsByKey.get(existingRowKey) : null;
+        if (existing) {
+          if (!existing.thumbnail && project.thumbnail) {
+            existing.thumbnail = project.thumbnail;
+          }
+          if ((!existing.domainName || existing.domainName === '—') && project.subdomain) {
+            existing.domainName = `${project.subdomain}.${BASE_DOMAIN}`;
+          }
+          if (!existing.projectId) {
+            existing.projectId = projectId;
+          }
+          if (existing.status !== 'published') {
+            const projectStatus = normalizeStatus(project.status, 'draft');
+            const isPublishedByLookup = normalizedSubdomain && publishedSubdomains.has(normalizedSubdomain);
+            existing.status = isPublishedByLookup ? 'published' : projectStatus;
+          }
+          rowsByKey.set(existingRowKey || projectKey, existing);
+          rowKeyByProject.set(projectKey, existingRowKey || projectKey);
+          if (subdomainKey) {
+            rowKeyBySubdomain.set(subdomainKey, existingRowKey || projectKey);
+          }
+          return;
+        }
+
+        const isPublishedByLookup = normalizedSubdomain && publishedSubdomains.has(normalizedSubdomain);
+        const normalizedStatus = isPublishedByLookup ? 'published' : normalizeStatus(project.status, 'draft');
+        const domainName = project.subdomain
+          ? `${project.subdomain}.${BASE_DOMAIN}`
+          : `${project.title || 'Untitled Project'} (Draft)`;
+        rowsByKey.set(projectKey, {
+          id: projectId,
+          projectId,
+          userId: client.id,
+          domainName,
+          thumbnail: project.thumbnail || undefined,
+          owner: client.displayName || client.fullName || client.email || 'Unknown User',
+          status: normalizedStatus,
+          plan: ((client.subscriptionPlan || 'free').toString().trim().toLowerCase().replace(/^./, (ch) => ch.toUpperCase())),
+          domainType: project.subdomain ? 'Subdomain' : 'Project',
+          createdAt: project.createdAt,
+          updatedAt: project.updatedAt,
+        });
+        rowKeyByProject.set(projectKey, projectKey);
+        if (subdomainKey) {
+          rowKeyBySubdomain.set(subdomainKey, projectKey);
+        }
+      });
+    }
+
+    const rows = Array.from(rowsByKey.values());
     const total = rows.length;
-    const live = rows.filter((r) => r.status === 'Live').length;
-    const underReview = rows.filter((r) => r.status === 'Draft').length;
-    const flagged = rows.filter((r) => r.status === 'Flagged').length;
+    const live = rows.filter((r) => r.status === 'published').length;
+    const underReview = rows.filter((r) => r.status === 'draft' || r.status === 'pending').length;
+    const flagged = rows.filter((r) => r.status === 'flagged').length;
     res.status(200).json({
       success: true,
       data: rows,
@@ -96,7 +231,8 @@ exports.setClientDomainStatus = async (req, res) => {
         title: 'Status Updated',
         message: `Domain ${subdomain || domainId} updated to ${normalized} status.`,
         type: 'info',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
@@ -123,27 +259,56 @@ exports.adminWebsiteAction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'action must be take_down or delete' });
     }
 
-    const domain = await Domain.get(userId, domainId);
+    let domain = await Domain.get(userId, domainId);
     if (!domain) {
+      // Try finding by project_id in case the frontend passed projectId as the ID
+      domain = await Domain.findByProjectId(userId, domainId);
+    }
+
+    if (!domain) {
+      // Try finding by subdomain (in case domainId is the subdomain string)
+      const potential = await Domain.findBySubdomain(domainId);
+      if (potential && potential.userId === userId && potential.id) {
+        domain = await Domain.get(userId, potential.id);
+      }
+    }
+
+    // Identify project if possible
+    let project = null;
+    const resolvedProjectId = domain?.projectId || domainId;
+    if (resolvedProjectId) {
+      project = await Project.get(userId, resolvedProjectId);
+    }
+
+    if (!domain && !project) {
       return res.status(404).json({ success: false, message: 'Website not found' });
     }
 
+    const targetProjectId = domain?.projectId || (project ? project.id : null);
+    const targetSubdomain = domain?.subdomain || (project ? project.subdomain : null) || domainId;
+
     if (normalizedAction === 'take_down') {
-      if (!domain.projectId) {
+      if (domain && targetProjectId) {
+        await Domain.unpublishForClient(userId, targetProjectId);
+        await Project.update(userId, targetProjectId, { status: 'draft' });
+      } else if (project) {
+        // If it's only a project (no domain doc), ensure it's in draft status
+        await Project.update(userId, project.id, { status: 'draft' });
+      } else {
         return res.status(400).json({ success: false, message: 'Cannot take down website: missing project mapping' });
       }
-      await Domain.unpublishForClient(userId, domain.projectId);
-      await Project.update(userId, domain.projectId, { status: 'draft' });
     } else {
-      if (!domain.projectId) {
-        const deleted = await Domain.deleteForClient(userId, domainId);
-        if (!deleted) {
-          return res.status(404).json({ success: false, message: 'Website not found' });
-        }
-      } else {
-        await Domain.unpublishForClient(userId, domain.projectId);
-        await Project.update(userId, domain.projectId, { status: 'draft' });
-        await Project.delete(userId, domain.projectId);
+      // Action: delete
+      if (domain && targetProjectId) {
+        await Domain.unpublishForClient(userId, targetProjectId);
+        await Project.update(userId, targetProjectId, { status: 'draft' });
+        await Project.delete(userId, targetProjectId);
+      } else if (domain) {
+        // Domain with no project mapping
+        await Domain.deleteForClient(userId, domain.id);
+      } else if (project) {
+        // Project with no domain mapping (e.g. unpublished draft)
+        await Project.delete(userId, project.id);
       }
     }
 
@@ -156,10 +321,28 @@ exports.adminWebsiteAction = async (req, res) => {
         subject: normalizedAction === 'take_down' ? 'Website taken down by admin' : 'Website deleted by admin',
         title: normalizedAction === 'take_down' ? 'Your website was taken down' : 'Your website was deleted',
         intro: normalizedAction === 'take_down'
-          ? `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been taken offline by an administrator.`
-          : `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been deleted by an administrator.`,
+          ? `Website ${targetSubdomain ? `\"${targetSubdomain}\"` : ''} has been taken offline by an administrator.`
+          : `Website ${targetSubdomain ? `\"${targetSubdomain}\"` : ''} has been deleted by an administrator.`,
         reason: actionReason,
       });
+      emailSent = !!mail?.sent;
+      emailError = mail?.error || '';
+    } else {
+      emailError = 'Recipient email not found';
+    }
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: normalizedAction === 'take_down' ? 'Website Offline' : 'Website Deleted',
+        message: `${targetSubdomain || domainId} was ${normalizedAction === 'take_down' ? 'taken down' : 'deleted'} by admin`,
+        type: normalizedAction === 'take_down' ? 'warning' : 'error',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Admin action notification failed:', e.message);
     }
 
     return res.status(200).json({
@@ -256,7 +439,7 @@ exports.publish = async (req, res) => {
 
     // 1. PROJECT-BASED SUBDOMAIN RESERVATION LIMIT
     if (!project.subdomain) {
-      const reservedCount = await Project.countWithSubdomain(userId);
+      const reservedCount = await Project.countWithSubdomain(ownerId);
       if (reservedCount >= limits.domains) {
         return res.status(403).json({
           success: false,
@@ -299,23 +482,33 @@ exports.publish = async (req, res) => {
     }
 
     // Save to BOTH paths with published_content snapshot
-    const data = await Domain.publishForClientBatch(userId, {
+    const ownerSnapshot = await buildOwnerSnapshot(ownerId);
+    const data = await Domain.publishForClientBatch(ownerId, {
       projectId: String(projectId).trim(),
       projectTitle: project.title,
       subdomain,
       publishedContent,
+      ownerProfile: ownerSnapshot,
     });
 
     // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
-    await Project.update(userId, projectId, { subdomain, status: 'published' });
+    await Project.update(ownerId, projectId, { subdomain, status: 'published' });
+
+    const publisherName = [
+      req.user?.displayName,
+      req.user?.fullName,
+      req.user?.name,
+      req.user?.email,
+    ].find((value) => typeof value === 'string' && value.trim()) || 'Unknown publisher';
 
     // Broadcast to Admins: New Content Published
     try {
       const notif = await Notification.create({
         title: 'Website Published',
-        message: `${project.title || subdomain} has just gone live!`,
+        message: `${project.title || subdomain} has just gone live! Published by ${publisherName}.`,
         type: 'success',
-        adminId: 'system'
+        adminId: req.user?.id || 'system',
+        adminName: publisherName
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
@@ -325,7 +518,7 @@ exports.publish = async (req, res) => {
     const rtdb = getRealtimeDb();
     if (rtdb) {
       try {
-        const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`);
+        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
         await rtdbRef.update({ subdomain });
       } catch (e) {
         console.warn('publish: Realtime DB sync failed:', e.message);
@@ -412,7 +605,8 @@ exports.updateSubdomain = async (req, res) => {
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
-    const data = await Domain.updateSubdomainForClient(ownerId, String(projectId).trim(), normalized);
+    const ownerSnapshot = await buildOwnerSnapshot(ownerId);
+    const data = await Domain.updateSubdomainForClient(ownerId, String(projectId).trim(), normalized, ownerSnapshot);
     if (!data) {
       return res.status(400).json({ success: false, message: 'Domain not found. Publish the site first.' });
     }
@@ -525,12 +719,14 @@ exports.syncPublicLookup = async (req, res) => {
     for (const d of items) {
       const sub = (d.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       if (sub && (d.status || 'published') === 'published') {
+        const ownerSnapshot = await buildOwnerSnapshot(userId);
         await Domain.setSubdomainLookup(sub, {
           userId,
           projectId: d.projectId,
           domainId: d.id,
           status: 'published',
           projectTitle: d.projectTitle || null,
+          ownerProfile: ownerSnapshot,
         });
         synced++;
       }

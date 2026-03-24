@@ -48,6 +48,10 @@ export const Pagination = ({
     borderWidth = 1,
     borderColor = "#3f3f46", // zinc-700 / brand-medium/30
     borderStyle = "solid",
+    opacity = 1,
+    boxShadow = "none",
+    overflow = "visible",
+    cursor = "default",
     position = "relative",
     top = "auto",
     right = "auto",
@@ -55,6 +59,10 @@ export const Pagination = ({
     left = "auto",
     zIndex = 0,
     display,
+    editorVisibility = "auto",
+    rotation = 0,
+    flipHorizontal = false,
+    flipVertical = false,
 }: PaginationProps) => {
     const { connectors: { connect, drag } } = useNode();
     const id = useNode((node) => node.id);
@@ -80,6 +88,22 @@ export const Pagination = ({
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
     const fluidFontSize = `clamp(${Math.max(10, Math.round(fontSize * 0.8))}px, ${(fontSize / 16 * 2.1).toFixed(2)}cqw, ${fontSize}px)`;
+
+    const effectiveDisplay =
+        editorVisibility === "hide"
+            ? "none"
+            : editorVisibility === "show" && display === "none"
+                ? "inline-flex"
+                : (display ?? "inline-flex");
+
+    const transformStyle =
+        [
+            rotation ? `rotate(${rotation}deg)` : null,
+            flipHorizontal ? "scaleX(-1)" : null,
+            flipVertical ? "scaleY(-1)" : null,
+        ]
+            .filter(Boolean)
+            .join(" ") || undefined;
 
     // Render logic for different types
     const renderContent = () => {
@@ -197,8 +221,6 @@ export const Pagination = ({
                 left: position !== "static" ? left : undefined,
                 zIndex: zIndex !== 0 ? zIndex : undefined,
                 display: display ?? "inline-flex",
-                flexWrap: "wrap",
-                containerType: "inline-size",
             }}
         >
             {renderContent()}
