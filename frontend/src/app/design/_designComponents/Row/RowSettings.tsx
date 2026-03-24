@@ -2,6 +2,8 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -17,7 +19,8 @@ export const RowSettings = () => {
     borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
     boxShadow, opacity, overflow,
-    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
+    rotation, flipHorizontal, flipVertical,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     actions: { setProp },
   } = useNode((node) => ({
     background: node.data.props.background,
@@ -48,14 +51,17 @@ export const RowSettings = () => {
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
-    toggleTarget: node.data.props.toggleTarget,
-    triggerAction: node.data.props.triggerAction,
-    collapsibleKey: node.data.props.collapsibleKey,
-    defaultOpen: node.data.props.defaultOpen,
-    defaultOpenMobile: node.data.props.defaultOpenMobile,
-    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
-    showOn: node.data.props.showOn,
-    mobileBreakpoint: node.data.props.mobileBreakpoint,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
   }));
 
   const typedSetProp = setProp as SetProp<ContainerProps>;
@@ -70,6 +76,29 @@ export const RowSettings = () => {
           justifyContent={justifyContent}
           gap={gap}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 

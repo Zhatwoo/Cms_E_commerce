@@ -1,6 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { Plus, Trash2 } from "lucide-react";
@@ -27,6 +28,14 @@ interface AccordionStyleProps {
   marginRight?: number;
   marginBottom?: number;
   marginLeft?: number;
+  position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
+  display?: "flex" | "grid" | "block" | "inline-block" | "none";
+  zIndex?: number;
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
+  editorVisibility?: "auto" | "show" | "hide";
   borderRadius?: number;
   backgroundColor?: string;
   headerBg?: string;
@@ -59,6 +68,14 @@ export const AccordionSettings = () => {
     marginRight,
     marginBottom,
     marginLeft,
+    position,
+    display,
+    zIndex,
+    top,
+    right,
+    bottom,
+    left,
+    editorVisibility,
     borderRadius,
     backgroundColor,
     headerBg,
@@ -86,6 +103,14 @@ export const AccordionSettings = () => {
     marginRight: node.data.props.marginRight as number,
     marginBottom: node.data.props.marginBottom as number,
     marginLeft: node.data.props.marginLeft as number,
+    position: node.data.props.position as AccordionStyleProps["position"],
+    display: node.data.props.display as AccordionStyleProps["display"],
+    zIndex: node.data.props.zIndex as number,
+    top: node.data.props.top as string,
+    right: node.data.props.right as string,
+    bottom: node.data.props.bottom as string,
+    left: node.data.props.left as string,
+    editorVisibility: node.data.props.editorVisibility as AccordionStyleProps["editorVisibility"],
     borderRadius: node.data.props.borderRadius as number,
     backgroundColor: node.data.props.backgroundColor as string,
     headerBg: node.data.props.headerBg as string,
@@ -179,6 +204,130 @@ export const AccordionSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={setProp as any}
+        />
+      </DesignSection>
+
+      <DesignSection title="Size & Spacing">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Width</label>
+            <select
+              value={width ?? "100%"}
+              onChange={(e) => setProp((p: AccordionStyleProps) => { p.width = e.target.value; })}
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+            >
+              <option value="100%">Full (100%)</option>
+              <option value="75%">75%</option>
+              <option value="50%">50%</option>
+              <option value="auto">Auto</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Min Height</label>
+            <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.minHeight = v; })} />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Top</label>
+              <NumericInput value={marginTop ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginTop = v; })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Bottom</label>
+              <NumericInput value={marginBottom ?? 16} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginBottom = v; })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Left</label>
+              <NumericInput value={marginLeft ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginLeft = v; })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Margin Right</label>
+              <NumericInput value={marginRight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginRight = v; })} />
+            </div>
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Appearance">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Container Background</label>
+            <ColorPicker value={backgroundColor ?? "transparent"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.backgroundColor = v; })} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Border Color</label>
+            <ColorPicker value={borderColor ?? "#2d2d44"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderColor = v; })} className="w-full" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
+              <NumericInput value={borderWidth ?? 1} min={0} max={8} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderWidth = v; })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Radius</label>
+              <NumericInput value={borderRadius ?? 8} min={0} max={32} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderRadius = v; })} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Header Background</label>
+            <ColorPicker value={headerBg ?? "#1e1e2e"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerBg = v; })} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Content Background</label>
+            <ColorPicker value={contentBg ?? "#12121c"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentBg = v; })} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Icon Color</label>
+            <ColorPicker value={iconColor ?? "#94a3b8"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.iconColor = v; })} className="w-full" />
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Typography">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Header Text Color</label>
+            <ColorPicker value={headerTextColor ?? "#e2e8f0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerTextColor = v; })} className="w-full" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Header Font Size</label>
+              <NumericInput value={headerFontSize ?? 14} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerFontSize = v; })} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Header Weight</label>
+              <select
+                value={headerFontWeight ?? "600"}
+                onChange={(e) => setProp((p: AccordionStyleProps) => { p.headerFontWeight = e.target.value; })}
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+              >
+                {["400", "500", "600", "700", "800"].map((w) => (
+                  <option key={w} value={w}>{w}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Content Text Color</label>
+            <ColorPicker value={contentTextColor ?? "#a0aec0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentTextColor = v; })} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Content Font Size</label>
+            <NumericInput value={contentFontSize ?? 13} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentFontSize = v; })} />
+          </div>
+        </div>
+      </DesignSection>
 
       {/* Items */}
       <DesignSection title="Items">
@@ -374,125 +523,6 @@ export const AccordionSettings = () => {
             </div>
           </div>
 
-        </div>
-      </DesignSection>
-
-      {/* Header Style */}
-      <DesignSection title="Header">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
-            <ColorPicker value={headerBg ?? "#1e1e2e"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerBg = v; })} className="w-full" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Text Color</label>
-            <ColorPicker value={headerTextColor ?? "#e2e8f0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerTextColor = v; })} className="w-full" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
-              <NumericInput value={headerFontSize ?? 14} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerFontSize = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
-              <select
-                value={headerFontWeight ?? "600"}
-                onChange={(e) => setProp((p: AccordionStyleProps) => { p.headerFontWeight = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-              >
-                {["400", "500", "600", "700", "800"].map((w) => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Icon Color</label>
-            <ColorPicker value={iconColor ?? "#94a3b8"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.iconColor = v; })} className="w-full" />
-          </div>
-        </div>
-      </DesignSection>
-
-      {/* Content Style */}
-      <DesignSection title="Content">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
-            <ColorPicker value={contentBg ?? "#12121c"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentBg = v; })} className="w-full" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Text Color</label>
-            <ColorPicker value={contentTextColor ?? "#a0aec0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentTextColor = v; })} className="w-full" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
-            <NumericInput value={contentFontSize ?? 13} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentFontSize = v; })} />
-          </div>
-        </div>
-      </DesignSection>
-
-      {/* Border & Shape */}
-      <DesignSection title="Border & Shape">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Border Color</label>
-            <ColorPicker value={borderColor ?? "#2d2d44"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderColor = v; })} className="w-full" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
-              <NumericInput value={borderWidth ?? 1} min={0} max={8} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderWidth = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Radius</label>
-              <NumericInput value={borderRadius ?? 8} min={0} max={32} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderRadius = v; })} />
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Container Background</label>
-            <ColorPicker value={backgroundColor ?? "transparent"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.backgroundColor = v; })} className="w-full" />
-          </div>
-        </div>
-      </DesignSection>
-
-      {/* Size & Spacing */}
-      <DesignSection title="Spacing">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Width</label>
-            <select
-              value={width ?? "100%"}
-              onChange={(e) => setProp((p: AccordionStyleProps) => { p.width = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-            >
-              <option value="100%">Full (100%)</option>
-              <option value="75%">75%</option>
-              <option value="50%">50%</option>
-              <option value="auto">Auto</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Min Height</label>
-            <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.minHeight = v; })} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Top</label>
-              <NumericInput value={marginTop ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginTop = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Bottom</label>
-              <NumericInput value={marginBottom ?? 16} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginBottom = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Left</label>
-              <NumericInput value={marginLeft ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginLeft = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Right</label>
-              <NumericInput value={marginRight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginRight = v; })} />
-            </div>
-          </div>
         </div>
       </DesignSection>
 

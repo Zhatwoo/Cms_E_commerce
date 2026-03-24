@@ -4,6 +4,7 @@ import { DesignSection } from "../../_components/rightPanel/settings/DesignSecti
 import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import type { SectionProps, SetProp } from "../../_types/components";
 
@@ -13,12 +14,13 @@ export const SectionSettings = () => {
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     width, height,
-    backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
+    backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay, backgroundVideo,
     radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
     contentWidth, contentMaxWidth,
     boxShadow, opacity, overflow,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     actions: { setProp },
   } = useNode((node) => ({
     background: node.data.props.background,
@@ -37,6 +39,7 @@ export const SectionSettings = () => {
     backgroundPosition: node.data.props.backgroundPosition,
     backgroundRepeat: node.data.props.backgroundRepeat,
     backgroundOverlay: node.data.props.backgroundOverlay,
+    backgroundVideo: node.data.props.backgroundVideo,
     radiusTopLeft: node.data.props.radiusTopLeft,
     radiusTopRight: node.data.props.radiusTopRight,
     radiusBottomRight: node.data.props.radiusBottomRight,
@@ -55,6 +58,14 @@ export const SectionSettings = () => {
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
   }));
 
   const typedSetProp = setProp as SetProp<SectionProps>;
@@ -72,39 +83,55 @@ export const SectionSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Content Layout">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
-            <select
-              value={contentWidth || "constrained"}
-              onChange={(e) =>
-                typedSetProp((props) => {
-                  props.contentWidth = e.target.value as SectionProps["contentWidth"];
-                })
-              }
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
-            >
-              <option value="constrained">Constrained</option>
-              <option value="full">Full Width</option>
-            </select>
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
+              <select
+                value={contentWidth || "constrained"}
+                onChange={(e) =>
+                  typedSetProp((props) => {
+                    props.contentWidth = e.target.value as SectionProps["contentWidth"];
+                  })
+                }
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+              >
+                <option value="constrained">Constrained</option>
+                <option value="full">Full Width</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
+              <input
+                type="text"
+                value={contentMaxWidth || "1200px"}
+                onChange={(e) =>
+                  typedSetProp((props) => {
+                    props.contentMaxWidth = e.target.value;
+                  })
+                }
+                placeholder="1200px"
+                disabled={(contentWidth || "constrained") === "full"}
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
+              />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
-            <input
-              type="text"
-              value={contentMaxWidth || "1200px"}
-              onChange={(e) =>
-                typedSetProp((props) => {
-                  props.contentMaxWidth = e.target.value;
-                })
-              }
-              placeholder="1200px"
-              disabled={(contentWidth || "constrained") === "full"}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
-            />
-          </div>
+          <div className="h-px bg-[var(--builder-border)] w-full" />
+
+          <PositionGroup
+            position={position}
+            display={display}
+            zIndex={zIndex}
+            top={top}
+            right={right}
+            bottom={bottom}
+            left={left}
+            editorVisibility={editorVisibility}
+            setProp={typedSetProp as any}
+          />
         </div>
       </DesignSection>
 
@@ -132,6 +159,7 @@ export const SectionSettings = () => {
           backgroundPosition={backgroundPosition}
           backgroundRepeat={backgroundRepeat}
           backgroundOverlay={backgroundOverlay}
+          backgroundVideo={backgroundVideo}
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
@@ -140,6 +168,7 @@ export const SectionSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
+          enableMediaFillModes
           setProp={typedSetProp}
         />
       </DesignSection>

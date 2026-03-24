@@ -139,7 +139,7 @@ export const BannerSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Text">
+      <DesignSection title="Typography">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Label</label>

@@ -19,7 +19,7 @@ export const VideoSettings = () => {
         borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
         paddingLeft, paddingRight, paddingTop, paddingBottom,
         marginLeft, marginRight, marginTop, marginBottom,
-        opacity, boxShadow,
+        opacity, boxShadow, overflow, cursor,
         rotation, flipHorizontal, flipVertical,
         position, display, zIndex, top, right, bottom, left, editorVisibility,
         actions: { setProp }
@@ -47,6 +47,8 @@ export const VideoSettings = () => {
         marginBottom: node.data.props.marginBottom,
         opacity: node.data.props.opacity,
         boxShadow: node.data.props.boxShadow,
+        overflow: node.data.props.overflow,
+        cursor: node.data.props.cursor,
         rotation: node.data.props.rotation,
         flipHorizontal: node.data.props.flipHorizontal,
         flipVertical: node.data.props.flipVertical,
@@ -105,30 +107,7 @@ export const VideoSettings = () => {
 
     return (
         <div className="flex flex-col pb-4">
-            <DesignSection title="Transform">
-                <TransformGroup
-                    rotation={rotation}
-                    flipHorizontal={flipHorizontal}
-                    flipVertical={flipVertical}
-                    setProp={typedSetProp}
-                />
-            </DesignSection>
-
-            <DesignSection title="Layout & Layer" defaultOpen={false}>
-                <PositionGroup
-                    position={position}
-                    display={display}
-                    zIndex={zIndex}
-                    top={top}
-                    right={right}
-                    bottom={bottom}
-                    left={left}
-                    editorVisibility={editorVisibility}
-                    setProp={typedSetProp as any}
-                />
-            </DesignSection>
-
-            <DesignSection title="Video Source">
+            <DesignSection title="Video">
                 <div className="flex flex-col gap-3">
                     {/* Source URL */}
                     <div className="flex flex-col gap-1">
@@ -213,7 +192,7 @@ export const VideoSettings = () => {
                 </div>
             </DesignSection>
 
-            <DesignSection title="Playback Settings">
+            <DesignSection title="Playback">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center justify-between p-2 bg-[var(--builder-surface-2)]/30 rounded-md border border-[var(--builder-border)]">
                         <span className="text-[10px] text-[var(--builder-text)] uppercase tracking-wider">Autoplay</span>
@@ -254,6 +233,29 @@ export const VideoSettings = () => {
                 </div>
             </DesignSection>
 
+            <DesignSection title="Transform" defaultOpen={false}>
+                <TransformGroup
+                    rotation={rotation}
+                    flipHorizontal={flipHorizontal}
+                    flipVertical={flipVertical}
+                    setProp={typedSetProp}
+                />
+            </DesignSection>
+
+            <DesignSection title="Layout & Layer" defaultOpen={false}>
+                <PositionGroup
+                    position={position}
+                    display={display}
+                    zIndex={zIndex}
+                    top={top}
+                    right={right}
+                    bottom={bottom}
+                    left={left}
+                    editorVisibility={editorVisibility}
+                    setProp={typedSetProp as any}
+                />
+            </DesignSection>
+
             <DesignSection title="Size & Spacing">
                 <SizePositionGroup
                     width={width}
@@ -284,6 +286,8 @@ export const VideoSettings = () => {
                 <EffectsGroup
                     opacity={opacity}
                     boxShadow={boxShadow}
+                    overflow={overflow}
+                    cursor={cursor}
                     setProp={typedSetProp}
                 />
             </DesignSection>
