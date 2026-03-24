@@ -326,6 +326,15 @@ function useGsapScrollEffect(
     const view = el.ownerDocument?.defaultView ?? window;
     const doc = el.ownerDocument ?? document;
 
+    // Force scroll container to top on preview/canvas load for accurate effect start
+    setTimeout(() => {
+      if (view && typeof view.scrollTo === 'function') {
+        view.scrollTo(0, 0);
+      } else if (view && view.document && view.document.scrollingElement) {
+        view.document.scrollingElement.scrollTop = 0;
+      }
+    }, 0);
+
     // If we're rendering inside an iframe (builder canvas), the actual scrolling may happen
     // in the parent document on `.canvas-scroll-container` instead of inside the iframe.
     // In that case, proxy the iframe documentElement's scrollTop/Left to the parent scroller.
@@ -499,6 +508,8 @@ function useGsapScrollEffect(
       // freeMove effect temporarily disabled
       return;
     } else {
+      // Use a natural ease for all scroll effects for a clean, smooth feel
+      const naturalEase = config.scrub ? "none" : "power1.inOut";
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: el,
@@ -509,11 +520,28 @@ function useGsapScrollEffect(
           immediateRender: false,
           invalidateOnRefresh: true,
         },
+        defaults: { ease: naturalEase },
       });
       const { from, to } = getScrollEffectRange(config);
-      tl.fromTo(el, from, {
-        ...to,
-        ease: "none",
+      // Clamp and round all numeric values for pixel-perfect movement
+      const clampObj = (obj: Record<string, unknown>) => {
+        const out: Record<string, unknown> = {};
+        for (const k in obj) {
+          const v = obj[k];
+          if (typeof v === 'number') out[k] = Math.round(v * 1000) / 1000;
+          else out[k] = v;
+        }
+        return out;
+      };
+      // If rotate effect, set transformOrigin to center for true rotation
+      if (config.type === "rotate") {
+        gsap.set(el, { transformOrigin: "50% 50%" });
+      }
+      tl.fromTo(el, clampObj(from), {
+        ...clampObj(to),
+        // Use a natural ease for all effects
+        ease: naturalEase,
+        ...(config.type === "rotate" ? { transformOrigin: "50% 50%" } : {}),
       });
       ScrollTrigger.refresh();
       const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);

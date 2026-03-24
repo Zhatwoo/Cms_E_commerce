@@ -288,7 +288,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
       }
 
       // Explicitly clear any residual GSAP/Inline styles from previous previews
-      gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
+      gsap.set(element, { clearProps: "transform,opacity,filter,clip-path,transformOrigin" });
 
       const current = animation;
       let webAnimation: Animation | null = null;
@@ -437,12 +437,18 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
         const restoreIndicator = applyScrollPreviewIndicator(element);
         restoreScrollIndicatorRef.current = restoreIndicator;
 
+        // If rotate effect, set transformOrigin to center for true rotation
+        if (nextType === "rotate") {
+          gsap.set(element, { transformOrigin: "50% 50%" });
+        }
+
         const timeline = gsap.timeline({
           defaults: {
             ease: simulatedEase,
+            ...(nextType === "rotate" ? { transformOrigin: "50% 50%" } : {}),
           },
           onComplete: () => {
-            gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
+            gsap.set(element, { clearProps: "transform,opacity,filter,clip-path,transformOrigin" });
             if (restoreScrollIndicatorRef.current) {
               restoreScrollIndicatorRef.current();
               restoreScrollIndicatorRef.current = null;
