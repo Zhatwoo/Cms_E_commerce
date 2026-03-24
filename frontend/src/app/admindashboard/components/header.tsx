@@ -19,6 +19,7 @@ import {
     type WebsiteManagementRow,
 } from '@/lib/api';
 import { getNotifications, markAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
+import { formatToPHTime } from '@/lib/dateUtils';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -608,7 +609,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                     <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
                                                     <div className="mt-1 flex items-center justify-between">
                                                         <span className="text-[10px] font-medium text-[#B13BFF]/60">{n.adminName || 'Admin'}</span>
-                                                        <span className="text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                        <span className="text-[10px] font-medium text-[#B13BFF]/60">{formatToPHTime(n.time)}</span>
                                                     </div>
                                                 </button>
                                             ))}

@@ -13,6 +13,7 @@ import { useGDriveSelection } from './useGDriveSelection';
 import { ChevronDownIcon, SearchIcon, StorageIcon } from '@/lib/icons/adminIcons';
 import { getPlanLabel, getPlanPillClasses, PLAN_OPTIONS } from '@/lib/config/planConfig';
 import { addNotification } from '@/lib/notifications';
+import { formatToPHTime } from '@/lib/dateUtils';
 
 const ManageIcon = () => (
   <img src="/icons/actions/user-avatar.png" alt="User profile" className="h-6 w-6 object-contain" />
@@ -51,13 +52,7 @@ function isClientActive(client: ClientRow): boolean {
 }
 
 function formatDate(value: string | undefined): string {
-  if (!value) return '—';
-  try {
-    const d = new Date(value);
-    return isNaN(d.getTime()) ? '—' : d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch {
-    return '—';
-  }
+  return formatToPHTime(value);
 }
 
 function getPlanStorageLimitGb(plan: string): number {
