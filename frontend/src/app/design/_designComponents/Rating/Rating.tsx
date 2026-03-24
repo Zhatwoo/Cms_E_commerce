@@ -76,6 +76,13 @@ export const Rating = ({
   const { connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
 
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
+
   const safeMax = Math.max(1, Math.round(Number.isFinite(max) ? max : 5));
   const rawValue = Number.isFinite(value) ? value : 0;
   const safeValue = clamp(rawValue, 0, safeMax);
