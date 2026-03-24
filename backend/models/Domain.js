@@ -20,6 +20,28 @@ function getPublishedSubdomainsRef() {
   return db.collection(PUBLISHED_SUBDOMAINS);
 }
 
+function normalizeOwnerSnapshot(ownerProfile) {
+  if (!ownerProfile || typeof ownerProfile !== 'object') return {};
+
+  const ownerId = ownerProfile.id || ownerProfile.userId || ownerProfile.uid || null;
+  const ownerEmail = ownerProfile.email || null;
+  const ownerName =
+    ownerProfile.displayName ||
+    ownerProfile.fullName ||
+    ownerProfile.name ||
+    ownerProfile.email ||
+    null;
+
+  return {
+    owner_user_id: ownerId || null,
+    owner_email: ownerEmail || null,
+    owner_name: ownerName || null,
+    owner_avatar: ownerProfile.avatar || null,
+    owner_username: ownerProfile.username || null,
+    owner_subscription_plan: ownerProfile.subscriptionPlan || null,
+  };
+}
+
 /** List all published sites from Firestore collection published_subdomains. */
 async function listAllFromPublishedSubdomains() {
   const snap = await getPublishedSubdomainsRef().get();
@@ -52,6 +74,14 @@ async function findByPublishedSubdomain(subdomain) {
     projectTitle: data.projectTitle,
     status: data.status,
     publishedContent,
+    owner: data.ownerUserId || data.ownerName || data.ownerEmail ? {
+      userId: data.ownerUserId || null,
+      email: data.ownerEmail || null,
+      name: data.ownerName || null,
+      avatar: data.ownerAvatar || null,
+      username: data.ownerUsername || null,
+      subscriptionPlan: data.ownerSubscriptionPlan || null,
+    } : null,
   };
 }
 
@@ -205,7 +235,7 @@ async function deleteTrashByProjectId(userId, projectId) {
  * - user/roles/client/{userId}/domains/{domainId}
  * - published_subdomains/{subdomain}
  */
-async function publishForClientBatch(userId, { projectId, projectTitle, subdomain, publishedContent }) {
+async function publishForClientBatch(userId, { projectId, projectTitle, subdomain, publishedContent, ownerProfile }) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) throw new Error('subdomain is required');
   if (!userId || !projectId) throw new Error('userId and projectId are required');
@@ -264,6 +294,7 @@ async function publishForClientBatch(userId, { projectId, projectTitle, subdomai
     project_title: projectTitle || null,
     updated_at: now,
     published_content: publishedContent ?? null,
+    ...normalizeOwnerSnapshot(ownerProfile),
   };
   batch.set(publishedRef.doc(normalized), publishedDoc, { merge: true });
 
@@ -279,7 +310,7 @@ async function publishForClientBatch(userId, { projectId, projectTitle, subdomai
 }
 
 /** Write public lookup and ensure client domains path is up to date. */
-async function setSubdomainLookup(subdomain, { userId, projectId, domainId, status, projectTitle }) {
+async function setSubdomainLookup(subdomain, { userId, projectId, domainId, status, projectTitle, ownerProfile }) {
   const normalized = (subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) return;
 
@@ -291,6 +322,7 @@ async function setSubdomainLookup(subdomain, { userId, projectId, domainId, stat
     status: status || 'published',
     project_title: projectTitle || null,
     updated_at: new Date(),
+    ...normalizeOwnerSnapshot(ownerProfile),
   }, { merge: true });
 
   // 2. Ensure user/roles/client/{userId}/domains has this entry too
@@ -358,6 +390,14 @@ async function findBySubdomain(subdomain) {
         projectTitle: data.projectTitle,
         status: data.status,
         publishedContent,
+        owner: data.ownerUserId || data.ownerName || data.ownerEmail ? {
+          userId: data.ownerUserId || null,
+          email: data.ownerEmail || null,
+          name: data.ownerName || null,
+          avatar: data.ownerAvatar || null,
+          username: data.ownerUsername || null,
+          subscriptionPlan: data.ownerSubscriptionPlan || null,
+        } : null,
       };
     }
   } catch (e) {
@@ -398,6 +438,14 @@ async function findByCustomDomain(domain) {
         projectTitle: data.projectTitle,
         status: data.status,
         publishedContent,
+        owner: data.ownerUserId || data.ownerName || data.ownerEmail ? {
+          userId: data.ownerUserId || null,
+          email: data.ownerEmail || null,
+          name: data.ownerName || null,
+          avatar: data.ownerAvatar || null,
+          username: data.ownerUsername || null,
+          subscriptionPlan: data.ownerSubscriptionPlan || null,
+        } : null,
       };
     }
   } catch (e) {
@@ -579,7 +627,7 @@ async function unpublishForClient(userId, projectId) {
  * Update subdomain for an existing published project.
  * Deletes old published_subdomains lookup and creates new one.
  */
-async function updateSubdomainForClient(userId, projectId, newSubdomain) {
+async function updateSubdomainForClient(userId, projectId, newSubdomain, ownerProfile) {
   const normalized = (newSubdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   if (!normalized) throw new Error('subdomain is required');
   if (!userId || !projectId) throw new Error('userId and projectId are required');
@@ -614,6 +662,7 @@ async function updateSubdomainForClient(userId, projectId, newSubdomain) {
     project_title: existing.projectTitle ?? existing.project_title ?? null,
     updated_at: now,
     published_content: existing.publishedContent ?? existing.published_content ?? null,
+    ...normalizeOwnerSnapshot(ownerProfile),
   }, { merge: true });
 
   await batch.commit();

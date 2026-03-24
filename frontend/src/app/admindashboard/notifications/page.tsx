@@ -6,6 +6,7 @@ import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
 import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+import { formatToPHTime } from "@/lib/dateUtils";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -112,6 +113,20 @@ function NotificationsPageContent() {
 	const [notifications, setNotifications] = useState<NotificationItem[]>([]);
 	const [trash, setTrash] = useState<NotificationItem[]>([]);
 	const [detailItem, setDetailItem] = useState<NotificationItem | null>(null);
+
+	const isPublishOrLiveNotification = (item: NotificationItem) => {
+		const text = `${item.title} ${item.message}`.toLowerCase();
+		const isWebsiteOrProject = text.includes('website') || text.includes('project');
+		const isPublishOrLive = text.includes('published') || text.includes('live');
+		return isWebsiteOrProject && isPublishOrLive;
+	};
+
+	const getPublisherLabel = (item: NotificationItem) => {
+		const publisher = item.adminName?.trim();
+		if (!publisher) return null;
+		if (!isPublishOrLiveNotification(item)) return null;
+		return publisher;
+	};
 
 	useEffect(() => {
 		const load = () => {
@@ -328,14 +343,15 @@ function NotificationsPageContent() {
 																	<NotificationCheckbox
 																		checked={selectedIds.includes(item.id)}
 																		onChange={(checked) => toggleSelectOne(item.id, checked)}
-																		label={`Select notification at ${item.time}`}
+																		label={`Select notification at ${formatToPHTime(item.time)}`}
 																	/>
 																	<div className="min-w-0">
 																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
 																			{item.title}
 																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
+																			{getPublisherLabel(item) && <span className="ml-2 font-normal text-[#6C48A6]">(Publisher: {getPublisherLabel(item)})</span>}
 																		</div>
-																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																		<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																	</div>
 																</div>
 																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
@@ -434,11 +450,11 @@ function NotificationsPageContent() {
 																		<NotificationCheckbox
 																			checked={trashSelectedIds.includes(item.id)}
 																			onChange={(checked) => toggleTrashSelectOne(item.id, checked)}
-																			label={`Select trashed notification at ${item.time}`}
+																			label={`Select trashed notification at ${formatToPHTime(item.time)}`}
 																		/>
 																		<div className="min-w-0">
 																			<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
-																			<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																			<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																		</div>
 																	</div>
 																	<div className="pl-4 text-sm text-[#8B85A5]">{item.date}</div>
@@ -472,6 +488,12 @@ function NotificationsPageContent() {
 								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Summary</p>
 								<p className="mt-1 whitespace-pre-wrap text-sm text-[#5D517D]">{detailItem.message || 'No summary provided.'}</p>
 							</div>
+							{getPublisherLabel(detailItem) && (
+								<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
+									<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Publisher</p>
+									<p className="mt-1 text-sm font-medium text-[#5D517D]">{getPublisherLabel(detailItem)}</p>
+								</div>
+							)}
 							<div className="rounded-[18px] border border-[rgba(177,59,255,0.24)] bg-white px-4 py-3">
 								<p className="text-xs font-semibold uppercase tracking-wide text-[#8F83B2]">Full Info</p>
 								<p className="mt-1 whitespace-pre-wrap text-sm text-[#5D517D]">{detailItem.details || detailItem.message || 'No additional details.'}</p>

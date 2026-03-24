@@ -103,7 +103,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id', 'x-site-identifier']
 }));
 app.use(cookieParser());
 app.use(express.json({
@@ -125,6 +125,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many attempts, please try again later' }
 });
 app.use('/api/auth', authLimiter);
+app.use('/api/published-auth', authLimiter);
 
 // Health check – para malaman kung naka-integrate / tumatakbo ang backend
 app.get('/api/health', (req, res) => {
@@ -153,6 +154,7 @@ app.get('/api/debug/db-state', async (req, res) => {
 // Import routes
 const publicSiteRoutes = require('./routes/publicSiteRoutes');
 const authRoutes = require('./routes/authRoutes');
+const publishedAuthRoutes = require('./routes/publishedAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const pageRoutes = require('./routes/pageRoutes');
 const postRoutes = require('./routes/postRoutes');
@@ -171,6 +173,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/published-auth', publishedAuthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/pages', pageRoutes);
 app.use('/api/posts', postRoutes);

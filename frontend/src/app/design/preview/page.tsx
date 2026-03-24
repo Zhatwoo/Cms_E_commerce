@@ -50,6 +50,7 @@ function PreviewRoot({ children }: { children?: React.ReactNode }) {
   return (
     <div
       data-preview-root
+      className="preview-fadein preview-scroll"
       style={{
         position: "relative",
         width: "100%",
@@ -715,22 +716,24 @@ function PreviewContent() {
     [previewProducts, previewAddToCart]
   );
 
+
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
-  // If draft is still Craft RAW (ROOT-based), convert it so WebPreview can run Prototype interactions.
+  // Keep preview animation behavior identical to editor canvas.
   const effectiveCleanDoc = useMemo(() => {
-    if (cleanDoc) return cleanDoc;
-    if (!rawJson) return null;
-    if (!looksLikeCraftRawSnapshot(rawJson)) return null;
-    try {
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
+    let doc = cleanDoc;
+    if (!doc && rawJson && looksLikeCraftRawSnapshot(rawJson)) {
+      try {
+        doc = serializeCraftToClean(rawJson);
+      } catch {
+        return null;
+      }
     }
+    return doc ?? null;
   }, [cleanDoc, rawJson]);
 
   const craftPreviewData = useMemo(() => {
@@ -1122,6 +1125,26 @@ function PreviewContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-brand-lighter font-sans">
+      {/* Animations for preview */}
+      <style>{`
+        .preview-fadein {
+          animation: previewFadeIn 0.7s cubic-bezier(.4,0,.2,1);
+        }
+        @keyframes previewFadeIn {
+          from { opacity: 0; transform: translateY(32px); }
+          to { opacity: 1; transform: none; }
+        }
+        .preview-scroll {
+          scroll-behavior: smooth;
+        }
+        .preview-float-animate {
+          animation: previewFloat 2.8s ease-in-out infinite alternate;
+        }
+        @keyframes previewFloat {
+          from { transform: translateY(0); }
+          to { transform: translateY(-10px); }
+        }
+      `}</style>
       {/* Top Bar */}
       <div className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -1322,7 +1345,7 @@ function PreviewContent() {
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
-                className={`transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
+                className={`transition-[width] duration-300 ease-out overflow-hidden preview-fadein ${previewViewport === "desktop"
                   ? "min-h-[calc(100vh-200px)] w-full min-w-0"
                   : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
                   }`}
@@ -1336,6 +1359,7 @@ function PreviewContent() {
                         : undefined
                 }
               >
+                {/* Optionally, you can add preview-float-animate to any child for demo */}
                 <WebPreview
                   key="preview-web"
                   doc={effectiveCleanDoc}
