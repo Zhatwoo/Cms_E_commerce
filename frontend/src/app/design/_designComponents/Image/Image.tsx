@@ -250,6 +250,12 @@ export const Image = ({
       <img
         src={imageSrc}
         alt={alt}
+        onError={(e) => {
+          const target = e.currentTarget;
+          if (target.src !== "https://placehold.co/600x400?text=Image+Not+Found") {
+            target.src = "https://placehold.co/600x400?text=Image+Not+Found";
+          }
+        }}
         style={{
           width: "100%",
           height: resolvedHeight === "auto" ? "auto" : "100%",
