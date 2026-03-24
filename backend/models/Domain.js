@@ -711,6 +711,48 @@ async function applyScheduledPublishes() {
   return toApply.length;
 }
 
+async function getTrendOverTime(period = '7days') {
+  const snap = await getPublishedSubdomainsRef().get();
+  const list = snap.docs.map(d => {
+    const data = d.data();
+    const date = data.updated_at?.toDate?.() || new Date(data.updated_at || data.created_at);
+    return { date };
+  });
+
+  const now = new Date();
+  let start;
+  let buckets;
+  if (period === '7days') {
+    start = new Date(now);
+    start.setDate(start.getDate() - 7);
+    buckets = 7;
+  } else if (period === '30days') {
+    start = new Date(now);
+    start.setDate(start.getDate() - 30);
+    buckets = 4;
+  } else {
+    start = new Date(now);
+    start.setMonth(start.getMonth() - 3);
+    buckets = 3;
+  }
+
+  const bucketMs = (now.getTime() - start.getTime()) / buckets;
+  const counts = new Array(buckets).fill(0);
+  const labels = [];
+  for (let i = 0; i < buckets; i++) {
+    const t = new Date(start.getTime() + (i + 1) * bucketMs);
+    labels.push(period === '7days' ? t.toLocaleDateString('en-US', { weekday: 'short' }) : period === '30days' ? `Week ${i + 1}` : t.toLocaleDateString('en-US', { month: 'short' }));
+  }
+
+  list.forEach(({ date }) => {
+    if (date < start) return;
+    const idx = Math.min(Math.floor((date - start) / bucketMs), buckets - 1);
+    if (idx >= 0) counts[idx]++;
+  });
+
+  return { labels, data: counts };
+}
+
 module.exports = {
   create,
   findById,
@@ -741,4 +783,5 @@ module.exports = {
   getScheduleByProject,
   getPublishHistoryByProject,
   applyScheduledPublishes,
+  getTrendOverTime,
 };

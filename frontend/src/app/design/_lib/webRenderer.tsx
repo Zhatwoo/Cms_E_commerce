@@ -1663,7 +1663,7 @@ function normalizeResponsivePosition(
   if (!isNarrow) return position;
   if (position === "absolute" || position === "fixed") {
     if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
-    return "relative";
+    return position; // Keep absolute if it fits!
   }
   return position;
 }
@@ -2684,6 +2684,10 @@ function RenderNode({
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const textStyle: React.CSSProperties = {
         fontSize: typographySpec.fontSize,
         fontFamily: (props.fontFamily as string) || "Outfit",
@@ -2694,13 +2698,13 @@ function RenderNode({
         textAlign: props.textAlign as React.CSSProperties["textAlign"],
         textTransform: props.textTransform as React.CSSProperties["textTransform"],
         color: (props.color as string) || "#000000",
-        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+        position: normalizedPos,
         display: ((props.display as React.CSSProperties["display"]) || "block"),
         zIndex: (props.zIndex as number | undefined) ?? 2,
-        top: isNarrowPreview ? undefined : (props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined),
-        right: isNarrowPreview ? undefined : (props.position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined),
-        bottom: isNarrowPreview ? undefined : (props.position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined),
-        left: isNarrowPreview ? undefined : (props.position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined),
+        top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+        left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+        right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+        bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
         width: normalizedTextWidth ?? (props.width as string | undefined),
         height: normalizedTextHeight ?? (props.height as string | undefined),
         minHeight: "1em",
@@ -2795,19 +2799,29 @@ function RenderNode({
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       return wrap(
         <img
           src={productImageUrl || (props.src as string) || "https://placehold.co/600x400?text=Photo"}
           alt={(resolvedProductField === "image" ? productBinding?.product.name : undefined) || (props.alt as string) || "Image"}
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (target.src !== "https://placehold.co/600x400?text=Image+Not+Found") {
+              target.src = "https://placehold.co/600x400?text=Image+Not+Found";
+            }
+          }}
           data-fluid-space="true"
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedImageWidth,
             height: resolvedImageHeight,
@@ -2980,6 +2994,10 @@ function RenderNode({
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
       const rawVideoSrc = typeof props.src === "string" ? props.src.trim() : "";
 
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       if (!rawVideoSrc) {
         return wrap(
           <div
@@ -2987,11 +3005,11 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
-              position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-              top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-              left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-              right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-              bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+              position: normalizedPos,
+              top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+              left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+              right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+              bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
               zIndex: (props.zIndex as number | undefined) ?? 2,
               width: resolvedVideoWidth,
               height: resolvedVideoHeight,
@@ -3097,6 +3115,10 @@ function RenderNode({
       const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const rawButtonFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Button"]?.fontSize, 14));
       const shouldScaleButtonFont = !builderParityMode && isNarrowPreview && rawButtonFontSize > 30;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const content = (
         <span
           data-fluid-space="true"
@@ -3106,11 +3128,11 @@ function RenderNode({
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             backgroundColor: bg,
             color,
@@ -3743,17 +3765,21 @@ function RenderNode({
       );
     }
 
-    case "Divider":
+    case "Divider": {
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       return wrap(
         <hr
           data-fluid-space="true"
           data-smooth="true"
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 1,
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
@@ -3766,8 +3792,13 @@ function RenderNode({
           }}
         />
       );
+    }
 
     case "Icon": {
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const iconSize = toNumber(props.size, 24);
       const normalizedIconWidth = normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview, builderParityMode);
       const normalizedIconHeight = normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview, builderParityMode);
@@ -3779,11 +3810,11 @@ function RenderNode({
           data-smooth="true"
           onClick={interactiveClick}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 3,
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
@@ -3849,6 +3880,10 @@ function RenderNode({
           return `.${scopeId} ${s} {`;
         })
         : "";
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const m = toNumber(props.margin, 0);
       const p = toNumber(props.padding, 0);
       return wrap(
@@ -3859,11 +3894,11 @@ function RenderNode({
             minWidth: 1,
             minHeight: 1,
             maxWidth: "100%",
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             margin: toNumber(props.margin, 0),
             marginTop: toNumber(props.marginTop ?? m, 0),
             marginRight: toNumber(props.marginRight ?? m, 0),
@@ -3900,8 +3935,18 @@ function RenderNode({
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
       const fill = (props.background as string) || (props.color as string) || "#999999";
-      const w = normalizeLayoutWidthForNarrow((props.width as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
-      const h = normalizeLayoutHeightForNarrow((props.height as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
+      const rawW = (props.width as string) || "200px";
+      const rawH = (props.height as string) || "200px";
+      const resolvedW = isNarrowPreview ? (parseFloat(rawW) > viewportWidth * 0.8 ? "100%" : rawW) : rawW;
+      const isCircleOrSquare = type === "Circle" || type === "Square";
+      const resolvedH = isNarrowPreview
+        ? (isCircleOrSquare && resolvedW === "100%" ? "auto" : (parseFloat(rawH) > 360 ? (isCircleOrSquare ? rawH : "300px") : rawH))
+        : rawH;
+
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const bw = toNumber(props.borderWidth, 0);
@@ -3917,17 +3962,18 @@ function RenderNode({
       return wrap(
         <div
           style={{
-            width: w,
-            height: h,
-            minWidth: w,
-            minHeight: h,
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            width: resolvedW,
+            height: resolvedH,
+            aspectRatio: (isNarrowPreview && isCircleOrSquare && resolvedW === "100%") ? "1 / 1" : undefined,
+            minWidth: resolvedW === "100%" ? undefined : resolvedW,
+            minHeight: resolvedH === "auto" ? undefined : resolvedH,
+            position: normalizedPos,
             display: props.display as React.CSSProperties["display"],
             zIndex: toNumber(props.zIndex, 0) || undefined,
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             transform: (() => {
               const r = toNumber(props.rotation, 0);
               const fh = props.flipHorizontal === true;
@@ -4073,259 +4119,260 @@ function getPageSlug(page: { slug?: string } | null | undefined, index: number):
   return page?.slug ?? `page-${index}`;
 }
 
-  type PreviewPageMeta = {
-    id: string;
-    name: string;
-    slug: string;
-  };
+type PreviewPageMeta = {
+  id: string;
+  name: string;
+  slug: string;
+};
 
-  function normalizeNavToken(value: string): string {
-    return value.trim().replace(/^\/+/, "").toLowerCase();
+function normalizeNavToken(value: string): string {
+  return value.trim().replace(/^\/+/, "").toLowerCase();
+}
+
+function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
+  if (!destination) return null;
+
+  const raw = destination.trim();
+  if (!raw) return null;
+
+  const normalized = normalizeNavToken(raw);
+
+  // Match by page ID first (most stable)
+  const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
+  if (byId) return byId.id;
+
+  // Match by exact slug
+  const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
+  if (bySlug) return bySlug.id;
+
+  // Match by page name
+  const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
+  if (byName) return byName.id;
+
+  // Partial matches and page index patterns
+  const pageIndexMatch = raw.match(/^page-(\d+)$/i);
+  if (pageIndexMatch) {
+    const idx = parseInt(pageIndexMatch[1], 10);
+    if (idx >= 0 && idx < pages.length) return pages[idx].id;
+    if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
   }
 
-  function resolveInternalPageId(destination: string | undefined, pages: PreviewPageMeta[]): string | null {
-    if (!destination) return null;
+  const fuzzy = pages.find((p) =>
+    normalizeNavToken(p.slug).includes(normalized) ||
+    normalized.includes(normalizeNavToken(p.slug))
+  );
+  if (fuzzy) return fuzzy.id;
 
-    const raw = destination.trim();
-    if (!raw) return null;
+  return null;
+}
 
-    const normalized = normalizeNavToken(raw);
+const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
+  instant: {},
+  dissolve: { animation: "page-dissolve 0.3s ease forwards" },
+  slideLeft: { animation: "page-slide-left 0.3s ease forwards" },
+  slideRight: { animation: "page-slide-right 0.3s ease forwards" },
+  slideUp: { animation: "page-slide-up 0.3s ease forwards" },
+  slideDown: { animation: "page-slide-down 0.3s ease forwards" },
+  push: { animation: "page-push 0.3s ease forwards" },
+  moveIn: { animation: "page-move-in 0.3s ease forwards" },
+};
 
-    // Match by page ID first (most stable)
-    const byId = pages.find((p) => normalizeNavToken(p.id) === normalized);
-    if (byId) return byId.id;
+export function WebPreview({
+  doc,
+  pageIndex = 0,
+  initialPageSlug,
+  storeContext,
+  onNavigate,
+  simulatedWidth,
+  responsiveViewportWidth,
+  mobileBreakpoint,
+  enableFormInputs = false,
+  builderParityMode = false,
+  fillViewport = false,
+  renderAllNodes = false,
+}: {
+  doc: BuilderDocument;
+  pageIndex?: number;
+  /** Initial page slug for multi-page (overrides pageIndex when set). */
+  initialPageSlug?: string;
+  storeContext?: StoreContext | null;
+  /** Notify parent when prototype navigation changes the visible page. */
+  onNavigate?: (pageSlug: string) => void;
+  simulatedWidth?: number;
+  /** Optional viewport width used only for responsive visibility/breakpoint logic. */
+  responsiveViewportWidth?: number;
+  mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
+  /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
+  builderParityMode?: boolean;
+  /** When true, content fills full viewport width (no max-width box, no side margins). */
+  fillViewport?: boolean;
+  /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
+  renderAllNodes?: boolean;
+}): React.ReactElement {
+  const safePages = React.useMemo(
+    () => (Array.isArray(doc?.pages)
+      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+      : []),
+    [doc]
+  );
+  const safeNodes = React.useMemo(
+    () => (doc?.nodes && typeof doc.nodes === "object"
+      ? (doc.nodes as Record<string, CleanNode>)
+      : {}),
+    [doc]
+  );
 
-    // Match by exact slug
-    const bySlug = pages.find((p) => normalizeNavToken(p.slug) === normalized);
-    if (bySlug) return bySlug.id;
+  const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+  const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
 
-    // Match by page name
-    const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
-    if (byName) return byName.id;
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
+  const pageMeta = React.useMemo<PreviewPageMeta[]>(
+    () => safePages.map((p, i) => ({
+      id: p.id,
+      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+      slug: getPageSlug(p, i),
+    })),
+    [safePages]
+  );
 
-    // Partial matches and page index patterns
-    const pageIndexMatch = raw.match(/^page-(\d+)$/i);
-    if (pageIndexMatch) {
-      const idx = parseInt(pageIndexMatch[1], 10);
-      if (idx >= 0 && idx < pages.length) return pages[idx].id;
-      if (idx - 1 >= 0 && idx - 1 < pages.length) return pages[idx - 1].id;
-    }
-
-    const fuzzy = pages.find((p) =>
-      normalizeNavToken(p.slug).includes(normalized) ||
-      normalized.includes(normalizeNavToken(p.slug))
-    );
-    if (fuzzy) return fuzzy.id;
-
-    return null;
-  }
-
-  const PAGE_TRANSITION_STYLES: Record<TransitionType, React.CSSProperties> = {
-    instant: {},
-    dissolve: { animation: "page-dissolve 0.3s ease forwards" },
-    slideLeft: { animation: "page-slide-left 0.3s ease forwards" },
-    slideRight: { animation: "page-slide-right 0.3s ease forwards" },
-    slideUp: { animation: "page-slide-up 0.3s ease forwards" },
-    slideDown: { animation: "page-slide-down 0.3s ease forwards" },
-    push: { animation: "page-push 0.3s ease forwards" },
-    moveIn: { animation: "page-move-in 0.3s ease forwards" },
-  };
-
-  export function WebPreview({
-    doc,
-    pageIndex = 0,
-    initialPageSlug,
-    storeContext,
-    onNavigate,
-    simulatedWidth,
-    responsiveViewportWidth,
-    mobileBreakpoint,
-    enableFormInputs = false,
-    builderParityMode = false,
-    fillViewport = false,
-    renderAllNodes = false,
-  }: {
-    doc: BuilderDocument;
-    pageIndex?: number;
-    /** Initial page slug for multi-page (overrides pageIndex when set). */
-    initialPageSlug?: string;
-    storeContext?: StoreContext | null;
-    /** Notify parent when prototype navigation changes the visible page. */
-    onNavigate?: (pageSlug: string) => void;
-    simulatedWidth?: number;
-    /** Optional viewport width used only for responsive visibility/breakpoint logic. */
-    responsiveViewportWidth?: number;
-    mobileBreakpoint?: number;
-    enableFormInputs?: boolean;
-    /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
-    builderParityMode?: boolean;
-    /** When true, content fills full viewport width (no max-width box, no side margins). */
-    fillViewport?: boolean;
-    /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
-    renderAllNodes?: boolean;
-  }): React.ReactElement {
-    const safePages = React.useMemo(
-      () => (Array.isArray(doc?.pages)
-        ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
-        : []),
-      [doc]
-    );
-    const safeNodes = React.useMemo(
-      () => (doc?.nodes && typeof doc.nodes === "object"
-        ? (doc.nodes as Record<string, CleanNode>)
-        : {}),
-      [doc]
-    );
-
-    const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
-    const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
-    const [history, setHistory] = React.useState<string[]>([]);
-    const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
-
-    const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
-    const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
-    const pageMeta = React.useMemo<PreviewPageMeta[]>(
-      () => safePages.map((p, i) => ({
-        id: p.id,
-        name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
-        slug: getPageSlug(p, i),
-      })),
-      [safePages]
-    );
-
-    const onPrototypeAction = React.useCallback(
-      (interaction: Interaction) => {
-        const duration = (interaction.duration ?? 300) / 1000;
-        if (interaction.action === "navigateTo" && interaction.destination) {
-          const destId = resolveInternalPageId(interaction.destination, pageMeta);
-          if (destId) {
-            setHistory((h) => [...h, currentPageId]);
-            const trans = interaction.transition ?? "dissolve";
-            setTransitionStyle({
-              ...PAGE_TRANSITION_STYLES[trans],
-              animationDuration: `${duration}s`,
-            });
-            setCurrentPageId(destId);
-            const destPage = safePages.find((p) => p.id === destId);
-            if (destPage) onNavigate?.(getPageSlug(destPage, safePages.indexOf(destPage)));
-          } else if (interaction.destination.startsWith("#")) {
-            document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
-          } else if (
-            interaction.destination.startsWith("http://") ||
-            interaction.destination.startsWith("https://") ||
-            interaction.destination.startsWith("mailto:")
-          ) {
-            window.open(interaction.destination, "_blank", "noopener");
-          }
-        } else if (interaction.action === "back") {
-          if (history.length > 0) {
-            const prevId = history[history.length - 1];
-            setHistory((h) => h.slice(0, -1));
-            setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-            setCurrentPageId(prevId);
-            const prevPage = safePages.find((p) => p.id === prevId);
-            if (prevPage) onNavigate?.(getPageSlug(prevPage, safePages.indexOf(prevPage)));
-          }
-        } else if (interaction.action === "openUrl" && interaction.destination) {
+  const onPrototypeAction = React.useCallback(
+    (interaction: Interaction) => {
+      const duration = (interaction.duration ?? 300) / 1000;
+      if (interaction.action === "navigateTo" && interaction.destination) {
+        const destId = resolveInternalPageId(interaction.destination, pageMeta);
+        if (destId) {
+          setHistory((h) => [...h, currentPageId]);
+          const trans = interaction.transition ?? "dissolve";
+          setTransitionStyle({
+            ...PAGE_TRANSITION_STYLES[trans],
+            animationDuration: `${duration}s`,
+          });
+          setCurrentPageId(destId);
+          const destPage = safePages.find((p) => p.id === destId);
+          if (destPage) onNavigate?.(getPageSlug(destPage, safePages.indexOf(destPage)));
+        } else if (interaction.destination.startsWith("#")) {
+          document.getElementById(interaction.destination.slice(1))?.scrollIntoView({ behavior: "smooth" });
+        } else if (
+          interaction.destination.startsWith("http://") ||
+          interaction.destination.startsWith("https://") ||
+          interaction.destination.startsWith("mailto:")
+        ) {
           window.open(interaction.destination, "_blank", "noopener");
-        } else if (interaction.action === "scrollTo" && interaction.destination) {
-          document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
         }
-      },
-      [currentPageId, history, pageMeta, onNavigate, safePages]
-    );
-
-    const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
-    const width = (pageProps.width as string) || "1920px";
-    const background = (pageProps.background as string) || "#ffffff";
-    const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
-    const pageRotation = toNumber(pageProps.pageRotation, 0);
-    const frameStyles = resolvePageFrameStyles(width);
-    const { ref, width: measuredWidth } = useContainerWidth(1000);
-    const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
-    const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
-    const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
-    const isPhoneSize = !isDesktopMode;
-    const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
-    React.useEffect(() => {
-      if (!isDesktopMode && mobileWrapperRef.current) {
-        mobileWrapperRef.current.removeAttribute("data-nav-preview-done");
-        const t = setTimeout(() => {
-          if (mobileWrapperRef.current) enhanceNavInPreview(mobileWrapperRef.current);
-        }, 200);
-        return () => clearTimeout(t);
-      }
-    }, [isDesktopMode, currentPageId]);
-    const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
-    const availableTriggerTargets = React.useMemo(() => {
-      const targets = new Set<string>();
-      for (const node of Object.values(safeNodes)) {
-        const target = node?.props?.toggleTarget;
-        if (typeof target === "string" && target.trim()) {
-          targets.add(target.trim());
+      } else if (interaction.action === "back") {
+        if (history.length > 0) {
+          const prevId = history[history.length - 1];
+          setHistory((h) => h.slice(0, -1));
+          setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+          setCurrentPageId(prevId);
+          const prevPage = safePages.find((p) => p.id === prevId);
+          if (prevPage) onNavigate?.(getPageSlug(prevPage, safePages.indexOf(prevPage)));
         }
+      } else if (interaction.action === "openUrl" && interaction.destination) {
+        window.open(interaction.destination, "_blank", "noopener");
+      } else if (interaction.action === "scrollTo" && interaction.destination) {
+        document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
       }
-      return targets;
-    }, [safeNodes]);
-    const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
-      setInteractionState((prev) => {
-        const current = prev[target] ?? false;
-        const next =
-          action === "open" ? true :
-            action === "close" ? false :
-              !current;
-        return { ...prev, [target]: next };
-      });
-    }, []);
+    },
+    [currentPageId, history, pageMeta, onNavigate, safePages]
+  );
 
-    if (!currentPage) {
-      const hasPages = safePages.length > 0;
-      return (
-        <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-          {hasPages
-            ? "No page to display."
-            : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-        </div>
-      );
+  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
+  const width = (pageProps.width as string) || "1920px";
+  const background = (pageProps.background as string) || "#ffffff";
+  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const pageRotation = toNumber(pageProps.pageRotation, 0);
+  const frameStyles = resolvePageFrameStyles(width);
+  const { ref, width: measuredWidth } = useContainerWidth(1000);
+  const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
+  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
+  const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
+  const isPhoneSize = !isDesktopMode;
+  const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (!isDesktopMode && mobileWrapperRef.current) {
+      mobileWrapperRef.current.removeAttribute("data-nav-preview-done");
+      const t = setTimeout(() => {
+        if (mobileWrapperRef.current) enhanceNavInPreview(mobileWrapperRef.current);
+      }, 200);
+      return () => clearTimeout(t);
     }
+  }, [isDesktopMode, currentPageId]);
+  const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
+  const availableTriggerTargets = React.useMemo(() => {
+    const targets = new Set<string>();
+    for (const node of Object.values(safeNodes)) {
+      const target = node?.props?.toggleTarget;
+      if (typeof target === "string" && target.trim()) {
+        targets.add(target.trim());
+      }
+    }
+    return targets;
+  }, [safeNodes]);
+  const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
+    setInteractionState((prev) => {
+      const current = prev[target] ?? false;
+      const next =
+        action === "open" ? true :
+          action === "close" ? false :
+            !current;
+      return { ...prev, [target]: next };
+    });
+  }, []);
 
-    const pageWidthPx = parsePixelValue(width) ?? 1920;
-    const scale = (!isPhoneSize && !fillViewport && measuredWidth < pageWidthPx) ? measuredWidth / pageWidthPx : 1;
-
-    const pageContent = (
-      <>
-        {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
-          const node = safeNodes[id];
-          if (!node) return null;
-          const childType = String(node.type || "").toLowerCase();
-          if (childType === "page") return null;
-          return (
-            <RenderNode
-              key={id}
-              node={node}
-              nodes={safeNodes}
-              pages={pageMeta}
-              pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-              viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
-              interactionState={interactionState}
-              availableTriggerTargets={availableTriggerTargets}
-              onToggle={handleToggle}
-              storeContext={storeContext}
-              nodeId={id}
-              onPrototypeAction={onPrototypeAction}
-              mobileBreakpoint={mobileBreakpoint}
-              enableFormInputs={enableFormInputs}
-              builderParityMode={builderParityMode}
-              renderAllNodes={renderAllNodes}
-            />
-          );
-        })}
-      </>
-    );
-
+  if (!currentPage) {
+    const hasPages = safePages.length > 0;
     return (
-      <>
-        <style>{`
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
+    );
+  }
+
+  const pageWidthPx = parsePixelValue(width) || 1440;
+  const isScaling = measuredWidth < pageWidthPx && measuredWidth > 0;
+  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+
+  const pageContent = (
+    <>
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
+        if (!node) return null;
+        const childType = String(node.type || "").toLowerCase();
+        if (childType === "page") return null;
+        return (
+          <RenderNode
+            key={id}
+            node={node}
+            nodes={safeNodes}
+            pages={pageMeta}
+            pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+            viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
+            interactionState={interactionState}
+            availableTriggerTargets={availableTriggerTargets}
+            onToggle={handleToggle}
+            storeContext={storeContext}
+            nodeId={id}
+            onPrototypeAction={onPrototypeAction}
+            mobileBreakpoint={mobileBreakpoint}
+            enableFormInputs={enableFormInputs}
+            builderParityMode={builderParityMode}
+            renderAllNodes={renderAllNodes}
+          />
+        );
+      })}
+    </>
+  );
+
+  return (
+    <>
+      <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
         @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -4345,239 +4392,244 @@ function getPageSlug(page: { slug?: string } | null | undefined, index: number):
           opacity: 1;
         }
       `}</style>
-        {isPhoneSize && frameResponsiveStyles}
+      {isPhoneSize && frameResponsiveStyles}
+      <div
+        key={currentPageId}
+        ref={ref}
+        style={{
+          width: "100%",
+          minHeight: "100%",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          overflowX: "hidden",
+          overflowY: "auto",
+          padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
+          backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+        }}
+      >
         <div
-          key={currentPageId}
-          ref={ref}
           style={{
-            width: "100%",
-            minHeight: "100%",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            overflowX: "hidden",
-            overflowY: "auto",
-            padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
-            backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
+            maxWidth: isScaling ? pageWidthPx : ((isPhoneSize || fillViewport) ? "100%" : undefined),
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) : (isPhoneSize ? "100vh" : minHeight),
+            backgroundColor: background,
+            position: "relative",
+            isolation: "isolate",
+            overflow: isScaling ? "visible" : "hidden",
+            boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
+            borderRadius: isPhoneSize || fillViewport ? 0 : 4,
+            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
+            transformOrigin: "top center",
+            transition: "transform 0.2s ease, width 0.3s ease",
+            ...transitionStyle,
           }}
         >
-          <div
-            style={{
-              width: isPhoneSize || fillViewport ? "100%" : width,
-              maxWidth: isPhoneSize || fillViewport ? "100%" : undefined,
-              minHeight: isPhoneSize ? "100vh" : minHeight,
-              backgroundColor: background,
-              boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
-              borderRadius: isPhoneSize || fillViewport ? 0 : 4,
-              transform: `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}`,
-              transformOrigin: "top center",
-              transition: "transform 0.2s ease, width 0.3s ease",
-              ...transitionStyle,
-            }}
-          >
-            {isPhoneSize ? (
-              <div
-                ref={mobileWrapperRef}
-                className="frame-responsive-inner frame-fluid frame-mobile"
-                style={{
-                  width: "100%",
-                  minHeight: "100vh",
-                  boxSizing: "border-box",
-                  containerType: "inline-size",
-                }}
-              >
-                {pageContent}
-              </div>
-            ) : (
-              pageContent
-            )}
-          </div>
+          {isPhoneSize ? (
+            <div
+              ref={mobileWrapperRef}
+              className={isScaling ? "frame-responsive-inner" : "frame-responsive-inner frame-fluid frame-mobile"}
+              style={{
+                width: isScaling ? pageWidthPx : "100%",
+                minHeight: "100vh",
+                boxSizing: "border-box",
+                containerType: "inline-size",
+                transform: isScaling ? undefined : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
+                transformOrigin: "top center",
+              }}
+            >
+              {pageContent}
+            </div>
+          ) : (
+            pageContent
+          )}
         </div>
-      </>
+      </div>
+    </>
+  );
+}
+
+/**
+ * Full-width live site renderer. No shadow, no border-radius, no max-width box.
+ * The design fills the entire browser viewport as a real website.
+ * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
+ */
+export function LiveSite({
+  doc,
+  pageIndex = 0,
+  storeContext,
+  initialPageSlug,
+  mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
+  enableFormInputs = false,
+}: {
+  doc: BuilderDocument;
+  pageIndex?: number;
+  storeContext?: StoreContext | null;
+  /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
+  initialPageSlug?: string;
+  /** Width threshold (px) before switching to mobile frame behavior. */
+  mobileBreakpoint?: number;
+  enableFormInputs?: boolean;
+}): React.ReactElement {
+  const safePages = React.useMemo(
+    () => (Array.isArray(doc?.pages)
+      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
+      : []),
+    [doc]
+  );
+  const safeNodes = React.useMemo(
+    () => (doc?.nodes && typeof doc.nodes === "object"
+      ? (doc.nodes as Record<string, CleanNode>)
+      : {}),
+    [doc]
+  );
+
+  const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
+  const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
+  const [history, setHistory] = React.useState<string[]>([]);
+  const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+
+  const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
+  const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
+  const pageMeta = React.useMemo<PreviewPageMeta[]>(
+    () => safePages.map((p, i) => ({
+      id: p.id,
+      name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
+      slug: getPageSlug(p, i),
+    })),
+    [safePages]
+  );
+
+  const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
+  const width = (pageProps.width as string) || "1920px";
+  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const background = (pageProps.background as string) || "#ffffff";
+  const pageRotation = toNumber(pageProps.pageRotation, 0);
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
+
+  const { ref, width: measuredWidth } = useContainerWidth();
+  const isPhoneSize = measuredWidth <= mobileBreakpoint;
+  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+  const layoutReferenceWidth = pageWidthPx;
+  const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
+
+  const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
+  React.useEffect(() => {
+    if (isPhoneSize && liveSiteWrapperRef.current) {
+      liveSiteWrapperRef.current.removeAttribute("data-nav-preview-done");
+      const t = setTimeout(() => {
+        if (liveSiteWrapperRef.current) enhanceNavInPreview(liveSiteWrapperRef.current);
+      }, 200);
+      return () => clearTimeout(t);
+    }
+  }, [isPhoneSize, currentPageId]);
+
+  const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
+  const availableTriggerTargets = React.useMemo(() => {
+    const targets = new Set<string>();
+    for (const node of Object.values(safeNodes)) {
+      const target = node?.props?.toggleTarget;
+      if (typeof target === "string" && target.trim()) {
+        targets.add(target.trim());
+      }
+    }
+    return targets;
+  }, [safeNodes]);
+
+  const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
+    setInteractionState((prev) => {
+      const current = prev[target] ?? false;
+      const next =
+        action === "open" ? true :
+          action === "close" ? false :
+            !current;
+      return { ...prev, [target]: next };
+    });
+  }, []);
+
+  const onPrototypeAction = React.useCallback((interaction: Interaction) => {
+    if (interaction.action === "openUrl" && interaction.destination) {
+      window.open(interaction.destination, "_blank", "noopener");
+    } else if (interaction.action === "scrollTo" && interaction.destination) {
+      document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
+    } else if (interaction.action === "navigateTo" && interaction.destination) {
+      const destId = resolveInternalPageId(interaction.destination, pageMeta);
+      if (destId) {
+        setHistory((h) => [...h, currentPageId]);
+        const duration = (interaction.duration ?? 300) / 1000;
+        const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
+        setTransitionStyle({
+          ...PAGE_TRANSITION_STYLES[trans],
+          animationDuration: `${duration}s`,
+        });
+        setCurrentPageId(destId);
+      } else {
+        const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth" });
+        } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
+          window.location.href = interaction.destination;
+        }
+      }
+    } else if (interaction.action === "back") {
+      if (history.length > 0) {
+        const prevId = history[history.length - 1];
+        setHistory((h) => h.slice(0, -1));
+        setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+        setCurrentPageId(prevId);
+      } else {
+        window.history.back();
+      }
+    }
+  }, [currentPageId, history, pageMeta]);
+
+  if (!currentPage) {
+    const hasPages = safePages.length > 0;
+    return (
+      <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
+        {hasPages
+          ? "No page to display."
+          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+      </div>
     );
   }
 
-  /**
-   * Full-width live site renderer. No shadow, no border-radius, no max-width box.
-   * The design fills the entire browser viewport as a real website.
-   * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
-   */
-  export function LiveSite({
-    doc,
-    pageIndex = 0,
-    storeContext,
-    initialPageSlug,
-    mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
-    enableFormInputs = false,
-  }: {
-    doc: BuilderDocument;
-    pageIndex?: number;
-    storeContext?: StoreContext | null;
-    /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
-    initialPageSlug?: string;
-    /** Width threshold (px) before switching to mobile frame behavior. */
-    mobileBreakpoint?: number;
-    enableFormInputs?: boolean;
-  }): React.ReactElement {
-    const safePages = React.useMemo(
-      () => (Array.isArray(doc?.pages)
-        ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
-        : []),
-      [doc]
-    );
-    const safeNodes = React.useMemo(
-      () => (doc?.nodes && typeof doc.nodes === "object"
-        ? (doc.nodes as Record<string, CleanNode>)
-        : {}),
-      [doc]
-    );
+  const pageChildren = (
+    <>
+      {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
+        const node = safeNodes[id];
+        if (!node) return null;
+        const childType = String(node.type || "").toLowerCase();
+        if (childType === "page") return null;
+        return (
+          <RenderNode
+            key={id}
+            node={node}
+            nodes={safeNodes}
+            pages={pageMeta}
+            pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
+            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
+            interactionState={interactionState}
+            availableTriggerTargets={availableTriggerTargets}
+            onToggle={handleToggle}
+            storeContext={storeContext}
+            nodeId={id}
+            onPrototypeAction={onPrototypeAction}
+            mobileBreakpoint={mobileBreakpoint}
+            enableFormInputs={enableFormInputs}
+            builderParityMode={true}
+            preserveAuthoredPositioning={true}
+            layoutReferenceWidth={layoutReferenceWidth}
+            layoutReferenceHeight={layoutReferenceHeight}
+          />
+        );
+      })}
+    </>
+  );
 
-    const initialPage = (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug) : null) ?? safePages[pageIndex] ?? safePages[0];
-    const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
-    const [history, setHistory] = React.useState<string[]>([]);
-    const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
-
-    const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
-    const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
-    const pageMeta = React.useMemo<PreviewPageMeta[]>(
-      () => safePages.map((p, i) => ({
-        id: p.id,
-        name: p.name || (p.props?.pageName as string) || `Page ${i + 1}`,
-        slug: getPageSlug(p, i),
-      })),
-      [safePages]
-    );
-
-    const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
-    const width = (pageProps.width as string) || "1920px";
-    const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
-    const background = (pageProps.background as string) || "#ffffff";
-    const pageRotation = toNumber(pageProps.pageRotation, 0);
-    const pageWidthPx = parsePixelValue(width) ?? 1920;
-
-    const { ref, width: measuredWidth } = useContainerWidth();
-    const isPhoneSize = measuredWidth <= mobileBreakpoint;
-    const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
-    const layoutReferenceWidth = pageWidthPx;
-    const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
-
-    const liveSiteWrapperRef = React.useRef<HTMLDivElement>(null);
-    React.useEffect(() => {
-      if (isPhoneSize && liveSiteWrapperRef.current) {
-        liveSiteWrapperRef.current.removeAttribute("data-nav-preview-done");
-        const t = setTimeout(() => {
-          if (liveSiteWrapperRef.current) enhanceNavInPreview(liveSiteWrapperRef.current);
-        }, 200);
-        return () => clearTimeout(t);
-      }
-    }, [isPhoneSize, currentPageId]);
-
-    const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
-    const availableTriggerTargets = React.useMemo(() => {
-      const targets = new Set<string>();
-      for (const node of Object.values(safeNodes)) {
-        const target = node?.props?.toggleTarget;
-        if (typeof target === "string" && target.trim()) {
-          targets.add(target.trim());
-        }
-      }
-      return targets;
-    }, [safeNodes]);
-
-    const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
-      setInteractionState((prev) => {
-        const current = prev[target] ?? false;
-        const next =
-          action === "open" ? true :
-            action === "close" ? false :
-              !current;
-        return { ...prev, [target]: next };
-      });
-    }, []);
-
-    const onPrototypeAction = React.useCallback((interaction: Interaction) => {
-      if (interaction.action === "openUrl" && interaction.destination) {
-        window.open(interaction.destination, "_blank", "noopener");
-      } else if (interaction.action === "scrollTo" && interaction.destination) {
-        document.getElementById(interaction.destination)?.scrollIntoView({ behavior: "smooth" });
-      } else if (interaction.action === "navigateTo" && interaction.destination) {
-        const destId = resolveInternalPageId(interaction.destination, pageMeta);
-        if (destId) {
-          setHistory((h) => [...h, currentPageId]);
-          const duration = (interaction.duration ?? 300) / 1000;
-          const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
-          setTransitionStyle({
-            ...PAGE_TRANSITION_STYLES[trans],
-            animationDuration: `${duration}s`,
-          });
-          setCurrentPageId(destId);
-        } else {
-          const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth" });
-          } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
-            window.location.href = interaction.destination;
-          }
-        }
-      } else if (interaction.action === "back") {
-        if (history.length > 0) {
-          const prevId = history[history.length - 1];
-          setHistory((h) => h.slice(0, -1));
-          setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
-          setCurrentPageId(prevId);
-        } else {
-          window.history.back();
-        }
-      }
-    }, [currentPageId, history, pageMeta]);
-
-    if (!currentPage) {
-      const hasPages = safePages.length > 0;
-      return (
-        <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-          {hasPages
-            ? "No page to display."
-            : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
-        </div>
-      );
-    }
-
-    const pageChildren = (
-      <>
-        {(Array.isArray(currentPage.children) ? currentPage.children : []).map((id) => {
-          const node = safeNodes[id];
-          if (!node) return null;
-          const childType = String(node.type || "").toLowerCase();
-          if (childType === "page") return null;
-          return (
-            <RenderNode
-              key={id}
-              node={node}
-              nodes={safeNodes}
-              pages={pageMeta}
-              pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-              viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
-              interactionState={interactionState}
-              availableTriggerTargets={availableTriggerTargets}
-              onToggle={handleToggle}
-              storeContext={storeContext}
-              nodeId={id}
-              onPrototypeAction={onPrototypeAction}
-              mobileBreakpoint={mobileBreakpoint}
-              enableFormInputs={enableFormInputs}
-              builderParityMode={true}
-              preserveAuthoredPositioning={true}
-              layoutReferenceWidth={layoutReferenceWidth}
-              layoutReferenceHeight={layoutReferenceHeight}
-            />
-          );
-        })}
-      </>
-    );
-
-    return (
-      <>
-        <style>{`
+  return (
+    <>
+      <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
         @keyframes page-slide-left { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         @keyframes page-slide-right { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -4586,40 +4638,40 @@ function getPageSlug(page: { slug?: string } | null | undefined, index: number):
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
-        {isPhoneSize && frameResponsiveStyles}
-        <div
-          key={currentPageId}
-          ref={ref}
-          style={{
-            width: isPhoneSize ? "100%" : width,
-            maxWidth: isPhoneSize ? "100%" : undefined,
-            minHeight,
-            backgroundColor: background,
-            margin: isPhoneSize ? 0 : "0 auto",
-            transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-            transformOrigin: "center center",
-            ...transitionStyle,
-          }}
-        >
-          {isPhoneSize ? (
+      {isPhoneSize && frameResponsiveStyles}
+      <div
+        key={currentPageId}
+        ref={ref}
+        style={{
+          width: isPhoneSize ? "100%" : width,
+          maxWidth: isPhoneSize ? "100%" : undefined,
+          minHeight,
+          backgroundColor: background,
+          margin: isPhoneSize ? 0 : "0 auto",
+          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
+          transformOrigin: "center center",
+          ...transitionStyle,
+        }}
+      >
+        {isPhoneSize ? (
+          <div
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              containerType: "inline-size",
+            }}
+          >
             <div
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                containerType: "inline-size",
-              }}
+              ref={liveSiteWrapperRef}
+              className="frame-responsive-inner frame-fluid frame-mobile"
             >
-              <div
-                ref={liveSiteWrapperRef}
-                className="frame-responsive-inner frame-fluid frame-mobile"
-              >
-                {pageChildren}
-              </div>
+              {pageChildren}
             </div>
-          ) : (
-            pageChildren
-          )}
-        </div>
-      </>
-    );
-  }
+          </div>
+        ) : (
+          pageChildren
+        )}
+      </div>
+    </>
+  );
+}
