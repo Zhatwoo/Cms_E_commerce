@@ -46,6 +46,10 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
       return resolved || target.Container || SAFE_CONTAINER;
     },
     has(target, prop) {
+      // Craft validates resolver membership eagerly (often via `in`).
+      // Returning `true` ensures unknown nodes fall back to SAFE_CONTAINER in `get()`
+      // instead of crashing the preview list.
+      if (typeof prop === "string") return true;
       if (Reflect.has(target, prop)) return true;
       if (typeof prop !== "string") {
         return Reflect.has(target, "Container") || Reflect.has(target, "container");
