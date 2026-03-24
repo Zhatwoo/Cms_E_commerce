@@ -38,6 +38,42 @@ async function resolveClientContact(userId) {
   return { email: String(email || '').trim(), displayName };
 }
 
+async function buildOwnerSnapshot(userId) {
+  if (!userId) return null;
+
+  let user = null;
+  try {
+    user = await User.findById(userId);
+  } catch {
+    user = null;
+  }
+
+  if (!user) {
+    try {
+      const authUser = await auth.getUser(userId);
+      return {
+        id: userId,
+        email: authUser.email || '',
+        name: authUser.displayName || authUser.email || 'Client',
+        avatar: authUser.photoURL || null,
+        username: '',
+        subscriptionPlan: null,
+      };
+    } catch {
+      return { id: userId };
+    }
+  }
+
+  return {
+    id: user.id || userId,
+    email: user.email || '',
+    name: user.displayName || user.fullName || user.name || user.email || 'Client',
+    avatar: user.avatar || null,
+    username: user.username || '',
+    subscriptionPlan: user.subscriptionPlan || null,
+  };
+}
+
 // List for current user (protect)
 exports.getMyDomains = async (req, res) => {
   try {
@@ -293,7 +329,7 @@ exports.publish = async (req, res) => {
 
     // 1. PROJECT-BASED SUBDOMAIN RESERVATION LIMIT
     if (!project.subdomain) {
-      const reservedCount = await Project.countWithSubdomain(userId);
+      const reservedCount = await Project.countWithSubdomain(ownerId);
       if (reservedCount >= limits.domains) {
         return res.status(403).json({
           success: false,
@@ -336,15 +372,17 @@ exports.publish = async (req, res) => {
     }
 
     // Save to BOTH paths with published_content snapshot
-    const data = await Domain.publishForClientBatch(userId, {
+    const ownerSnapshot = await buildOwnerSnapshot(ownerId);
+    const data = await Domain.publishForClientBatch(ownerId, {
       projectId: String(projectId).trim(),
       projectTitle: project.title,
       subdomain,
       publishedContent,
+      ownerProfile: ownerSnapshot,
     });
 
     // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
-    await Project.update(userId, projectId, { subdomain, status: 'published' });
+    await Project.update(ownerId, projectId, { subdomain, status: 'published' });
 
     // Broadcast to Admins: New Content Published
     try {
@@ -362,7 +400,7 @@ exports.publish = async (req, res) => {
     const rtdb = getRealtimeDb();
     if (rtdb) {
       try {
-        const rtdbRef = rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`);
+        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
         await rtdbRef.update({ subdomain });
       } catch (e) {
         console.warn('publish: Realtime DB sync failed:', e.message);
@@ -449,7 +487,8 @@ exports.updateSubdomain = async (req, res) => {
     if (!project) {
       return res.status(404).json({ success: false, message: 'Project not found' });
     }
-    const data = await Domain.updateSubdomainForClient(ownerId, String(projectId).trim(), normalized);
+    const ownerSnapshot = await buildOwnerSnapshot(ownerId);
+    const data = await Domain.updateSubdomainForClient(ownerId, String(projectId).trim(), normalized, ownerSnapshot);
     if (!data) {
       return res.status(400).json({ success: false, message: 'Domain not found. Publish the site first.' });
     }
@@ -562,12 +601,14 @@ exports.syncPublicLookup = async (req, res) => {
     for (const d of items) {
       const sub = (d.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       if (sub && (d.status || 'published') === 'published') {
+        const ownerSnapshot = await buildOwnerSnapshot(userId);
         await Domain.setSubdomainLookup(sub, {
           userId,
           projectId: d.projectId,
           domainId: d.id,
           status: 'published',
           projectTitle: d.projectTitle || null,
+          ownerProfile: ownerSnapshot,
         });
         synced++;
       }

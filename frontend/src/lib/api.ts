@@ -237,14 +237,51 @@ export async function apiFetch<T>(
   throw new Error('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
 }
 
+async function authFetch<T>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  if (typeof window === 'undefined') {
+    return apiFetch<T>(path, options);
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  const res = await fetch(path, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  return handleResponse<T>(res);
+}
+
 // --- Auth API helpers (backend accepts idToken or email+password) ---
 
 /** Login with Firebase idToken (browser signs in; works even if backend API key is restricted). */
 export async function loginWithIdToken(idToken: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/api/auth/login', {
+  return authFetch<AuthResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ idToken }),
   });
+}
+
+/** Login with Google via Firebase popup, then exchange the idToken for the backend session cookie. */
+export async function loginWithGoogle(): Promise<AuthResponse> {
+  const { isFirebaseConfigured, signInWithGoogleAndGetIdToken } = await import('@/lib/firebase');
+  if (!isFirebaseConfigured()) {
+    throw new Error('Google sign-in is not configured. Add Firebase web config to the frontend environment.');
+  }
+
+  const idToken = await signInWithGoogleAndGetIdToken();
+  const response = await loginWithIdToken(idToken);
+  if (response.success) {
+    setStoredUser(response.user ?? null);
+  }
+  return response;
 }
 
 /** Login: email + password. Prefer Firebase client sign-in then idToken; fallback to backend email/password. */
@@ -258,7 +295,7 @@ export async function login(email: string, password: string): Promise<AuthRespon
       // Fallback: backend email/password (e.g. REST API)
     }
   }
-  return apiFetch<AuthResponse>('/api/auth/login', {
+  return authFetch<AuthResponse>('/api/auth/login', {
     method: 'POST',
     body: JSON.stringify({ email, password }),
   });
@@ -269,7 +306,7 @@ export async function register(params: {
   email: string;
   password: string;
 }): Promise<AuthResponse> {
-  const data = await apiFetch<AuthResponse>('/api/auth/register', {
+  const data = await authFetch<AuthResponse>('/api/auth/register', {
     method: 'POST',
     body: JSON.stringify(params),
   });
@@ -283,21 +320,21 @@ export async function registerAdmin(params: {
   password: string;
   role?: string;
 }): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/api/auth/register-admin', {
+  return authFetch<AuthResponse>('/api/auth/register-admin', {
     method: 'POST',
     body: JSON.stringify(params),
   });
 }
 
 export async function forgotPassword(email: string): Promise<{ success: boolean; message?: string; resetUrl?: string }> {
-  return apiFetch('/api/auth/forgot-password', {
+  return authFetch('/api/auth/forgot-password', {
     method: 'POST',
     body: JSON.stringify({ email }),
   });
 }
 
 export async function resetPassword(token: string, newPassword: string): Promise<{ success: boolean; message?: string }> {
-  return apiFetch('/api/auth/reset-password', {
+  return authFetch('/api/auth/reset-password', {
     method: 'POST',
     body: JSON.stringify({ token, newPassword }),
   });
@@ -305,7 +342,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
 
 /** Verify email with token from confirmation link. Returns user and token for auto-login. */
 export async function verifyEmail(token: string): Promise<AuthResponse> {
-  return apiFetch<AuthResponse>('/api/auth/verify-email', {
+  return authFetch<AuthResponse>('/api/auth/verify-email', {
     method: 'POST',
     body: JSON.stringify({ token }),
   });
@@ -313,7 +350,7 @@ export async function verifyEmail(token: string): Promise<AuthResponse> {
 
 /** Resend verification email to the given email address. */
 export async function resendVerificationEmail(email: string): Promise<{ success: boolean; message?: string }> {
-  return apiFetch<{ success: boolean; message?: string }>('/api/auth/resend-verification', {
+  return authFetch<{ success: boolean; message?: string }>('/api/auth/resend-verification', {
     method: 'POST',
     body: JSON.stringify({ email: email.trim().toLowerCase() }),
   });
@@ -322,7 +359,17 @@ export async function resendVerificationEmail(email: string): Promise<{ success:
 /** Logout: clear cookie on backend and clear local user data */
 export async function logout(): Promise<void> {
   try {
-    await fetch(`${getApiUrl()}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    if (typeof window === 'undefined') {
+      await fetch(`${getApiUrl()}/api/auth/logout`, { method: 'POST', credentials: 'include' });
+    } else {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const { signOutFirebaseAuth } = await import('@/lib/firebase');
+    await signOutFirebaseAuth();
   } catch {
     // ignore
   }
@@ -331,7 +378,7 @@ export async function logout(): Promise<void> {
 
 /** Get current user from backend (uses cookie). Use to restore session when only cookie is present. */
 export async function getMe(): Promise<{ success: boolean; user?: User }> {
-  return apiFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  return authFetch<{ success: boolean; user?: User }>('/api/auth/me');
 }
 
 /** Update user profile (Full Name, Avatar, Username, Website, Bio) */
@@ -344,14 +391,14 @@ export async function updateProfile(data: {
   paymentMethods?: any[];
   paymentMethod?: any;
 }): Promise<{ success: boolean; message?: string; user?: User }> {
-  return apiFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
+  return authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
   });
 }
 
 export async function createStripeSetupIntent(): Promise<{ success: boolean; clientSecret: string }> {
-  return apiFetch<{ success: boolean; clientSecret: string }>('/api/auth/billing/setup-intent', {
+  return authFetch<{ success: boolean; clientSecret: string }>('/api/auth/billing/setup-intent', {
     method: 'POST',
   });
 }
@@ -370,7 +417,7 @@ export async function uploadAvatarApi(
 ): Promise<{ success: boolean; message?: string; url?: string; user?: User }> {
   const formData = new FormData();
   formData.append('avatar', file);
-  const url = `${getApiUrl()}/api/auth/avatar`;
+  const url = typeof window === 'undefined' ? `${getApiUrl()}/api/auth/avatar` : '/api/auth/avatar';
   const res = await fetch(url, {
     method: 'POST',
     credentials: 'include',
