@@ -1438,7 +1438,19 @@ export async function setClientDomainStatus(
 export type AnalyticsResponse = {
   success: boolean;
   analytics?: {
-    summary: { activeUsers: number; revenue: number; publishedWebsites: number };
+    summary: { 
+      activeUsers: number; 
+      revenue: number; 
+      publishedWebsites: number;
+      pendingWebsites: number;
+      activeDomains: number;
+    };
+    trends: {
+      users: number[];
+      websites: number[];
+      domains: number[];
+      pending: number[];
+    };
     subscriptionDistribution: { free: number; basic: number; pro: number };
     signupsOverTime: { labels: string[]; signups: number[] };
     revenueOverTime: { labels: string[]; data: number[] };
