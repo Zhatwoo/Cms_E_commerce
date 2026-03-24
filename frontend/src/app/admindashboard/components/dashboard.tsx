@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import Link from 'next/link';
 import {
     getMe,
     getStoredUser,
@@ -127,7 +128,7 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.44, delay: 0.28, ease: [0.22, 0.84, 0.25, 1] }}
         >
-            <DashboardPanel className="min-h-[15.6rem] p-5 sm:p-6">
+            <DashboardPanel className="h-[22rem] p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
                     <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Recent User Actions</h2>
                     <button type="button" suppressHydrationWarning className="text-xs transition-opacity hover:opacity-70" style={{ color: '#a090c8' }}>
@@ -135,9 +136,10 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
                     </button>
                 </div>
                 <div
-                    className="mt-5 rounded-[18px] p-3 sm:p-4"
+                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-[18px] p-3 sm:p-4"
                     style={{ background: 'rgba(240,235,255,0.6)', border: '1px solid rgba(166,61,255,0.08)' }}
                 >
+                    <div className="space-y-3">
                     {items.map((item) => (
                         <div key={item.id} className="flex gap-4 rounded-[14px] px-4 py-4" style={{ background: 'rgba(255,255,255,0.6)' }}>
                             <div className="w-1 shrink-0 rounded-full" style={{ background: '#f5c000' }} />
@@ -148,6 +150,7 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
                             </div>
                         </div>
                     ))}
+                    </div>
                 </div>
             </DashboardPanel>
         </motion.div>
@@ -163,9 +166,18 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.44, delay: 0.34, ease: [0.22, 0.84, 0.25, 1] }}
         >
-            <DashboardPanel className="min-h-[15.6rem] p-5 sm:p-6">
-                <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Notifications</h2>
-                <div className="mt-6 space-y-4">
+            <DashboardPanel className="h-[22rem] p-5 sm:p-6">
+                <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Notifications</h2>
+                    <Link
+                        href="/admindashboard/notifications"
+                        className="text-xs font-semibold transition-opacity hover:opacity-70"
+                        style={{ color: '#a090c8' }}
+                    >
+                        View all notifications
+                    </Link>
+                </div>
+                <div className="mt-6 h-[calc(100%-3.4rem)] space-y-4 overflow-y-auto pr-1">
                     {items.length === 0 ? (
                         <p className="text-sm text-[#a090c8]">No recent notifications.</p>
                     ) : (
