@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { Play } from "lucide-react";
 import gsap from "gsap";
@@ -204,6 +204,16 @@ function asNumber(value: unknown): number {
   return 0;
 }
 
+function getDomXY(el: HTMLElement): { x: number; y: number } {
+  const view = el.ownerDocument?.defaultView ?? window;
+  const rect = el.getBoundingClientRect();
+  return { x: rect.left + view.scrollX, y: rect.top + view.scrollY };
+}
+
+function countMids(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
 function applyScrollPreviewIndicator(element: HTMLElement): () => void {
   const prevOutline = element.style.outline;
   const prevOutlineOffset = element.style.outlineOffset;
@@ -344,7 +354,83 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           ...current.scrollEffect,
           type: nextType,
         };
-        const { from, to } = getScrollEffectRange(scrollConfig);
+        let from: Record<string, unknown> = {};
+        let to: Record<string, unknown> = {};
+        if (nextType === "freeMove") {
+          const start = scrollConfig.freeMove?.start;
+          const end = scrollConfig.freeMove?.end;
+          if (!start || !end) return;
+
+          const mids = (scrollConfig.freeMove?.mids ?? []) as Array<{ x: number; y: number }>;
+          const points: Array<{ x: number; y: number }> = [start, ...mids, end];
+
+          const view = element.ownerDocument?.defaultView ?? window;
+          const rect = element.getBoundingClientRect();
+          const pageLeft = rect.left + view.scrollX;
+          const pageTop = rect.top + view.scrollY;
+          const baseX = Number(gsap.getProperty(element, "x")) || 0;
+          const baseY = Number(gsap.getProperty(element, "y")) || 0;
+          const toOffset = (p: { x: number; y: number }) => ({
+            // FreeMove should be exact regardless of Speed/Intensity.
+            x: baseX + ((scrollConfig.freeMove?.mode ?? "absolute") === "relative" ? p.x : (p.x - pageLeft)),
+            y: baseY + ((scrollConfig.freeMove?.mode ?? "absolute") === "relative" ? p.y : (p.y - pageTop)),
+          });
+
+          const offsets = points.map(toOffset);
+          from = offsets[0] ?? {};
+          to = offsets[offsets.length - 1] ?? {};
+
+          // Simulated smooth preview (Start -> ... -> End -> Back to Start)
+          const baseDuration = 0.8;
+          const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
+
+          const restoreIndicator = applyScrollPreviewIndicator(element);
+          restoreScrollIndicatorRef.current = restoreIndicator;
+
+          const timeline = gsap.timeline({
+            defaults: { ease: simulatedEase },
+            onComplete: () => {
+              gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
+              if (restoreScrollIndicatorRef.current) {
+                restoreScrollIndicatorRef.current();
+                restoreScrollIndicatorRef.current = null;
+              }
+              timeline.kill();
+              if (scrollPreviewTimelineRef.current === timeline) {
+                scrollPreviewTimelineRef.current = null;
+              }
+            },
+          });
+
+          // Sample along path for a smoother preview (more points = smoother).
+          const samples = Math.max(12, points.length * 6);
+          const go: Array<{ x: number; y: number }> = [];
+          for (let i = 0; i <= samples; i++) {
+            const alpha = i / samples;
+            const seg = alpha * (offsets.length - 1);
+            const idx = Math.floor(seg);
+            const localT = seg - idx;
+            const p1 = offsets[Math.min(offsets.length - 1, idx)];
+            const p2 = offsets[Math.min(offsets.length - 1, idx + 1)];
+            go.push({
+              x: (p1?.x as number ?? 0) + ((p2?.x as number ?? 0) - (p1?.x as number ?? 0)) * localT,
+              y: (p1?.y as number ?? 0) + ((p2?.y as number ?? 0) - (p1?.y as number ?? 0)) * localT,
+            });
+          }
+
+          timeline.set(element, { x: go[0]?.x ?? 0, y: go[0]?.y ?? 0, force3D: true }, 0);
+          for (let i = 1; i < go.length; i++) {
+            timeline.to(element, { ...go[i], force3D: true, duration: baseDuration / (go.length - 1) }, (i - 1) * (baseDuration / (go.length - 1)));
+          }
+          timeline.to(element, { x: go[0]?.x ?? 0, y: go[0]?.y ?? 0, force3D: true, duration: baseDuration * 0.5 }, baseDuration);
+
+          scrollPreviewTimelineRef.current = timeline;
+          return;
+        } else {
+          const range = getScrollEffectRange(scrollConfig);
+          from = range.from;
+          to = range.to;
+        }
         const baseDuration = 0.8;
         const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
 
@@ -428,6 +514,19 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
       }
     };
   }, []);
+
+  const freeMoveStatus = useMemo(() => {
+    const start = animation.scrollEffect.freeMove?.start;
+    const end = animation.scrollEffect.freeMove?.end;
+    const mids = animation.scrollEffect.freeMove?.mids;
+    return {
+      hasStart: !!start,
+      hasEnd: !!end,
+      start,
+      end,
+      midCount: countMids(mids),
+    };
+  }, [animation.scrollEffect.freeMove?.start, animation.scrollEffect.freeMove?.end, animation.scrollEffect.freeMove?.mids]);
 
   return (
     <div className="flex flex-col pb-4">
@@ -861,28 +960,207 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
 
               {animation.scrollEffect.type !== "none" && (
                 <>
-                  <div className="flex flex-col gap-1">
-                    <div className="flex justify-between">
-                      <label className={labelClass}>Speed / Intensity</label>
-                      <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <label className={labelClass}>Speed</label>
+                        <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="-2"
+                        max="2"
+                        step="0.1"
+                        value={animation.scrollEffect.speed}
+                        onChange={(e) => {
+                          update("scrollEffect.speed", Number(e.target.value));
+                          schedulePreview("scrollEffect");
+                        }}
+                        className={sliderClass}
+                      />
+                      <div className="flex justify-between">
+                        <span className={subLabelClass}>Reverse</span>
+                        <span className={subLabelClass}>Forward</span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="-2"
-                      max="2"
-                      step="0.1"
-                      value={animation.scrollEffect.speed}
-                      onChange={(e) => {
-                        update("scrollEffect.speed", Number(e.target.value));
-                        schedulePreview("scrollEffect");
-                      }}
-                      className={sliderClass}
-                    />
-                    <div className="flex justify-between">
-                      <span className={subLabelClass}>Reverse</span>
-                      <span className={subLabelClass}>Forward</span>
+
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <label className={labelClass}>Intensity</label>
+                        <span className={subLabelClass}>{animation.scrollEffect.intensity.toFixed(1)}x</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={animation.scrollEffect.intensity}
+                        onChange={(e) => {
+                          update("scrollEffect.intensity", Number(e.target.value));
+                          schedulePreview("scrollEffect");
+                        }}
+                        className={sliderClass}
+                      />
+                      <div className="flex justify-between">
+                        <span className={subLabelClass}>Tight</span>
+                        <span className={subLabelClass}>Smooth</span>
+                      </div>
                     </div>
                   </div>
+
+                  {animation.scrollEffect.type === "freeMove" && (
+                    <div className="flex flex-col gap-2 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <span className={labelClass}>Free Move Capture</span>
+                          <span className={subLabelClass}>
+                            {!freeMoveStatus.hasStart
+                              ? "1) Drag the element to START, then click Set Start."
+                              : !freeMoveStatus.hasEnd
+                                ? "2) Add Mid(s) if needed, then drag to END and click Set End."
+                                : freeMoveStatus.midCount > 0
+                                  ? `Done. Path: Start → ${freeMoveStatus.midCount} Mid(s) → End. Scroll to see it.`
+                                  : "Done. Path: Start → End. Scroll to see it."}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-1 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors"
+                          onClick={() => {
+                            update("scrollEffect.freeMove", {
+                              mode: "relative",
+                              origin: undefined,
+                              start: undefined,
+                              mids: [],
+                              end: undefined,
+                              keyframes: undefined,
+                            });
+                            schedulePreview("scrollEffect");
+                          }}
+                        >
+                          Reset
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          className="flex-1 text-xs px-2 py-2 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => {
+                            if (!firstId) return;
+                            let el: HTMLElement | null = null;
+                            try {
+                              el = query.node(firstId).get()?.dom ?? null;
+                            } catch {
+                              el = null;
+                            }
+                            if (!el) return;
+
+                            // Main action button: Set Start (first) then Set End (second)
+                            if (!freeMoveStatus.hasStart) {
+                              const xy = getDomXY(el);
+                              // Capture in RELATIVE mode: store deltas from start (stable across live layout).
+                              update("scrollEffect.freeMove.mode", "relative");
+                              update("scrollEffect.freeMove.origin", xy);
+                              update("scrollEffect.freeMove.start", { x: 0, y: 0 });
+                              update("scrollEffect.freeMove.mids", []);
+                              update("scrollEffect.freeMove.end", undefined);
+                              update("scrollEffect.freeMove.keyframes", undefined);
+                              return;
+                            }
+
+                            const start = animation.scrollEffect.freeMove?.start;
+                            if (!start) return;
+                            const xy = getDomXY(el);
+                            const origin = animation.scrollEffect.freeMove?.origin;
+                            if (!origin) return;
+                            update("scrollEffect.freeMove.end", { x: xy.x - origin.x, y: xy.y - origin.y });
+                            update("scrollEffect.freeMove.keyframes", undefined);
+
+                            // Snap back to Start immediately after setting End.
+                            // IMPORTANT: don't clear transforms; just offset from current pose.
+                            const view = el.ownerDocument?.defaultView ?? window;
+                            const rect = el.getBoundingClientRect();
+                            const pageLeft = rect.left + view.scrollX;
+                            const pageTop = rect.top + view.scrollY;
+                            const baseX = Number(gsap.getProperty(el, "x")) || 0;
+                            const baseY = Number(gsap.getProperty(el, "y")) || 0;
+                            gsap.set(el, {
+                              // In relative mode, Start is (0,0) delta.
+                              x: baseX,
+                              y: baseY,
+                              force3D: true,
+                            });
+                          }}
+                        >
+                          {!freeMoveStatus.hasStart ? "Set Start" : "Set End"}
+                        </button>
+
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-2 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={!freeMoveStatus.hasStart || freeMoveStatus.hasEnd}
+                          onClick={() => {
+                            if (!firstId) return;
+                            let el: HTMLElement | null = null;
+                            try {
+                              el = query.node(firstId).get()?.dom ?? null;
+                            } catch {
+                              el = null;
+                            }
+                            if (!el) return;
+
+                            const xy = getDomXY(el);
+                            const origin = animation.scrollEffect.freeMove?.origin;
+                            if (!origin) return;
+                            const existing = (animation.scrollEffect.freeMove?.mids ?? []) as Array<{
+                              x: number;
+                              y: number;
+                            }>;
+                            update("scrollEffect.freeMove.mids", [
+                              ...existing,
+                              { x: xy.x - origin.x, y: xy.y - origin.y },
+                            ]);
+                            update("scrollEffect.freeMove.keyframes", undefined);
+                          }}
+                          title="Add another mid point"
+                        >
+                          Add Mid
+                        </button>
+
+                        <button
+                          type="button"
+                          className="text-xs px-2 py-2 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          disabled={!freeMoveStatus.hasStart || freeMoveStatus.hasEnd || freeMoveStatus.midCount === 0}
+                          onClick={() => {
+                            const existing = (animation.scrollEffect.freeMove?.mids ?? []) as Array<{ x: number; y: number }>;
+                            if (existing.length === 0) return;
+                            update("scrollEffect.freeMove.mids", existing.slice(0, -1));
+                            update("scrollEffect.freeMove.keyframes", undefined);
+                          }}
+                          title="Undo last mid point"
+                        >
+                          Undo
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className={subLabelClass}>
+                          Start: {freeMoveStatus.hasStart ? "set" : "not set"} · Mid(s):{" "}
+                          {freeMoveStatus.midCount} · End:{" "}
+                          {freeMoveStatus.hasEnd ? "set" : "not set"}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={!freeMoveStatus.hasStart || !freeMoveStatus.hasEnd}
+                          className="text-xs px-2 py-1 rounded-md border border-[var(--builder-border)] disabled:opacity-50 disabled:cursor-not-allowed bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-2)] transition-colors"
+                          onClick={() => previewOnCanvas("scrollEffect")}
+                        >
+                          Preview
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex flex-col gap-1">
                     <label className={labelClass}>Direction</label>
@@ -898,108 +1176,6 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                       <option value="horizontal">Horizontal</option>
                     </select>
                   </div>
-
-                  {animation.scrollEffect.type === "customMove" && (
-                    <div className="flex flex-col gap-3">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex justify-between">
-                            <label className={labelClass}>Start X</label>
-                            <input
-                              type="number"
-                              value={animation.scrollEffect.fromX ?? 0}
-                              onChange={(e) => update("scrollEffect.fromX", Number(e.target.value))}
-                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
-                            />
-                          </div>
-                          <input
-                            type="range"
-                            min="-2000"
-                            max="2000"
-                            step="10"
-                            value={animation.scrollEffect.fromX ?? 0}
-                            onChange={(e) => {
-                              update("scrollEffect.fromX", Number(e.target.value));
-                              schedulePreview("scrollEffect");
-                            }}
-                            className={sliderClass}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex justify-between">
-                            <label className={labelClass}>Start Y</label>
-                            <input
-                              type="number"
-                              value={animation.scrollEffect.fromY ?? 0}
-                              onChange={(e) => update("scrollEffect.fromY", Number(e.target.value))}
-                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
-                            />
-                          </div>
-                          <input
-                            type="range"
-                            min="-2000"
-                            max="2000"
-                            step="10"
-                            value={animation.scrollEffect.fromY ?? 0}
-                            onChange={(e) => {
-                              update("scrollEffect.fromY", Number(e.target.value));
-                              schedulePreview("scrollEffect");
-                            }}
-                            className={sliderClass}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex justify-between">
-                            <label className={labelClass}>End X</label>
-                            <input
-                              type="number"
-                              value={animation.scrollEffect.toX ?? 0}
-                              onChange={(e) => update("scrollEffect.toX", Number(e.target.value))}
-                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
-                            />
-                          </div>
-                          <input
-                            type="range"
-                            min="-2000"
-                            max="2000"
-                            step="10"
-                            value={animation.scrollEffect.toX ?? 0}
-                            onChange={(e) => {
-                              update("scrollEffect.toX", Number(e.target.value));
-                              schedulePreview("scrollEffect");
-                            }}
-                            className={sliderClass}
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <div className="flex justify-between">
-                            <label className={labelClass}>End Y</label>
-                            <input
-                              type="number"
-                              value={animation.scrollEffect.toY ?? 0}
-                              onChange={(e) => update("scrollEffect.toY", Number(e.target.value))}
-                              className="w-16 bg-[var(--builder-surface-2)] rounded text-[10px] text-[var(--builder-text)] px-1 py-0.5 focus:outline-none"
-                            />
-                          </div>
-                          <input
-                            type="range"
-                            min="-2000"
-                            max="2000"
-                            step="10"
-                            value={animation.scrollEffect.toY ?? 0}
-                            onChange={(e) => {
-                              update("scrollEffect.toY", Number(e.target.value));
-                              schedulePreview("scrollEffect");
-                            }}
-                            className={sliderClass}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
 
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
@@ -4357,6 +4358,12 @@ export function WebPreview({
       return () => clearTimeout(t);
     }
   }, [isDesktopMode, currentPageId]);
+  React.useEffect(() => {
+    const t = window.setTimeout(() => {
+      ScrollTrigger.refresh();
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [currentPageId, viewportWidth, simulatedWidth, fillViewport]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
@@ -4451,6 +4458,7 @@ export function WebPreview({
       <div
         key={currentPageId}
         ref={ref}
+        data-preview-scroll-root="true"
         style={{
           width: "100%",
           minHeight: "100%",
