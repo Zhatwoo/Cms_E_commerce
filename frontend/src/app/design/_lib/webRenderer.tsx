@@ -1663,7 +1663,7 @@ function normalizeResponsivePosition(
   if (!isNarrow) return position;
   if (position === "absolute" || position === "fixed") {
     if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
-    return "relative";
+    return position; // Keep absolute if it fits!
   }
   return position;
 }
@@ -2684,23 +2684,27 @@ function RenderNode({
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
-      const textStyle: React.CSSProperties = {
-        fontSize: typographySpec.fontSize,
-        fontFamily: (props.fontFamily as string) || "Outfit",
-        fontWeight: props.fontWeight as string,
-        fontStyle: (props.fontStyle as string) || "normal",
-        lineHeight: Math.max(toNumber(props.lineHeight, typographySpec.minLineHeight), typographySpec.minLineHeight),
-        letterSpacing: px(props.letterSpacing),
-        textAlign: props.textAlign as React.CSSProperties["textAlign"],
-        textTransform: props.textTransform as React.CSSProperties["textTransform"],
-        color: (props.color as string) || "#000000",
-        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-        display: ((props.display as React.CSSProperties["display"]) || "block"),
-        zIndex: (props.zIndex as number | undefined) ?? 2,
-        top: isNarrowPreview ? undefined : (props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined),
-        right: isNarrowPreview ? undefined : (props.position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined),
-        bottom: isNarrowPreview ? undefined : (props.position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined),
-        left: isNarrowPreview ? undefined : (props.position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined),
+        const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+        const originalPos = (props.position as string) || "relative";
+        const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
+        const textStyle: React.CSSProperties = {
+          fontSize: typographySpec.fontSize,
+          fontFamily: (props.fontFamily as string) || "Outfit",
+          fontWeight: props.fontWeight as string,
+          fontStyle: (props.fontStyle as string) || "normal",
+          lineHeight: Math.max(toNumber(props.lineHeight, typographySpec.minLineHeight), typographySpec.minLineHeight),
+          letterSpacing: px(props.letterSpacing),
+          textAlign: props.textAlign as React.CSSProperties["textAlign"],
+          textTransform: props.textTransform as React.CSSProperties["textTransform"],
+          color: (props.color as string) || "#000000",
+          position: normalizedPos,
+          display: ((props.display as React.CSSProperties["display"]) || "block"),
+          zIndex: (props.zIndex as number | undefined) ?? 2,
+          top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+          left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+          right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+          bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
         width: normalizedTextWidth ?? (props.width as string | undefined),
         height: normalizedTextHeight ?? (props.height as string | undefined),
         minHeight: "1em",
@@ -2795,19 +2799,29 @@ function RenderNode({
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       return wrap(
         <img
           src={productImageUrl || (props.src as string) || "https://placehold.co/600x400?text=Photo"}
           alt={(resolvedProductField === "image" ? productBinding?.product.name : undefined) || (props.alt as string) || "Image"}
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (target.src !== "https://placehold.co/600x400?text=Image+Not+Found") {
+              target.src = "https://placehold.co/600x400?text=Image+Not+Found";
+            }
+          }}
           data-fluid-space="true"
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedImageWidth,
             height: resolvedImageHeight,
@@ -2980,6 +2994,10 @@ function RenderNode({
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
       const rawVideoSrc = typeof props.src === "string" ? props.src.trim() : "";
 
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       if (!rawVideoSrc) {
         return wrap(
           <div
@@ -2987,11 +3005,11 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
-              position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-              top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-              left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-              right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-              bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+              position: normalizedPos,
+              top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+              left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+              right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+              bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
               zIndex: (props.zIndex as number | undefined) ?? 2,
               width: resolvedVideoWidth,
               height: resolvedVideoHeight,
@@ -3097,6 +3115,10 @@ function RenderNode({
       const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const rawButtonFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Button"]?.fontSize, 14));
       const shouldScaleButtonFont = !builderParityMode && isNarrowPreview && rawButtonFontSize > 30;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const content = (
         <span
           data-fluid-space="true"
@@ -3106,11 +3128,11 @@ function RenderNode({
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             backgroundColor: bg,
             color,
@@ -3743,17 +3765,21 @@ function RenderNode({
       );
     }
 
-    case "Divider":
+    case "Divider": {
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       return wrap(
         <hr
           data-fluid-space="true"
           data-smooth="true"
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 1,
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
@@ -3766,8 +3792,13 @@ function RenderNode({
           }}
         />
       );
+    }
 
     case "Icon": {
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const iconSize = toNumber(props.size, 24);
       const normalizedIconWidth = normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview, builderParityMode);
       const normalizedIconHeight = normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview, builderParityMode);
@@ -3779,11 +3810,11 @@ function RenderNode({
           data-smooth="true"
           onClick={interactiveClick}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 3,
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
@@ -3849,6 +3880,10 @@ function RenderNode({
             return `.${scopeId} ${s} {`;
           })
         : "";
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const m = toNumber(props.margin, 0);
       const p = toNumber(props.padding, 0);
       return wrap(
@@ -3859,11 +3894,11 @@ function RenderNode({
             minWidth: 1,
             minHeight: 1,
             maxWidth: "100%",
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             margin: toNumber(props.margin, 0),
             marginTop: toNumber(props.marginTop ?? m, 0),
             marginRight: toNumber(props.marginRight ?? m, 0),
@@ -3900,8 +3935,18 @@ function RenderNode({
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
       const fill = (props.background as string) || (props.color as string) || "#999999";
-      const w = normalizeLayoutWidthForNarrow((props.width as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
-      const h = normalizeLayoutHeightForNarrow((props.height as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+      
+      const rawW = (props.width as string) || "200px";
+      const rawH = (props.height as string) || "200px";
+      const resolvedW = isNarrowPreview ? (parseFloat(rawW) > viewportWidth * 0.8 ? "100%" : rawW) : rawW;
+      const isCircleOrSquare = type === "Circle" || type === "Square";
+      const resolvedH = isNarrowPreview 
+        ? (isCircleOrSquare && resolvedW === "100%" ? "auto" : (parseFloat(rawH) > 360 ? (isCircleOrSquare ? rawH : "300px") : rawH))
+        : rawH;
+
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const bw = toNumber(props.borderWidth, 0);
@@ -3917,17 +3962,18 @@ function RenderNode({
       return wrap(
         <div
           style={{
-            width: w,
-            height: h,
-            minWidth: w,
-            minHeight: h,
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            width: resolvedW,
+            height: resolvedH,
+            aspectRatio: (isNarrowPreview && isCircleOrSquare && resolvedW === "100%") ? "1 / 1" : undefined,
+            minWidth: resolvedW === "100%" ? undefined : resolvedW,
+            minHeight: resolvedH === "auto" ? undefined : resolvedH,
+            position: normalizedPos,
             display: props.display as React.CSSProperties["display"],
             zIndex: toNumber(props.zIndex, 0) || undefined,
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             transform: (() => {
               const r = toNumber(props.rotation, 0);
               const fh = props.flipHorizontal === true;
@@ -4289,8 +4335,9 @@ export function WebPreview({
     );
   }
 
-  const pageWidthPx = parsePixelValue(width) ?? 1920;
-  const scale = (!isPhoneSize && !fillViewport && measuredWidth < pageWidthPx) ? measuredWidth / pageWidthPx : 1;
+  const pageWidthPx = parsePixelValue(width) || 1440;
+  const isScaling = measuredWidth < pageWidthPx && measuredWidth > 0;
+  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
 
   const pageContent = (
     <>
@@ -4306,7 +4353,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
+            viewportWidth={viewportWidth}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4363,13 +4410,16 @@ export function WebPreview({
       >
         <div
           style={{
-            width: isPhoneSize || fillViewport ? "100%" : width,
-            maxWidth: isPhoneSize || fillViewport ? "100%" : undefined,
-            minHeight: isPhoneSize ? "100vh" : minHeight,
+            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
+            maxWidth: isScaling ? pageWidthPx : ((isPhoneSize || fillViewport) ? "100%" : undefined),
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) : (isPhoneSize ? "100vh" : minHeight),
             backgroundColor: background,
+            position: "relative",
+            isolation: "isolate",
+            overflow: isScaling ? "visible" : "hidden",
             boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
             borderRadius: isPhoneSize || fillViewport ? 0 : 4,
-            transform: `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}`,
+            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: "top center",
             transition: "transform 0.2s ease, width 0.3s ease",
             ...transitionStyle,
@@ -4378,12 +4428,14 @@ export function WebPreview({
           {isPhoneSize ? (
             <div
               ref={mobileWrapperRef}
-              className="frame-responsive-inner frame-fluid frame-mobile"
+              className={isScaling ? "frame-responsive-inner" : "frame-responsive-inner frame-fluid frame-mobile"}
               style={{
-                width: "100%",
+                width: isScaling ? pageWidthPx : "100%",
                 minHeight: "100vh",
                 boxSizing: "border-box",
                 containerType: "inline-size",
+                transform: isScaling ? undefined : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
+                transformOrigin: "top center",
               }}
             >
               {pageContent}
