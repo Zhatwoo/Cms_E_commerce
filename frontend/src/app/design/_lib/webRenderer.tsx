@@ -6,7 +6,7 @@ import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
-import { PREVIEW_MOBILE_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
+import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
@@ -604,12 +604,15 @@ const frameResponsiveStyles = (
           align-items: stretch !important;
           height: auto !important;
           min-height: 0 !important;
+          width: 100% !important;
         }
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           flex: 1 1 100% !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
@@ -623,10 +626,16 @@ const frameResponsiveStyles = (
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-left: clamp(8px, 3cqw, 24px) !important;
-          padding-right: clamp(8px, 3cqw, 24px) !important;
+          padding-left: clamp(12px, 3cqw, 28px) !important;
+          padding-right: clamp(12px, 3cqw, 28px) !important;
           margin-left: clamp(0px, 1.2cqw, 12px) !important;
           margin-right: clamp(0px, 1.2cqw, 12px) !important;
+        }
+
+        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
+          grid-template-columns: 1fr !important;
+          gap: clamp(12px, 2.8cqw, 24px) !important;
+          width: 100% !important;
         }
 
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
@@ -1488,7 +1497,7 @@ function normalizePreviewWidth(
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
 ): string | undefined {
-  const isNarrow = !builderParityMode && viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+  const isNarrow = !builderParityMode && viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_TABLET_BREAKPOINT);
   if (typeof widthValue === "number") {
     if (!isNarrow) return `${widthValue}px`;
     return `min(100%, ${Math.max(1, widthValue)}px)`;
@@ -1621,7 +1630,8 @@ function isNarrowResponsivePreview(
 ): boolean {
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
-  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+  // Use Tablet breakpoint (950) by default to ensure tablet preview is also responsive/fluid
+  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_TABLET_BREAKPOINT);
   return viewportWidth <= breakpoint;
 }
 
@@ -4336,7 +4346,7 @@ export function WebPreview({
   }
 
   const pageWidthPx = parsePixelValue(width) || 1440;
-  const isScaling = measuredWidth < pageWidthPx && measuredWidth > 0;
+  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
   const scale = isScaling ? measuredWidth / pageWidthPx : 1;
 
   const pageContent = (

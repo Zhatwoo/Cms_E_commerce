@@ -1318,7 +1318,7 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden ${previewViewport === "desktop" ? "" : "flex justify-center"}`}>
+          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden flex justify-center`}>
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
@@ -1328,7 +1328,7 @@ function PreviewContent() {
                   }`}
                 style={
                   previewViewport === "desktop"
-                    ? { width: "100%" }
+                    ? { ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }
                     : previewViewport === "tablet"
                       ? { width: 768, maxWidth: "100%" }
                       : previewViewport === "mobile"
