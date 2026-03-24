@@ -147,7 +147,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             setActiveToast({
                 id: newItem.id || `toast-${Date.now()}`,
                 title: newItem.title,
-                message: newItem.message,
+                message: `${newItem.adminName ? `${newItem.adminName}: ` : ''}${newItem.message}`,
                 type: newItem.type || 'info'
             });
 
@@ -606,7 +606,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                         )}
                                                     </div>
                                                     <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
-                                                    <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                    <div className="mt-1 flex items-center justify-between">
+                                                        <span className="text-[10px] font-medium text-[#B13BFF]/60">{n.adminName || 'Admin'}</span>
+                                                        <span className="text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>

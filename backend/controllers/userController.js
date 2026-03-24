@@ -114,7 +114,8 @@ exports.createUser = async (req, res) => {
         title: 'New User Created',
         message: `Admin created user: ${name} (${email})`,
         type: 'info',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User creation notification failed:', e.message); }
@@ -166,7 +167,8 @@ exports.updateUser = async (req, res) => {
         title: 'User Updated',
         message: `Admin updated profile for: ${updated.name || updated.email}`,
         type: 'info',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User update notification failed:', e.message); }
@@ -234,7 +236,8 @@ exports.deleteUser = async (req, res) => {
         title: 'User Deleted',
         message: `Admin removed user: ${user.name || user.email}`,
         type: 'error',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User deletion notification failed:', e.message); }
@@ -282,7 +285,8 @@ exports.updateUserRole = async (req, res) => {
         title: 'Role Updated',
         message: `User ${updated.name || updated.email} role changed to ${role}`,
         type: 'info',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('Role update notification failed:', e.message); }
@@ -335,7 +339,8 @@ exports.updateUserStatus = async (req, res) => {
         title: 'User Status Changed',
         message: `User ${updated.name || updated.email} is now ${status}`,
         type: status === 'Suspended' ? 'warning' : 'info',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('Status change notification failed:', e.message); }

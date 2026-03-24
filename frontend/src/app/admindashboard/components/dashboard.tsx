@@ -120,7 +120,7 @@ function DashboardStatCard({
 
 // ─── DashboardActivityPanel ──────────────────────────────────────────────────
 
-function DashboardActivityPanel({ items }: { items: readonly { title: string; action: string; meta: string }[] }) {
+function DashboardActivityPanel({ items }: { items: readonly { id: string; title: string; action: string; meta: string }[] }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -139,7 +139,7 @@ function DashboardActivityPanel({ items }: { items: readonly { title: string; ac
                     style={{ background: 'rgba(240,235,255,0.6)', border: '1px solid rgba(166,61,255,0.08)' }}
                 >
                     {items.map((item) => (
-                        <div key={item.title} className="flex gap-4 rounded-[14px] px-4 py-4" style={{ background: 'rgba(255,255,255,0.6)' }}>
+                        <div key={item.id} className="flex gap-4 rounded-[14px] px-4 py-4" style={{ background: 'rgba(255,255,255,0.6)' }}>
                             <div className="w-1 shrink-0 rounded-full" style={{ background: '#f5c000' }} />
                             <div className="min-w-0">
                                 <p className="text-base font-semibold" style={{ color: '#4a1a8a' }}>{item.title}</p>
@@ -375,9 +375,10 @@ export function AdminDashboard() {
                 <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">
                     <DashboardActivityPanel 
                         items={notifications.map(n => ({
+                            id: n.id,
                             title: n.title,
                             action: n.message,
-                            meta: `By Admin • ${new Date(n.time).toLocaleDateString()}`
+                            meta: `By ${n.adminName || 'Admin'} • ${new Date(n.time).toLocaleDateString()}`
                         }))} 
                     />
                     <DashboardNotificationsPanel items={notifications} />

@@ -123,7 +123,8 @@ exports.register = async (req, res) => {
           title: 'New User Registered',
           message: `${name.trim()} (${normEmail}) just created an account.`,
           type: 'info',
-          adminId: 'system'
+          adminId: 'system',
+          adminName: name.trim()
         });
         req.app.get('io').emit('notification:added', notif);
       }
