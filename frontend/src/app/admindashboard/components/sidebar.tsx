@@ -67,6 +67,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         if (collapseTimerRef.current) { clearTimeout(collapseTimerRef.current); collapseTimerRef.current = null; }
         desktopSidebarExpandedMemory = true;
         setIsHovered(true);
+        // Trigger resize event to notify charts
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 1);
     };
 
     const handleMouseLeave = () => {
@@ -76,6 +78,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             setIsHovered(false);
             setOpenDropdowns([]);
             collapseTimerRef.current = null;
+            // Trigger resize event after toggle
+            window.dispatchEvent(new Event('resize'));
         }, 180);
     };
 
@@ -213,9 +217,11 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
     /* ── Desktop sidebar ─────────────────────────────────────── */
     return (
         <motion.aside
-            className="sticky top-0 z-20 hidden h-[100dvh] overflow-hidden px-4 py-4 lg:flex"
+            className="sticky top-0 z-20 hidden h-[100dvh] flex-shrink-0 overflow-hidden px-4 py-4 lg:flex"
             initial={false}
-            animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
+            animate={{ 
+                width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH,
+            }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -292,7 +298,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 <Link
                                                     key={child.id}
                                                     href={child.href}
-                                                    className="flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
+                                                    className="flex items-center rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
                                                     style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
                                                 >
                                                     {child.label}
