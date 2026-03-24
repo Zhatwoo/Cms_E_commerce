@@ -7,6 +7,7 @@ const { getRealtimeDb, db, auth } = require('../config/firebase');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const { sendAdminActionEmail } = require('../utils/emailService');
+const Notification = require('../models/Notification');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
@@ -115,6 +116,20 @@ exports.setClientDomainStatus = async (req, res) => {
         { merge: true }
       );
     }
+
+    // Broadcast change
+    try {
+      const notif = await Notification.create({
+        title: 'Status Updated',
+        message: `Domain ${subdomain || domainId} updated to ${normalized} status.`,
+        type: 'info',
+        adminId: req.user?.id || 'admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Set status notification failed:', e.message);
+    }
+
     res.status(200).json({ success: true, message: 'Status updated', data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
@@ -330,6 +345,20 @@ exports.publish = async (req, res) => {
 
     // So Domains dashboard shows the published domain: update project subdomain in Firestore and Realtime DB
     await Project.update(userId, projectId, { subdomain, status: 'published' });
+
+    // Broadcast to Admins: New Content Published
+    try {
+      const notif = await Notification.create({
+        title: 'Website Published',
+        message: `${project.title || subdomain} has just gone live!`,
+        type: 'success',
+        adminId: 'system'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Publish notification failed:', e.message);
+    }
+
     const rtdb = getRealtimeDb();
     if (rtdb) {
       try {
