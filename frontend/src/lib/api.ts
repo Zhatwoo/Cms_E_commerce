@@ -6,6 +6,11 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 let activeApiBase = API_URL.replace(/\/$/, '');
 let activeProjectId: string | null = null;
+const PUBLISHED_SITE_USER_PREFIX = 'mercato_published_site_user_';
+const RESERVED_PUBLISHED_SITE_SEGMENTS = new Set([
+  'sites', 'site', 's', 'm_dashboard', 'design', 'auth', 'admindashboard', 'landing', 'templates',
+  'api', '_next', 'favicon.ico', 'admin', 'login', 'register', 'signup',
+]);
 
 /** In-memory user with session persistence (for UI consistency during mock-saving). */
 let inMemoryUser: User | null = (typeof window !== 'undefined') 
@@ -113,6 +118,84 @@ export function setStoredUser(user: User | null): void {
       if (user) localStorage.setItem('mercato_session_user', JSON.stringify(user));
       else localStorage.removeItem('mercato_session_user');
     } catch { /* ignore */ }
+  }
+}
+
+function getPublishedSiteStorageKey(identifier: string): string {
+  return `${PUBLISHED_SITE_USER_PREFIX}${encodeURIComponent(String(identifier || '').trim().toLowerCase())}`;
+}
+
+export function getPublishedSiteIdentifier(): string | null {
+  if (typeof window === 'undefined') return null;
+
+  const pathname = window.location.pathname || '';
+  const pathSegments = pathname.split('/').filter(Boolean);
+  const firstSegment = pathSegments[0] || '';
+  const secondSegment = pathSegments[1] || '';
+
+  if (firstSegment && firstSegment !== 'sites' && firstSegment !== 's' && RESERVED_PUBLISHED_SITE_SEGMENTS.has(firstSegment)) {
+    return null;
+  }
+
+  const fromPath =
+    (firstSegment === 'sites' || firstSegment === 's') && secondSegment
+      ? secondSegment.trim().toLowerCase().replace(/[^a-z0-9-]/g, '')
+      : '';
+
+  if (fromPath && !RESERVED_PUBLISHED_SITE_SEGMENTS.has(fromPath)) {
+    return fromPath;
+  }
+
+  const host = (window.location.hostname || '').trim().toLowerCase();
+  if (!host || host === 'localhost' || host === '127.0.0.1') return null;
+
+  if (host.endsWith('.localhost')) {
+    const subdomain = host.slice(0, -'.localhost'.length).trim();
+    if (subdomain && !RESERVED_PUBLISHED_SITE_SEGMENTS.has(subdomain)) {
+      return subdomain;
+    }
+    return null;
+  }
+
+  const baseDomain = (process.env.NEXT_PUBLIC_BASE_DOMAIN || '').trim().toLowerCase();
+  if (baseDomain) {
+    if (host === baseDomain) return null;
+    if (host.endsWith(`.${baseDomain}`)) {
+      const subdomain = host.slice(0, -(baseDomain.length + 1)).trim();
+      if (subdomain && !RESERVED_PUBLISHED_SITE_SEGMENTS.has(subdomain)) {
+        return subdomain;
+      }
+      return null;
+    }
+  }
+
+  return host;
+}
+
+export function getStoredPublishedSiteUser(identifier?: string | null): User | null {
+  if (typeof window === 'undefined') return null;
+  const siteIdentifier = String(identifier || getPublishedSiteIdentifier() || '').trim().toLowerCase();
+  if (!siteIdentifier) return null;
+
+  try {
+    const raw = localStorage.getItem(getPublishedSiteStorageKey(siteIdentifier));
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setStoredPublishedSiteUser(identifier: string | null, user: User | null): void {
+  if (typeof window === 'undefined') return;
+  const siteIdentifier = String(identifier || '').trim().toLowerCase();
+  if (!siteIdentifier) return;
+
+  try {
+    const storageKey = getPublishedSiteStorageKey(siteIdentifier);
+    if (user) localStorage.setItem(storageKey, JSON.stringify(user));
+    else localStorage.removeItem(storageKey);
+  } catch {
+    // ignore
   }
 }
 
@@ -259,6 +342,38 @@ async function authFetch<T>(
   return handleResponse<T>(res);
 }
 
+async function publishedAuthFetch<T>(
+  path: string,
+  options: RequestInit = {},
+  siteIdentifier?: string | null
+): Promise<T> {
+  const identifier = String(siteIdentifier || getPublishedSiteIdentifier() || '').trim().toLowerCase();
+  if (!identifier) {
+    throw new Error('Published site could not be identified.');
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'x-site-identifier': identifier,
+    ...((options.headers as Record<string, string>) || {}),
+  };
+
+  if (typeof window === 'undefined') {
+    return apiFetch<T>(path, {
+      ...options,
+      headers,
+    });
+  }
+
+  const res = await fetch(path, {
+    ...options,
+    headers,
+    credentials: 'include',
+  });
+
+  return handleResponse<T>(res);
+}
+
 // --- Auth API helpers (backend accepts idToken or email+password) ---
 
 /** Login with Firebase idToken (browser signs in; works even if backend API key is restricted). */
@@ -379,6 +494,72 @@ export async function logout(): Promise<void> {
 /** Get current user from backend (uses cookie). Use to restore session when only cookie is present. */
 export async function getMe(): Promise<{ success: boolean; user?: User }> {
   return authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+}
+
+export async function registerPublishedSiteUser(params: {
+  name: string;
+  email: string;
+  password: string;
+  siteIdentifier?: string | null;
+}): Promise<AuthResponse> {
+  const identifier = String(params.siteIdentifier || getPublishedSiteIdentifier() || '').trim().toLowerCase();
+  const response = await publishedAuthFetch<AuthResponse>(
+    '/api/published-auth/register',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        name: params.name,
+        email: params.email,
+        password: params.password,
+      }),
+    },
+    identifier
+  );
+  if (response.success) {
+    setStoredPublishedSiteUser(identifier, response.user ?? null);
+  }
+  return response;
+}
+
+export async function loginPublishedSiteUser(params: {
+  email: string;
+  password: string;
+  siteIdentifier?: string | null;
+}): Promise<AuthResponse> {
+  const identifier = String(params.siteIdentifier || getPublishedSiteIdentifier() || '').trim().toLowerCase();
+  const response = await publishedAuthFetch<AuthResponse>(
+    '/api/published-auth/login',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        email: params.email,
+        password: params.password,
+      }),
+    },
+    identifier
+  );
+  if (response.success) {
+    setStoredPublishedSiteUser(identifier, response.user ?? null);
+  }
+  return response;
+}
+
+export async function getPublishedSiteMe(
+  siteIdentifier?: string | null
+): Promise<{ success: boolean; user?: User }> {
+  return publishedAuthFetch<{ success: boolean; user?: User }>('/api/published-auth/me', {}, siteIdentifier);
+}
+
+export async function logoutPublishedSiteUser(siteIdentifier?: string | null): Promise<void> {
+  const identifier = String(siteIdentifier || getPublishedSiteIdentifier() || '').trim().toLowerCase();
+  try {
+    await publishedAuthFetch('/api/published-auth/logout', { method: 'POST' }, identifier);
+  } catch {
+    // ignore
+  }
+  if (identifier) {
+    setStoredPublishedSiteUser(identifier, null);
+  }
 }
 
 /** Update user profile (Full Name, Avatar, Username, Website, Bio) */

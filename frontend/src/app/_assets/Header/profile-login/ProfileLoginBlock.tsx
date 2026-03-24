@@ -5,10 +5,16 @@ import { useRouter } from "next/navigation";
 import { ChevronRight } from "../../Icon/ChevronRight/ChevronRight";
 import { Google } from "../../Icon/Google/Google";
 import {
-  getMe,
+  getPublishedSiteIdentifier,
+  getPublishedSiteMe,
   getStoredUser,
+  getStoredPublishedSiteUser,
+  getMe,
+  loginPublishedSiteUser,
   loginWithGoogle,
   logout,
+  logoutPublishedSiteUser,
+  registerPublishedSiteUser,
   type User,
 } from "@/lib/api";
 
@@ -129,15 +135,34 @@ export function ProfileLoginBlock({
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [siteIdentifier, setSiteIdentifier] = React.useState<string | null>(null);
+  const [formMode, setFormMode] = React.useState<"login" | "register">("login");
+  const [formName, setFormName] = React.useState("");
+  const [formEmail, setFormEmail] = React.useState("");
+  const [formPassword, setFormPassword] = React.useState("");
   const [avatarErrored, setAvatarErrored] = React.useState(false);
-  const [currentUser, setCurrentUser] = React.useState<User | null>(() => getStoredUser());
+  const [currentUser, setCurrentUser] = React.useState<User | null>(null);
   const rootRef = React.useRef<HTMLDivElement | null>(null);
+  const isPublishedSite = !!siteIdentifier;
+
+  React.useEffect(() => {
+    if (!interactive) return;
+    const detectedIdentifier = getPublishedSiteIdentifier();
+    setSiteIdentifier(detectedIdentifier);
+    setCurrentUser(
+      detectedIdentifier ? getStoredPublishedSiteUser(detectedIdentifier) : getStoredUser()
+    );
+  }, [interactive]);
 
   React.useEffect(() => {
     if (!interactive) return;
 
     let cancelled = false;
-    getMe()
+    const loadUser = isPublishedSite
+      ? getPublishedSiteMe(siteIdentifier)
+      : getMe();
+
+    loadUser
       .then((res) => {
         if (cancelled) return;
         if (res.success && res.user) setCurrentUser(res.user);
@@ -150,7 +175,7 @@ export function ProfileLoginBlock({
     return () => {
       cancelled = true;
     };
-  }, [interactive]);
+  }, [interactive, isPublishedSite, siteIdentifier]);
 
   React.useEffect(() => {
     if (!menuOpen) return;
@@ -221,6 +246,54 @@ export function ProfileLoginBlock({
     }
   };
 
+  const handlePublishedAuthSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    stopEvent(event);
+    setBusy(true);
+    setError("");
+
+    try {
+      if (!siteIdentifier) {
+        throw new Error("Published site could not be identified.");
+      }
+
+      const response =
+        formMode === "register"
+          ? await registerPublishedSiteUser({
+              name: formName,
+              email: formEmail,
+              password: formPassword,
+              siteIdentifier,
+            })
+          : await loginPublishedSiteUser({
+              email: formEmail,
+              password: formPassword,
+              siteIdentifier,
+            });
+
+      if (!response.success || !response.user) {
+        throw new Error(
+          response.message ||
+            (formMode === "register" ? "Account creation failed." : "Login failed.")
+        );
+      }
+
+      setCurrentUser(response.user);
+      setFormPassword("");
+      setMenuOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : formMode === "register"
+            ? "Account creation failed."
+            : "Login failed."
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleOpenAccount = (event: React.MouseEvent<HTMLButtonElement>) => {
     stopEvent(event);
     setMenuOpen(false);
@@ -232,7 +305,11 @@ export function ProfileLoginBlock({
     setBusy(true);
     setError("");
     try {
-      await logout();
+      if (isPublishedSite) {
+        await logoutPublishedSiteUser(siteIdentifier);
+      } else {
+        await logout();
+      }
       setCurrentUser(null);
       setMenuOpen(false);
       router.refresh();
@@ -405,29 +482,162 @@ export function ProfileLoginBlock({
           ) : null}
 
           {!currentUser ? (
-            <button
-              type="button"
-              onClick={handleGoogleSignIn}
-              disabled={busy}
-              style={{
-                width: "100%",
-                border: "1px solid rgba(15, 23, 42, 0.12)",
-                borderRadius: "10px",
-                background: "#ffffff",
-                color: "#111827",
-                padding: "10px 12px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "10px",
-                fontSize: "14px",
-                fontWeight: 600,
-                cursor: busy ? "wait" : "pointer",
-              }}
-            >
-              <Google size={18} />
-              {busy ? "Signing in..." : "Continue with Google"}
-            </button>
+            isPublishedSite ? (
+              <form onSubmit={handlePublishedAuthSubmit}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "6px",
+                    marginBottom: "10px",
+                    borderRadius: "10px",
+                    background: "#f8fafc",
+                    padding: "4px",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setFormMode("login")}
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      borderRadius: "8px",
+                      background: formMode === "login" ? "#ffffff" : "transparent",
+                      color: "#111827",
+                      padding: "8px 10px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormMode("register")}
+                    style={{
+                      flex: 1,
+                      border: "none",
+                      borderRadius: "8px",
+                      background: formMode === "register" ? "#ffffff" : "transparent",
+                      color: "#111827",
+                      padding: "8px 10px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Create account
+                  </button>
+                </div>
+
+                {formMode === "register" ? (
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(event) => setFormName(event.target.value)}
+                    placeholder="Full name"
+                    autoComplete="name"
+                    style={{
+                      width: "100%",
+                      border: "1px solid rgba(15, 23, 42, 0.12)",
+                      borderRadius: "10px",
+                      background: "#ffffff",
+                      color: "#111827",
+                      padding: "10px 12px",
+                      fontSize: "14px",
+                      marginBottom: "8px",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                ) : null}
+
+                <input
+                  type="email"
+                  value={formEmail}
+                  onChange={(event) => setFormEmail(event.target.value)}
+                  placeholder="Email address"
+                  autoComplete="email"
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    borderRadius: "10px",
+                    background: "#ffffff",
+                    color: "#111827",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    marginBottom: "8px",
+                    boxSizing: "border-box",
+                  }}
+                />
+
+                <input
+                  type="password"
+                  value={formPassword}
+                  onChange={(event) => setFormPassword(event.target.value)}
+                  placeholder="Password"
+                  autoComplete={formMode === "register" ? "new-password" : "current-password"}
+                  style={{
+                    width: "100%",
+                    border: "1px solid rgba(15, 23, 42, 0.12)",
+                    borderRadius: "10px",
+                    background: "#ffffff",
+                    color: "#111827",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    marginBottom: "10px",
+                    boxSizing: "border-box",
+                  }}
+                />
+
+                <button
+                  type="submit"
+                  disabled={busy}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderRadius: "10px",
+                    background: "#111827",
+                    color: "#ffffff",
+                    padding: "10px 12px",
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    cursor: busy ? "wait" : "pointer",
+                  }}
+                >
+                  {busy
+                    ? formMode === "register"
+                      ? "Creating account..."
+                      : "Signing in..."
+                    : formMode === "register"
+                      ? "Create account"
+                      : "Sign in"}
+                </button>
+              </form>
+            ) : (
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={busy}
+                style={{
+                  width: "100%",
+                  border: "1px solid rgba(15, 23, 42, 0.12)",
+                  borderRadius: "10px",
+                  background: "#ffffff",
+                  color: "#111827",
+                  padding: "10px 12px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "10px",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  cursor: busy ? "wait" : "pointer",
+                }}
+              >
+                <Google size={18} />
+                {busy ? "Signing in..." : "Continue with Google"}
+              </button>
+            )
           ) : (
             <>
               <div
@@ -503,24 +713,26 @@ export function ProfileLoginBlock({
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={handleOpenAccount}
-                style={{
-                  width: "100%",
-                  border: "none",
-                  borderRadius: "10px",
-                  background: "#f8fafc",
-                  color: "#111827",
-                  padding: "10px 12px",
-                  textAlign: "left",
-                  fontSize: "14px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                }}
-              >
-                My account
-              </button>
+              {!isPublishedSite ? (
+                <button
+                  type="button"
+                  onClick={handleOpenAccount}
+                  style={{
+                    width: "100%",
+                    border: "none",
+                    borderRadius: "10px",
+                    background: "#f8fafc",
+                    color: "#111827",
+                    padding: "10px 12px",
+                    textAlign: "left",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  My account
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={handleLogout}
