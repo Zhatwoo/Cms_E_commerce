@@ -13,6 +13,13 @@ function ensureOptions(props: Pick<BooleanFieldProps, "options" | "label" | "che
   ];
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const BooleanField = ({
   controlType = "checkbox",
   name = "boolean-field",
@@ -50,10 +57,22 @@ export const BooleanField = ({
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
+
+  // Resolve spacing
+  const pt = paddingTop ?? 0;
+  const pr = paddingRight ?? 0;
+  const pb = paddingBottom ?? 0;
+  const pl = paddingLeft ?? 0;
+  const mt = marginTop ?? 0;
+  const mr = marginRight ?? 0;
+  const mb = marginBottom ?? 0;
+  const ml = marginLeft ?? 0;
+
   const normalizedControlType = useMemo(
     () => (String(controlType ?? "checkbox").trim().toLowerCase() === "radio" ? "radio" : "checkbox"),
     [controlType]
   );
+
   const isRadio = normalizedControlType === "radio";
   const groupName = useMemo(() => (isRadio ? `${name}-${id}` : undefined), [isRadio, name, id]);
   const normalizedOptions = useMemo(() => ensureOptions({ options, label, checked }), [options, label, checked]);
@@ -78,19 +97,15 @@ export const BooleanField = ({
   return (
     <div
       data-node-id={id}
+      data-fluid-text="true"
+      data-fluid-space="true"
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       className={`inline-flex flex-col items-start ${customClassName}`}
       style={{
-        width,
-        height,
-        paddingTop: `${paddingTop}px`,
-        paddingRight: `${paddingRight}px`,
-        paddingBottom: `${paddingBottom}px`,
-        paddingLeft: `${paddingLeft}px`,
-        marginTop: `${marginTop}px`,
-        marginRight: `${marginRight}px`,
-        marginBottom: `${marginBottom}px`,
-        marginLeft: `${marginLeft}px`,
+        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
+        margin: `${fluidSpace(mt)} ${fluidSpace(mr)} ${fluidSpace(mb)} ${fluidSpace(ml)}`,
+        width: width ?? "auto",
+        height: height ?? "auto",
         gap: `${itemGap}px`,
         opacity,
         cursor: disabled ? "not-allowed" : "default",

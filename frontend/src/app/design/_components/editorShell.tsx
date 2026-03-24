@@ -28,6 +28,7 @@ import { RenderNode } from "./RenderNode";
 import { KeyboardShortcuts } from "./KeyboardShortcuts";
 import { CanvasPasteHandler } from "./CanvasPasteHandler";
 import { CanvasSelectionHandler } from "./CanvasSelectionHandler";
+import "../_lib/responsive.css";
 import { BoxSelectionHandler } from "./BoxSelectionHandler";
 import { FigmaStyleDragHandler } from "./FigmaStyleDragHandler";
 import { FreeDropPlacementHandler } from "./FreeDropPlacementHandler";

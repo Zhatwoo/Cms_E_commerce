@@ -1,0 +1,121 @@
+/* Responsive Container Query Styles for CMS Canvas */
+
+/* These styles target elements inside a .frame-fluid container (like the Page in the Editor)
+   when that container is narrow (e.g. Phone/Mobile view). */
+
+.frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
+  width: 100% !important;
+}
+
+@container (max-width: 640px) {
+
+  /* 1. Force all immediate children to full width */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow)>* {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  /* 2. Add spacing between stacked top-level blocks */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow)>*+* {
+    margin-top: clamp(10px, 2.8cqw, 16px) !important;
+  }
+
+  /* 3. Force Rows (horizontal flex) to stack vertically */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"]>* {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 1 100% !important;
+  }
+
+  /* 4. Reset heights for fluid layouts */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* 5. Fluid Spacing Adjustments */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+    padding-left: clamp(8px, 3cqw, 24px) !important;
+    padding-right: clamp(8px, 3cqw, 24px) !important;
+    margin-left: clamp(0px, 1.2cqw, 12px) !important;
+    margin-right: clamp(0px, 1.2cqw, 12px) !important;
+  }
+
+  /* 6. Button Full Width on Mobile */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
+    display: flex !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button,
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
+    max-width: 100% !important;
+    overflow-wrap: break-word;
+    white-space: normal;
+  }
+
+  /* 7. Media (Image/Video) Scaling */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    height: auto !important;
+  }
+
+  /* 8. Grid System Stacking */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* 9. General Node Overrides */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100% !important;
+  }
+
+  /* 10. Text-specific Responsiveness */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  /* 11. Reset Absolute/Fixed Positions (Floaters become Flow on Mobile) */
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    transform: none !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+  }
+}
+
+@container (max-width: 400px) {
+  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+    gap: clamp(6px, 2cqw, 12px) !important;
+  }
+}
