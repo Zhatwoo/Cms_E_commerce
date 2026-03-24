@@ -46,32 +46,11 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
       return resolved || target.Container || SAFE_CONTAINER;
     },
     has(target, prop) {
+      // Craft validates resolver membership eagerly (often via `in`).
+      // Returning `true` ensures unknown nodes fall back to SAFE_CONTAINER in `get()`
+      // instead of crashing the preview list.
       if (Reflect.has(target, prop)) return true;
-      if (typeof prop !== "string") {
-        return Reflect.has(target, "Container") || Reflect.has(target, "container");
-      }
-
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-
-      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-      if (Reflect.has(target, canonical)) return true;
-
-      if (
-        normalized.includes("image") ||
-        normalized === "img" ||
-        normalized === "imagecomponent"
-      ) {
-        return (
-          Reflect.has(target, "Image") ||
-          Reflect.has(target, "image") ||
-          Reflect.has(target, "IMAGE") ||
-          Reflect.has(target, "img") ||
-          Reflect.has(target, "Img") ||
-          Reflect.has(target, "ImageComponent")
-        );
-      }
-
+      if (typeof prop === "string") return true;
       return Reflect.has(target, "Container") || Reflect.has(target, "container");
     },
   }) as T;
@@ -132,8 +111,10 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
   Shapes: <ShapesIcon className="w-5 h-5" />,
 };
 
+const BASE_CRAFT_RESOLVER = buildCraftResolver();
+
 const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
-  ...buildCraftResolver(),
+  ...BASE_CRAFT_RESOLVER,
   Container: SAFE_CONTAINER,
   container: SAFE_CONTAINER,
   CONTAINER: SAFE_CONTAINER,
@@ -183,6 +164,10 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Icon: asComponent(Icon),
   Rating: asComponent(Rating),
   rating: asComponent(Rating),
+  ProfileLogin: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profilelogin: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
+  ProfileLoginNode: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProfileLoginNode ?? (BASE_CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profileloginnode: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).profileloginnode ?? (BASE_CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   Accordion: asComponent(Accordion),
   accordion: asComponent(Accordion),
 });

@@ -5,6 +5,7 @@ import { TransformGroup } from "../../_components/rightPanel/settings/TransformG
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
@@ -12,14 +13,14 @@ export const TextSettings = () => {
     text,
     fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color,
     width, height,
-    margin, marginTop, marginBottom, marginLeft, marginRight,
-    padding, paddingTop, paddingBottom, paddingLeft, paddingRight,
+    marginTop, marginBottom, marginLeft, marginRight,
+    paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     previewEditable,
     isCodeBlock,
     codeLanguage,
-    toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
     text: node.data.props.text,
@@ -34,12 +35,10 @@ export const TextSettings = () => {
     color: node.data.props.color,
     width: node.data.props.width,
     height: node.data.props.height,
-    margin: node.data.props.margin,
     marginTop: node.data.props.marginTop,
     marginBottom: node.data.props.marginBottom,
     marginLeft: node.data.props.marginLeft,
     marginRight: node.data.props.marginRight,
-    padding: node.data.props.padding,
     paddingTop: node.data.props.paddingTop,
     paddingBottom: node.data.props.paddingBottom,
     paddingLeft: node.data.props.paddingLeft,
@@ -51,15 +50,15 @@ export const TextSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
     previewEditable: node.data.props.previewEditable,
-    toggleTarget: node.data.props.toggleTarget,
-    triggerAction: node.data.props.triggerAction,
-    collapsibleKey: node.data.props.collapsibleKey,
-    defaultOpen: node.data.props.defaultOpen,
-    defaultOpenMobile: node.data.props.defaultOpenMobile,
-    defaultOpenDesktop: node.data.props.defaultOpenDesktop,
-    showOn: node.data.props.showOn,
-    mobileBreakpoint: node.data.props.mobileBreakpoint
   }));
 
   const typedSetProp = setProp as SetProp<TextProps>;
@@ -67,7 +66,51 @@ export const TextSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Position & Transform">
+      <DesignSection title="Typography">
+        <div className="flex flex-col gap-3">
+          <textarea
+            value={safeText}
+            onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+            placeholder={isCodeBlock ? "Type your code here..." : "Type your text here..."}
+            className={`w-full bg-[var(--builder-surface-2)] p-2 rounded-lg text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
+          />
+          {isCodeBlock && (
+            <p className="text-[10px] text-[var(--builder-text-muted)] -mt-2">
+              Code block mode {codeLanguage ? `(${codeLanguage})` : ""}.
+            </p>
+          )}
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={Boolean(previewEditable)}
+              onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
+              className="accent-[var(--builder-accent)] cursor-pointer"
+            />
+            <span className="text-[12px] text-[var(--builder-text)]">Allow input in Preview</span>
+          </div>
+          <p className="text-[10px] text-[var(--builder-text-muted)] -mt-2">
+            Lets users type into this text block on the Preview page only.
+          </p>
+
+          <div className="h-px bg-[var(--builder-border)] w-full" />
+
+          <TypographyGroup
+            fontFamily={fontFamily}
+            fontWeight={fontWeight}
+            fontStyle={fontStyle}
+            fontSize={fontSize}
+            lineHeight={lineHeight}
+            letterSpacing={letterSpacing}
+            textAlign={textAlign}
+            textTransform={textTransform}
+            color={color}
+            setProp={typedSetProp}
+          />
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Transform">
         <TransformGroup
           rotation={rotation}
           flipHorizontal={flipHorizontal}
@@ -76,30 +119,18 @@ export const TextSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Content">
-        <textarea
-          value={safeText}
-          onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-          placeholder={isCodeBlock ? "Type your code here..." : "Type your text here..."}
-          className={`w-full bg-[var(--builder-surface-2)] p-2 rounded-lg text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
         />
-        {isCodeBlock && (
-          <p className="text-[10px] text-[var(--builder-text-muted)] mt-1">
-            Code block mode {codeLanguage ? `(${codeLanguage})` : ""}.
-          </p>
-        )}
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="checkbox"
-            checked={Boolean(previewEditable)}
-            onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
-            className="accent-[var(--builder-accent)] cursor-pointer"
-          />
-          <span className="text-[12px] text-[var(--builder-text)]">Allow input in Preview</span>
-        </div>
-        <p className="text-[10px] text-[var(--builder-text-muted)] mt-1">
-          Lets users type into this text block on the Preview page only.
-        </p>
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
@@ -114,21 +145,6 @@ export const TextSettings = () => {
           marginRight={marginRight}
           marginTop={marginTop}
           marginBottom={marginBottom}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Typography">
-        <TypographyGroup
-          fontFamily={fontFamily}
-          fontWeight={fontWeight}
-          fontStyle={fontStyle}
-          fontSize={fontSize}
-          lineHeight={lineHeight}
-          letterSpacing={letterSpacing}
-          textAlign={textAlign}
-          textTransform={textTransform}
-          color={color}
           setProp={typedSetProp}
         />
       </DesignSection>

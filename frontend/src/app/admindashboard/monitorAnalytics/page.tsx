@@ -56,6 +56,16 @@ export default function MonitoringAnalyticsPage() {
 
     useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
 
+    useEffect(() => {
+        // Listen for real-time updates from other admins
+        const handleUpdate = () => {
+            console.log('[Analytics] Real-time notification received, refreshing data...');
+            loadAnalytics();
+        };
+        window.addEventListener('notification:new_received', handleUpdate);
+        return () => window.removeEventListener('notification:new_received', handleUpdate);
+    }, [loadAnalytics]);
+
     const tabNames: Record<string, string> = {
         platform: 'Platform Traffic',
         engagement: 'Revenue Growth',
@@ -66,7 +76,7 @@ export default function MonitoringAnalyticsPage() {
     const workspace = analytics?.workspace;
 
     return (
-        <div className="admin-dashboard-shell flex h-screen overflow-hidden">
+        <div className="admin-dashboard-shell flex h-screen w-full overflow-hidden">
             {/* Desktop Sidebar */}
             <AdminSidebar />
 
@@ -80,13 +90,13 @@ export default function MonitoringAnalyticsPage() {
             </AnimatePresence>
 
             {/* Main Content */}
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col min-w-0">
                 <AdminHeader />
-                <main className="flex-1 min-h-0 overflow-y-auto">
+                <main className="flex-1 min-h-0 overflow-y-auto w-full">
                     <div className="min-h-full space-y-8 p-8">
                 {/* Header Section */}
                 <motion.div
-                    className="space-y-3"
+                    className="w-full space-y-3"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.45, ease: [0.25, 0.8, 0.25, 1] }}
@@ -143,7 +153,7 @@ export default function MonitoringAnalyticsPage() {
 
                 {/* Main Content */}
                 <motion.div
-                    className="admin-dashboard-panel overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] shadow-sm"
+                    className="admin-dashboard-panel w-full overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] shadow-sm"
                     initial={{ opacity: 0, y: 18 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.55, delay: 0.32, ease: [0.22, 0.84, 0.25, 1] }}
@@ -200,8 +210,9 @@ export default function MonitoringAnalyticsPage() {
                     initial={{ opacity: 0, y: 18 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.55, delay: 0.48, ease: [0.22, 0.84, 0.25, 1] }}
+                    className="w-full"
                 >
-                    <div className="admin-dashboard-panel rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-8 shadow-sm">
+                    <div className="admin-dashboard-panel w-full rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-8 shadow-sm">
                         <h3 className="mb-6 text-lg font-semibold text-[#471396]">Workspace Statistics</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                             {[

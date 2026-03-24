@@ -87,9 +87,21 @@ function getDescendantIds(nodeId: string, nodes: Record<string, any>): Set<strin
 }
 
 function getNodeBaseName(node: Record<string, any> | null | undefined): string {
-  const data = (node?.data ?? {}) as Record<string, unknown>;
-  const custom = (data.custom ?? {}) as Record<string, unknown>;
-  const raw = String(custom.displayName ?? data.displayName ?? data.name ?? "").trim();
+  if (!node) return "Node";
+  const data = (node.data ?? {}) as Record<string, any>;
+  const props = (data.props ?? {}) as Record<string, any>;
+  const custom = (data.custom ?? {}) as Record<string, any>;
+
+  // Prefer custom displayName if set by user
+  if (custom.displayName) return String(custom.displayName).trim();
+
+  // For Pages, prefer the pageName prop if it's not the default placeholder
+  if (data.displayName === "Page" && props.pageName && props.pageName !== "Page Name") {
+    return String(props.pageName).trim();
+  }
+
+  // Fallback to standard displayName or type name
+  const raw = String(data.displayName ?? data.name ?? "").trim();
   return raw || "Node";
 }
 

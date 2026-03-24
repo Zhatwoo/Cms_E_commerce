@@ -221,7 +221,7 @@ export default function DomainsPage() {
       } catch { }
     })();
     return () => { cancelled = true; };
-  }, [selectedDomain?.project.id]);
+  }, [selectedDomain?.project.id, selectedDomain?.project.status]);
 
   const handleAddCustomDomain = async () => {
     if (!selectedDomain) return;
@@ -649,8 +649,6 @@ export default function DomainsPage() {
                       )}
                     </div>
                   </SidebarRow>
-
-                  {/* Custom domain */}
                   {isPublished(selectedDomain.project.status) && (
                     <div className="pt-3.5 space-y-2.5" style={{ borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : `1px solid ${colors.border.faint}` }}>
                       <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em]"
@@ -714,6 +712,7 @@ export default function DomainsPage() {
                           <Link2 size={13} /> Connect custom domain
                         </button>
                       )}
+
                     </div>
                   )}
 

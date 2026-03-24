@@ -1,4 +1,4 @@
-const { db } = require('../config/firebase');
+const { db, admin } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
 
 const ROOT_COLLECTION = 'published_subdomains';
@@ -240,6 +240,50 @@ async function findAllForUser(filters = {}, pagination = {}) {
   items = sortByCreatedAtDesc(items);
   items = applySearch(items, filters.search);
   return paginate(items, pagination);
+}
+
+async function findAllGlobal(filters = {}, pagination = {}) {
+  const snap = await db.collectionGroup(PRODUCT_COLLECTION).get();
+  let items = snap.docs.map((d) => docToObject(d));
+
+  if (filters.subdomain) {
+    const normalized = normalizeSubdomain(filters.subdomain);
+    items = items.filter((p) => normalizeSubdomain(p.subdomain) === normalized);
+  }
+
+  if (filters.status) {
+    const statusFilter = String(filters.status).toLowerCase();
+    items = items.filter((p) => String(p.status || '').toLowerCase() === statusFilter);
+  }
+
+  items = sortByCreatedAtDesc(items);
+  items = applySearch(items, filters.search);
+  return paginate(items, pagination);
+}
+
+async function findByIdGlobal(id) {
+  if (!id) return null;
+  const snap = await db
+    .collectionGroup(PRODUCT_COLLECTION)
+    .where(admin.firestore.FieldPath.documentId(), '==', String(id).trim())
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  return docToObject(snap.docs[0]);
+}
+
+async function deleteByIdGlobal(id) {
+  if (!id) return null;
+  const snap = await db
+    .collectionGroup(PRODUCT_COLLECTION)
+    .where(admin.firestore.FieldPath.documentId(), '==', String(id).trim())
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  const existing = docToObject(doc);
+  await doc.ref.delete();
+  return existing;
 }
 
 async function findByIdForUser(id, userId) {
@@ -626,12 +670,15 @@ async function findPublicBySubdomain(subdomain, { limit = 100 } = {}) {
 module.exports = {
   createForSubdomain,
   findAllForUser,
+  findAllGlobal,
+  findByIdGlobal,
   findByIdForUser,
   findBySlugForUser,
   findBySkuForUser,
   updateForUser,
   applyInventoryDeltaForUser,
   applyVariantInventoryDeltaForUser,
+  deleteByIdGlobal,
   deleteByIdForUser,
   findPublicBySubdomain,
   normalizeSubdomain,

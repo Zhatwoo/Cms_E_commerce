@@ -17,6 +17,7 @@ import {
 } from '@/lib/icons/adminIcons';
 import { getPlanPillClasses } from '@/lib/config/planConfig';
 import { getStatusBadgeClasses, getStatusLabel } from '@/lib/utils/adminStatus';
+import { addNotification } from '@/lib/notifications';
 
 const ManageIcon = () => (
   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -119,6 +120,7 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
       const res = await setClientDomainStatus(userId, id, 'suspended');
       if (res.success) {
         setStatus('Suspended');
+        addNotification("Website Suspended", `Suspended ${domainName || 'unknown website'}.`, 'warning');
         setToast('Website suspended.');
         setTimeout(() => setToast(null), 3000);
       } else {
@@ -140,6 +142,7 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
       const res = await setClientDomainStatus(userId, id, 'published');
       if (res.success) {
         setStatus('Live');
+        addNotification("Website Reactivated", `Reactivated ${domainName || 'unknown website'}.`, 'success');
         setToast('Website reactivated.');
         setTimeout(() => setToast(null), 3000);
       } else {
@@ -170,6 +173,7 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
       const res = await setClientDomainStatus(userId, id, 'flagged');
       if (res.success) {
         setStatus('Flagged');
+        addNotification("Website Flagged", `Flagged ${domainName || 'unknown website'} for review.`, 'error');
         setToast('Website flagged.');
         setTimeout(() => setToast(null), 3000);
       } else {
@@ -345,30 +349,37 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
 
   const selection = useGDriveSelection();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await getDomainsManagement();
-        if (cancelled) return;
-        if (res.success) {
-          setWebsites(Array.isArray(res.data) ? res.data : []);
-        } else {
-          setWebsites([]);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load data');
-          setWebsites([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+  const loadWebsites = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await getDomainsManagement();
+      if (res.success) {
+        setWebsites(Array.isArray(res.data) ? res.data : []);
+      } else {
+        setWebsites([]);
       }
-    })();
-    return () => { cancelled = true; };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+      setWebsites([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadWebsites();
+  }, [loadWebsites]);
+
+  useEffect(() => {
+    // Listen for real-time updates from other admins
+    const handleUpdate = () => {
+      console.log('[WebManagement] Real-time notification received, refreshing list...');
+      loadWebsites();
+    };
+    window.addEventListener('notification:new_received', handleUpdate);
+    return () => window.removeEventListener('notification:new_received', handleUpdate);
+  }, [loadWebsites]);
 
   useEffect(() => {
     setSearch(urlSearch);
@@ -497,6 +508,8 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
             ? { ...row, status: nextStatus === 'published' ? 'Live' : 'Suspended' }
             : row
         ));
+        const actionLabel = nextStatus === 'published' ? 'Reactivated' : 'Suspended';
+        addNotification(`Website ${actionLabel}`, `${actionLabel} ${w.domainName}.`, nextStatus === 'published' ? 'success' : 'warning');
       } else {
         setToast(res.message || 'Failed to update status');
         setTimeout(() => setToast(null), 2500);
@@ -517,6 +530,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
         setWebsites((prev) => prev.map((row) =>
           row.id === w.id && row.userId === w.userId ? { ...row, status: 'Flagged' } : row
         ));
+        addNotification("Website Flagged", `Flagged ${w.domainName} for review.`, 'error');
       } else {
         setToast(res.message || 'Failed to flag website');
         setTimeout(() => setToast(null), 2500);
@@ -622,6 +636,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     ));
     selection.clearSelection();
     const actionLabel = shouldUnsuspend ? 'Unsuspended' : 'Suspended';
+    addNotification(`Bulk ${actionLabel}`, `${actionLabel} ${done} website(s).`, shouldUnsuspend ? 'success' : 'warning');
     setToast(failed > 0 ? `${actionLabel} ${done}, failed ${failed}` : `${actionLabel} ${done} website(s)`);
     setTimeout(() => setToast(null), 2500);
   };
@@ -644,6 +659,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
       selection.selectedIds.has(`${row.userId}::${row.id}`) ? { ...row, status: 'Flagged' } : row
     ));
     selection.clearSelection();
+    addNotification("Bulk Delete/Flag", `Flagged ${done} website(s).`, 'error');
     setToast(failed > 0 ? `Deleted ${done}, failed ${failed}` : `Deleted ${done} website(s)`);
     setTimeout(() => setToast(null), 2500);
   };
@@ -944,8 +960,9 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                           : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
                       }`}
                       onClick={(e) => {
-                        (e as React.MouseEvent).preventDefault?.();
-                        selection.handleRowClick(key, (e as React.MouseEvent).shiftKey, pagedWebsiteIds);
+                        const mouseEvent = e as unknown as React.MouseEvent;
+                        mouseEvent.preventDefault?.();
+                        selection.handleRowClick(key, mouseEvent.shiftKey, mouseEvent.ctrlKey || mouseEvent.metaKey, pagedWebsiteIds);
                       }}
                       onMouseDown={(e) => {
                         (e as React.MouseEvent).preventDefault?.();

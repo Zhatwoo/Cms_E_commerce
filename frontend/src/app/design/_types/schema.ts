@@ -70,6 +70,7 @@ export type ComponentType =
   | "Spacer"
   | "Pagination"
   | "Badge"
+  | "ProfileLogin"
   | "Circle"
   | "Square"
   | "Triangle"

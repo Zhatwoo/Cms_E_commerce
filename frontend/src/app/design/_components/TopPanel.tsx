@@ -37,8 +37,8 @@ export type DevicePreset = {
 
 const MOBILE_PRESET: DevicePreset = {
   name: "Phone",
-  width: 390,
-  height: 844,
+  width: 375,
+  height: 667,
   icon: <Smartphone className="w-4 h-4" />,
 };
 

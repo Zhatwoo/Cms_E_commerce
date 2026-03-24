@@ -44,16 +44,25 @@ export const PrototypeFlowLines = () => {
         const props = node?.data?.props ?? {};
         const proto = props.prototype as PrototypeConfig | undefined;
         if (!proto?.interactions?.length) continue;
+
         for (const interaction of proto.interactions) {
           if (interaction.action !== "navigateTo" || !interaction.destination) continue;
-          const pageNodeId = slugMap[interaction.destination];
-          if (!pageNodeId) continue;
+
+          // Resolve target page ID: check direct ID match (new way) or slug map (legacy/backup)
+          let targetPageId = interaction.destination;
+          if (!nodes[targetPageId] || nodes[targetPageId].data?.displayName !== "Page") {
+            targetPageId = slugMap[interaction.destination];
+          }
+
+          if (!targetPageId || !nodes[targetPageId]) continue;
+
           const sourceEl = document.querySelector(`[data-node-id="${nodeId}"]`) as HTMLElement | null;
-          const targetEl = document.querySelector(`[data-node-id="${pageNodeId}"]`) as HTMLElement | null;
+          const targetEl = document.querySelector(`[data-node-id="${targetPageId}"]`) as HTMLElement | null;
           if (!sourceEl || !targetEl) continue;
+
           next.push({
             sourceNodeId: nodeId,
-            targetPageNodeId: pageNodeId,
+            targetPageNodeId: targetPageId,
             sourceRect: sourceEl.getBoundingClientRect(),
             targetRect: targetEl.getBoundingClientRect(),
           });

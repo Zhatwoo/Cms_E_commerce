@@ -89,7 +89,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const isHandTool = activeTool === "hand";
   const isDrawingTool = activeTool === "text" || activeTool === "shape";
   const isTextNode = name === "Text";
-  const isSectionNode = name === "Section";
   const canShowResizeOverlay =
     !isHandTool &&
     !isDrawingTool &&
@@ -183,7 +182,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
           if (clickedIsGroup && !clickedIsPageLike) {
             if (event.cancelable) event.preventDefault();
             event.stopPropagation();
-            if (typeof event.stopImmediatePropagation === "function") {
+            if (typeof event.stopImmediatePropagation === "function" && clickedDisplayName !== "Section") {
               event.stopImmediatePropagation();
             }
             actions.selectNode(id);
@@ -329,8 +328,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         <ResizeOverlay
           nodeId={id}
           dom={dom}
-          disableResize={isSectionNode}
-          disableRotate={isSectionNode}
+          disableRotate={name === "Section"}
         />
       ) : null}
 

@@ -4,7 +4,7 @@ function normalize(value: string | null | undefined): string {
 
 export function isPublishedLikeStatus(status: string | null | undefined): boolean {
   const normalized = normalize(status);
-  return normalized === 'published' || normalized === 'active' || normalized === 'live';
+  return normalized === 'published';
 }
 
 export function isOfflineLikeStatus(status: string | null | undefined): boolean {
@@ -29,7 +29,8 @@ export function getStatusBadgeClasses(status: string | null | undefined): string
 }
 
 export function getStatusLabel(status: string | null | undefined): string {
-  if (isPublishedLikeStatus(status)) return 'Live';
+  if (isPublishedLikeStatus(status)) return 'Published';
   if (normalize(status) === 'suspended') return 'Suspended';
+  if (normalize(status) === 'draft') return 'Draft';
   return status || 'Draft';
 }

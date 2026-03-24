@@ -6,9 +6,17 @@ import type { RatingProps } from "../../_types/components";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Rating = ({
   value = 4.2,
   max = 5,
+  allowFractional = false,
   size = 36,
   gap = 12,
   valueGap = 8,
@@ -51,6 +59,7 @@ export const Rating = ({
   boxShadow = "none",
   position = "relative",
   display = "inline-flex",
+  editorVisibility = "auto",
   zIndex = 1,
   top = "auto",
   right = "auto",
@@ -62,15 +71,25 @@ export const Rating = ({
   flipHorizontal = false,
   flipVertical = false,
   cursor = "default",
+  overflow = "visible",
 }: RatingProps) => {
   const { connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
+
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
 
   const safeMax = Math.max(1, Math.round(Number.isFinite(max) ? max : 5));
   const rawValue = Number.isFinite(value) ? value : 0;
   const safeValue = clamp(rawValue, 0, safeMax);
   const effectiveValue = hoverValue ?? safeValue;
-  const displayValue = valueText !== undefined ? valueText : `${effectiveValue}/${safeMax}`;
+  const normalizedValue = allowFractional ? effectiveValue : Math.round(effectiveValue);
+  const safeNormalizedValue = clamp(normalizedValue, 0, safeMax);
+  const displayValue = valueText !== undefined ? valueText : `${safeNormalizedValue}/${safeMax}`;
 
   const p = typeof padding === "number" ? padding : 0;
   const pt = paddingTop ?? p;
@@ -96,20 +115,21 @@ export const Rating = ({
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
+      data-fluid-space="true"
       className={`inline-flex ${customClassName}`}
       style={{
         width: width === "auto" ? "fit-content" : width,
         height: height === "auto" ? "auto" : height,
-        paddingTop: typeof pt === "number" ? `${pt}px` : pt,
-        paddingRight: typeof pr === "number" ? `${pr}px` : pr,
-        paddingBottom: typeof pb === "number" ? `${pb}px` : pb,
-        paddingLeft: typeof pl === "number" ? `${pl}px` : pl,
-        marginTop: typeof mt === "number" ? `${mt}px` : mt,
-        marginRight: typeof mr === "number" ? `${mr}px` : mr,
-        marginBottom: typeof mb === "number" ? `${mb}px` : mb,
-        marginLeft: typeof ml === "number" ? `${ml}px` : ml,
+        paddingTop: fluidSpace(pt),
+        paddingRight: fluidSpace(pr),
+        paddingBottom: fluidSpace(pb),
+        paddingLeft: fluidSpace(pl),
+        marginTop: fluidSpace(mt),
+        marginRight: fluidSpace(mr),
+        marginBottom: fluidSpace(mb),
+        marginLeft: fluidSpace(ml),
         position,
-        display,
+        display: effectiveDisplay,
         zIndex,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
@@ -141,7 +161,7 @@ export const Rating = ({
         }}
       >
         {Array.from({ length: safeMax }).map((_, index) => {
-          const fillRatio = clamp(effectiveValue - index, 0, 1);
+          const fillRatio = clamp(safeNormalizedValue - index, 0, 1);
           const starValue = index + 1;
 
           const starScale = interactive && hoverValue !== null && starValue <= hoverValue ? 1.04 : 1;
@@ -188,7 +208,7 @@ export const Rating = ({
             fontFamily,
             fontWeight,
             fontStyle,
-            fontSize: `${fontSize}px`,
+            fontSize: fluidFontSize,
             lineHeight,
             letterSpacing: `${letterSpacing}px`,
             textTransform,
@@ -203,7 +223,7 @@ export const Rating = ({
 };
 
 export const RatingDefaultProps: Partial<RatingProps> = {
-  value: 4.2,
+  value: 4,
   max: 5,
   size: 36,
   gap: 12,

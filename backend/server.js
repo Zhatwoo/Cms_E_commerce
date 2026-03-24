@@ -103,7 +103,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-project-id', 'x-site-identifier']
 }));
 app.use(cookieParser());
 app.use(express.json({
@@ -125,6 +125,7 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Too many attempts, please try again later' }
 });
 app.use('/api/auth', authLimiter);
+app.use('/api/published-auth', authLimiter);
 
 // Health check – para malaman kung naka-integrate / tumatakbo ang backend
 app.get('/api/health', (req, res) => {
@@ -153,6 +154,7 @@ app.get('/api/debug/db-state', async (req, res) => {
 // Import routes
 const publicSiteRoutes = require('./routes/publicSiteRoutes');
 const authRoutes = require('./routes/authRoutes');
+const publishedAuthRoutes = require('./routes/publishedAuthRoutes');
 const userRoutes = require('./routes/userRoutes');
 const pageRoutes = require('./routes/pageRoutes');
 const postRoutes = require('./routes/postRoutes');
@@ -166,10 +168,12 @@ const domainRoutes = require('./routes/domainRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 const collaborationRoutes = require('./routes/collaborationRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/published-auth', publishedAuthRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/pages', pageRoutes);
 app.use('/api/posts', postRoutes);
@@ -183,6 +187,7 @@ app.use('/api/domains', domainRoutes);
 app.use('/api/projects', commentRoutes); // Merged into projects path for comments
 app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Home route
 app.get('/', (req, res) => {
@@ -340,6 +345,9 @@ function tryListen(port) {
     path: '/socket.io',
     transports: ['websocket', 'polling'],
   });
+
+  // Share io instance with the app so controllers can use it via req.app.get('io')
+  app.set('io', io);
 
   io.on('connection', (socket) => {
     console.log('[Socket.IO] New connection:', socket.id);

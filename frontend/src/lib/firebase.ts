@@ -4,7 +4,15 @@
  * Storage used for web builder uploads under {clientName}/{projectName}/images|videos|files/.
  */
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, signInWithCustomToken, type Auth } from 'firebase/auth';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithCustomToken,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  type Auth,
+} from 'firebase/auth';
 import { getDatabase, ref, onValue, type Database, type Unsubscribe } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
 
@@ -37,8 +45,28 @@ export async function signInAndGetIdToken(email: string, password: string): Prom
   return token;
 }
 
+/** Sign in with Google popup and return the Firebase idToken for the backend session exchange. */
+export async function signInWithGoogleAndGetIdToken(): Promise<string> {
+  const auth = getFirebaseAuth();
+  if (!auth) throw new Error('Firebase is not configured. Add NEXT_PUBLIC_FIREBASE_API_KEY to .env.local');
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+
+  const userCred = await signInWithPopup(auth, provider);
+  const token = await userCred.user.getIdToken();
+  if (!token) throw new Error('Could not get Google login token');
+  return token;
+}
+
 export function isFirebaseConfigured(): boolean {
   return !!(process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '').trim();
+}
+
+export async function signOutFirebaseAuth(): Promise<void> {
+  const auth = getFirebaseAuth();
+  if (!auth) return;
+  await signOut(auth);
 }
 
 /** Realtime Database (requires NEXT_PUBLIC_FIREBASE_DATABASE_URL). Returns null if not configured. */

@@ -10,6 +10,13 @@ declare global {
     }
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Video = ({
     src,
     autoPlay = false,
@@ -36,6 +43,8 @@ export const Video = ({
     marginLeft,
     opacity = 1,
     boxShadow = "none",
+    overflow = "visible",
+    cursor = "default",
     rotation = 0,
     flipHorizontal = false,
     flipVertical = false,
@@ -46,6 +55,8 @@ export const Video = ({
     bottom = "auto",
     left = "auto",
     zIndex = 0,
+    display = "block",
+    editorVisibility = "auto",
     _isDraggingSource = false,
 }: VideoProps) => {
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -113,6 +124,13 @@ export const Video = ({
     const rtr = radiusTopRight ?? br;
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
+
+    const effectiveDisplay =
+        editorVisibility === "hide"
+            ? "none"
+            : editorVisibility === "show" && display === "none"
+                ? "block"
+                : display;
 
     // We use native listeners with capture: true to beat Craft.js event interception.
     React.useEffect(() => {
@@ -191,6 +209,8 @@ export const Video = ({
                     (containerRef as any).current = ref;
                 }
             }}
+            data-fluid-media="true"
+            data-fluid-space="true"
             draggable
             onDragStart={(e) => {
                 if (src) {
@@ -203,20 +223,23 @@ export const Video = ({
             style={{
                 width,
                 height: resolvedHeight,
-                paddingTop: `${pt}px`,
-                paddingRight: `${pr}px`,
-                paddingBottom: `${pb}px`,
-                paddingLeft: `${pl}px`,
-                marginTop: `${mt}px`,
-                marginRight: `${mr}px`,
-                marginBottom: `${mb}px`,
-                marginLeft: `${ml}px`,
+                paddingTop: fluidSpace(pt),
+                paddingRight: fluidSpace(pr),
+                paddingBottom: fluidSpace(pb),
+                paddingLeft: fluidSpace(pl),
+                marginTop: fluidSpace(mt),
+                marginRight: fluidSpace(mr),
+                marginBottom: fluidSpace(mb),
+                marginLeft: fluidSpace(ml),
                 position: position as any,
-                top,
-                left,
-                right,
-                bottom,
-                zIndex,
+                top: position !== "static" ? top : undefined,
+                right: position !== "static" ? right : undefined,
+                bottom: position !== "static" ? bottom : undefined,
+                left: position !== "static" ? left : undefined,
+                zIndex: zIndex !== 0 ? zIndex : undefined,
+                display: effectiveDisplay,
+                overflow,
+                cursor,
                 transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
             }}
         >

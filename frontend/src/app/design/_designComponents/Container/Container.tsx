@@ -21,6 +21,16 @@ function normalizeContainerHeight(value: string | undefined): string {
   return String(value).trim().toLowerCase() === "auto" ? "240px" : value;
 }
 
+function isColorLike(value: unknown): boolean {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return false;
+  if (v === "transparent" || v === "currentcolor" || v === "inherit") return true;
+  if (v.startsWith("#")) return true;
+  if (v.startsWith("rgb(") || v.startsWith("rgba(")) return true;
+  if (v.startsWith("hsl(") || v.startsWith("hsla(")) return true;
+  return ["white", "black", "red", "blue", "green", "gray", "grey"].includes(v);
+}
+
 export const Container = ({
   background = "#ffffff",
   padding = 0,
@@ -45,6 +55,7 @@ export const Container = ({
   backgroundPosition = "center",
   backgroundRepeat = "no-repeat",
   backgroundOverlay = "",
+  backgroundVideo = "",
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
@@ -152,6 +163,33 @@ export const Container = ({
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
 
+  const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
+
+  const resolvedBackground = React.useMemo(() => {
+    if (hasBackgroundVideo) return background;
+
+    if (backgroundImage) {
+      const overlayLayer =
+        backgroundOverlay && backgroundOverlay !== "transparent"
+          ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay})`
+          : null;
+      const imageLayer = `url(${backgroundImage}) ${backgroundPosition} / ${backgroundSize} ${backgroundRepeat}`;
+      const layers = [overlayLayer, imageLayer].filter(Boolean).join(", ");
+      const colorToken = isColorLike(background) ? ` ${background}` : "";
+      return `${layers}${colorToken}`;
+    }
+
+    return background;
+  }, [
+    background,
+    backgroundImage,
+    backgroundOverlay,
+    backgroundPosition,
+    backgroundRepeat,
+    backgroundSize,
+    hasBackgroundVideo,
+  ]);
+
   const effectiveDisplay =
     editorVisibility === "hide"
       ? "none"
@@ -160,6 +198,7 @@ export const Container = ({
         : display;
 
   const shouldFlexFill = width === "100%" && isFlexRowParent;
+  const resolvedPosition = position === "static" ? "relative" : position;
 
   return (
     <div
@@ -171,15 +210,8 @@ export const Container = ({
       }}
       className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
       style={{
-        backgroundColor: background,
-        backgroundImage: backgroundImage
-          ? backgroundOverlay
-            ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
-            : `url(${backgroundImage})`
-          : undefined,
-        backgroundSize: backgroundImage ? backgroundSize : undefined,
-        backgroundPosition: backgroundImage ? backgroundPosition : undefined,
-        backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
+        background: resolvedBackground,
+        isolation: "isolate",
         ...spacingStyle,
         width,
         height: resolvedHeight,
@@ -194,7 +226,7 @@ export const Container = ({
         borderWidth: `${borderWidth}px`,
         borderColor,
         borderStyle,
-        position,
+        position: resolvedPosition,
         containerType: "inline-size",
         contain: "layout",
         display: effectiveDisplay,
@@ -231,6 +263,32 @@ export const Container = ({
         transformOrigin: "center center",
       }}
     >
+      {hasBackgroundVideo ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            zIndex: -1,
+            overflow: "hidden",
+            borderTopLeftRadius: `${rtl}px`,
+            borderTopRightRadius: `${rtr}px`,
+            borderBottomRightRadius: `${rbr}px`,
+            borderBottomLeftRadius: `${rbl}px`,
+          }}
+        >
+          <video
+            src={backgroundVideo}
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+          {backgroundOverlay && backgroundOverlay !== "transparent" ? (
+            <div className="absolute inset-0" style={{ background: backgroundOverlay }} />
+          ) : null}
+        </div>
+      ) : null}
       {children}
     </div>
   );
@@ -255,6 +313,7 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",
   backgroundOverlay: "",
+  backgroundVideo: "",
   borderRadius: 0,
   borderColor: "transparent",
   borderWidth: 0,

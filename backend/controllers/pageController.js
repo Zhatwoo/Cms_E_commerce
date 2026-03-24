@@ -295,6 +295,7 @@ exports.getDraft = async (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
     const userId = req.user.id;
+    const userRole = String(req.user.role || '').toLowerCase();
     const userEmail = (req.user.email || '').toLowerCase();
     const { projectId } = req.query;
 
@@ -305,7 +306,28 @@ exports.getDraft = async (req, res) => {
       });
     }
 
-    const resolved = await resolveProjectOwner(userId, projectId, userEmail);
+    let resolved = await resolveProjectOwner(userId, projectId, userEmail);
+
+    // Admin moderation views may request previews for projects they do not directly own/collaborate on.
+    // In that case, resolve owner directly by project document id.
+    if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
+      const { admin } = require('../config/firebase');
+      const FieldPath = admin.firestore.FieldPath;
+      const projectSnap = await db
+        .collectionGroup('projects')
+        .where(FieldPath.documentId(), '==', projectId)
+        .limit(1)
+        .get();
+
+      if (!projectSnap.empty) {
+        const projectDoc = projectSnap.docs[0];
+        const ownerId = projectDoc.ref.parent?.parent?.id;
+        if (ownerId) {
+          resolved = { ownerId, permission: 'owner' };
+        }
+      }
+    }
+
     if (!resolved) {
       return res.status(403).json({
         success: false,

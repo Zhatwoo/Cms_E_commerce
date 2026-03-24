@@ -50,6 +50,7 @@ function PreviewRoot({ children }: { children?: React.ReactNode }) {
   return (
     <div
       data-preview-root
+      className="preview-fadein preview-scroll"
       style={{
         position: "relative",
         width: "100%",
@@ -109,6 +110,10 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 // Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
 const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   ...CRAFT_RESOLVER,
+  ProfileLogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profilelogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
+  ProfileLoginNode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLoginNode ?? (CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profileloginnode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profileloginnode ?? (CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   BooleanField: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BooleanField),
   booleanfield: asComponent((CRAFT_RESOLVER as Record<string, unknown>).booleanfield),
   BOOLEANFIELD: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BOOLEANFIELD),
@@ -164,6 +169,7 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered.includes("divider")) return "Divider";
   if (lowered.includes("banner")) return "Banner";
   if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("profilelogin") || lowered.includes("profile login") || lowered.includes("profile-login")) return "ProfileLogin";
   if (lowered.includes("pagination")) return "Pagination";
   if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
@@ -488,7 +494,7 @@ function PreviewContent() {
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
-  const useBuilderParityMode = true;
+
 
   useEffect(() => {
     getMe().then((res: any) => {
@@ -564,18 +570,29 @@ function PreviewContent() {
   const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
-      if (project?.subdomain) {
-        const published = await loadPublishedContent(project.subdomain);
-        if (published) {
-          clearSnapshotCache(projectId);
-          setRawJson(published);
-          return;
-        }
+      // 1. Try to load the latest snapshot (Session/Local) for instant parity with editor
+      const cache = readLatestSnapshot(projectId);
+      if (cache) {
+        setRawJson(cache);
+        setLoading(false);
+        return;
       }
+
+      // 2. Try the Draft API (Firestore)
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
         setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Fallback to Published Content
+      if (project?.subdomain) {
+        const published = await loadPublishedContent(project.subdomain);
+        if (published) {
+          setRawJson(published);
+        }
       }
     } catch (e) {
       console.error("Preview refresh error:", e);
@@ -587,17 +604,15 @@ function PreviewContent() {
   // Fetch project metadata so we know the subdomain
   useEffect(() => {
     let cancelled = false;
-    if (project) return;
-    (async () => {
+    async function loadProject() {
       try {
         const res = await getProject(projectId);
-        if (!cancelled && res.success && res.project) {
-          setProject(res.project);
-        }
+        if (!cancelled && res.success && res.project) setProject(res.project);
       } catch { /* ignore */ }
-    })();
+    }
+    loadProject();
     return () => { cancelled = true; };
-  }, [projectId, project]);
+  }, [projectId]);
 
   // Main data loader: load published content (same as live subdomain) when available.
   // Depends on `project` so it re-runs once project metadata (with subdomain) arrives.
@@ -608,19 +623,16 @@ function PreviewContent() {
       if (!project) return;
       setLoading(true);
       try {
-        // If project has a subdomain, always load published content first
-        if (project.subdomain) {
-          const published = await loadPublishedContent(project.subdomain);
-          if (!cancelled && published) {
-            clearSnapshotCache(projectId);
-            setRawJson(published);
-            setLoading(false);
-            return;
-          }
+        // 1. Try local snapshot first (Instant parity with Editor)
+        const snapshot = readLatestSnapshot(projectId);
+        if (snapshot && !cancelled) {
+          setRawJson(snapshot);
+          setLoading(false);
+          return;
         }
 
-        // No subdomain or published content unavailable — load from draft API
-        const timeoutMs = 12000;
+        // 2. Try Draft API
+        const timeoutMs = 8000;
         const result = await Promise.race([
           getDraft(projectId),
           new Promise<{ success: false; timeout: true }>((resolve) =>
@@ -633,19 +645,23 @@ function PreviewContent() {
         if (result.success && result.data?.content) {
           const content = result.data.content;
           if (typeof content === "object") {
-            if (!cancelled) setRawJson(JSON.stringify(content));
+            setRawJson(JSON.stringify(content));
           } else {
-            if (!cancelled) setRawJson(content);
+            setRawJson(content);
           }
-        } else {
-          // Draft API failed — last resort: local cache
-          const fallback = readLatestSnapshot(projectId);
-          if (fallback && !cancelled) setRawJson(fallback);
+          setLoading(false);
+          return;
+        }
+
+        // 3. Last fallback: Published Content
+        if (project.subdomain) {
+          const published = await loadPublishedContent(project.subdomain);
+          if (!cancelled && published) {
+            setRawJson(published);
+          }
         }
       } catch (error) {
         console.error("Preview: Load error:", error);
-        const fallback = readLatestSnapshot(projectId);
-        if (fallback) setRawJson(fallback);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -653,7 +669,7 @@ function PreviewContent() {
 
     loadData();
     return () => { cancelled = true; };
-  }, [projectId, project, loadPublishedContent]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
   // Re-fetch published content when tab becomes visible
   useEffect(() => {
@@ -671,21 +687,6 @@ function PreviewContent() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  useEffect(() => {
-    let active = true;
-    async function loadProject() {
-      try {
-        const res = await getProject(projectId);
-        if (active && res.success && res.project) {
-          setProject(res.project);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    loadProject();
-    return () => { active = false; };
-  }, [projectId]);
 
   // Fetch products for the preview store context
   useEffect(() => {
@@ -715,22 +716,24 @@ function PreviewContent() {
     [previewProducts, previewAddToCart]
   );
 
+
   // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
-  // If draft is still Craft RAW (ROOT-based), convert it so WebPreview can run Prototype interactions.
+  // Keep preview animation behavior identical to editor canvas.
   const effectiveCleanDoc = useMemo(() => {
-    if (cleanDoc) return cleanDoc;
-    if (!rawJson) return null;
-    if (!looksLikeCraftRawSnapshot(rawJson)) return null;
-    try {
-      return serializeCraftToClean(rawJson);
-    } catch {
-      return null;
+    let doc = cleanDoc;
+    if (!doc && rawJson && looksLikeCraftRawSnapshot(rawJson)) {
+      try {
+        doc = serializeCraftToClean(rawJson);
+      } catch {
+        return null;
+      }
     }
+    return doc ?? null;
   }, [cleanDoc, rawJson]);
 
   const craftPreviewData = useMemo(() => {
@@ -1122,6 +1125,26 @@ function PreviewContent() {
 
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-brand-lighter font-sans">
+      {/* Animations for preview */}
+      <style>{`
+        .preview-fadein {
+          animation: previewFadeIn 0.7s cubic-bezier(.4,0,.2,1);
+        }
+        @keyframes previewFadeIn {
+          from { opacity: 0; transform: translateY(32px); }
+          to { opacity: 1; transform: none; }
+        }
+        .preview-scroll {
+          scroll-behavior: smooth;
+        }
+        .preview-float-animate {
+          animation: previewFloat 2.8s ease-in-out infinite alternate;
+        }
+        @keyframes previewFloat {
+          from { transform: translateY(0); }
+          to { transform: translateY(-10px); }
+        }
+      `}</style>
       {/* Top Bar */}
       <div className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur border-b border-white/10">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
@@ -1318,17 +1341,17 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden ${previewViewport === "desktop" ? "" : "flex justify-center"}`}>
+          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden flex justify-center`}>
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
-                className={`bg-white transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
+                className={`transition-[width] duration-300 ease-out overflow-hidden preview-fadein ${previewViewport === "desktop"
                   ? "min-h-[calc(100vh-200px)] w-full min-w-0"
                   : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
                   }`}
                 style={
                   previewViewport === "desktop"
-                    ? { width: "100%" }
+                    ? { ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }
                     : previewViewport === "tablet"
                       ? { width: 768, maxWidth: "100%" }
                       : previewViewport === "mobile"
@@ -1336,6 +1359,7 @@ function PreviewContent() {
                         : undefined
                 }
               >
+                {/* Optionally, you can add preview-float-animate to any child for demo */}
                 <WebPreview
                   key="preview-web"
                   doc={effectiveCleanDoc}
@@ -1343,8 +1367,8 @@ function PreviewContent() {
                   initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
-                  builderParityMode={useBuilderParityMode}
-                  fillViewport
+                  builderParityMode={false}
+                  fillViewport={previewViewport !== "desktop"}
                   storeContext={previewStoreContext}
                   simulatedWidth={
                     previewViewport === "tablet" ? 768 : previewViewport === "mobile" ? 390 : undefined
