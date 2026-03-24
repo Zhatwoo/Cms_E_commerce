@@ -14,20 +14,18 @@ import { Row } from "../_designComponents/Row/Row";
 import { Column } from "../_designComponents/Column/Column";
 import { Icon } from "../_designComponents/Icon/Icon";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
-<<<<<<<<< Temporary merge branch 1
+import { TabContent } from "../_designComponents/Tabs/TabContent";
 import { Spacer } from "../_designComponents/Spacer/Spacer";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
 import { Rating } from "../_designComponents/Rating/Rating";
 import { Banner } from "../_designComponents/Banner/banner";
 import { Badge } from "../_designComponents/Badge/badge";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
-import { IconRow } from "../_designComponents/IconRow/IconRow";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
-import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-login";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -112,7 +110,6 @@ export function buildCraftResolver(): Resolver {
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
-<<<<<<<<< Temporary merge branch 1
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
@@ -163,15 +160,6 @@ export function buildCraftResolver(): Resolver {
     banner: BannerComp,
     Badge: BadgeComp,
     badge: BadgeComp,
-    ProfileLogin: ProfileLoginComp,
-    ProfileLoginNode: ProfileLoginComp,
-    profilelogin: ProfileLoginComp,
-    profileloginnode: ProfileLoginComp,
-    "profile-login": ProfileLoginComp,
-    "Profile Login": ProfileLoginComp,
-    "profile login": ProfileLoginComp,
-    ProfileLoginComponent: ProfileLoginComp,
-    profilelogincomponent: ProfileLoginComp,
     Icon: IconComp,
     icon: IconComp,
     Circle: CircleComp,
@@ -207,14 +195,6 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "Divider", DividerComp);
   addAliases(base, "Banner", BannerComp);
   addAliases(base, "Badge", BadgeComp);
-  addAliases(base, "ProfileLogin", ProfileLoginComp, [
-    "ProfileLoginNode",
-    "profileloginnode",
-    "Profile Login",
-    "profile login",
-    "ProfileLoginComponent",
-    "profilelogincomponent",
-  ]);
   addAliases(base, "Pagination", PaginationComp);
   addAliases(base, "BooleanField", BooleanFieldComp, [
     "Boolean Field",

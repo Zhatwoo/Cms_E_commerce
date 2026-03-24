@@ -281,7 +281,6 @@ export const ImageSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
-          showBackgroundImageOption={false}
           setProp={typedSetProp}
         />
       </DesignSection>
