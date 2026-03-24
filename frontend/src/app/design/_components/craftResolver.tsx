@@ -26,6 +26,7 @@ import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
+import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-login";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -112,6 +113,7 @@ export function buildCraftResolver(): Resolver {
   const PaginationComp = asComponent(Pagination, ContainerComp);
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
+  const ProfileLoginNodeComp = asComponent(ProfileLoginNode, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -184,6 +186,12 @@ export function buildCraftResolver(): Resolver {
     BooleanField: BooleanFieldComp,
     booleanfield: BooleanFieldComp,
     BOOLEANFIELD: BooleanFieldComp,
+    ProfileLoginNode: ProfileLoginNodeComp,
+    profileloginnode: ProfileLoginNodeComp,
+    PROFILELOGINNODE: ProfileLoginNodeComp,
+    ProfileLogin: ProfileLoginNodeComp,
+    profilelogin: ProfileLoginNodeComp,
+    PROFILELOGIN: ProfileLoginNodeComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -205,6 +213,7 @@ export function buildCraftResolver(): Resolver {
     "Radio",
     "radio",
   ]);
+  addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   return base;
 }
 
