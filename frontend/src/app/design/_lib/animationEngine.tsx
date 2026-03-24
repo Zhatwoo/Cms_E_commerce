@@ -19,6 +19,87 @@ gsap.registerPlugin(ScrollTrigger);
 // Track which documents already have a scrollerProxy configured.
 const SCROLLER_PROXY_DOCS = new WeakSet<Document>();
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function normalizeTriggerType(raw: unknown): AnimationConfig["trigger"]["type"] {
+  if (typeof raw !== "string") return DEFAULT_ANIMATION.trigger.type;
+  const v = raw.trim().toLowerCase();
+  if (v === "onscroll" || v === "scroll" || v === "inview" || v === "in-view") return "onScroll";
+  if (v === "onload" || v === "load") return "onLoad";
+  if (v === "onhover" || v === "hover") return "onHover";
+  if (v === "onclick" || v === "click" || v === "tap") return "onClick";
+  return DEFAULT_ANIMATION.trigger.type;
+}
+
+function normalizeAnimationConfig(animation: unknown): AnimationConfig {
+  const root = asRecord(animation);
+  const animateIn = asRecord(root.animateIn);
+  const animateOut = asRecord(root.animateOut);
+  const animateDuring = asRecord(root.animateDuring);
+  const scrollEffect = asRecord(root.scrollEffect);
+  const trigger = asRecord(root.trigger);
+
+  return {
+    animateIn: { ...DEFAULT_ANIMATION.animateIn, ...animateIn },
+    animateOut: { ...DEFAULT_ANIMATION.animateOut, ...animateOut },
+    animateDuring: { ...DEFAULT_ANIMATION.animateDuring, ...animateDuring },
+    scrollEffect: {
+      ...DEFAULT_ANIMATION.scrollEffect,
+      ...scrollEffect,
+      enabled:
+        scrollEffect.enabled === true ||
+        scrollEffect.enabled === "true" ||
+        scrollEffect.enabled === 1,
+    },
+    trigger: {
+      ...DEFAULT_ANIMATION.trigger,
+      ...trigger,
+      type: normalizeTriggerType(trigger.type),
+    },
+  };
+}
+
+function resolveNearestScrollContainer(
+  el: HTMLElement,
+  view: Window
+): HTMLElement | null {
+  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
+  if (explicitPreviewRoot instanceof HTMLElement) return explicitPreviewRoot;
+
+  let cur: HTMLElement | null = el.parentElement;
+  let styledScrollableFallback: HTMLElement | null = null;
+  while (cur) {
+    const style = view.getComputedStyle(cur);
+    const overflowY = style.overflowY;
+    const overflowX = style.overflowX;
+    const hasScrollStyle =
+      overflowY === "auto" ||
+      overflowY === "scroll" ||
+      overflowX === "auto" ||
+      overflowX === "scroll";
+    const canScrollY =
+      (overflowY === "auto" || overflowY === "scroll") && cur.scrollHeight > cur.clientHeight + 1;
+    const canScrollX =
+      (overflowX === "auto" || overflowX === "scroll") && cur.scrollWidth > cur.clientWidth + 1;
+
+    if (canScrollY || canScrollX) return cur;
+    if (!styledScrollableFallback && hasScrollStyle) styledScrollableFallback = cur;
+    cur = cur.parentElement;
+  }
+  return styledScrollableFallback;
+}
+
+function resolveScrollRoots(
+  el: HTMLElement,
+  view: Window
+): { primary: HTMLElement | null; fallback: HTMLElement | null } {
+  const primary = resolveNearestScrollContainer(el, view);
+  const fallback = primary ? null : (view.document?.documentElement as HTMLElement | null);
+  return { primary, fallback };
+}
+
 // ─── Easing Map (Framer Motion) ──────────────────────────────────────────────
 
 function mapEasing(easing: EasingType): number[] | string {
@@ -285,24 +366,9 @@ function useGsapScrollEffect(
       }
     }
 
-    const findScrollParent = (node: HTMLElement | null): HTMLElement | null => {
-      let cur: HTMLElement | null = node?.parentElement ?? null;
-      while (cur) {
-        const style = view.getComputedStyle(cur);
-        const overflowY = style.overflowY;
-        const overflowX = style.overflowX;
-        const canScrollY =
-          (overflowY === "auto" || overflowY === "scroll") && cur.scrollHeight > cur.clientHeight + 1;
-        const canScrollX =
-          (overflowX === "auto" || overflowX === "scroll") && cur.scrollWidth > cur.clientWidth + 1;
-        if (canScrollY || canScrollX) return cur;
-        cur = cur.parentElement;
-      }
-      return null;
-    };
-
     // Prefer the proxied scroller (iframe -> parent canvas scroll container).
-    const scroller = proxyScroller ?? findScrollParent(el);
+    const { primary: resolvedScroller, fallback: fallbackScroller } = resolveScrollRoots(el, view);
+    const scroller = proxyScroller ?? resolvedScroller ?? fallbackScroller;
 
     const getScrollOffsets = () => {
       if (!scroller) return { x: view.scrollX, y: view.scrollY };
@@ -425,13 +491,6 @@ function useGsapScrollEffect(
       if (frames.length >= 2) {
         // Use smooth spline sampling over scroll progress (no sharp corners).
         const points = frames.map((f) => ({ x: f.x, y: f.y }));
-        const first = points[0];
-
-        gsap.set(el, {
-          x: first.x,
-          y: first.y,
-          force3D: true,
-        });
 
         const speed = typeof config.speed === "number" && Number.isFinite(config.speed) ? config.speed : 1;
         const speedAbs = Math.max(0, Math.min(2, Math.abs(speed)));
@@ -451,7 +510,19 @@ function useGsapScrollEffect(
         let targetProgress = 0;
         let currentProgress = 0;
         let tickerAdded = false;
+        let initializedFromScroll = false;
+        let userHasScrolled = false;
+        const markScrolled = () => {
+          userHasScrolled = true;
+        };
+        const scrollEventTarget: EventTarget | null = (scroller ?? view) as EventTarget;
+        if (scrollEventTarget && "addEventListener" in (scrollEventTarget as any)) {
+          (scrollEventTarget as any).addEventListener("scroll", markScrolled, { passive: true });
+          (scrollEventTarget as any).addEventListener("wheel", markScrolled, { passive: true });
+          (scrollEventTarget as any).addEventListener("touchmove", markScrolled, { passive: true });
+        }
         const tick = () => {
+          if (!initializedFromScroll) return;
           // When smoothing disabled, jump immediately.
           if (follow >= 1) {
             currentProgress = targetProgress;
@@ -470,6 +541,10 @@ function useGsapScrollEffect(
           scrub: false,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
+            if (!initializedFromScroll) {
+              initializedFromScroll = true;
+            }
+            if (!userHasScrolled) return;
             targetProgress = speed < 0 ? 1 - self.progress : self.progress;
 
             if (!tickerAdded) {
@@ -480,10 +555,17 @@ function useGsapScrollEffect(
         });
         // Ensure correct measurements (especially inside scroll containers / canvas).
         ScrollTrigger.refresh();
+        const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
 
         return () => {
           if (tickerAdded) gsap.ticker.remove(tick);
           st.kill();
+          view.clearTimeout(settleRefresh);
+          if (scrollEventTarget && "removeEventListener" in (scrollEventTarget as any)) {
+            (scrollEventTarget as any).removeEventListener("scroll", markScrolled as EventListener);
+            (scrollEventTarget as any).removeEventListener("wheel", markScrolled as EventListener);
+            (scrollEventTarget as any).removeEventListener("touchmove", markScrolled as EventListener);
+          }
           if (proxiedParentScroller && parentScrollHandler) {
             proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
           }
@@ -514,9 +596,11 @@ function useGsapScrollEffect(
         ease: "none",
       });
       ScrollTrigger.refresh();
+      const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
 
       return () => {
         tl.kill();
+        view.clearTimeout(settleRefresh);
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
@@ -678,16 +762,7 @@ export function AnimationWrapper({
   className,
   as = "div",
 }: AnimationWrapperProps) {
-  const config = useMemo(() => {
-    if (!animation) return DEFAULT_ANIMATION;
-    return {
-      animateIn: { ...DEFAULT_ANIMATION.animateIn, ...(animation.animateIn ?? {}) },
-      animateOut: { ...DEFAULT_ANIMATION.animateOut, ...(animation.animateOut ?? {}) },
-      animateDuring: { ...DEFAULT_ANIMATION.animateDuring, ...(animation.animateDuring ?? {}) },
-      scrollEffect: { ...DEFAULT_ANIMATION.scrollEffect, ...(animation.scrollEffect ?? {}) },
-      trigger: { ...DEFAULT_ANIMATION.trigger, ...(animation.trigger ?? {}) },
-    };
-  }, [animation]);
+  const config = useMemo(() => normalizeAnimationConfig(animation), [animation]);
 
   const hasIn = config.animateIn.type !== "none";
   const hasOut = config.animateOut.type !== "none";
@@ -696,7 +771,19 @@ export function AnimationWrapper({
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
   const ref = useRef<HTMLDivElement>(null);
+  const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const view = el.ownerDocument?.defaultView ?? window;
+    const { primary, fallback } = resolveScrollRoots(el, view);
+    setInViewRoot(primary ?? fallback);
+  }, []);
+
   const isInView = useInView(ref, {
+    root: inViewRoot,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });
@@ -785,10 +872,11 @@ export function AnimationWrapper({
 
 export function hasActiveAnimation(animation?: AnimationConfig): boolean {
   if (!animation) return false;
+  const normalized = normalizeAnimationConfig(animation);
   return (
-    animation.animateIn?.type !== "none" ||
-    animation.animateOut?.type !== "none" ||
-    animation.animateDuring?.type !== "none" ||
-    (animation.scrollEffect?.enabled && animation.scrollEffect?.type !== "none")
+    normalized.animateIn?.type !== "none" ||
+    normalized.animateOut?.type !== "none" ||
+    normalized.animateDuring?.type !== "none" ||
+    (normalized.scrollEffect?.enabled && normalized.scrollEffect?.type !== "none")
   );
 }
