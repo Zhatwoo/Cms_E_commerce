@@ -95,7 +95,7 @@ class FrameErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
-      return <DeferredFrame data={EMPTY_FRAME_DATA} />;
+      return <FallbackFrame />;
     }
 
     return this.props?.children ?? null;
@@ -536,6 +536,26 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         node.nodes = [];
       }
 
+      // Normalize required structural fields Craft expects.
+      if (!node.props || typeof node.props !== "object" || Array.isArray(node.props)) {
+        node.props = {};
+      }
+      if (!node.custom || typeof node.custom !== "object" || Array.isArray(node.custom)) {
+        node.custom = {};
+      }
+      if (typeof node.hidden !== "boolean") {
+        node.hidden = false;
+      }
+      if (typeof node.isCanvas !== "boolean") {
+        node.isCanvas = false;
+      }
+      if (node.parent !== undefined && typeof node.parent !== "string") {
+        delete node.parent;
+      }
+      if (!node.linkedNodes || typeof node.linkedNodes !== "object" || Array.isArray(node.linkedNodes)) {
+        node.linkedNodes = {};
+      }
+
       return true;
     }));
 
@@ -807,6 +827,65 @@ const DeferredFrame = ({ data, onMounted }: { data: string; onMounted?: () => vo
 };
 
 /**
+ * JSX-based fallback that avoids Craft deserialize entirely.
+ * This is more resilient when serialized JSON is corrupted.
+ */
+const FallbackFrame = ({ onMounted }: { onMounted?: () => void }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    let done = false;
+    const markMounted = () => {
+      if (done) return;
+      done = true;
+      setMounted(true);
+    };
+    const id = requestAnimationFrame(markMounted);
+    const fallback = window.setTimeout(markMounted, 220);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !onMounted) return;
+    const id = requestAnimationFrame(() => onMounted());
+    return () => cancelAnimationFrame(id);
+  }, [mounted, onMounted]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-brand-light">Loading editor...</div>
+      </div>
+    );
+  }
+
+  return (
+    <Frame>
+      <Element
+        is={Viewport}
+        canvas
+        id="ROOT"
+      >
+        <Element
+          is={Page}
+          canvas
+          id="page-1"
+          pageName="Page 1"
+          pageSlug="page-0"
+          canvasX={PAGE_GRID_ORIGIN_X}
+          canvasY={PAGE_GRID_ORIGIN_Y}
+          height="1200px"
+          background="#ffffff"
+        />
+      </Element>
+    </Frame>
+  );
+};
+
+/**
  * SafeFrame component that catches Frame rendering errors and falls back to empty canvas.
  * Calls onFrameMounted after the Frame has committed, so panels that use useEditor()
  * (e.g. FilesPanel) can mount in the next tick and avoid "setState during render" from Craft.js.
@@ -949,7 +1028,7 @@ const SafeFrame = ({
   }
 
   if (hasErrorBoundaryError || !renderData) {
-    return <DeferredFrame data={EMPTY_FRAME_DATA} onMounted={handleDeferredFrameMounted} />;
+    return <FallbackFrame onMounted={handleDeferredFrameMounted} />;
   }
 
   // Only mount Frame with data in a separate commit (frameDataToShow set in useEffect)
