@@ -21,6 +21,16 @@ function normalizeFlexPos(
   return fallback;
 }
 
+function isColorLike(value: unknown): boolean {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return false;
+  if (v === "transparent" || v === "currentcolor" || v === "inherit") return true;
+  if (v.startsWith("#")) return true;
+  if (v.startsWith("rgb(") || v.startsWith("rgba(")) return true;
+  if (v.startsWith("hsl(") || v.startsWith("hsla(")) return true;
+  return ["white", "black", "red", "blue", "green", "gray", "grey"].includes(v);
+}
+
 export const Section = ({
   background = "transparent",
   padding = 40,
@@ -105,16 +115,23 @@ export const Section = ({
 
   const sectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      background: background,
+      background: (() => {
+        if (hasBackgroundVideo) return background;
+
+        if (backgroundImage) {
+          const overlayLayer =
+            backgroundOverlay && backgroundOverlay !== "transparent"
+              ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay})`
+              : null;
+          const imageLayer = `url(${backgroundImage}) ${backgroundPosition} / ${backgroundSize} ${backgroundRepeat}`;
+          const layers = [overlayLayer, imageLayer].filter(Boolean).join(", ");
+          const colorToken = isColorLike(background) ? ` ${background}` : "";
+          return `${layers}${colorToken}`;
+        }
+
+        return background;
+      })(),
       isolation: "isolate",
-      backgroundImage: !hasBackgroundVideo && backgroundImage
-        ? backgroundOverlay
-          ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
-          : `url(${backgroundImage})`
-        : undefined,
-      backgroundSize: !hasBackgroundVideo && backgroundImage ? backgroundSize : undefined,
-      backgroundPosition: !hasBackgroundVideo && backgroundImage ? backgroundPosition : undefined,
-      backgroundRepeat: !hasBackgroundVideo && backgroundImage ? backgroundRepeat : undefined,
       paddingLeft: fluidSpace(pl, 0),
       paddingRight: fluidSpace(pr, 0),
       paddingTop: fluidSpace(pt, 0),
@@ -152,6 +169,7 @@ export const Section = ({
       backgroundRepeat,
       backgroundSize,
       backgroundVideo,
+      hasBackgroundVideo,
       borderColor,
       borderRadius,
       borderStyle,
