@@ -65,6 +65,7 @@ exports.getBySubdomain = async (req, res) => {
       data: { content },
       subdomain: domain.subdomain,
       projectTitle: domain.projectTitle,
+      owner: domain.owner || null,
     });
   } catch (error) {
     console.error('getBySubdomain error:', error);

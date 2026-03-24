@@ -51,6 +51,38 @@ function toFirestore(data) {
 
 
 class User {
+  static async createFromFirebaseUser(userRecord, options = {}) {
+    if (!userRecord?.uid) throw new Error('Missing Firebase user record');
+
+    const normalizedRole = (options.role && typeof options.role === 'string')
+      ? options.role.toLowerCase().replace(/\s+/g, '_')
+      : 'client';
+    const now = new Date();
+    const profile = {
+      avatar_url: options.avatar ?? userRecord.photoURL ?? null,
+      bio: options.bio ?? '',
+      created_at: now,
+      email: (userRecord.email || '').toLowerCase().trim(),
+      full_name:
+        (options.name && String(options.name).trim()) ||
+        (userRecord.displayName || '').trim() ||
+        ((userRecord.email || '').split('@')[0] || 'User'),
+      is_active: options.isActive !== false,
+      phone: options.phone ?? userRecord.phoneNumber ?? null,
+      role: normalizedRole,
+      status: options.status || 'active',
+      subscription_plan: options.subscriptionPlan || 'free',
+      updated_at: now,
+      username: options.username || '',
+      website: options.website || '',
+    };
+
+    const rolePath = `user/roles/${normalizedRole}/${userRecord.uid}`;
+    await db.doc(rolePath).set(profile, { merge: true });
+    await db.collection('user').doc(userRecord.uid).delete().catch(() => {});
+    return this.findById(userRecord.uid);
+  }
+
   /** Public signup: create auth user + Firestore profile (role client) */
   /** Public signup: create auth user + Firestore profile (role client) */
   static async register({ name, email, password }) {

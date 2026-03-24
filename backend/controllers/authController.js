@@ -274,6 +274,7 @@ exports.login = async (req, res) => {
     const { email, password, idToken } = req.body;
 
     let uid = null;
+    let firebaseAuthUser = null;
 
     // Path 1: Frontend sent Firebase idToken (works even when API key is restricted)
     if (idToken && typeof idToken === 'string' && idToken.trim()) {
@@ -324,6 +325,39 @@ exports.login = async (req, res) => {
     }
 
     let user = await User.findById(uid);
+    try {
+      firebaseAuthUser = await auth.getUser(uid);
+    } catch (err) {
+      if (process.env.NODE_ENV !== 'production') console.error('Login getUser error:', err.message);
+    }
+
+    const providerIds = Array.isArray(firebaseAuthUser?.providerData)
+      ? firebaseAuthUser.providerData.map((provider) => provider?.providerId).filter(Boolean)
+      : [];
+    const isGoogleUser = providerIds.includes('google.com');
+    const authEmail = (firebaseAuthUser?.email || '').toLowerCase().trim();
+
+    if (isGoogleUser && firebaseAuthUser?.emailVerified && authEmail) {
+      const existingUserWithEmail = await User.findByEmail(authEmail);
+      if (existingUserWithEmail && existingUserWithEmail.id !== uid) {
+        return res.status(409).json({
+          success: false,
+          message: 'An account with this email already exists. Please use your existing login method or contact support.'
+        });
+      }
+
+      user = await User.createFromFirebaseUser(firebaseAuthUser, {
+        role: user?.role || 'client',
+        status: user?.status || 'active',
+        subscriptionPlan: user?.subscriptionPlan || 'free',
+        username: user?.username || '',
+        website: user?.website || '',
+        bio: user?.bio || '',
+        avatar: user?.avatar || firebaseAuthUser?.photoURL || null,
+        isActive: user?.isActive !== false,
+      });
+    }
+
     if (!user) {
       return res.status(401).json({ success: false, message: 'Profile not found. Please try signing up again or contact support.' });
     }
@@ -338,8 +372,11 @@ exports.login = async (req, res) => {
       });
     }
 
-    const authUser = await auth.getUser(uid);
-    if (!authUser.emailVerified) {
+    if (!firebaseAuthUser) {
+      return res.status(401).json({ success: false, message: 'Could not load authentication profile. Please try logging in again.' });
+    }
+
+    if (!firebaseAuthUser.emailVerified) {
       return res.status(403).json({
         success: false,
         message: 'Please confirm your email first. Check your inbox (and spam) for the confirmation link.'
