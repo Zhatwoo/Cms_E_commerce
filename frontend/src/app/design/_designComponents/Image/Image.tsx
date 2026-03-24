@@ -52,6 +52,8 @@ export const Image = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
+  badge,
+  badgeColor = "#1e293b",
   display = "block",
   editorVisibility = "auto",
   _autoFitInTabs = false,
@@ -300,6 +302,29 @@ export const Image = ({
         className="cursor-pointer pointer-events-none"
       />
 
+      {/* Badge overlay — rendered inside the image, no extra Craft node */}
+      {badge && badge.trim() !== "" && (
+        <div
+          style={{
+            position: "absolute",
+            top: 10,
+            left: 10,
+            backgroundColor: badgeColor,
+            color: "#ffffff",
+            fontSize: 12,
+            fontWeight: 700,
+            lineHeight: 1,
+            padding: "6px 12px",
+            borderRadius: 4,
+            pointerEvents: "none",
+            zIndex: 2,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {badge}
+        </div>
+      )}
+
       {/* Photo Frame Drop Overlay (Visible when dragging over) */}
       {isDraggingOver && (
         <div className="absolute inset-0 z-[100] bg-brand-medium/50 border-4 border-dashed border-brand-lighter rounded-lg flex flex-col items-center justify-center gap-2 transition-all duration-200 pointer-events-none animate-in fade-in zoom-in">
@@ -334,6 +359,8 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   marginLeft: 0,
   opacity: 1,
   boxShadow: "none",
+  badge: "",
+  badgeColor: "#1e293b",
   _autoFitInTabs: false,
 };
 
