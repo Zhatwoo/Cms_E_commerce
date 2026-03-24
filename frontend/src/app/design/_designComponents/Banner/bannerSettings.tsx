@@ -133,6 +133,7 @@ export const BannerSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
+          enableMediaFillModes={true}
           borderRadius={borderRadius}
           setProp={typedSetProp}
         />

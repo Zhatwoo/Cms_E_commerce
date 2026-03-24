@@ -276,7 +276,6 @@ export const VideoSettings = () => {
                     radiusTopRight={radiusTopRight}
                     radiusBottomRight={radiusBottomRight}
                     radiusBottomLeft={radiusBottomLeft}
-                    showBackgroundImageOption={false}
                     setProp={typedSetProp}
                 />
             </DesignSection>

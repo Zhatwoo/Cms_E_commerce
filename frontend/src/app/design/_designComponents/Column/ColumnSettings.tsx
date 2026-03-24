@@ -100,6 +100,7 @@ export const ColumnSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
+          enableMediaFillModes={true}
           setProp={typedSetProp}
         />
       </DesignSection>

@@ -1,39 +1,16 @@
 import React, { useRef, useState } from "react";
-import { Scan, Plus, SquareRoundCorner, ImageIcon, X, Upload, Loader2 } from "lucide-react";
+import { Scan, Plus, SquareRoundCorner, Eye, EyeOff, Minus } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorPicker } from "./inputs/ColorPicker";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
 
 interface AppearanceGroupProps extends AppearanceProps {
   setProp: SetProp<AppearanceProps>;
-  showBackgroundImageOption?: boolean;
+  enableMediaFillModes?: boolean;
 }
-
-const BG_SIZE_OPTIONS: { value: AppearanceProps["backgroundSize"]; label: string }[] = [
-  { value: "cover", label: "Cover" },
-  { value: "contain", label: "Contain" },
-  { value: "auto", label: "Auto" },
-];
-
-const BG_POSITION_OPTIONS = [
-  "center", "top", "bottom", "left", "right",
-  "top left", "top right", "bottom left", "bottom right",
-];
-
-const BG_REPEAT_OPTIONS: { value: AppearanceProps["backgroundRepeat"]; label: string }[] = [
-  { value: "no-repeat", label: "No Repeat" },
-  { value: "repeat", label: "Repeat" },
-  { value: "repeat-x", label: "Repeat X" },
-  { value: "repeat-y", label: "Repeat Y" },
-];
 
 export const AppearanceGroup = ({
   background,
-  backgroundImage = "",
-  backgroundSize = "cover",
-  backgroundPosition = "center",
-  backgroundRepeat = "no-repeat",
-  backgroundOverlay = "",
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
@@ -42,39 +19,45 @@ export const AppearanceGroup = ({
   radiusTopRight = 0,
   radiusBottomRight = 0,
   radiusBottomLeft = 0,
-  showBackgroundImageOption = true,
+  enableMediaFillModes = false,
   setProp
 }: AppearanceGroupProps) => {
   const [expandRadius, setExpandRadius] = useState(false);
-  const [showBgImage, setShowBgImage] = useState(!!backgroundImage);
-  const [uploadingBg, setUploadingBg] = useState(false);
-  const bgFileInputRef = useRef<HTMLInputElement>(null);
+  const [fillPickerToggleKey, setFillPickerToggleKey] = useState(0);
+  const [isFillVisible, setIsFillVisible] = useState(background !== "transparent");
+  const lastVisibleFillRef = useRef(
+    background && background !== "transparent" ? background : "#A54C4C"
+  );
 
-  const handleBackgroundImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith("image/")) {
-      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
+  const applyFillColor = (val: string) => {
+    if (val !== "transparent") {
+      lastVisibleFillRef.current = val;
+      setIsFillVisible(true);
+    } else {
+      setIsFillVisible(false);
+    }
+
+    setProp((props) => {
+      props.background = val;
+    });
+  };
+
+  const toggleFillVisibility = () => {
+    if (isFillVisible) {
+      if (background && background !== "transparent") {
+        lastVisibleFillRef.current = background;
+      }
+      applyFillColor("transparent");
       return;
     }
 
-    setUploadingBg(true);
-    const reader = new FileReader();
+    applyFillColor(lastVisibleFillRef.current || "#A54C4C");
+  };
 
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setProp((props) => {
-        props.backgroundImage = dataUrl;
-      });
-      setUploadingBg(false);
-      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
-    };
-
-    reader.onerror = () => {
-      setUploadingBg(false);
-      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
-    };
-
-    reader.readAsDataURL(file);
+  const addFill = () => {
+    if (background === "transparent" || !background) {
+      applyFillColor(lastVisibleFillRef.current || "#A54C4C");
+    }
   };
 
   const handleRadiusChange = (corner: string, val: number) => {
@@ -94,127 +77,67 @@ export const AppearanceGroup = ({
     });
   };
 
+  const popoverContainerRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Fill */}
-      <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">Fill</label>
-        <ColorPicker
-          value={background || "transparent"}
-          onChange={(val) => setProp((props) => { props.background = val; })}
-        />
-      </div>
-
-      {showBackgroundImageOption && (
-        <>
-          {/* Background Image */}
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[12px] text-[var(--builder-text)] font-base">Background Image</label>
-              <button
-                onClick={() => {
-                  if (showBgImage) {
-                    setProp((props) => { props.backgroundImage = ""; });
-                  }
-                  setShowBgImage(!showBgImage);
-                }}
-                className="p-0.5 rounded text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"
-                title={showBgImage ? "Remove background image" : "Add background image"}
-              >
-                {showBgImage ? <X size={12} /> : <ImageIcon size={12} />}
-              </button>
-            </div>
-
-            {showBgImage && (
-              <div className="flex flex-col gap-2">
-                <input
-                  ref={bgFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleBackgroundImageUpload}
-                  className="hidden"
-                />
-
-                {/* Image URL */}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={backgroundImage}
-                    onChange={(e) => setProp((props) => { props.backgroundImage = e.target.value; })}
-                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                    placeholder="https://example.com/image.jpg"
-                    className="flex-1 bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => bgFileInputRef.current?.click()}
-                    disabled={uploadingBg}
-                    className="px-2.5 py-1.5 bg-brand-medium/30 hover:bg-brand-medium/50 border border-[var(--builder-border)] rounded-lg transition-colors flex items-center justify-center disabled:opacity-50"
-                    title="Upload image"
-                  >
-                    {uploadingBg ? (
-                      <Loader2 className="w-3.5 h-3.5 text-[var(--builder-text-muted)] animate-spin" />
-                    ) : (
-                      <Upload className="w-3.5 h-3.5 text-[var(--builder-text-muted)]" />
-                    )}
-                  </button>
-                </div>
-
-                {/* Size & Spacing Row */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-[var(--builder-text-muted)]">Size</span>
-                    <select
-                      value={backgroundSize}
-                      onChange={(e) => setProp((props) => { props.backgroundSize = e.target.value as AppearanceProps["backgroundSize"]; })}
-                      className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
-                    >
-                      {BG_SIZE_OPTIONS.map((opt) => (
-                        <option key={opt.value} value={opt.value} className="bg-[var(--builder-surface)]">{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] text-[var(--builder-text-muted)]">Position</span>
-                    <select
-                      value={backgroundPosition}
-                      onChange={(e) => setProp((props) => { props.backgroundPosition = e.target.value; })}
-                      className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
-                    >
-                      {BG_POSITION_OPTIONS.map((pos) => (
-                        <option key={pos} value={pos} className="bg-[var(--builder-surface)] capitalize">{pos}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Repeat */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[var(--builder-text-muted)]">Repeat</span>
-                  <select
-                    value={backgroundRepeat}
-                    onChange={(e) => setProp((props) => { props.backgroundRepeat = e.target.value as AppearanceProps["backgroundRepeat"]; })}
-                    className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
-                  >
-                    {BG_REPEAT_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value} className="bg-[var(--builder-surface)]">{opt.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Overlay Color */}
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] text-[var(--builder-text-muted)]">Overlay</span>
-                  <ColorPicker
-                    value={backgroundOverlay || "transparent"}
-                    onChange={(val) => setProp((props) => { props.backgroundOverlay = val; })}
-                  />
-                </div>
-              </div>
-            )}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <label className="text-[12px] text-[var(--builder-text)] font-base">Fill</label>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setFillPickerToggleKey((prev) => prev + 1)}
+              className="h-6 w-6 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[#2f8cff] hover:bg-[var(--builder-surface-3)] flex items-center justify-center"
+              title="Apply styles and variables"
+            >
+              <span className="grid grid-cols-2 gap-0.5">
+                <span className="h-1 w-1 rounded-full bg-current" />
+                <span className="h-1 w-1 rounded-full bg-current" />
+                <span className="h-1 w-1 rounded-full bg-current" />
+                <span className="h-1 w-1 rounded-full bg-current" />
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={addFill}
+              className="p-0.5 rounded text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"
+              title="Add fill"
+            >
+              <Plus size={12} />
+            </button>
           </div>
-        </>
-      )}
+        </div>
+
+        <div className="flex items-center gap-1">
+          <ColorPicker
+            value={background || "transparent"}
+            onChange={applyFillColor}
+            toggleKey={fillPickerToggleKey}
+            enableFillModes
+            enableMediaFillModes={enableMediaFillModes}
+            popoverContainerRef={popoverContainerRef}
+            className="flex-1 min-w-0"
+          />
+          <button
+            type="button"
+            onClick={toggleFillVisibility}
+            className="h-8 w-8 rounded-lg bg-[var(--builder-surface-2)] border border-[var(--builder-border)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] flex items-center justify-center"
+            title={isFillVisible ? "Hide fill" : "Show fill"}
+          >
+            {isFillVisible ? <Eye size={12} /> : <EyeOff size={12} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => applyFillColor("transparent")}
+            className="h-8 w-8 rounded-lg bg-[var(--builder-surface-2)] border border-[var(--builder-border)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] flex items-center justify-center"
+            title="Remove fill"
+          >
+            <Minus size={12} />
+          </button>
+        </div>
+      </div>
 
       {/* Stroke / Border */}
       <div className="flex flex-col gap-2">

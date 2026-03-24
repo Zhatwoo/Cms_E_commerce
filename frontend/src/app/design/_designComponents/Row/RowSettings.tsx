@@ -100,6 +100,7 @@ export const RowSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
+          enableMediaFillModes={true}
           setProp={typedSetProp}
         />
       </DesignSection>
