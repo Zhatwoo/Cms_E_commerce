@@ -153,6 +153,7 @@ const extractUrlFromCss = (val: string) => {
 interface ColorPickerProps {
     value: string;
     onChange: (val: string) => void;
+    onMediaChange?: (media: { type: "image" | "video"; url: string }) => void;
     label?: string;
     className?: string;
     openKey?: number;
@@ -162,7 +163,7 @@ interface ColorPickerProps {
     popoverContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-export const ColorPicker = ({ value, onChange, label, className = "", openKey, toggleKey, enableFillModes = false, enableMediaFillModes = false, popoverContainerRef }: ColorPickerProps) => {
+export const ColorPicker = ({ value, onChange, onMediaChange, label, className = "", openKey, toggleKey, enableFillModes = false, enableMediaFillModes = false, popoverContainerRef }: ColorPickerProps) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const swatchRef = useRef<HTMLButtonElement>(null);
@@ -233,6 +234,7 @@ export const ColorPicker = ({ value, onChange, label, className = "", openKey, t
                 <ColorPickerPopover
                     value={effectiveColor}
                     onChange={onChange}
+                    onMediaChange={onMediaChange}
                     onClose={() => setIsOpen(false)}
                     anchorRef={swatchRef}
                     enableFillModes={enableFillModes}
@@ -244,9 +246,10 @@ export const ColorPicker = ({ value, onChange, label, className = "", openKey, t
     );
 };
 
-const ColorPickerPopover = ({ value, onChange, onClose, anchorRef, enableFillModes = false, enableMediaFillModes = false, containerRef }: {
+const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef, enableFillModes = false, enableMediaFillModes = false, containerRef }: {
     value: string;
     onChange: (val: string) => void;
+    onMediaChange?: (media: { type: "image" | "video"; url: string }) => void;
     onClose: () => void;
     anchorRef: React.RefObject<HTMLButtonElement | null>;
     enableFillModes?: boolean;
@@ -364,14 +367,16 @@ const ColorPickerPopover = ({ value, onChange, onClose, anchorRef, enableFillMod
     const applyImage = useCallback((url: string) => {
         const safe = url.trim();
         if (!safe) return;
+        onMediaChange?.({ type: "image", url: safe });
         onChange(`url("${safe}") center / cover no-repeat`);
-    }, [onChange]);
+    }, [onChange, onMediaChange]);
 
     const applyVideo = useCallback((url: string) => {
         const safe = url.trim();
         if (!safe) return;
+        onMediaChange?.({ type: "video", url: safe });
         onChange(`url("${safe}") center / cover no-repeat`);
-    }, [onChange]);
+    }, [onChange, onMediaChange]);
 
     const handlePaintModeSelect = (next: PaintMode) => {
         setPaintMode(next);
