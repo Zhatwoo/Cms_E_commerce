@@ -31,7 +31,6 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isThemeSwitching, setIsThemeSwitching] = useState(false);
   const lastScrollAtRef = useRef(0);
-  const [suspensionNotice, setSuspensionNotice] = useState<string>('');
 
   const handleAuthClick = (mode: AuthMode) => {
     setAuthMode(mode);
@@ -47,28 +46,6 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
       setAuthMode(auth);
       setAuthEmail(auth === 'check-email' ? email : '');
       setAuthModalOpen(true);
-    }
-  }, [searchParams]);
-
-  useEffect(() => {
-    const suspendedFlag = searchParams.get('suspended');
-    let notice = '';
-
-    try {
-      notice = window.sessionStorage.getItem('mercato_suspension_notice') || '';
-      if (notice) {
-        window.sessionStorage.removeItem('mercato_suspension_notice');
-      }
-    } catch {
-      // ignore sessionStorage read errors
-    }
-
-    if (!notice && suspendedFlag === '1') {
-      notice = 'Your account is currently suspended. Please contact admin for assistance.';
-    }
-
-    if (notice) {
-      setSuspensionNotice(notice);
     }
   }, [searchParams]);
 
@@ -199,24 +176,6 @@ export function LandingPageClient({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {suspensionNotice && (
-        <div className="fixed left-1/2 top-6 z-[120] w-[min(92vw,560px)] -translate-x-1/2 rounded-xl border border-red-300 bg-white p-4 shadow-xl">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-red-700">Account Suspended</p>
-              <p className="mt-1 text-sm text-gray-700">{suspensionNotice}</p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setSuspensionNotice('')}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 hover:bg-gray-100"
-              aria-label="Close suspension notice"
-            >
-              x
-            </button>
-          </div>
-        </div>
-      )}
       <LandingScrollRoot
         headerSlot={<LandingHeader onAuthClick={handleAuthClick} isDarkMode={isDarkMode} onThemeToggle={toggleTheme} isThemeSwitching={isThemeSwitching} />}
       >

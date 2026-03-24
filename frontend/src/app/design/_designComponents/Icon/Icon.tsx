@@ -42,6 +42,22 @@ export const Icon = ({
   paddingLeft = 0,
   opacity = 1,
   link = "",
+  position = "relative",
+  display = "inline-flex",
+  zIndex = 0,
+  top = "auto",
+  right = "auto",
+  bottom = "auto",
+  left = "auto",
+  editorVisibility = "auto",
+  visibility = "visible",
+  rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
+  boxShadow = "none",
+  overflow = "visible",
+  cursor = "default",
+  customClassName = "",
 }: IconProps) => {
   let connect: any;
   let drag: any;
@@ -141,6 +157,22 @@ export const Icon = ({
   const resolvedWidth = hasExplicitBox ? width : `${size}px`;
   const resolvedHeight = hasExplicitBox ? height : `${size}px`;
 
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
+
+  const transformStyle =
+    [
+      rotation ? `rotate(${rotation}deg)` : null,
+      flipHorizontal ? "scaleX(-1)" : null,
+      flipVertical ? "scaleY(-1)" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
@@ -157,12 +189,22 @@ export const Icon = ({
         paddingBottom: `${pb}px`,
         paddingLeft: `${pl}px`,
         opacity,
-        display: "inline-flex",
+        display: effectiveDisplay,
         alignItems: "center",
         justifyContent: "center",
-        cursor: link ? "pointer" : "default",
+        cursor: link ? "pointer" : cursor,
+        boxShadow,
+        overflow,
+        position,
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
+        visibility: visibility === "hidden" ? "hidden" : "visible",
+        transform: transformStyle,
       }}
-      className=""
+      className={customClassName}
     >
       <IconComponent size={size} className={fitToBox ? "w-full h-full" : ""} />
     </div>

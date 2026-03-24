@@ -41,6 +41,7 @@ export const Section = ({
   backgroundPosition = "center",
   backgroundRepeat = "no-repeat",
   backgroundOverlay = "",
+  backgroundVideo = "",
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
@@ -92,6 +93,7 @@ export const Section = ({
 
   const resolvedHeight = String(height ?? "auto").trim() || "auto";
   const constrainedContent = contentWidth !== "full";
+  const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
 
   const setSectionRef = React.useCallback(
     (element: HTMLElement | null) => {
@@ -103,15 +105,16 @@ export const Section = ({
 
   const sectionStyle = React.useMemo<React.CSSProperties>(
     () => ({
-      backgroundColor: background,
-      backgroundImage: backgroundImage
+      background: background,
+      isolation: "isolate",
+      backgroundImage: !hasBackgroundVideo && backgroundImage
         ? backgroundOverlay
           ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
           : `url(${backgroundImage})`
         : undefined,
-      backgroundSize: backgroundImage ? backgroundSize : undefined,
-      backgroundPosition: backgroundImage ? backgroundPosition : undefined,
-      backgroundRepeat: backgroundImage ? backgroundRepeat : undefined,
+      backgroundSize: !hasBackgroundVideo && backgroundImage ? backgroundSize : undefined,
+      backgroundPosition: !hasBackgroundVideo && backgroundImage ? backgroundPosition : undefined,
+      backgroundRepeat: !hasBackgroundVideo && backgroundImage ? backgroundRepeat : undefined,
       paddingLeft: fluidSpace(pl, 0),
       paddingRight: fluidSpace(pr, 0),
       paddingTop: fluidSpace(pt, 0),
@@ -148,6 +151,7 @@ export const Section = ({
       backgroundPosition,
       backgroundRepeat,
       backgroundSize,
+      backgroundVideo,
       borderColor,
       borderRadius,
       borderStyle,
@@ -214,6 +218,29 @@ export const Section = ({
       className={`group min-h-[80px] ${customClassName}`}
       style={sectionStyle}
     >
+      {hasBackgroundVideo ? (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            zIndex: -1,
+            overflow: "hidden",
+            borderRadius: `${borderRadius}px`,
+          }}
+        >
+          <video
+            src={backgroundVideo}
+            className="h-full w-full object-cover"
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+          {backgroundOverlay && backgroundOverlay !== "transparent" ? (
+            <div className="absolute inset-0" style={{ background: backgroundOverlay }} />
+          ) : null}
+        </div>
+      ) : null}
       <div style={contentShellStyle}>
         <div style={contentStyle}>
           {children}
@@ -242,6 +269,7 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   backgroundPosition: "center",
   backgroundRepeat: "no-repeat",
   backgroundOverlay: "",
+  backgroundVideo: "",
   borderRadius: 0,
   borderColor: "transparent",
   borderWidth: 0,

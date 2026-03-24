@@ -3,6 +3,13 @@ import { useNode, useEditor } from "@craftjs/core";
 import { SpacerSettings } from "./SpacerSettings";
 import type { SpacerProps } from "../../_types/components";
 
+function fluidSpace(value: number, min = 0): string {
+    if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+    const preferred = Math.max(0.1, value / 12);
+    const floor = Math.max(min, Math.round(value * 0.45));
+    return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Spacer = ({
     width = "100%",
     height = "20px",
@@ -19,6 +26,15 @@ export const Spacer = ({
     rotation = 0,
     flipHorizontal = false,
     flipVertical = false,
+    position = "static",
+    display = "block",
+    zIndex = 0,
+    top = "auto",
+    right = "auto",
+    bottom = "auto",
+    left = "auto",
+    editorVisibility = "auto",
+    visibility = "visible",
     customClassName = "",
     background = "transparent",
     borderRadius = 0,
@@ -31,6 +47,8 @@ export const Spacer = ({
     borderStyle = "solid",
     opacity = 1,
     boxShadow = "none",
+    overflow = "visible",
+    cursor = "default",
 }: SpacerProps) => {
     const { connectors: { connect, drag } } = useNode();
 
@@ -54,23 +72,31 @@ export const Spacer = ({
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
 
+    const effectiveDisplay =
+        editorVisibility === "hide"
+            ? "none"
+            : editorVisibility === "show" && display === "none"
+                ? "block"
+                : display;
+
     return (
         <div
             ref={(ref) => {
                 if (ref) connect(drag(ref));
             }}
+            data-fluid-space="true"
             className={`relative group ${borderWidth === 0 ? "border border-dashed border-brand-medium/10 hover:border-brand-medium/30" : ""} transition-colors ${customClassName}`}
             style={{
                 width,
-                height,
-                paddingTop: `${pt}px`,
-                paddingRight: `${pr}px`,
-                paddingBottom: `${pb}px`,
-                paddingLeft: `${pl}px`,
-                marginTop: `${mt}px`,
-                marginRight: `${mr}px`,
-                marginBottom: `${mb}px`,
-                marginLeft: `${ml}px`,
+                height: fluidSpace(height as any),
+                paddingTop: fluidSpace(pt),
+                paddingRight: fluidSpace(pr),
+                paddingBottom: fluidSpace(pb),
+                paddingLeft: fluidSpace(pl),
+                marginTop: fluidSpace(mt),
+                marginRight: fluidSpace(mr),
+                marginBottom: fluidSpace(mb),
+                marginLeft: fluidSpace(ml),
                 background,
                 borderTopLeftRadius: `${rtl}px`,
                 borderTopRightRadius: `${rtr}px`,

@@ -15,6 +15,7 @@ import {
     ADMIN_STATS,
 } from '@/lib/config/adminDashboardMocks';
 import { getNotifications, type NotificationItem } from '@/lib/notifications';
+import { formatToPHTime, formatToPHTimeShort } from '@/lib/dateUtils';
 
 // ─── DashboardPanel ──────────────────────────────────────────────────────────
 
@@ -198,7 +199,7 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
                                     </div>
                                 </div>
                                 <p className="text-right text-[10px] whitespace-nowrap mt-1" style={{ color: '#a090c8' }}>
-                                    {new Date(item.time).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                    {formatToPHTimeShort(item.time)}
                                 </p>
                             </div>
                         ))
@@ -390,7 +391,7 @@ export function AdminDashboard() {
                             id: n.id,
                             title: n.title,
                             action: n.message,
-                            meta: `By ${n.adminName || 'Admin'} • ${new Date(n.time).toLocaleDateString()}`
+                            meta: `By ${n.adminName || 'Admin'} • ${formatToPHTime(n.time)}`
                         }))} 
                     />
                     <DashboardNotificationsPanel items={notifications} />
