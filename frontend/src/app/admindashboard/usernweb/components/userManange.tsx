@@ -178,6 +178,16 @@ export function UserManagement() {
   }, []);
 
   useEffect(() => { loadClients(); }, [loadClients]);
+  
+  useEffect(() => {
+    // Listen for real-time updates from other admins
+    const handleUpdate = () => {
+      console.log('[UserManagement] Real-time notification received, refreshing list...');
+      loadClients();
+    };
+    window.addEventListener('notification:new_received', handleUpdate);
+    return () => window.removeEventListener('notification:new_received', handleUpdate);
+  }, [loadClients]);
 
   useEffect(() => {
     setSearch(urlSearch);

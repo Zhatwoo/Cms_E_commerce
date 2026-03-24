@@ -18,7 +18,7 @@ import {
     type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
-import { getNotifications, markAsRead, type NotificationItem } from '@/lib/notifications';
+import { getNotifications, markAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,12 +132,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         load();
         window.addEventListener('notificationsUpdate', load);
 
-        const onNewReceived = (e: any) => {
+        const onNewReceived = async (e: any) => {
             const newItem = e.detail;
             if (!newItem) return;
 
+            // Refresh the whole notification list from backend
+            await fetchSharedNotifications();
+
             // Only show toast if it's NOT from the current user (don't double notify)
-            // Or if current user is null (maybe just for testing)
             if (currentUser && newItem.adminId === currentUser.id) {
                 return;
             }

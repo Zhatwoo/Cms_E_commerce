@@ -5,6 +5,7 @@ const User = require('../models/User');
 const { auth } = require('../config/firebase');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
 const { sendAdminActionEmail } = require('../utils/emailService');
+const Notification = require('../models/Notification');
 
 async function resolveClientContact(userId) {
   let displayName = 'Client';
@@ -410,6 +411,19 @@ exports.adminDelete = async (req, res) => {
       emailError = mail?.error || '';
     } else {
       emailError = 'Recipient email not found';
+    }
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'Product Removed',
+        message: `Admin removed product: ${existing.name || req.params.id}`,
+        type: 'error',
+        adminId: req.user?.id || 'admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product removal notification failed:', e.message);
     }
 
     res.status(200).json({
