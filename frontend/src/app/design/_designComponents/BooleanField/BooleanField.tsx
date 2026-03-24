@@ -13,6 +13,13 @@ function ensureOptions(props: Pick<BooleanFieldProps, "options" | "label" | "che
   ];
 }
 
+function fluidFontSize(value: number, min = 10): string {
+    if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+    const preferred = (value / 16 * 2.1).toFixed(2);
+    const floor = Math.max(min, Math.round(value * 0.8));
+    return `clamp(${floor}px, ${preferred}cqw, ${value}px)`;
+}
+
 function fluidSpace(value: number, min = 0): string {
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
   const preferred = Math.max(0.1, value / 12);
@@ -94,24 +101,30 @@ export const BooleanField = ({
     setPreviewById(next);
   }, [normalizedOptions]);
 
+  const fluidFSize = useMemo(() => fluidFontSize(fontSize, 8), [fontSize]);
+
   return (
     <div
       data-node-id={id}
       data-fluid-text="true"
       data-fluid-space="true"
       ref={(ref) => { if (ref) connect(drag(ref)); }}
-      className={`inline-flex flex-col items-start ${customClassName}`}
+      className={`inline-flex flex-wrap items-start justify-start ${customClassName}`}
       style={{
-        padding: `${fluidSpace(pt)} ${fluidSpace(pr)} ${fluidSpace(pb)} ${fluidSpace(pl)}`,
-        margin: `${fluidSpace(mt)} ${fluidSpace(mr)} ${fluidSpace(mb)} ${fluidSpace(ml)}`,
+        paddingTop: fluidSpace(pt),
+        paddingRight: fluidSpace(pr),
+        paddingBottom: fluidSpace(pb),
+        paddingLeft: fluidSpace(pl),
+        marginTop: fluidSpace(mt),
+        marginRight: fluidSpace(mr),
+        marginBottom: fluidSpace(mb),
+        marginLeft: fluidSpace(ml),
         width: width ?? "auto",
         height: height ?? "auto",
-        gap: `${itemGap}px`,
+        gap: fluidSpace(itemGap, 4),
         opacity,
         cursor: disabled ? "not-allowed" : "default",
         userSelect: "none",
-        maxWidth: "100%",
-        boxSizing: "border-box",
         position,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
@@ -119,6 +132,7 @@ export const BooleanField = ({
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         display: display ?? "inline-flex",
+        containerType: "inline-size",
       }}
     >
       {normalizedOptions.map((opt, idx) => {
@@ -131,10 +145,11 @@ export const BooleanField = ({
           <label
             key={opt.id}
             htmlFor={inputId}
-            className="inline-flex items-center"
+            className="inline-flex items-center flex-wrap"
             style={{
-              gap: `${gap}px`,
+              gap: fluidSpace(gap, 4),
               cursor: disabled ? "not-allowed" : "pointer",
+              minWidth: "min-content",
               maxWidth: "100%",
             }}
           >
@@ -162,13 +177,13 @@ export const BooleanField = ({
               <span
                 style={{
                   color: labelColor,
-                  fontSize: `${fontSize}px`,
+                  fontSize: fluidFSize,
                   fontFamily,
                   fontWeight,
                   lineHeight: 1.2,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  whiteSpace: "normal",
                 }}
                 title={opt.label || `Option ${idx + 1}`}
               >
