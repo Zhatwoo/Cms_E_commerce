@@ -52,6 +52,7 @@ export const Rating = ({
   boxShadow = "none",
   position = "relative",
   display = "inline-flex",
+  editorVisibility = "auto",
   zIndex = 1,
   top = "auto",
   right = "auto",
@@ -63,6 +64,7 @@ export const Rating = ({
   flipHorizontal = false,
   flipVertical = false,
   cursor = "default",
+  overflow = "visible",
 }: RatingProps) => {
   const { connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
@@ -96,6 +98,13 @@ export const Rating = ({
   const justifyContent =
     textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : textAlign === "justify" ? "space-between" : "flex-start";
 
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
+
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
@@ -112,7 +121,7 @@ export const Rating = ({
         marginBottom: typeof mb === "number" ? `${mb}px` : mb,
         marginLeft: typeof ml === "number" ? `${ml}px` : ml,
         position,
-        display,
+        display: effectiveDisplay,
         zIndex,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
@@ -128,6 +137,7 @@ export const Rating = ({
         borderStyle: borderWidth > 0 ? borderStyle : "none",
         opacity,
         boxShadow,
+        overflow,
         visibility: visibility === "hidden" ? "hidden" : "visible",
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
         cursor: interactive ? "pointer" : cursor,

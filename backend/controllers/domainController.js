@@ -286,27 +286,56 @@ exports.adminWebsiteAction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'action must be take_down or delete' });
     }
 
-    const domain = await Domain.get(userId, domainId);
+    let domain = await Domain.get(userId, domainId);
     if (!domain) {
+      // Try finding by project_id in case the frontend passed projectId as the ID
+      domain = await Domain.findByProjectId(userId, domainId);
+    }
+
+    if (!domain) {
+      // Try finding by subdomain (in case domainId is the subdomain string)
+      const potential = await Domain.findBySubdomain(domainId);
+      if (potential && potential.userId === userId && potential.id) {
+        domain = await Domain.get(userId, potential.id);
+      }
+    }
+
+    // Identify project if possible
+    let project = null;
+    const resolvedProjectId = domain?.projectId || domainId;
+    if (resolvedProjectId) {
+      project = await Project.get(userId, resolvedProjectId);
+    }
+
+    if (!domain && !project) {
       return res.status(404).json({ success: false, message: 'Website not found' });
     }
 
+    const targetProjectId = domain?.projectId || (project ? project.id : null);
+    const targetSubdomain = domain?.subdomain || (project ? project.subdomain : null) || domainId;
+
     if (normalizedAction === 'take_down') {
-      if (!domain.projectId) {
+      if (domain && targetProjectId) {
+        await Domain.unpublishForClient(userId, targetProjectId);
+        await Project.update(userId, targetProjectId, { status: 'draft' });
+      } else if (project) {
+        // If it's only a project (no domain doc), ensure it's in draft status
+        await Project.update(userId, project.id, { status: 'draft' });
+      } else {
         return res.status(400).json({ success: false, message: 'Cannot take down website: missing project mapping' });
       }
-      await Domain.unpublishForClient(userId, domain.projectId);
-      await Project.update(userId, domain.projectId, { status: 'draft' });
     } else {
-      if (!domain.projectId) {
-        const deleted = await Domain.deleteForClient(userId, domainId);
-        if (!deleted) {
-          return res.status(404).json({ success: false, message: 'Website not found' });
-        }
-      } else {
-        await Domain.unpublishForClient(userId, domain.projectId);
-        await Project.update(userId, domain.projectId, { status: 'draft' });
-        await Project.delete(userId, domain.projectId);
+      // Action: delete
+      if (domain && targetProjectId) {
+        await Domain.unpublishForClient(userId, targetProjectId);
+        await Project.update(userId, targetProjectId, { status: 'draft' });
+        await Project.delete(userId, targetProjectId);
+      } else if (domain) {
+        // Domain with no project mapping
+        await Domain.deleteForClient(userId, domain.id);
+      } else if (project) {
+        // Project with no domain mapping (e.g. unpublished draft)
+        await Project.delete(userId, project.id);
       }
     }
 
@@ -320,8 +349,8 @@ exports.adminWebsiteAction = async (req, res) => {
         subject: normalizedAction === 'take_down' ? 'Website taken down by admin' : 'Website deleted by admin',
         title: normalizedAction === 'take_down' ? 'Your website was taken down' : 'Your website was deleted',
         intro: normalizedAction === 'take_down'
-          ? `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been taken offline by an administrator.`
-          : `Website ${domain.subdomain ? `\"${domain.subdomain}\"` : ''} has been deleted by an administrator.`,
+          ? `Website ${targetSubdomain ? `\"${targetSubdomain}\"` : ''} has been taken offline by an administrator.`
+          : `Website ${targetSubdomain ? `\"${targetSubdomain}\"` : ''} has been deleted by an administrator.`,
         reason: actionReason,
       });
       emailSent = !!mail?.sent;
@@ -334,7 +363,7 @@ exports.adminWebsiteAction = async (req, res) => {
     try {
       const notif = await Notification.create({
         title: normalizedAction === 'take_down' ? 'Website Offline' : 'Website Deleted',
-        message: `${domain.subdomain || domainId} was ${normalizedAction === 'take_down' ? 'taken down' : 'deleted'} by admin`,
+        message: `${targetSubdomain || domainId} was ${normalizedAction === 'take_down' ? 'taken down' : 'deleted'} by admin`,
         type: normalizedAction === 'take_down' ? 'warning' : 'error',
         adminId: req.user?.id || 'admin',
         adminName: req.user?.name || 'Admin'

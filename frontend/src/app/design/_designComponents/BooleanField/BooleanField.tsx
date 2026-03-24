@@ -40,13 +40,21 @@ export const BooleanField = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
-  display,
+  display = "inline-flex",
+  editorVisibility = "auto",
   options,
   // back-compat single option
   label,
   checked,
   opacity = 1,
+  boxShadow = "none",
+  overflow = "visible",
+  cursor = "default",
+  visibility = "visible",
   customClassName = "",
+  rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
@@ -75,6 +83,22 @@ export const BooleanField = ({
     setPreviewById(next);
   }, [normalizedOptions]);
 
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
+
+  const transformStyle =
+    [
+      rotation ? `rotate(${rotation}deg)` : null,
+      flipHorizontal ? "scaleX(-1)" : null,
+      flipVertical ? "scaleY(-1)" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
     <div
       data-node-id={id}
@@ -93,7 +117,7 @@ export const BooleanField = ({
         marginLeft: `${marginLeft}px`,
         gap: `${itemGap}px`,
         opacity,
-        cursor: disabled ? "not-allowed" : "default",
+        cursor: disabled ? "not-allowed" : cursor,
         userSelect: "none",
         maxWidth: "100%",
         boxSizing: "border-box",
@@ -103,7 +127,11 @@ export const BooleanField = ({
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
-        display: display ?? "inline-flex",
+        display: effectiveDisplay,
+        visibility: visibility === "hidden" ? "hidden" : "visible",
+        boxShadow,
+        overflow,
+        transform: transformStyle,
       }}
     >
       {normalizedOptions.map((opt, idx) => {

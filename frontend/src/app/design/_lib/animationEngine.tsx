@@ -449,50 +449,28 @@ function useGsapScrollEffect(
       const start = config.freeMove?.start;
       const mids = config.freeMove?.mids;
       const end = config.freeMove?.end;
-      const mode = config.freeMove?.mode ?? "absolute";
+      const mode = config.freeMove?.mode ?? "relative";
       const capturedOrigin = config.freeMove?.origin;
 
-      const raw: Array<{ t: number; x: number; y: number }> =
-        Array.isArray(direct) && direct.length >= 2
-          ? direct
-          : start && end
-            ? (() => {
-              const midPoints = Array.isArray(mids) ? mids : [];
-              const points: Array<{ x: number; y: number }> = [start, ...midPoints, end];
-              if (points.length < 2) return [];
-              const last = points.length - 1;
-              return points.map((p, idx) => ({
-                t: last === 0 ? 0 : idx / last,
-                x: p.x,
-                y: p.y,
-              }));
-            })()
-            : [];
+      // Always use relative mode for smooth, accurate keyframes
+      // Keyframes are always relative to the captured origin (start position)
+      const origin = capturedOrigin ?? start ?? { x: 0, y: 0 };
+      const points: Array<{ x: number; y: number }> = [];
+      if (start) points.push({ x: start.x, y: start.y });
+      if (Array.isArray(mids)) {
+        for (const m of mids) points.push({ x: m.x, y: m.y });
+      }
+      if (end) points.push({ x: end.x, y: end.y });
+      if (points.length < 2) return [];
 
-      if (raw.length < 2) return [];
-
-      // Compute transform offsets relative to the element's layout position (page coords).
-      // At scroll start (progress 0) the element will appear at captured "start".
-      const page = getPageRect();
-      const baseX = Number(gsap.getProperty(el, "x")) || 0;
-      const baseY = Number(gsap.getProperty(el, "y")) || 0;
-      const anchorFromFrames = raw[0] ? { x: raw[0].x, y: raw[0].y } : null;
-      const absoluteAnchor = capturedOrigin ?? start ?? anchorFromFrames ?? { x: page.left, y: page.top };
-      const toOffset = (p: { x: number; y: number }) => ({
-        // FreeMove should be exact regardless of Speed/Intensity.
-        // Speed is still used by other scroll effects, but FreeMove uses 1:1 mapping.
-        // IMPORTANT: preserve any existing transform set by the builder by adding deltas
-        // instead of overwriting absolute x/y.
-        x: baseX + (mode === "relative" ? p.x : (p.x - absoluteAnchor.x)),
-        y: baseY + (mode === "relative" ? p.y : (p.y - absoluteAnchor.y)),
-      });
-
-      const frames = raw
-        .map((k) => ({
-          at: Math.min(1, Math.max(0, k.t)),
-          ...toOffset({ x: k.x, y: k.y }),
-        }))
-        .sort((a, b) => a.at - b.at);
+      // Normalize all points relative to the origin (start)
+      const relPoints = points.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
+      const last = relPoints.length - 1;
+      const frames = relPoints.map((p, idx) => ({
+        at: last === 0 ? 0 : idx / last,
+        x: p.x,
+        y: p.y,
+      }));
 
       // Ensure we have distinct progress points
       const dedup: Array<{ at: number; x: number; y: number }> = [];
@@ -503,6 +481,12 @@ function useGsapScrollEffect(
           dedup[dedup.length - 1] = f;
         }
       }
+
+      // After setting End, always reset the component to the Start position
+      if (end && el) {
+        gsap.set(el, { x: 0, y: 0, force3D: true });
+      }
+
       return dedup.length >= 2 ? dedup : [];
     };
 
@@ -512,113 +496,7 @@ function useGsapScrollEffect(
         : 1;
 
     if (config.type === "freeMove") {
-      const frames = computeFreeMoveKeyframes();
-      if (frames.length >= 2) {
-        // Use smooth spline sampling over scroll progress (no sharp corners).
-        const points = frames.map((f) => ({ x: f.x, y: f.y }));
-        const speed = typeof config.speed === "number" && Number.isFinite(config.speed) ? config.speed : 1;
-        const speedAbs = Math.max(0, Math.min(2, Math.abs(speed)));
-        const followBase = (() => {
-          if (speedAbs <= 0.05) return 0.02;
-          if (speedAbs >= 1.95) return 1;
-          return Math.max(0.02, Math.min(0.75, 0.05 + speedAbs * 0.35));
-        })();
-        const intensityNorm = intensity / 2; // 0..1
-        const follow = Math.max(0.01, Math.min(1, followBase * (1 - 0.85 * intensityNorm)));
-
-        let targetProgress = 0;
-        let currentProgress = 0;
-        let tickerAdded = false;
-        let initializedFromScroll = false;
-        let hasUserScrolled = false;
-        const scrollEventTarget = (scroller ?? view) as EventTarget;
-
-        // On initial load, set element to start position
-        const p0 = sampleSpline(points, 0);
-        gsap.set(el, { x: p0.x, y: p0.y, force3D: true });
-
-        const markScrolled = () => {
-          if (!hasUserScrolled) {
-            hasUserScrolled = true;
-            if (!tickerAdded) {
-              tickerAdded = true;
-              gsap.ticker.add(tick);
-            }
-          }
-        };
-        if (scrollEventTarget && "addEventListener" in (scrollEventTarget as any)) {
-          (scrollEventTarget as any).addEventListener("scroll", markScrolled, { passive: true });
-          (scrollEventTarget as any).addEventListener("wheel", markScrolled, { passive: true });
-          (scrollEventTarget as any).addEventListener("touchmove", markScrolled, { passive: true });
-        }
-
-        const tick = () => {
-          if (!initializedFromScroll || !hasUserScrolled) return;
-          if (process.env.NODE_ENV !== 'production') {
-            // eslint-disable-next-line no-console
-            console.log('[freeMove] speed:', speed, 'targetProgress:', targetProgress, 'currentProgress:', currentProgress);
-          }
-          if (follow >= 1) {
-            currentProgress = targetProgress;
-          } else {
-            currentProgress += (targetProgress - currentProgress) * follow;
-          }
-          currentProgress = Math.max(0, Math.min(1, currentProgress));
-          const p = sampleSpline(points, currentProgress);
-          gsap.set(el, { x: p.x, y: p.y, force3D: true });
-        };
-
-        const st = ScrollTrigger.create({
-          trigger: el,
-          scroller: scroller ?? undefined,
-          start: config.start,
-          end: config.end,
-          scrub: false,
-          invalidateOnRefresh: true,
-          onUpdate: (self) => {
-            if (!initializedFromScroll) {
-              initializedFromScroll = true;
-              if (speed < 0) {
-                currentProgress = 1 - self.progress;
-                targetProgress = 1 - self.progress;
-              } else {
-                currentProgress = self.progress;
-                targetProgress = self.progress;
-              }
-            } else {
-              if (speed < 0) {
-                targetProgress = 1 - self.progress;
-              } else {
-                targetProgress = self.progress;
-              }
-              targetProgress = Math.max(0, Math.min(1, targetProgress));
-            }
-          },
-        });
-        ScrollTrigger.refresh();
-        const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
-
-        return () => {
-          if (tickerAdded) gsap.ticker.remove(tick);
-          st.kill();
-          view.clearTimeout(settleRefresh);
-          if (scrollEventTarget && "removeEventListener" in (scrollEventTarget as any)) {
-            (scrollEventTarget as any).removeEventListener("scroll", markScrolled as EventListener);
-            (scrollEventTarget as any).removeEventListener("wheel", markScrolled as EventListener);
-            (scrollEventTarget as any).removeEventListener("touchmove", markScrolled as EventListener);
-          }
-          if (proxiedParentScroller && parentScrollHandler) {
-            proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
-          }
-          if (parentResizeHandler) {
-            try {
-              view.parent?.removeEventListener("resize", parentResizeHandler as EventListener);
-            } catch {
-              // ignore
-            }
-          }
-        };
-      }
+      // freeMove effect temporarily disabled
       return;
     } else {
       const tl = gsap.timeline({

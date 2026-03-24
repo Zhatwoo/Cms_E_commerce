@@ -31,6 +31,10 @@ export const Column = ({
   width = "auto",
   height = "auto",
   borderRadius = 0,
+  radiusTopLeft,
+  radiusTopRight,
+  radiusBottomRight,
+  radiusBottomLeft,
   borderColor = "transparent",
   borderWidth = 0,
   borderStyle = "solid",
@@ -41,10 +45,19 @@ export const Column = ({
   justifyContent = "flex-start",
   gap = 8,
   display = "flex",
+  position = "static",
+  zIndex = 0,
+  top = "auto",
+  right: posRight = "auto",
+  bottom = "auto",
+  left: posLeft = "auto",
+  editorVisibility = "auto",
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
   rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
   customClassName = "",
   children,
 }: ContainerProps) => {
@@ -64,10 +77,33 @@ export const Column = ({
   const mt = marginTop ?? m;
   const mb = marginBottom ?? m;
 
+  const br = borderRadius || 0;
+  const rtl = radiusTopLeft !== undefined ? radiusTopLeft : br;
+  const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
+  const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
+  const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
+
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "flex"
+        : display;
+
+  const transformStyle =
+    [
+      rotation ? `rotate(${rotation}deg)` : null,
+      flipHorizontal ? "scaleX(-1)" : null,
+      flipVertical ? "scaleY(-1)" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
     <div
       data-node-id={id}
       data-fluid-space="true"
+      data-layout={effectiveDisplay === "flex" ? (flexDirection === "row" ? "row" : "column") : undefined}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -90,20 +126,29 @@ export const Column = ({
         contain: "layout",
         maxWidth: "100%",
         minWidth: width === "auto" ? "min(160px, 100%)" : 0,
-        borderRadius: `${borderRadius}px`,
+        borderTopLeftRadius: `${rtl}px`,
+        borderTopRightRadius: `${rtr}px`,
+        borderBottomRightRadius: `${rbr}px`,
+        borderBottomLeftRadius: `${rbl}px`,
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        display: display ?? "flex",
-        flexDirection,
-        flexWrap,
-        alignItems,
-        justifyContent,
-        gap: fluidSpace(gap, 0),
+        position,
+        display: effectiveDisplay ?? "flex",
+        zIndex: zIndex !== 0 ? zIndex : undefined,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? posRight : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? posLeft : undefined,
+        flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
+        flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
+        alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
+        justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
+        gap: effectiveDisplay === "flex" ? fluidSpace(gap, 0) : undefined,
         boxShadow,
         opacity,
         overflow,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        transform: transformStyle,
       }}
     >
       <style>{`[data-node-id="${id}"] > * { min-width: 0; }`}</style>

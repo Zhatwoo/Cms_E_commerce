@@ -6,6 +6,7 @@ import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
 import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+import { formatToPHTime } from "@/lib/dateUtils";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -342,7 +343,7 @@ function NotificationsPageContent() {
 																	<NotificationCheckbox
 																		checked={selectedIds.includes(item.id)}
 																		onChange={(checked) => toggleSelectOne(item.id, checked)}
-																		label={`Select notification at ${item.time}`}
+																		label={`Select notification at ${formatToPHTime(item.time)}`}
 																	/>
 																	<div className="min-w-0">
 																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
@@ -350,7 +351,7 @@ function NotificationsPageContent() {
 																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
 																			{getPublisherLabel(item) && <span className="ml-2 font-normal text-[#6C48A6]">(Publisher: {getPublisherLabel(item)})</span>}
 																		</div>
-																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																		<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																	</div>
 																</div>
 																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
@@ -449,11 +450,11 @@ function NotificationsPageContent() {
 																		<NotificationCheckbox
 																			checked={trashSelectedIds.includes(item.id)}
 																			onChange={(checked) => toggleTrashSelectOne(item.id, checked)}
-																			label={`Select trashed notification at ${item.time}`}
+																			label={`Select trashed notification at ${formatToPHTime(item.time)}`}
 																		/>
 																		<div className="min-w-0">
 																			<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
-																			<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																			<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																		</div>
 																	</div>
 																	<div className="pl-4 text-sm text-[#8B85A5]">{item.date}</div>
