@@ -182,7 +182,7 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
                                     </div>
                                 </div>
                                 <p className="text-right text-[10px] whitespace-nowrap mt-1" style={{ color: '#a090c8' }}>
-                                    {new Date(item.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                                    {new Date(item.time).toLocaleDateString([], { month: 'short', day: 'numeric' })}
                                 </p>
                             </div>
                         ))

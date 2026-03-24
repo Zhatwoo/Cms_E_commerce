@@ -2717,6 +2717,28 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             border-width: 0 !important;
             background: transparent !important;
           }
+          
+          /* Responsive canvas styles */
+          [data-page-node="true"] [data-fluid-space="true"] {
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
+          }
+          
+          @container (max-width: 640px) {
+            [data-page-node="true"] [data-layout="row"] {
+              flex-direction: column !important;
+            }
+            [data-page-node="true"] [data-fluid-space="true"] {
+              width: 100% !important;
+              max-width: 100% !important;
+            }
+            [data-page-node="true"] img,
+            [data-page-node="true"] video {
+              width: 100% !important;
+              height: auto !important;
+            }
+          }
         `}</style>
       <Editor
         enabled={permission !== "viewer"}

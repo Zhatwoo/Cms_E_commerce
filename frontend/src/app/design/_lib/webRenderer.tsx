@@ -4102,7 +4102,6 @@ function getPageSlug(page: { slug?: string } | null | undefined, index: number):
     // Match by page name
     const byName = pages.find((p) => normalizeNavToken(p.name) === normalized);
     if (byName) return byName.id;
-    if (byName) return byName.id;
 
     // Partial matches and page index patterns
     const pageIndexMatch = raw.match(/^page-(\d+)$/i);
@@ -4589,7 +4588,7 @@ function getPageSlug(page: { slug?: string } | null | undefined, index: number):
       `}</style>
         {isPhoneSize && frameResponsiveStyles}
         <div
-          key={currentPageSlug}
+          key={currentPageId}
           ref={ref}
           style={{
             width: isPhoneSize ? "100%" : width,
@@ -4604,15 +4603,18 @@ function getPageSlug(page: { slug?: string } | null | undefined, index: number):
         >
           {isPhoneSize ? (
             <div
-              ref={liveSiteWrapperRef}
-              className="frame-responsive-inner frame-fluid frame-mobile"
               style={{
                 width: "100%",
                 boxSizing: "border-box",
                 containerType: "inline-size",
               }}
             >
-              {pageChildren}
+              <div
+                ref={liveSiteWrapperRef}
+                className="frame-responsive-inner frame-fluid frame-mobile"
+              >
+                {pageChildren}
+              </div>
             </div>
           ) : (
             pageChildren

@@ -65,45 +65,49 @@ export const Page = ({
         overflowY: "visible",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
         transformOrigin: "center center",
-        transition: "transform 220ms ease-out",
+        transition: "transform 220ms ease-out, width 220ms ease-out",
+        containerType: "inline-size",
+        contain: "layout style",
       }}
     >
-      <div
-        data-page-name-label="true"
-        data-page-drag-handle="true"
-        ref={(ref) => { if (ref) drag(ref); }}
-        className="absolute -top-8 left-0 font-bold text-2xl opacity-60 select-none min-w-[120px] cursor-move"
-        style={{ color: "var(--builder-text, #EDE9FF)" }}>
-        {editing ? (
-          <input
-            value={editValue}
-            placeholder="Page Name"
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleBlur}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            className="rounded px-2 py-0.5 text-lg focus:outline-none w-full max-w-[240px]"
-            style={{
-              background: "var(--builder-surface-2, rgba(30,30,30,0.9))",
-              border: "1px solid var(--builder-border-mid, rgba(138,92,246,0.3))",
-              color: "var(--builder-text, #EDE9FF)",
-            }}
-            data-panel="page-name-edit"
-          />
-        ) : (
-          <span
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setEditValue(pageName);
-              setEditing(true);
-            }}
-            className="cursor-text hover:opacity-80"
-          >
-            {editValue.trim() === "" ? <span className="opacity-50">Page Name</span> : editValue}
-          </span>
-        )}
+      <div className="frame-responsive-inner frame-fluid h-full w-full">
+        <div
+          data-page-name-label="true"
+          data-page-drag-handle="true"
+          ref={(ref) => { if (ref) drag(ref); }}
+          className="absolute -top-8 left-0 font-bold text-2xl opacity-60 select-none min-w-[120px] cursor-move"
+          style={{ color: "var(--builder-text, #EDE9FF)" }}>
+          {editing ? (
+            <input
+              value={editValue}
+              placeholder="Page Name"
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleBlur}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              className="rounded px-2 py-0.5 text-lg focus:outline-none w-full max-w-[240px]"
+              style={{
+                background: "var(--builder-surface-2, rgba(30,30,30,0.9))",
+                border: "1px solid var(--builder-border-mid, rgba(138,92,246,0.3))",
+                color: "var(--builder-text, #EDE9FF)",
+              }}
+              data-panel="page-name-edit"
+            />
+          ) : (
+            <span
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setEditValue(pageName);
+                setEditing(true);
+              }}
+              className="cursor-text hover:opacity-80"
+            >
+              {editValue.trim() === "" ? <span className="opacity-50">Page Name</span> : editValue}
+            </span>
+          )}
+        </div>
+        {children}
       </div>
-      {children}
     </div>
   );
 };
