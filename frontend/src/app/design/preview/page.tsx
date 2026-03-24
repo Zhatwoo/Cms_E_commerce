@@ -9,7 +9,7 @@ import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
-import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
+import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT, PREVIEW_MOBILE_VIEWPORT_WIDTH, PREVIEW_TABLET_VIEWPORT_WIDTH } from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -1353,9 +1353,9 @@ function PreviewContent() {
                   previewViewport === "desktop"
                     ? { ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }
                     : previewViewport === "tablet"
-                      ? { width: 768, maxWidth: "100%" }
+                      ? { width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px" }
                       : previewViewport === "mobile"
-                        ? { width: 390, maxWidth: "100%" }
+                        ? { width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px" }
                         : undefined
                 }
               >
@@ -1365,13 +1365,18 @@ function PreviewContent() {
                   doc={effectiveCleanDoc}
                   pageIndex={selectedPreviewPageIndex}
                   initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                  mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                  mobileBreakpoint={
+                    previewViewport === "tablet" ? PREVIEW_TABLET_BREAKPOINT : PREVIEW_MOBILE_BREAKPOINT
+                  }
                   enableFormInputs
                   builderParityMode={false}
                   fillViewport={previewViewport !== "desktop"}
                   storeContext={previewStoreContext}
                   simulatedWidth={
-                    previewViewport === "tablet" ? 768 : previewViewport === "mobile" ? 390 : undefined
+                    previewViewport === "tablet" ? PREVIEW_TABLET_VIEWPORT_WIDTH : previewViewport === "mobile" ? PREVIEW_MOBILE_VIEWPORT_WIDTH : undefined
+                  }
+                  responsiveViewportWidth={
+                    previewViewport === "tablet" ? PREVIEW_TABLET_VIEWPORT_WIDTH : previewViewport === "mobile" ? PREVIEW_MOBILE_VIEWPORT_WIDTH : undefined
                   }
                 />
               </div>
