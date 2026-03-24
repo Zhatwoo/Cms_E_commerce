@@ -14,8 +14,9 @@ import {
   type ApiProduct 
 } from '@/lib/api';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
-import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 import { addNotification } from '@/lib/notifications';
+import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
+import { DraftPreviewThumbnail } from '@/app/m_dashboard/components/projects/DraftPreviewThumbnail';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -42,7 +43,7 @@ function normalize(value: string | null | undefined): string {
 
 function isApprovedWebsite(status: string): boolean {
   const s = normalize(status);
-  return s === 'published' || s === 'live' || s === 'active';
+  return s === 'published';
 }
 
 function isPendingWebsite(status: string): boolean {
@@ -85,7 +86,6 @@ function subdomainFromDomain(domainName: string): string {
   return clean;
 }
 
-const WEBSITE_CARD_IMAGE = '/images/template-saas.jpg';
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
 
 /* ── shared panel style ─────────────────────────────────────── */
@@ -163,20 +163,20 @@ function MonitoringPageContent() {
     return () => window.clearTimeout(timer);
   }, [toast.open]);
 
-  const approvedWebsites = useMemo(() => websites.filter((w) => isApprovedWebsite(w.status)), [websites]);
+  const allWebsites = useMemo(() => websites, [websites]);
   const pendingWebsiteCount = useMemo(() => websites.filter((w) => isPendingWebsite(w.status)).length, [websites]);
   const pendingProductCount = useMemo(() => products.filter((p) => isPendingProduct(p.status || '')).length, [products]);
   const pendingTotal = pendingWebsiteCount + pendingProductCount;
 
   const filteredWebsites = useMemo(() => {
     const q = normalize(search);
-    return approvedWebsites.filter((w) => {
+    return allWebsites.filter((w) => {
       const matchSearch = !q || normalize(w.domainName).includes(q) || normalize(w.owner).includes(q);
       const matchStatus = !statusFilter || normalize(w.status) === statusFilter;
       const matchIndustry = !industryFilter || normalize(w.plan) === industryFilter;
       return matchSearch && matchStatus && matchIndustry;
     });
-  }, [approvedWebsites, search, statusFilter, industryFilter]);
+  }, [allWebsites, search, statusFilter, industryFilter]);
 
   const uniqueFilteredWebsites = useMemo(() => {
     const seen = new Set<string>();
@@ -217,7 +217,7 @@ function MonitoringPageContent() {
       bySubdomain.set(subdomain, bucket);
     });
     const result = new Map<string, string>();
-    approvedWebsites.forEach((website) => {
+    allWebsites.forEach((website) => {
       const subdomain = subdomainFromDomain(website.domainName);
       const bucket = bySubdomain.get(subdomain);
       if (!bucket) { result.set(website.domainName, 'General'); return; }
@@ -225,7 +225,7 @@ function MonitoringPageContent() {
       result.set(website.domainName, best);
     });
     return result;
-  }, [products, approvedWebsites]);
+  }, [products, allWebsites]);
 
   const websiteBySubdomain = useMemo(() => {
     const map = new Map<string, WebsiteManagementRow>();
@@ -238,14 +238,14 @@ function MonitoringPageContent() {
 
   // ── Analytics Data (Filtered for Charts) ──────────────────
   const websiteChartData = useMemo(() => {
-    const published = websites.filter((w) => ['published','live','active'].includes(normalize(w.status))).length;
+    const published = websites.filter((w) => ['published'].includes(normalize(w.status))).length;
     const offline = websites.filter((w) => ['offline','suspended'].includes(normalize(w.status))).length;
     const draft = websites.filter((w) => ['draft','pending'].includes(normalize(w.status))).length;
     return [{ label: 'Published', value: published }, { label: 'Offline', value: offline }, { label: 'Draft', value: draft }];
   }, [websites]);
 
   const productChartData = useMemo(() => {
-    const live = products.filter((p) => ['published','live','active'].includes(normalize(p.status || ''))).length;
+    const live = products.filter((p) => ['published'].includes(normalize(p.status || ''))).length;
     const offline = products.filter((p) => ['offline','suspended'].includes(normalize(p.status || ''))).length;
     const draft = products.filter((p) => ['draft','pending'].includes(normalize(p.status || ''))).length;
     return [{ label: 'Published', value: live }, { label: 'Offline', value: offline }, { label: 'Draft', value: draft }];
@@ -265,7 +265,7 @@ function MonitoringPageContent() {
       if (dateStr === 'Unknown') return;
       const day = daysMap.get(dateStr) || { p: 0, o: 0, d: 0, rawDate: new Date(item.createdAt!) };
       const s = normalize(item.status || '');
-      if (['published','live','active'].includes(s)) day.p++;
+      if (['published'].includes(s)) day.p++;
       else if (['offline', 'suspended'].includes(s)) day.o++;
       else if (['draft', 'pending'].includes(s)) day.d++;
       daysMap.set(dateStr, day);
@@ -583,8 +583,7 @@ function MonitoringPageContent() {
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} aria-label="Filter by status" suppressHydrationWarning className={selectCls} style={selectStyle}>
                     <option value="">All Status</option>
                     <option value="published">Published</option>
-                    <option value="live">Live</option>
-                    <option value="active">Active</option>
+                    <option value="draft">Draft</option>
                     <option value="flagged">Flagged</option>
                     <option value="offline">Offline</option>
                   </select>
@@ -662,15 +661,19 @@ function MonitoringPageContent() {
                       <p className="text-sm" style={{ color: '#a090c8' }}>Loading websites…</p>
                     ) : uniqueFilteredWebsites.length === 0 ? (
                       <div className="rounded-2xl px-6 py-10 text-center" style={{ ...panelStyle }}>
-                        <p className="text-sm font-medium" style={{ color: '#7a6aa0' }}>No approved websites found.</p>
+                        <p className="text-sm font-medium" style={{ color: '#7a6aa0' }}>No websites found.</p>
                       </div>
                     ) : (
-                      <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
                         {uniqueFilteredWebsites.map((w) => {
                           const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
                           const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
-                          const thumbnail = (w as { thumbnail?: string }).thumbnail;
+                          const previewProjectId = (w.projectId || '').trim();
+                          const domainLabel = w.domainName || '—';
+                          const ownerLabel = w.owner || 'Unknown';
+                          const domainNameClass = domainLabel.length > 28 ? 'text-sm' : 'text-base';
+                          const ownerNameClass = ownerLabel.length > 16 ? 'text-xs' : 'text-sm';
 
                           return (
                             <motion.article
@@ -678,7 +681,7 @@ function MonitoringPageContent() {
                               initial={{ opacity: 0, y: 12 }}
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ duration: 0.3 }}
-                              className="overflow-hidden rounded-[20px]"
+                              className="overflow-hidden rounded-[20px] flex flex-col aspect-square min-h-[280px]"
                               style={{
                                 border: '1px solid rgba(166,61,255,0.15)',
                                 boxShadow: '0 4px 20px rgba(103,2,191,0.08)',
@@ -686,11 +689,25 @@ function MonitoringPageContent() {
                               }}
                             >
                               {/* Thumbnail */}
-                              <div className="relative h-44 overflow-hidden">
-                                {thumbnail ? (
-                                  <img src={thumbnail} alt={w.domainName} className="h-full w-full object-cover" loading="lazy" />
+                              <div className="relative flex-1 overflow-hidden flex items-center justify-center" style={{ borderBottom: `1px solid rgba(166,61,255,0.13)`, background: '#f0eeff' }}>
+                                {w.thumbnail ? (
+                                  <div className="relative h-full w-full overflow-hidden flex items-center justify-center">
+                                    <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-contain" loading="lazy" />
+                                  </div>
+                                ) : previewProjectId ? (
+                                  <div className="h-full w-full">
+                                    <DraftPreviewThumbnail
+                                      projectId={previewProjectId}
+                                      borderColor="rgba(166,61,255,0.13)"
+                                      bgColor="rgba(255,255,255,0.03)"
+                                      className="!h-full !w-full !aspect-auto !rounded-none"
+                                    />
+                                  </div>
                                 ) : (
-                                  <Image src={WEBSITE_CARD_IMAGE} alt={w.domainName} fill sizes="320px" className="object-cover" />
+                                  <div className="h-full w-full flex items-center justify-center text-xs font-medium"
+                                    style={{ background: 'rgba(240,235,255,0.55)', color: '#7a6aa0' }}>
+                                    No preview yet
+                                  </div>
                                 )}
                                 {/* Status badge */}
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
@@ -698,22 +715,21 @@ function MonitoringPageContent() {
                                   <span className={`h-2 w-2 rounded-full ${status.dotClass}`} />
                                   {status.label}
                                 </span>
-                                {/* Industry tag */}
-                                <span className="absolute bottom-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium"
+                                <span className="absolute bottom-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium z-10"
                                   style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
                                   {industry}
                                 </span>
                               </div>
 
                               {/* Card body */}
-                              <div className="px-4 py-4">
-                                <p className="text-base font-bold truncate mb-3" style={{ color: '#2d1a50' }}>{w.domainName}</p>
+                              <div className="px-4 py-3 min-h-[108px] flex flex-col justify-between">
+                                <p className={`${domainNameClass} font-bold truncate mb-3`} style={{ color: '#2d1a50' }} title={domainLabel}>{domainLabel}</p>
                                 <div className="flex items-center justify-between gap-3">
-                                  <div>
+                                  <div className="min-w-0 flex-1 max-w-[58%]">
                                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-1.5" style={{ color: '#a090c8' }}>Publisher</p>
-                                    <p className="text-sm font-semibold truncate max-w-[140px]" style={{ color: '#4a1a8a' }}>{w.owner || 'Unknown'}</p>
+                                    <p className={`${ownerNameClass} font-semibold truncate block w-full`} style={{ color: '#4a1a8a' }} title={ownerLabel}>{ownerLabel}</p>
                                   </div>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 shrink-0">
                                     <a href={viewUrl} target="_blank" rel="noopener noreferrer"
                                       className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95"
                                       style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>

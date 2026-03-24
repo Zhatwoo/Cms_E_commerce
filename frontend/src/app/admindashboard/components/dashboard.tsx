@@ -138,8 +138,8 @@ function DashboardActivityPanel({ items }: { items: readonly { title: string; ac
                     className="mt-5 rounded-[18px] p-3 sm:p-4"
                     style={{ background: 'rgba(240,235,255,0.6)', border: '1px solid rgba(166,61,255,0.08)' }}
                 >
-                    {items.map((item) => (
-                        <div key={item.title} className="flex gap-4 rounded-[14px] px-4 py-4" style={{ background: 'rgba(255,255,255,0.6)' }}>
+                    {items.map((item, idx) => (
+                        <div key={`${item.title}-${item.action}-${item.meta}-${idx}`} className="flex gap-4 rounded-[14px] px-4 py-4" style={{ background: 'rgba(255,255,255,0.6)' }}>
                             <div className="w-1 shrink-0 rounded-full" style={{ background: '#f5c000' }} />
                             <div className="min-w-0">
                                 <p className="text-base font-semibold" style={{ color: '#4a1a8a' }}>{item.title}</p>
