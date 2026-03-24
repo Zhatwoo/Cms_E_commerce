@@ -2,7 +2,6 @@ const Product = require('../models/Product');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const User = require('../models/User');
-const { auth } = require('../config/firebase');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
 const { sendAdminActionEmail } = require('../utils/emailService');
 const Notification = require('../models/Notification');
@@ -205,7 +204,7 @@ exports.create = async (req, res) => {
         lowStockThreshold: lowStockThreshold ?? undefined,
       },
     });
- 
+
     try {
       const notif = await Notification.create({
         title: 'Product Created',
@@ -317,7 +316,7 @@ exports.update = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product updated', data });
- 
+
     try {
       const notif = await Notification.create({
         title: 'Product Updated',
@@ -398,7 +397,7 @@ exports.delete = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product deleted' });
- 
+
     try {
       const notif = await Notification.create({
         title: 'Product Deleted',
@@ -434,13 +433,12 @@ exports.adminDelete = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    const contact = await resolveClientContact(existing.userId);
-    let emailSent = false;
-    let emailError = '';
-    if (contact.email) {
-      const mail = await sendAdminActionEmail({
-        to: contact.email,
-        name: contact.displayName,
+    const owner = existing.userId ? await User.findById(existing.userId) : null;
+    const ownerEmail = owner?.email || '';
+    if (ownerEmail) {
+      await sendAdminActionEmail({
+        to: ownerEmail,
+        name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
         subject: 'Product removed by admin',
         title: 'Your product was removed',
         intro: `Product \"${existing.name || 'Untitled Product'}\" was removed by an administrator.`,
@@ -466,13 +464,7 @@ exports.adminDelete = async (req, res) => {
       console.warn('Product removal notification failed:', e.message);
     }
 
-    res.status(200).json({
-      success: true,
-      message: emailSent ? 'Product deleted and client notified by email' : 'Product deleted, but email notification was not sent',
-      data: { id: req.params.id },
-      emailSent,
-      emailError: emailSent ? undefined : emailError,
-    });
+    res.status(200).json({ success: true, message: 'Product deleted', data: { id: req.params.id } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }

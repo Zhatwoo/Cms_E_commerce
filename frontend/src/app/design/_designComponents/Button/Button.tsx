@@ -92,6 +92,8 @@ export const Button = ({
     <button
       type="button"
       data-node-id={id}
+      data-fluid-button="true"
+      data-fluid-space="true"
       ref={(ref) => { if (ref) connect(drag(ref)); }}
       style={{
         backgroundColor: bg,
@@ -113,10 +115,10 @@ export const Button = ({
         paddingBottom: fluidSpace(pb, 6),
         paddingLeft: fluidSpace(pl, 10),
         paddingRight: fluidSpace(pr, 10),
-        marginTop: `${mt}px`,
-        marginRight: `${mr}px`,
-        marginBottom: `${mb}px`,
-        marginLeft: `${ml}px`,
+        marginTop: fluidSpace(mt),
+        marginRight: fluidSpace(mr),
+        marginBottom: fluidSpace(mb),
+        marginLeft: fluidSpace(ml),
         opacity,
         boxShadow,
         position,

@@ -3,6 +3,13 @@ import { useNode, useEditor } from "@craftjs/core";
 import { SpacerSettings } from "./SpacerSettings";
 import type { SpacerProps } from "../../_types/components";
 
+function fluidSpace(value: number, min = 0): string {
+    if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+    const preferred = Math.max(0.1, value / 12);
+    const floor = Math.max(min, Math.round(value * 0.45));
+    return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Spacer = ({
     width = "100%",
     height = "20px",
@@ -77,18 +84,19 @@ export const Spacer = ({
             ref={(ref) => {
                 if (ref) connect(drag(ref));
             }}
+            data-fluid-space="true"
             className={`relative group ${borderWidth === 0 ? "border border-dashed border-brand-medium/10 hover:border-brand-medium/30" : ""} transition-colors ${customClassName}`}
             style={{
                 width,
-                height,
-                paddingTop: `${pt}px`,
-                paddingRight: `${pr}px`,
-                paddingBottom: `${pb}px`,
-                paddingLeft: `${pl}px`,
-                marginTop: `${mt}px`,
-                marginRight: `${mr}px`,
-                marginBottom: `${mb}px`,
-                marginLeft: `${ml}px`,
+                height: fluidSpace(height as any),
+                paddingTop: fluidSpace(pt),
+                paddingRight: fluidSpace(pr),
+                paddingBottom: fluidSpace(pb),
+                paddingLeft: fluidSpace(pl),
+                marginTop: fluidSpace(mt),
+                marginRight: fluidSpace(mr),
+                marginBottom: fluidSpace(mb),
+                marginLeft: fluidSpace(ml),
                 background,
                 borderTopLeftRadius: `${rtl}px`,
                 borderTopRightRadius: `${rtr}px`,
@@ -99,16 +107,6 @@ export const Spacer = ({
                 borderStyle,
                 opacity,
                 boxShadow,
-                overflow,
-                cursor,
-                position,
-                display: effectiveDisplay,
-                zIndex: zIndex !== 0 ? zIndex : undefined,
-                top: position !== "static" ? top : undefined,
-                right: position !== "static" ? right : undefined,
-                bottom: position !== "static" ? bottom : undefined,
-                left: position !== "static" ? left : undefined,
-                visibility: visibility === "hidden" ? "hidden" : "visible",
                 transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
             }}
         >

@@ -6,6 +6,13 @@ import type { RatingProps } from "../../_types/components";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Rating = ({
   value = 4.2,
   max = 5,
@@ -98,28 +105,22 @@ export const Rating = ({
   const justifyContent =
     textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : textAlign === "justify" ? "space-between" : "flex-start";
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
-      ? "none"
-      : editorVisibility === "show" && display === "none"
-        ? "inline-flex"
-        : display;
-
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
+      data-fluid-space="true"
       className={`inline-flex ${customClassName}`}
       style={{
         width: width === "auto" ? "fit-content" : width,
         height: height === "auto" ? "auto" : height,
-        paddingTop: typeof pt === "number" ? `${pt}px` : pt,
-        paddingRight: typeof pr === "number" ? `${pr}px` : pr,
-        paddingBottom: typeof pb === "number" ? `${pb}px` : pb,
-        paddingLeft: typeof pl === "number" ? `${pl}px` : pl,
-        marginTop: typeof mt === "number" ? `${mt}px` : mt,
-        marginRight: typeof mr === "number" ? `${mr}px` : mr,
-        marginBottom: typeof mb === "number" ? `${mb}px` : mb,
-        marginLeft: typeof ml === "number" ? `${ml}px` : ml,
+        paddingTop: fluidSpace(pt),
+        paddingRight: fluidSpace(pr),
+        paddingBottom: fluidSpace(pb),
+        paddingLeft: fluidSpace(pl),
+        marginTop: fluidSpace(mt),
+        marginRight: fluidSpace(mr),
+        marginBottom: fluidSpace(mb),
+        marginLeft: fluidSpace(ml),
         position,
         display: effectiveDisplay,
         zIndex,
@@ -137,7 +138,6 @@ export const Rating = ({
         borderStyle: borderWidth > 0 ? borderStyle : "none",
         opacity,
         boxShadow,
-        overflow,
         visibility: visibility === "hidden" ? "hidden" : "visible",
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
         cursor: interactive ? "pointer" : cursor,
@@ -201,7 +201,7 @@ export const Rating = ({
             fontFamily,
             fontWeight,
             fontStyle,
-            fontSize: `${fontSize}px`,
+            fontSize: fluidFontSize,
             lineHeight,
             letterSpacing: `${letterSpacing}px`,
             textTransform,

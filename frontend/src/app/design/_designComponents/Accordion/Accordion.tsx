@@ -62,6 +62,13 @@ function hexToRgba(hex: string | undefined, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Accordion = ({
   items = DEFAULT_ITEMS,
   stylePreset = "wix",
@@ -156,6 +163,9 @@ export const Accordion = ({
     el.style.removeProperty("max-height");
   }, [width, openIndexes, safeItems.length]);
 
+  const fluidHeaderFontSize = `clamp(${Math.max(10, Math.round(headerFontSize * 0.8))}px, ${(headerFontSize / 12).toFixed(2)}cqw, ${headerFontSize}px)`;
+  const fluidContentFontSize = `clamp(${Math.max(10, Math.round(contentFontSize * 0.8))}px, ${(contentFontSize / 12).toFixed(2)}cqw, ${contentFontSize}px)`;
+
   useEffect(() => {
     const updateHeights = () => {
       const next: Record<number, number> = {};
@@ -204,24 +214,26 @@ export const Accordion = ({
 
   return (
     <div
-      data-node-id={id}
-      data-drop-block="true"
-      data-drop-block-type="Accordion"
       ref={(ref) => {
         if (!ref) return;
         hostRef.current = ref;
         connect(ref);
       }}
+      data-node-id={id}
+      data-fluid-text="true"
+      data-fluid-space="true"
+      data-drop-block="true"
+      data-drop-block-type="Accordion"
       style={{
         width,
         height: "auto",
         minHeight: minHeight > 0 ? `${minHeight}px` : undefined,
         alignSelf: "flex-start",
         backgroundColor,
-        marginTop: `${marginTop}px`,
-        marginRight: `${marginRight}px`,
-        marginBottom: `${marginBottom}px`,
-        marginLeft: `${marginLeft}px`,
+        marginTop: fluidSpace(marginTop),
+        marginRight: fluidSpace(marginRight),
+        marginBottom: fluidSpace(marginBottom),
+        marginLeft: fluidSpace(marginLeft),
         borderRadius: `${borderRadius}px`,
         overflow: "hidden",
         cursor: "pointer",
@@ -235,6 +247,7 @@ export const Accordion = ({
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
+        containerType: "inline-size",
       }}
     >
       {safeItems.map((item, index) => {
@@ -295,7 +308,7 @@ export const Accordion = ({
                 padding: isWix ? "14px 14px" : "13px 16px",
                 backgroundColor: headerBg,
                 color: headerTextColor,
-                fontSize: `${headerFontSize}px`,
+                fontSize: fluidHeaderFontSize,
                 fontWeight: headerFontWeight,
                 cursor: "pointer",
                 textAlign: "left",
@@ -325,7 +338,7 @@ export const Accordion = ({
                       alignItems: "center",
                       gap: "8px",
                       marginTop: "3px",
-                      fontSize: `${Math.max(10, headerFontSize - 3)}px`,
+                      fontSize: `calc(${fluidHeaderFontSize} - 3px)`,
                       color: hexToRgba(headerTextColor, 0.62),
                       fontWeight: 500,
                     }}
@@ -341,7 +354,7 @@ export const Accordion = ({
                           color: hexToRgba(iconColor, 0.95),
                           borderRadius: "999px",
                           padding: "1px 6px",
-                          fontSize: `${Math.max(9, headerFontSize - 5)}px`,
+                          fontSize: `calc(${fluidHeaderFontSize} - 5px)`,
                           lineHeight: 1.4,
                           flexShrink: 0,
                         }}
@@ -423,7 +436,7 @@ export const Accordion = ({
                 style={{
                   backgroundColor: contentBg,
                   color: contentTextColor,
-                  fontSize: `${contentFontSize}px`,
+                  fontSize: fluidContentFontSize,
                   lineHeight: "1.6",
                   borderTop: `1px solid ${hexToRgba(borderColor, 0.45)}`,
                 }}

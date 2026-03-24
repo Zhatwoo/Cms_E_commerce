@@ -2,7 +2,6 @@
 const User = require('../models/User');
 const { auth } = require('../config/firebase');
 const { sendAdminActionEmail } = require('../utils/emailService');
-const Notification = require('../models/Notification');
 
 // No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
@@ -333,18 +332,6 @@ exports.updateUserStatus = async (req, res) => {
       suspensionReason: status === 'Suspended' ? reason : ''
     });
 
-    // Real-time notification
-    try {
-      const notif = await Notification.create({
-        title: 'User Status Changed',
-        message: `User ${updated.name || updated.email} is now ${status}`,
-        type: status === 'Suspended' ? 'warning' : 'info',
-        adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
-      });
-      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
-    } catch (e) { console.warn('Status change notification failed:', e.message); }
-
     let emailSent = false;
     let emailError = '';
     if (status === 'Suspended') {
@@ -376,12 +363,8 @@ exports.updateUserStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message:
-        status === 'Suspended'
-          ? (emailSent ? 'User suspended and notified by email' : 'User suspended, but email notification was not sent')
-          : 'User status updated successfully',
-      user: stripPassword(updated),
-      ...(status === 'Suspended' ? { emailSent, emailError: emailSent ? undefined : emailError } : {}),
+      message: 'User status updated successfully',
+      user: stripPassword(updated)
     });
   } catch (error) {
     res.status(500).json({

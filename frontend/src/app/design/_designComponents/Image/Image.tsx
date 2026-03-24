@@ -10,6 +10,13 @@ declare global {
   }
 }
 
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const Image = ({
   src,
   alt = "Image",
@@ -237,18 +244,20 @@ export const Image = ({
           (containerRef as any).current = ref;
         }
       }}
+      data-fluid-media="true"
+      data-fluid-space="true"
       className={`relative group ${customClassName}`}
       style={{
         width: resolvedWidth,
         height: resolvedHeight,
-        paddingTop: `${pt}px`,
-        paddingRight: `${pr}px`,
-        paddingBottom: `${pb}px`,
-        paddingLeft: `${pl}px`,
-        marginTop: `${mt}px`,
-        marginRight: `${mr}px`,
-        marginBottom: `${mb}px`,
-        marginLeft: `${ml}px`,
+        paddingTop: fluidSpace(pt),
+        paddingRight: fluidSpace(pr),
+        paddingBottom: fluidSpace(pb),
+        paddingLeft: fluidSpace(pl),
+        marginTop: fluidSpace(mt),
+        marginRight: fluidSpace(mr),
+        marginBottom: fluidSpace(mb),
+        marginLeft: fluidSpace(ml),
         position: position as any,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,

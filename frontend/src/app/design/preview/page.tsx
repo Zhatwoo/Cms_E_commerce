@@ -494,7 +494,7 @@ function PreviewContent() {
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
-  const useBuilderParityMode = true;
+
 
   useEffect(() => {
     getMe().then((res: any) => {
@@ -1341,7 +1341,7 @@ function PreviewContent() {
             <p>Fetching latest clean data...</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden ${previewViewport === "desktop" ? "" : "flex justify-center"}`}>
+          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden flex justify-center`}>
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
@@ -1351,7 +1351,7 @@ function PreviewContent() {
                   }`}
                 style={
                   previewViewport === "desktop"
-                    ? { width: "100%" }
+                    ? { ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }
                     : previewViewport === "tablet"
                       ? { width: 768, maxWidth: "100%" }
                       : previewViewport === "mobile"
@@ -1367,7 +1367,7 @@ function PreviewContent() {
                   initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
-                  builderParityMode={useBuilderParityMode}
+                  builderParityMode={false}
                   fillViewport={previewViewport !== "desktop"}
                   storeContext={previewStoreContext}
                   simulatedWidth={

@@ -18,7 +18,16 @@ export default function SiteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="published-site" style={{ minHeight: '100vh', width: '100%', isolation: 'isolate', background: '#ffffff' }}>
+    <div className="published-site" style={{
+      width: '100%',
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center', // vertical centering
+      alignItems: 'center',     // horizontal centering
+      isolation: 'isolate',
+      background: '#fff',
+    }}>
       {children}
     </div>
   );
