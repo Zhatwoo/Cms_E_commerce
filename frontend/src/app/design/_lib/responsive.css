@@ -1,107 +1,143 @@
 /* Responsive Container Query Styles for CMS Canvas */
 
-/* These styles target elements inside a .frame-fluid container (like the Page in the Editor)
-   when that container is narrow (e.g. Phone/Mobile view). */
-
 .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
   width: 100% !important;
 }
 
-@container (max-width: 640px) {
+/* Tablet & Smaller: Intermediate Reflow */
+@container (max-width: 950px) {
+  .frame-fluid [data-layout="row"],
+  .frame-responsive-inner [data-layout="row"] {
+    flex-wrap: wrap !important;
+    gap: clamp(10px, 1.8cqw, 16px) !important;
+  }
 
-  /* 1. Force all immediate children to full width */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow)>* {
+  .frame-fluid [data-layout="row"] > *,
+  .frame-responsive-inner [data-layout="row"] > * {
+    min-width: 250px !important;
+    flex: 1 1 250px !important;
+  }
+
+  [data-fluid-text="true"] {
+    --fluid-font-cqw: 1.8cqw;
+  }
+}
+
+/* Class-based fallback for Editor Reliability (Tablet) */
+.is-tablet-view .frame-fluid [data-layout="row"],
+.is-tablet-view .frame-responsive-inner [data-layout="row"] {
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+}
+.is-tablet-view [data-layout="row"] > * {
+  min-width: 250px !important;
+  flex: 1 1 250px !important;
+}
+
+/* Refined Tablet (Standard iPad) */
+@container (max-width: 768px) {
+  [data-layout="row"] {
+    gap: clamp(8px, 1.4cqw, 12px) !important;
+    justify-content: center !important;
+  }
+
+  [data-layout="row"] > * {
+    min-width: 180px !important;
+    flex: 1 1 180px !important;
+  }
+
+  [data-fluid-text="true"] {
+    --fluid-font-cqw: 2cqw;
+  }
+}
+
+/* Mobile: Full Stacking & Fluid Scaling */
+@container (max-width: 640px) {
+  /* 0. Force Container Growth */
+  .frame-responsive-inner,
+  .frame-fluid {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+  }
+
+  /* 1. Force all immediate children and Craft.js wrappers to full width */
+  .frame-fluid > *,
+  .frame-responsive-inner > *,
+  [data-node-id] {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
+    flex-grow: 1 !important;
   }
 
   /* 2. Add spacing between stacked top-level blocks */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow)>*+* {
+  .frame-responsive-inner > * + * {
     margin-top: clamp(10px, 2.8cqw, 16px) !important;
   }
 
-  /* 3. Force Rows (horizontal flex) to stack vertically */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+  /* 3. Force Rows & Columns to stack vertically */
+  [data-layout="row"],
+  [data-layout="column"] {
     flex-direction: column !important;
     align-items: stretch !important;
     height: auto !important;
     min-height: 0 !important;
+    width: 100% !important;
+    display: flex !important;
   }
 
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"]>* {
+  /* Ensure children fill the width on mobile stacking */
+  [data-layout="row"] > *,
+  [data-layout="column"] > * {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
     flex: 1 1 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
   }
 
-  /* 4. Reset heights for fluid layouts */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+  /* 4. Fluid Spacing Adjustments */
+  [data-fluid-space="true"] {
+    padding-left: clamp(8px, 3cqw, 24px) !important;
+    padding-right: clamp(8px, 3cqw, 24px) !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
     height: auto !important;
     min-height: 0 !important;
   }
 
-  /* 5. Fluid Spacing Adjustments */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-    padding-left: clamp(8px, 3cqw, 24px) !important;
-    padding-right: clamp(8px, 3cqw, 24px) !important;
-    margin-left: clamp(0px, 1.2cqw, 12px) !important;
-    margin-right: clamp(0px, 1.2cqw, 12px) !important;
-  }
-
-  /* 6. Button Full Width on Mobile */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-    display: flex !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    justify-content: center !important;
-  }
-
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button,
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
-    max-width: 100% !important;
-    overflow-wrap: break-word;
-    white-space: normal;
-  }
-
-  /* 7. Media (Image/Video) Scaling */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
+  /* 5. Component Overrides (Media, Buttons, Grids) */
+  [data-fluid-media="true"],
+  [data-fluid-button="true"],
+  [data-fluid-grid="true"],
+  img,
+  video {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
     height: auto !important;
+    min-height: 0 !important;
   }
 
-  /* 8. Grid System Stacking */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-    grid-template-columns: minmax(0, 1fr) !important;
+  [data-fluid-grid="true"] {
+    grid-template-columns: 1fr !important;
+    gap: clamp(12px, 2.8cqw, 24px) !important;
+    display: grid !important;
   }
 
-  /* 9. General Node Overrides */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
-    max-width: 100% !important;
-    min-width: 0 !important;
-    width: 100% !important;
+  [data-fluid-button="true"] {
+    display: flex !important;
+    justify-content: center !important;
   }
 
-  /* 10. Text-specific Responsiveness */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-    white-space: pre-wrap !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-  }
-
-  /* 11. Reset Absolute/Fixed Positions (Floaters become Flow on Mobile) */
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
-  .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
+  /* 6. Absolute-to-Relative Positioning Reset (CRITICAL) */
+  .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]),
+  .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]),
+  .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]),
+  .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]) {
     position: relative !important;
     left: auto !important;
     right: auto !important;
@@ -109,9 +145,54 @@
     bottom: auto !important;
     transform: none !important;
     width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
+    margin-bottom: 12px !important;
   }
+
+  /* 7. Text Wrapping */
+  [data-fluid-text="true"] {
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+    --fluid-font-cqw: 3.2cqw;
+  }
+}
+
+/* Class-based fallback for Editor Reliability (Mobile) */
+div[data-page-node].is-mobile-view .frame-responsive-inner,
+div[data-page-node].is-mobile-view .frame-fluid {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  width: 100% !important;
+}
+
+/* THE ATOMIC HAMMER: Force 100% on everything inside a mobile page */
+.is-mobile-view [data-node-id],
+.is-mobile-view [data-node-id] > *,
+.is-mobile-view div[data-node-id],
+.is-mobile-view [data-fluid-media="true"],
+.is-mobile-view img,
+.is-mobile-view video {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  position: relative !important;
+  left: 0 !important;
+  right: 0 !important;
+  top: 0 !important;
+  transform: none !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+
+.is-mobile-view [data-layout="row"] {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  display: flex !important;
+}
+.is-mobile-view [data-layout="row"] > * {
+  width: 100% !important;
+  flex: 1 1 100% !important;
 }
 
 @container (max-width: 400px) {

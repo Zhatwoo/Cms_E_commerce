@@ -475,12 +475,7 @@ const frameResponsiveStyles = (
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
-        object-fit: cover;
-      }
 
-      .frame-responsive-inner.frame-fluid iframe {
-        aspect-ratio: var(--media-aspect-ratio, 16 / 9);
-      }
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
@@ -489,124 +484,113 @@ const frameResponsiveStyles = (
         transition:
           width 180ms ease,
           max-width 180ms ease,
-          min-width 180ms ease,
-          margin 180ms ease,
-          transform 180ms ease,
-          left 180ms ease,
-          right 180ms ease,
-          top 180ms ease,
-          bottom 180ms ease,
-          opacity 180ms ease;
-      }
-
-      .frame-responsive-inner.frame-fluid [data-fluid-text="true"],
-      .frame-responsive-inner.frame-fluid [data-fluid-button="true"],
-      .frame-responsive-inner.frame-fluid [data-fluid-media="true"],
-      .frame-responsive-inner.frame-fluid [data-fluid-icon="true"] {
-        max-width: 100% !important;
-        overflow-wrap: break-word;
-        word-break: break-word;
-      }
-
-      .frame-responsive-inner [data-smooth="true"] {
-        transition:
-          width 180ms ease,
-          height 180ms ease,
           padding 180ms ease,
           margin 180ms ease,
           transform 180ms ease,
-          opacity 180ms ease,
-          box-shadow 180ms ease,
-          background-color 180ms ease,
-          border-color 180ms ease,
-          color 180ms ease;
+          opacity 180ms ease;
       }
 
-      @media (prefers-reduced-motion: reduce) {
-        .frame-responsive-inner [data-smooth="true"] {
-          transition: none !important;
+      /* Tablet & Smaller: Intermediate Reflow */
+      @container (max-width: 950px) {
+        .frame-fluid [data-layout="row"],
+        .frame-responsive-inner [data-layout="row"] {
+          flex-wrap: wrap !important;
+          gap: clamp(10px, 1.8cqw, 16px) !important;
+        }
+        .frame-fluid [data-layout="row"] > *,
+        .frame-responsive-inner [data-layout="row"] > * {
+          min-width: 250px !important;
+          flex: 1 1 250px !important;
+        }
+        [data-fluid-text="true"] {
+          --fluid-font-cqw: 1.8cqw;
         }
       }
 
-      .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
+      [data-page-node].is-tablet-view {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .is-tablet-view .frame-fluid [data-layout="row"],
+      .is-tablet-view .frame-responsive-inner [data-layout="row"] {
+        flex-wrap: wrap !important;
+        gap: 20px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        width: 100% !important;
+      }
+      .is-tablet-view [data-layout="row"] > * {
+        min-width: 300px !important;
+        flex: 1 1 300px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .is-tablet-view [data-node-id],
+      .is-tablet-view img,
+      .is-tablet-view video {
+        width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
+        transform: none !important;
+      }
+      .is-tablet-view img,
+      .is-tablet-view video {
+        height: auto !important;
         object-fit: cover !important;
-        width: 100%;
-        height: auto;
-        max-width: 100% !important;
-        aspect-ratio: var(--media-aspect-ratio, auto);
       }
 
-      .frame-responsive-inner.frame-fluid [data-fluid-space="true"] {
-        max-width: 100% !important;
+      /* Refined Tablet (Standard iPad) */
+      @container (max-width: 768px) {
+        [data-layout="row"] {
+          gap: clamp(8px, 1.4cqw, 12px) !important;
+          justify-content: center !important;
+        }
+        [data-layout="row"] > * {
+          min-width: 180px !important;
+          flex: 1 1 180px !important;
+        }
+        [data-fluid-text="true"] {
+          --fluid-font-cqw: 2cqw;
+        }
       }
 
-      .frame-responsive-inner.frame-fluid [data-fluid-grid="true"] {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
-      }
-
-      @keyframes responsive-reflow-in {
-        from { opacity: 0.96; transform: translateY(4px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @container (max-width: 960px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          font-size: clamp(12px, var(--fluid-font-cqw, 3.2cqw), var(--fluid-font-max, 48px)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-top: clamp(4px, 1.4cqw, 18px) !important;
-          padding-bottom: clamp(4px, 1.4cqw, 18px) !important;
-          column-gap: clamp(8px, 2.2cqw, 24px) !important;
-          row-gap: clamp(8px, 2.2cqw, 24px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          padding-left: clamp(10px, 2.2cqw, 24px) !important;
-          padding-right: clamp(10px, 2.2cqw, 24px) !important;
-          gap: clamp(6px, 1.6cqw, 14px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
-          width: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
-          height: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
-        }
-      }
-      @container (max-width: 900px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        }
-      }
+      /* Mobile: Full Stacking & Fluid Scaling */
       @container (max-width: 640px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
-          padding-left: clamp(10px, 3.2cqw, 16px) !important;
-          padding-right: clamp(10px, 3.2cqw, 16px) !important;
-          padding-top: clamp(8px, 2.4cqw, 14px) !important;
-          padding-bottom: clamp(10px, 3cqw, 18px) !important;
-        }
-
-        /* Force mobile-first flow: all top-level children stack and fill width. */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
+        .frame-responsive-inner,
+        .frame-fluid {
           display: flex !important;
           flex-direction: column !important;
           align-items: stretch !important;
-          gap: clamp(10px, 2.8cqw, 16px) !important;
+          width: 100% !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * {
+        .frame-fluid > *,
+        .frame-responsive-inner > *,
+        [data-node-id] {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          flex-grow: 1 !important;
         }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * + * {
+        
+        .frame-responsive-inner > * + * {
           margin-top: clamp(10px, 2.8cqw, 16px) !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+        [data-layout="row"],
+        [data-layout="column"] {
           flex-direction: column !important;
           align-items: stretch !important;
           height: auto !important;
           min-height: 0 !important;
           width: 100% !important;
+          display: flex !important;
         }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+
+        [data-layout="row"] > *,
+        [data-layout="column"] > * {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
@@ -615,169 +599,97 @@ const frameResponsiveStyles = (
           margin-right: 0 !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+        [data-fluid-space="true"] {
+          padding-left: clamp(8px, 3cqw, 24px) !important;
+          padding-right: clamp(8px, 3cqw, 24px) !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
           height: auto !important;
           min-height: 0 !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-mobile-font-scale="true"] {
-          font-size: clamp(14px, 5cqw, var(--mobile-source-font-size, 48px)) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-left: clamp(12px, 3cqw, 28px) !important;
-          padding-right: clamp(12px, 3cqw, 28px) !important;
-          margin-left: clamp(0px, 1.2cqw, 12px) !important;
-          margin-right: clamp(0px, 1.2cqw, 12px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: 1fr !important;
-          gap: clamp(12px, 2.8cqw, 24px) !important;
-          width: 100% !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          display: flex !important;
+        [data-fluid-media="true"],
+        [data-fluid-button="true"],
+        [data-fluid-grid="true"],
+        img, 
+        video {
           width: 100% !important;
           max-width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        [data-fluid-grid="true"] {
+          grid-template-columns: 1fr !important;
+          gap: clamp(12px, 2.8cqw, 24px) !important;
+          display: grid !important;
+        }
+
+        [data-fluid-button="true"] {
+          display: flex !important;
           justify-content: center !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] a,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] button {
-          padding-left: clamp(10px, 3cqw, 20px) !important;
-          padding-right: clamp(10px, 3cqw, 20px) !important;
-          padding-top: clamp(8px, 2.2cqw, 14px) !important;
-          padding-bottom: clamp(8px, 2.2cqw, 14px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu > * {
+        .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]) {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: auto !important;
+          transform: none !important;
           width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
+          margin-bottom: 12px !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
-          max-width: 100% !important;
-          overflow-wrap: break-word;
-          white-space: normal;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          height: auto !important;
-          border-radius: clamp(8px, 2.4cqw, 14px) !important;
-          overflow: hidden;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: minmax(0, 1fr) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          width: 100% !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+        [data-fluid-text="true"] {
           white-space: pre-wrap !important;
           overflow-wrap: anywhere !important;
           word-break: break-word !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[data-fluid-space="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button[data-fluid-space="true"] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          height: auto !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
-          position: relative !important;
-          left: auto !important;
-          right: auto !important;
-          top: auto !important;
-          bottom: auto !important;
-          transform: none !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
-
-        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
-          position: relative !important;
-          left: auto !important;
-          right: auto !important;
-          top: auto !important;
-          bottom: auto !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          margin-left: 0 !important;
-          margin-right: 0 !important;
-          transform: none !important;
-          animation: responsive-reflow-in 180ms ease;
+          --fluid-font-cqw: 3.2cqw;
         }
       }
+
+      /* Class-based fallback for Editor Reliability (Mobile) */
+      .is-mobile-view.frame-responsive-inner,
+      .is-mobile-view.frame-fluid,
+      [data-page-node].is-mobile-view {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+      }
+      .is-mobile-view [data-node-id],
+      .is-mobile-view [data-node-id] > *,
+      .is-mobile-view [data-fluid-media="true"],
+      .is-mobile-view img,
+      .is-mobile-view video {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        transform: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      .is-mobile-view [data-layout="row"] {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        display: flex !important;
+      }
+      .is-mobile-view [data-layout="row"] > * {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+      }
+
       @container (max-width: 400px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] { gap: clamp(6px, 2cqw, 12px) !important; }
-      }
-
-      @container (max-width: 520px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
-          position: relative !important;
-          left: auto !important;
-          right: auto !important;
-          top: auto !important;
-          bottom: auto !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          transform: none !important;
-        }
-      }
-
-      @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
-        .frame-responsive-inner.frame-fluid img,
-        .frame-responsive-inner.frame-fluid video,
-        .frame-responsive-inner.frame-fluid iframe,
-        .frame-responsive-inner.frame-fluid [data-responsive-asset] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          object-fit: cover !important;
-          height: auto !important;
-        }
       }
     `,
   }} />
