@@ -91,12 +91,34 @@ function resolveNearestScrollContainer(
   return styledScrollableFallback;
 }
 
+function isElementScrollable(el: HTMLElement | null): boolean {
+  if (!el) return false;
+  return el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
+}
+
 function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  const primary = resolveNearestScrollContainer(el, view);
-  const fallback = primary ? null : (view.document?.documentElement as HTMLElement | null);
+  // Preview page runs in the top window (not iframe). To keep behavior stable across
+  // browser zoom levels, always use window scroll there.
+  if (view.parent === view) {
+    return { primary: null, fallback: null };
+  }
+
+  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
+  if (explicitPreviewRoot instanceof HTMLElement) {
+    // Preview root should only be used when it is actually scrollable at current viewport size.
+    // Otherwise, scrolling is happening on the window and we should not force a custom root.
+    if (isElementScrollable(explicitPreviewRoot)) {
+      return { primary: explicitPreviewRoot, fallback: null };
+    }
+    return { primary: null, fallback: null };
+  }
+
+  const nearest = resolveNearestScrollContainer(el, view);
+  const primary = nearest && isElementScrollable(nearest) ? nearest : null;
+  const fallback = null;
   return { primary, fallback };
 }
 
@@ -428,6 +450,7 @@ function useGsapScrollEffect(
       const mids = config.freeMove?.mids;
       const end = config.freeMove?.end;
       const mode = config.freeMove?.mode ?? "absolute";
+      const capturedOrigin = config.freeMove?.origin;
 
       const raw: Array<{ t: number; x: number; y: number }> =
         Array.isArray(direct) && direct.length >= 2
@@ -453,13 +476,15 @@ function useGsapScrollEffect(
       const page = getPageRect();
       const baseX = Number(gsap.getProperty(el, "x")) || 0;
       const baseY = Number(gsap.getProperty(el, "y")) || 0;
+      const anchorFromFrames = raw[0] ? { x: raw[0].x, y: raw[0].y } : null;
+      const absoluteAnchor = capturedOrigin ?? start ?? anchorFromFrames ?? { x: page.left, y: page.top };
       const toOffset = (p: { x: number; y: number }) => ({
         // FreeMove should be exact regardless of Speed/Intensity.
         // Speed is still used by other scroll effects, but FreeMove uses 1:1 mapping.
         // IMPORTANT: preserve any existing transform set by the builder by adding deltas
         // instead of overwriting absolute x/y.
-        x: baseX + (mode === "relative" ? p.x : (p.x - page.left)),
-        y: baseY + (mode === "relative" ? p.y : (p.y - page.top)),
+        x: baseX + (mode === "relative" ? p.x : (p.x - absoluteAnchor.x)),
+        y: baseY + (mode === "relative" ? p.y : (p.y - absoluteAnchor.y)),
       });
 
       const frames = raw
@@ -491,14 +516,8 @@ function useGsapScrollEffect(
       if (frames.length >= 2) {
         // Use smooth spline sampling over scroll progress (no sharp corners).
         const points = frames.map((f) => ({ x: f.x, y: f.y }));
-
         const speed = typeof config.speed === "number" && Number.isFinite(config.speed) ? config.speed : 1;
         const speedAbs = Math.max(0, Math.min(2, Math.abs(speed)));
-        // IMPORTANT: In FreeMove, speed must NOT change distance.
-        // We use it only to control responsiveness/smoothing (how fast it follows scroll).
-        // Higher speed => larger follow factor => less lag.
-        // IMPORTANT: We apply this even if Scrub is OFF so the slider always "feels" different.
-        // Speed 0 => very laggy/smooth, Speed 2 => very snappy.
         const followBase = (() => {
           if (speedAbs <= 0.05) return 0.02;
           if (speedAbs >= 1.95) return 1;
@@ -511,24 +530,40 @@ function useGsapScrollEffect(
         let currentProgress = 0;
         let tickerAdded = false;
         let initializedFromScroll = false;
-        let userHasScrolled = false;
+        let hasUserScrolled = false;
+        const scrollEventTarget = (scroller ?? view) as EventTarget;
+
+        // On initial load, set element to start position
+        const p0 = sampleSpline(points, 0);
+        gsap.set(el, { x: p0.x, y: p0.y, force3D: true });
+
         const markScrolled = () => {
-          userHasScrolled = true;
+          if (!hasUserScrolled) {
+            hasUserScrolled = true;
+            if (!tickerAdded) {
+              tickerAdded = true;
+              gsap.ticker.add(tick);
+            }
+          }
         };
-        const scrollEventTarget: EventTarget | null = (scroller ?? view) as EventTarget;
         if (scrollEventTarget && "addEventListener" in (scrollEventTarget as any)) {
           (scrollEventTarget as any).addEventListener("scroll", markScrolled, { passive: true });
           (scrollEventTarget as any).addEventListener("wheel", markScrolled, { passive: true });
           (scrollEventTarget as any).addEventListener("touchmove", markScrolled, { passive: true });
         }
+
         const tick = () => {
-          if (!initializedFromScroll) return;
-          // When smoothing disabled, jump immediately.
+          if (!initializedFromScroll || !hasUserScrolled) return;
+          if (process.env.NODE_ENV !== 'production') {
+            // eslint-disable-next-line no-console
+            console.log('[freeMove] speed:', speed, 'targetProgress:', targetProgress, 'currentProgress:', currentProgress);
+          }
           if (follow >= 1) {
             currentProgress = targetProgress;
           } else {
             currentProgress += (targetProgress - currentProgress) * follow;
           }
+          currentProgress = Math.max(0, Math.min(1, currentProgress));
           const p = sampleSpline(points, currentProgress);
           gsap.set(el, { x: p.x, y: p.y, force3D: true });
         };
@@ -543,17 +578,23 @@ function useGsapScrollEffect(
           onUpdate: (self) => {
             if (!initializedFromScroll) {
               initializedFromScroll = true;
-            }
-            if (!userHasScrolled) return;
-            targetProgress = speed < 0 ? 1 - self.progress : self.progress;
-
-            if (!tickerAdded) {
-              tickerAdded = true;
-              gsap.ticker.add(tick);
+              if (speed < 0) {
+                currentProgress = 1 - self.progress;
+                targetProgress = 1 - self.progress;
+              } else {
+                currentProgress = self.progress;
+                targetProgress = self.progress;
+              }
+            } else {
+              if (speed < 0) {
+                targetProgress = 1 - self.progress;
+              } else {
+                targetProgress = self.progress;
+              }
+              targetProgress = Math.max(0, Math.min(1, targetProgress));
             }
           },
         });
-        // Ensure correct measurements (especially inside scroll containers / canvas).
         ScrollTrigger.refresh();
         const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
 
@@ -587,6 +628,7 @@ function useGsapScrollEffect(
           start: config.start,
           end: config.end,
           scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
+          immediateRender: false,
           invalidateOnRefresh: true,
         },
       });
@@ -646,66 +688,76 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
   from: Record<string, unknown>;
   to: Record<string, unknown>;
 } {
-  const speed = config.speed;
+  // Clamp and normalize speed for all effects
+  const speed = Math.max(-2, Math.min(2, typeof config.speed === 'number' && Number.isFinite(config.speed) ? config.speed : 1));
   const isVertical = config.direction === "vertical";
   const from: Record<string, unknown> = {};
   const to: Record<string, unknown> = {};
 
   switch (config.type as ScrollEffectType) {
     case "parallax": {
-      const p = speed * 150;
+      // Parallax: always proportional to scroll, never overshoots
+      const maxDist = 150;
+      const p = speed * maxDist;
       if (isVertical) {
-        from.y = -p;
-        to.y = p;
+        from.y = -Math.abs(p);
+        to.y = Math.abs(p);
       } else {
-        from.x = -p;
-        to.x = p;
+        from.x = -Math.abs(p);
+        to.x = Math.abs(p);
       }
       break;
     }
     case "fade":
+      // Fade: always 0→1 or 1→0
       from.opacity = speed >= 0 ? 0 : 1;
       to.opacity = speed >= 0 ? 1 : 0;
       break;
     case "scale": {
+      // Scale: always from 1 to 1+s or reverse
       const s = Math.abs(speed) * 0.5;
       from.scale = speed >= 0 ? 1 : 1 + s;
       to.scale = speed >= 0 ? 1 + s : 1;
       break;
     }
     case "rotate": {
-      const r = speed * 180;
+      // Rotate: always -r to r
+      const r = Math.abs(speed) * 180;
       from.rotation = -r;
       to.rotation = r;
       break;
     }
     case "blur": {
+      // Blur: always from blur to clear
       const b = Math.abs(speed) * 20;
       from.filter = `blur(${b}px)`;
       to.filter = "blur(0px)";
       break;
     }
     case "horizontalMove": {
-      const h = speed * 300;
+      // Horizontal move: always -h to h
+      const h = Math.abs(speed) * 300;
       from.x = -h;
       to.x = h;
       break;
     }
     case "freeMove": {
+      // FreeMove fallback: always proportional to scroll, never overshoots
       const start = config.freeMove?.start;
       const end = config.freeMove?.end;
       if (start && end) {
-        const dx = (end.x - start.x) * speed;
-        const dy = (end.y - start.y) * speed;
+        const dx = (end.x - start.x);
+        const dy = (end.y - start.y);
         from.x = 0;
         from.y = 0;
-        to.x = dx;
-        to.y = dy;
+        to.x = speed * dx;
+        to.y = speed * dy;
       }
       break;
     }
     case "skew": {
-      const sk = speed * 25;
+      // Skew: always -sk to sk
+      const sk = Math.abs(speed) * 25;
       if (isVertical) {
         from.skewY = -sk;
         to.skewY = sk;
@@ -716,10 +768,12 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
       break;
     }
     case "reveal":
+      // Reveal: always from clipped to revealed
       from.clipPath = speed >= 0 ? "inset(0% 100% 0% 0%)" : "inset(100% 0% 0% 0%)";
       to.clipPath = "inset(0% 0% 0% 0%)";
       break;
     case "zoom": {
+      // Zoom: always from 1 to 1+z
       const zScale = Math.abs(speed) * 1.5;
       const zDepth = speed * 200;
       from.scale = 1;
@@ -729,7 +783,8 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
       break;
     }
     case "tilt3d": {
-      const t = speed * 35;
+      // Tilt3d: always -t to t
+      const t = Math.abs(speed) * 35;
       from.rotationX = -t;
       from.rotationY = isVertical ? 0 : -t;
       from.transformPerspective = 1200;
