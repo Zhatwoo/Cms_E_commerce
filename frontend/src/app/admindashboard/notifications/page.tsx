@@ -6,6 +6,7 @@ import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
 import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+
 import { formatToPHTime } from "@/lib/dateUtils";
 
 type NotificationTab = "list" | "configure" | "trash";
@@ -239,8 +240,8 @@ function NotificationsPageContent() {
 											type="button"
 											onClick={() => setActiveTab(tab.key)}
 											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${activeTab === tab.key
-													? "bg-[#FFCC00] text-[#2F1859]"
-													: "text-[#787593] hover:bg-white/60"
+												? "bg-[#FFCC00] text-[#2F1859]"
+												: "text-[#787593] hover:bg-white/60"
 												}`}
 										>
 											<span className="inline-flex items-center gap-2">
@@ -309,6 +310,7 @@ function NotificationsPageContent() {
 																	</div>
 																</div>
 																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
+																	<span>{formatToPHTime(item.time)}</span>
 																	<span className={item.read ? "text-[#1AA54B]" : "text-[#FF5252]"}>{item.read ? <CheckIcon /> : "×"}</span>
 																</div>
 															</motion.div>
@@ -402,6 +404,7 @@ function NotificationsPageContent() {
 																			<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																		</div>
 																	</div>
+																	<div className="pl-4 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																</motion.div>
 															))}
 														</div>
