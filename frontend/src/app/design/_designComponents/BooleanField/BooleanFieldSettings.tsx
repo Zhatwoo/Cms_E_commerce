@@ -1,6 +1,8 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
@@ -18,13 +20,13 @@ export const BooleanFieldSettings = () => {
     controlType,
     name,
     disabled,
+    showLabels,
     labelColor,
     gap,
     itemGap,
     fontSize,
     fontFamily,
     fontWeight,
-    showLabels,
     options,
     width,
     height,
@@ -36,20 +38,33 @@ export const BooleanFieldSettings = () => {
     marginRight,
     marginBottom,
     marginLeft,
+    rotation,
+    flipHorizontal,
+    flipVertical,
+    position,
+    display,
+    zIndex,
+    top,
+    right,
+    bottom,
+    left,
+    editorVisibility,
     opacity,
     boxShadow,
+    overflow,
+    cursor,
     actions: { setProp },
   } = useNode((node) => ({
-    controlType: node.data.props.controlType,
-    name: node.data.props.name,
-    disabled: node.data.props.disabled,
-    labelColor: node.data.props.labelColor,
-    gap: node.data.props.gap,
-    itemGap: node.data.props.itemGap,
-    fontSize: node.data.props.fontSize,
-    fontFamily: node.data.props.fontFamily,
-    fontWeight: node.data.props.fontWeight,
-    showLabels: node.data.props.showLabels,
+    controlType: node.data.props.controlType ?? "checkbox",
+    name: node.data.props.name ?? "choice",
+    disabled: node.data.props.disabled ?? false,
+    showLabels: node.data.props.showLabels ?? true,
+    labelColor: node.data.props.labelColor ?? "#000000",
+    gap: node.data.props.gap ?? 10,
+    itemGap: node.data.props.itemGap ?? 10,
+    fontSize: node.data.props.fontSize ?? 14,
+    fontFamily: node.data.props.fontFamily ?? "Outfit",
+    fontWeight: node.data.props.fontWeight ?? "500",
     options: node.data.props.options,
     width: node.data.props.width ?? "fit-content",
     height: node.data.props.height ?? "fit-content",
@@ -61,22 +76,107 @@ export const BooleanFieldSettings = () => {
     marginRight: node.data.props.marginRight ?? 0,
     marginBottom: node.data.props.marginBottom ?? 0,
     marginLeft: node.data.props.marginLeft ?? 0,
-    opacity: node.data.props.opacity,
-    boxShadow: node.data.props.boxShadow,
+    rotation: node.data.props.rotation ?? 0,
+    flipHorizontal: node.data.props.flipHorizontal ?? false,
+    flipVertical: node.data.props.flipVertical ?? false,
+    position: node.data.props.position ?? "relative",
+    display: node.data.props.display ?? "inline-flex",
+    zIndex: node.data.props.zIndex ?? 0,
+    top: node.data.props.top ?? "auto",
+    right: node.data.props.right ?? "auto",
+    bottom: node.data.props.bottom ?? "auto",
+    left: node.data.props.left ?? "auto",
+    editorVisibility: node.data.props.editorVisibility ?? "auto",
+    opacity: node.data.props.opacity ?? 1,
+    boxShadow: node.data.props.boxShadow ?? "none",
+    overflow: node.data.props.overflow ?? "visible",
+    cursor: node.data.props.cursor ?? "default",
   }));
 
   const typedSetProp = setProp as SetProp<BooleanFieldProps>;
-  const normalizedOptions: NonNullable<BooleanFieldProps["options"]> = Array.isArray(options) && options.length > 0
-    ? options
-    : [
-      { id: "opt-1", label: "Option 1", checked: false },
-      { id: "opt-2", label: "Option 2", checked: false },
-      { id: "opt-3", label: "Option 3", checked: false },
-    ];
+  const normalizedOptions: NonNullable<BooleanFieldProps["options"]> =
+    Array.isArray(options) && options.length > 0
+      ? options
+      : [
+        { id: "opt-1", label: "Option 1", checked: false },
+        { id: "opt-2", label: "Option 2", checked: false },
+        { id: "opt-3", label: "Option 3", checked: false },
+      ];
   const selectedIds = normalizedOptions.filter((o) => !!o.checked).map((o) => o.id);
 
   return (
     <div className="flex flex-col pb-4">
+      <DesignSection title="Typography">
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Show Labels</label>
+              <BooleanInput
+                value={!!showLabels}
+                onChange={(val) => typedSetProp((props) => { props.showLabels = val; })}
+                variant="checkbox"
+                layout="inline"
+                className="py-1"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Label Color</label>
+              <ColorPicker
+                value={labelColor || "#000000"}
+                onChange={(val) => typedSetProp((props) => { props.labelColor = val; })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
+              <NumericInput
+                value={fontSize ?? 14}
+                onChange={(val) => typedSetProp((props) => { props.fontSize = val; })}
+                min={8}
+                unit="px"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
+              <select
+                value={fontWeight ?? "500"}
+                onChange={(e) => typedSetProp((props) => { props.fontWeight = e.target.value; })}
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+              >
+                <option value="400">Regular</option>
+                <option value="500">Medium</option>
+                <option value="600">Semibold</option>
+                <option value="700">Bold</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Font</label>
+            <select
+              value={fontFamily ?? "Outfit"}
+              onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+            >
+              {[
+                "Outfit",
+                "Roboto",
+                "Open Sans",
+                "Poppins",
+                "Ubuntu",
+                "Lato",
+                "Raleway",
+                "Montserrat",
+              ].map((font) => (
+                <option key={font} value={font}>{font}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </DesignSection>
+
       <DesignSection title="Boolean Field">
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
@@ -106,32 +206,12 @@ export const BooleanFieldSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Show Labels</label>
-              <BooleanInput
-                value={!!showLabels}
-                onChange={(val) => typedSetProp((props) => { props.showLabels = val; })}
-                variant="checkbox"
-                layout="inline"
-                className="py-1"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Disabled</label>
               <BooleanInput
                 value={!!disabled}
                 onChange={(val) => typedSetProp((props) => { props.disabled = val; })}
                 variant="checkbox"
                 className="py-1"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Label Color</label>
-              <ColorPicker
-                value={labelColor || "#000000"}
-                onChange={(val) => typedSetProp((props) => { props.labelColor = val; })}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -174,7 +254,6 @@ export const BooleanFieldSettings = () => {
           <div className="flex flex-col gap-2">
             <label className="text-[10px] text-[var(--builder-text)]">Options</label>
             <div className="flex flex-col gap-2">
-              {/* Quick multi-select for checked state */}
               {controlType === "checkbox" ? (
                 <MultiSelectInput
                   label="Selected (checked)"
@@ -245,54 +324,30 @@ export const BooleanFieldSettings = () => {
               ))}
             </div>
           </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
-              <NumericInput
-                value={fontSize ?? 14}
-                onChange={(val) => typedSetProp((props) => { props.fontSize = val; })}
-                min={8}
-                unit="px"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
-              <select
-                value={fontWeight ?? "500"}
-                onChange={(e) => typedSetProp((props) => { props.fontWeight = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-              >
-                <option value="400">Regular</option>
-                <option value="500">Medium</option>
-                <option value="600">Semibold</option>
-                <option value="700">Bold</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Font</label>
-            <select
-              value={fontFamily ?? "Outfit"}
-              onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-            >
-              {[
-                "Outfit",
-                "Roboto",
-                "Open Sans",
-                "Poppins",
-                "Ubuntu",
-                "Lato",
-                "Raleway",
-                "Montserrat",
-              ].map((font) => (
-                <option key={font} value={font}>{font}</option>
-              ))}
-            </select>
-          </div>
         </div>
+      </DesignSection>
+
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
+        />
       </DesignSection>
 
       <DesignSection title="Size & Spacing" defaultOpen={false}>
@@ -315,10 +370,11 @@ export const BooleanFieldSettings = () => {
         <EffectsGroup
           opacity={opacity}
           boxShadow={boxShadow}
-          setProp={typedSetProp}
+          overflow={overflow}
+          cursor={cursor}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
     </div>
   );
 };
-

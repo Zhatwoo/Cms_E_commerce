@@ -83,6 +83,8 @@ export interface AppearanceProps {
   backgroundPosition?: string;
   backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
   backgroundOverlay?: string;
+  /** Background video source URL (used by Container/Section media fill). */
+  backgroundVideo?: string;
   borderColor?: string;
   borderWidth?: number;
   borderStyle?: string;
@@ -257,7 +259,7 @@ export interface DividerProps extends TransformProps, PositionProps, AnimatableP
 export interface SpacerProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, EffectsProps { }
 
 /** Pagination component props — navigation for lists and data. */
-export interface PaginationProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, TypographyProps {
+export interface PaginationProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, TypographyProps, EffectsProps {
   totalItems?: number;
   itemsPerPage?: number;
   currentPage?: number;
@@ -287,13 +289,12 @@ export interface RatingProps extends SizeProps, SpacingProps, PositionProps, Tra
 }
 
 /** Icon component props — displays a clickable icon with styling. */
-export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
+export interface IconProps extends SpacingProps, PositionProps, TransformProps, EffectsProps, AnimatableProps {
   iconType?: string;
   size?: number;
   color?: string;
   width?: string;
   height?: string;
-  opacity?: number;
   link?: string;
 }
 
@@ -331,7 +332,7 @@ export interface TabsProps
   activeTabTextColor?: string;
 }
 
-export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps {
+export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps, TransformProps {
   controlType?: "checkbox" | "radio";
   /** Used as radio group name (scoped per-node to avoid collisions). */
   name?: string;
