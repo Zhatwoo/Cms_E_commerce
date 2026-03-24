@@ -1078,17 +1078,19 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             update("scrollEffect.freeMove.keyframes", undefined);
 
                             // Snap back to Start immediately after setting End.
-                            // IMPORTANT: don't clear transforms; just offset from current pose.
+                            // IMPORTANT: don't clear transforms; apply exact delta back to captured origin.
                             const view = el.ownerDocument?.defaultView ?? window;
                             const rect = el.getBoundingClientRect();
                             const pageLeft = rect.left + view.scrollX;
                             const pageTop = rect.top + view.scrollY;
+                            const dxToStart = origin.x - pageLeft;
+                            const dyToStart = origin.y - pageTop;
                             const baseX = Number(gsap.getProperty(el, "x")) || 0;
                             const baseY = Number(gsap.getProperty(el, "y")) || 0;
                             gsap.set(el, {
-                              // In relative mode, Start is (0,0) delta.
-                              x: baseX,
-                              y: baseY,
+                              // In relative mode, Start is at captured origin.
+                              x: baseX + dxToStart,
+                              y: baseY + dyToStart,
                               force3D: true,
                             });
                           }}
