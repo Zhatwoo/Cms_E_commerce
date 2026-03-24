@@ -6,6 +6,7 @@ const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathF
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const stripeService = require('../services/stripeService');
+const Notification = require('../models/Notification');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -115,7 +116,22 @@ exports.register = async (req, res) => {
     // Create user in Firebase immediately (emailVerified: false - can't login until confirmed)
     const user = await User.register({ name: name.trim(), email: normEmail, password });
     
-    // Generate verification token (JWT with user ID and email) - no database needed
+    // Broadcast to Admins: New User Signed Up
+    try {
+      if (req.app.get('io')) {
+        const notif = await Notification.create({
+          title: 'New User Registered',
+          message: `${name.trim()} (${normEmail}) just created an account.`,
+          type: 'info',
+          adminId: 'system'
+        });
+        req.app.get('io').emit('notification:added', notif);
+      }
+    } catch (e) {
+      console.warn('Register notification failed:', e.message);
+    }
+
+    // Generate verification token (JWT with user ID and email)
     const verificationToken = jwt.sign(
       { userId: user.id, email: normEmail, type: 'email_verification' },
       process.env.JWT_SECRET,

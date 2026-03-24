@@ -109,6 +109,10 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 // Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
 const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   ...CRAFT_RESOLVER,
+  ProfileLogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profilelogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
+  ProfileLoginNode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLoginNode ?? (CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
+  profileloginnode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profileloginnode ?? (CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   BooleanField: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BooleanField),
   booleanfield: asComponent((CRAFT_RESOLVER as Record<string, unknown>).booleanfield),
   BOOLEANFIELD: asComponent((CRAFT_RESOLVER as Record<string, unknown>).BOOLEANFIELD),
@@ -164,6 +168,7 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered.includes("divider")) return "Divider";
   if (lowered.includes("banner")) return "Banner";
   if (lowered.includes("badge")) return "Badge";
+  if (lowered.includes("profilelogin") || lowered.includes("profile login") || lowered.includes("profile-login")) return "ProfileLogin";
   if (lowered.includes("pagination")) return "Pagination";
   if (lowered.includes("boolean") || lowered.includes("checkbox") || lowered.includes("radio")) return "BooleanField";
   if (lowered.includes("accordion")) return "Accordion";
@@ -554,27 +559,38 @@ function PreviewContent() {
     }
   }, []);
 
+  const clearSnapshotCache = (targetProjectId: string) => {
+    if (typeof window === "undefined") return;
+    try { window.sessionStorage.removeItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
+    try { window.sessionStorage.removeItem(STORAGE_KEY_PREFIX); } catch { /* ignore */ }
+    try { window.localStorage.removeItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`); } catch { /* ignore */ }
+  };
+
   const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
-      const latest = readLatestSnapshot(projectId);
-      if (latest) {
-        setRawJson(latest);
+      // 1. Try to load the latest snapshot (Session/Local) for instant parity with editor
+      const cache = readLatestSnapshot(projectId);
+      if (cache) {
+        setRawJson(cache);
+        setLoading(false);
         return;
       }
 
+      // 2. Try the Draft API (Firestore)
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
         setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
+        setLoading(false);
         return;
       }
 
+      // 3. Fallback to Published Content
       if (project?.subdomain) {
         const published = await loadPublishedContent(project.subdomain);
         if (published) {
           setRawJson(published);
-          return;
         }
       }
     } catch (e) {
@@ -587,17 +603,15 @@ function PreviewContent() {
   // Fetch project metadata so we know the subdomain
   useEffect(() => {
     let cancelled = false;
-    if (project) return;
-    (async () => {
+    async function loadProject() {
       try {
         const res = await getProject(projectId);
-        if (!cancelled && res.success && res.project) {
-          setProject(res.project);
-        }
+        if (!cancelled && res.success && res.project) setProject(res.project);
       } catch { /* ignore */ }
-    })();
+    }
+    loadProject();
     return () => { cancelled = true; };
-  }, [projectId, project]);
+  }, [projectId]);
 
   // Main data loader: load published content (same as live subdomain) when available.
   // Depends on `project` so it re-runs once project metadata (with subdomain) arrives.
@@ -608,16 +622,16 @@ function PreviewContent() {
       if (!project) return;
       setLoading(true);
       try {
-        // Keep preview aligned with current editor/canvas snapshot first.
-        const latest = readLatestSnapshot(projectId);
-        if (!cancelled && latest) {
-          setRawJson(latest);
+        // 1. Try local snapshot first (Instant parity with Editor)
+        const snapshot = readLatestSnapshot(projectId);
+        if (snapshot && !cancelled) {
+          setRawJson(snapshot);
           setLoading(false);
           return;
         }
 
-        // No local snapshot available — load latest draft from API
-        const timeoutMs = 12000;
+        // 2. Try Draft API
+        const timeoutMs = 8000;
         const result = await Promise.race([
           getDraft(projectId),
           new Promise<{ success: false; timeout: true }>((resolve) =>
@@ -630,33 +644,23 @@ function PreviewContent() {
         if (result.success && result.data?.content) {
           const content = result.data.content;
           if (typeof content === "object") {
-            if (!cancelled) setRawJson(JSON.stringify(content));
+            setRawJson(JSON.stringify(content));
           } else {
-            if (!cancelled) setRawJson(content);
+            setRawJson(content);
           }
-        } else {
-          // Draft unavailable — fall back to published content for deployed projects.
-          if (project.subdomain) {
-            const published = await loadPublishedContent(project.subdomain);
-            if (published && !cancelled) {
-              setRawJson(published);
-              return;
-            }
-          }
+          setLoading(false);
+          return;
+        }
 
-          // Last resort: stale local cache (if any)
-          const fallback = readLatestSnapshot(projectId);
-          if (fallback && !cancelled) setRawJson(fallback);
+        // 3. Last fallback: Published Content
+        if (project.subdomain) {
+          const published = await loadPublishedContent(project.subdomain);
+          if (!cancelled && published) {
+            setRawJson(published);
+          }
         }
       } catch (error) {
         console.error("Preview: Load error:", error);
-        const fallback = readLatestSnapshot(projectId);
-        if (fallback) {
-          setRawJson(fallback);
-        } else if (project.subdomain) {
-          const published = await loadPublishedContent(project.subdomain);
-          if (published) setRawJson(published);
-        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -664,59 +668,24 @@ function PreviewContent() {
 
     loadData();
     return () => { cancelled = true; };
-  }, [projectId, project, loadPublishedContent]);
+  }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  // Re-sync preview when tab becomes visible (draft first, then published fallback)
+  // Re-fetch published content when tab becomes visible
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        const latest = readLatestSnapshot(projectId);
-        if (latest) {
-          setRawJson(latest);
-          return;
-        }
-
-        getDraft(projectId)
-          .then((res) => {
-            if (res.success && res.data?.content) {
-              const content = res.data.content;
-              setRawJson(typeof content === "object" ? JSON.stringify(content) : content);
-              return;
-            }
-            if (project?.subdomain) {
-              return loadPublishedContent(project.subdomain).then((published) => {
-                if (published) setRawJson(published);
-              });
-            }
-          })
-          .catch(() => {
-            if (project?.subdomain) {
-              loadPublishedContent(project.subdomain).then((published) => {
-                if (published) setRawJson(published);
-              });
-            }
-          });
+      if (document.visibilityState === "visible" && project?.subdomain) {
+        loadPublishedContent(project.subdomain).then((published) => {
+          if (published) {
+            clearSnapshotCache(projectId);
+            setRawJson(published);
+          }
+        });
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  useEffect(() => {
-    let active = true;
-    async function loadProject() {
-      try {
-        const res = await getProject(projectId);
-        if (active && res.success && res.project) {
-          setProject(res.project);
-        }
-      } catch {
-        // ignore
-      }
-    }
-    loadProject();
-    return () => { active = false; };
-  }, [projectId]);
 
   // Fetch products for the preview store context
   useEffect(() => {
@@ -1353,7 +1322,7 @@ function PreviewContent() {
             {effectiveCleanDoc ? (
               <div
                 ref={previewRef}
-                className={`bg-white transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
+                className={`transition-[width] duration-300 ease-out overflow-hidden ${previewViewport === "desktop"
                   ? "min-h-[calc(100vh-200px)] w-full min-w-0"
                   : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
                   }`}
@@ -1375,7 +1344,7 @@ function PreviewContent() {
                   mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                   enableFormInputs
                   builderParityMode={useBuilderParityMode}
-                  fillViewport
+                  fillViewport={previewViewport !== "desktop"}
                   storeContext={previewStoreContext}
                   simulatedWidth={
                     previewViewport === "tablet" ? 768 : previewViewport === "mobile" ? 390 : undefined

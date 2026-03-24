@@ -9,6 +9,7 @@ import { AppearanceGroup } from "../../_components/rightPanel/settings/Appearanc
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { uploadMediaApi } from "@/lib/api";
+import { addFileToMediaLibrary } from "../../_lib/mediaActions";
 import type { ImageProps, SetProp } from "../../_types/components";
 
 export const ImageSettings = () => {
@@ -75,11 +76,9 @@ export const ImageSettings = () => {
       setUploading(true);
       setUploadProgress(0);
       try {
-        const { url } = await uploadMediaApi(projectId, file, {
-          folder: "images",
-          onProgress: (percent) => setUploadProgress(percent),
-        });
-        typedSetProp((props) => { props.src = url; });
+        // Use addFileToMediaLibrary to ensure this upload shows up in the 'Media' tab in the left panel
+        const item = await addFileToMediaLibrary(projectId, file);
+        typedSetProp((props) => { props.src = item.url; });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("Upload failed:", err);
@@ -214,6 +213,9 @@ export const ImageSettings = () => {
                 Using local preview (not in Storage)
               </p>
             )}
+            <p className="text-[9px] text-[var(--builder-text-faint)] mt-2 italic px-1">
+              Tip: Drag & drop from the Media tab to replace instantly.
+            </p>
           </div>
 
           {/* Alt Text */}
