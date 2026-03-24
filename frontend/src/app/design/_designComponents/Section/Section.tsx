@@ -64,6 +64,7 @@ export const Section = ({
   contentWidth = "constrained",
   contentMaxWidth = "1200px",
   customClassName = "",
+  editorVisibility = "auto",
   children,
 }: SectionProps = {}) => {
   const {
@@ -101,6 +102,13 @@ export const Section = ({
     },
     [connect]
   );
+
+  const effectiveDisplay = 
+    editorVisibility === "hide" 
+      ? "none" 
+      : editorVisibility === "show" && display === "none"
+        ? "block"
+        : (display ?? "block");
 
 
   const sectionStyle = React.useMemo<React.CSSProperties>(
@@ -142,6 +150,7 @@ export const Section = ({
       boxShadow,
       opacity,
       overflow,
+      display: effectiveDisplay,
       containerType: "inline-size",
     }),
     [
@@ -176,6 +185,8 @@ export const Section = ({
       top,
       width,
       zIndex,
+      editorVisibility,
+      display,
     ]
   );
 

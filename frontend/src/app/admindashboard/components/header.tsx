@@ -592,7 +592,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                     </div>
                                                     <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
                                                     <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
-                                                </button>
+                                                </div>
                                             ))}
                                         </div>
                                     )}
