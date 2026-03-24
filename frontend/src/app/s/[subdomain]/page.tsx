@@ -26,7 +26,7 @@ export default function SubdomainSitePage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const useBuilderParityMode = viewportWidth > PREVIEW_MOBILE_BREAKPOINT;
+
 
   useEffect(() => {
     if (!subdomain) {
@@ -103,7 +103,7 @@ export default function SubdomainSitePage() {
         pageIndex={0}
         mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
         enableFormInputs
-        builderParityMode={useBuilderParityMode}
+        builderParityMode={false}
       />
     </div>
   );

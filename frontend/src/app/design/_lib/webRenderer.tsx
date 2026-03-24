@@ -3365,14 +3365,24 @@ function RenderNode({
       const bannerTextTransform = (props.textTransform as React.CSSProperties["textTransform"]) || "none";
       const bannerTextColor = (props.color as string) || "#ffffff";
       const hasBannerChildren = Array.isArray(children) && children.length > 0;
+      const originalPos = (props.position as string) || "relative";
+      const normalizedPosition = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const shouldClearNarrowOffsets = !builderParityMode && isNarrowPreview && (originalPos === "absolute" || originalPos === "fixed") && normalizedPosition === "relative";
+
       return wrap(
         <div
           data-layout="row"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizedPosition,
+            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            zIndex: (props.zIndex as number | undefined) ?? 3,
             width,
             height,
-            maxWidth: "100%",
+            maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
             minWidth: 0,
             background: (props.background as string) || "#ef4444",
             color: (props.color as string) || "#ffffff",
@@ -3384,6 +3394,8 @@ function RenderNode({
             margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4, useFixedPx)}`,
             borderRadius: px(props.borderRadius),
             overflow: "hidden",
+            boxShadow: props.boxShadow as string,
+            opacity: props.opacity as number,
           }}
         >
           {hasBannerChildren ? children : (
@@ -4203,21 +4215,15 @@ export function WebPreview({
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
-  /** Initial page slug for multi-page (overrides pageIndex when set). */
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
-  /** Notify parent when prototype navigation changes the visible page. */
   onNavigate?: (pageSlug: string) => void;
   simulatedWidth?: number;
-  /** Optional viewport width used only for responsive visibility/breakpoint logic. */
   responsiveViewportWidth?: number;
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
-  /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
   builderParityMode?: boolean;
-  /** When true, content fills full viewport width (no max-width box, no side margins). */
   fillViewport?: boolean;
-  /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
   renderAllNodes?: boolean;
 }): React.ReactElement {
   const safePages = React.useMemo(
@@ -4293,43 +4299,51 @@ export function WebPreview({
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const pageRotation = toNumber(pageProps.pageRotation, 0);
-  const frameStyles = resolvePageFrameStyles(width);
-  const { ref, width: measuredWidth } = useContainerWidth(1000);
+
+  const { ref, width: measuredWidth } = useContainerWidth(1200);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
-  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
-  const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
-  const isPhoneSize = !isDesktopMode;
+  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
+  const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
+  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (!isDesktopMode && mobileWrapperRef.current) {
+    if (isPhoneSize && mobileWrapperRef.current) {
       mobileWrapperRef.current.removeAttribute("data-nav-preview-done");
       const t = setTimeout(() => {
         if (mobileWrapperRef.current) enhanceNavInPreview(mobileWrapperRef.current);
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageId]);
+  }, [isPhoneSize, currentPageId]);
+
+  React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      const oldBg = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = background;
+      return () => { document.body.style.backgroundColor = oldBg; };
+    }
+  }, [background]);
+
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
     for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
-      if (typeof target === "string" && target.trim()) {
-        targets.add(target.trim());
-      }
+      if (typeof target === "string" && target.trim()) targets.add(target.trim());
     }
     return targets;
   }, [safeNodes]);
+
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
-      const next =
-        action === "open" ? true :
-          action === "close" ? false :
-            !current;
+      const next = action === "open" ? true : action === "close" ? false : !current;
       return { ...prev, [target]: next };
     });
   }, []);
@@ -4338,16 +4352,10 @@ export function WebPreview({
     const hasPages = safePages.length > 0;
     return (
       <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+        {hasPages ? "No page to display." : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
       </div>
     );
   }
-
-  const pageWidthPx = parsePixelValue(width) || 1440;
-  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
-  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
 
   const pageContent = (
     <>
@@ -4363,7 +4371,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
+            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4390,17 +4398,6 @@ export function WebPreview({
         @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
-        .preview-input {
-          background: transparent;
-          border: none;
-          outline: none;
-          width: 100%;
-          min-width: 0;
-        }
-        .preview-input::placeholder {
-          color: var(--placeholder-color, #94a3b8);
-          opacity: 1;
-        }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
       <div
@@ -4408,29 +4405,28 @@ export function WebPreview({
         ref={ref}
         style={{
           width: "100%",
-          minHeight: "100%",
+          minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           overflowX: "hidden",
           overflowY: "auto",
-          padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
-          backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+          backgroundColor: background,
         }}
       >
         <div
           style={{
             width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
-            maxWidth: isScaling ? pageWidthPx : ((isPhoneSize || fillViewport) ? "100%" : undefined),
-            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) : (isPhoneSize ? "100vh" : minHeight),
-            backgroundColor: background,
+            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight),
+            backgroundColor: "transparent",
+            margin: "0 auto",
+            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
+            transformOrigin: "top center",
             position: "relative",
             isolation: "isolate",
             overflow: isScaling ? "visible" : "hidden",
-            boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
-            borderRadius: isPhoneSize || fillViewport ? 0 : 4,
-            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
-            transformOrigin: "top center",
             transition: "transform 0.2s ease, width 0.3s ease",
             ...transitionStyle,
           }}
@@ -4438,14 +4434,12 @@ export function WebPreview({
           {isPhoneSize ? (
             <div
               ref={mobileWrapperRef}
-              className={isScaling ? "frame-responsive-inner" : "frame-responsive-inner frame-fluid frame-mobile"}
+              className={(isPhoneSize || fillViewport) ? "frame-responsive-inner frame-fluid frame-mobile" : "frame-responsive-inner"}
               style={{
                 width: isScaling ? pageWidthPx : "100%",
                 minHeight: "100vh",
                 boxSizing: "border-box",
                 containerType: "inline-size",
-                transform: isScaling ? undefined : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
-                transformOrigin: "top center",
               }}
             >
               {pageContent}
@@ -4459,38 +4453,29 @@ export function WebPreview({
   );
 }
 
-/**
- * Full-width live site renderer. No shadow, no border-radius, no max-width box.
- * The design fills the entire browser viewport as a real website.
- * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
- */
 export function LiveSite({
   doc,
   pageIndex = 0,
   storeContext,
   initialPageSlug,
-  mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
+  mobileBreakpoint = PREVIEW_TABLET_BREAKPOINT,
   enableFormInputs = false,
+  fillViewport = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
-  /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
   initialPageSlug?: string;
-  /** Width threshold (px) before switching to mobile frame behavior. */
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
+  fillViewport?: boolean;
 }): React.ReactElement {
   const safePages = React.useMemo(
-    () => (Array.isArray(doc?.pages)
-      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
-      : []),
+    () => (Array.isArray(doc?.pages) ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page)) : []),
     [doc]
   );
   const safeNodes = React.useMemo(
-    () => (doc?.nodes && typeof doc.nodes === "object"
-      ? (doc.nodes as Record<string, CleanNode>)
-      : {}),
+    () => (doc?.nodes && typeof doc.nodes === "object" ? (doc.nodes as Record<string, CleanNode>) : {}),
     [doc]
   );
 
@@ -4512,14 +4497,17 @@ export function LiveSite({
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
-  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
+  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
 
-  const { ref, width: measuredWidth } = useContainerWidth();
-  const isPhoneSize = measuredWidth <= mobileBreakpoint;
-  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+  const { ref, width: measuredWidth } = useContainerWidth(1200);
+  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
+  const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
+  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
 
@@ -4534,14 +4522,20 @@ export function LiveSite({
     }
   }, [isPhoneSize, currentPageId]);
 
+  React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      const oldBg = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = background;
+      return () => { document.body.style.backgroundColor = oldBg; };
+    }
+  }, [background]);
+
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
     for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
-      if (typeof target === "string" && target.trim()) {
-        targets.add(target.trim());
-      }
+      if (typeof target === "string" && target.trim()) targets.add(target.trim());
     }
     return targets;
   }, [safeNodes]);
@@ -4549,10 +4543,7 @@ export function LiveSite({
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
-      const next =
-        action === "open" ? true :
-          action === "close" ? false :
-            !current;
+      const next = action === "open" ? true : action === "close" ? false : !current;
       return { ...prev, [target]: next };
     });
   }, []);
@@ -4568,18 +4559,12 @@ export function LiveSite({
         setHistory((h) => [...h, currentPageId]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
-        setTransitionStyle({
-          ...PAGE_TRANSITION_STYLES[trans],
-          animationDuration: `${duration}s`,
-        });
+        setTransitionStyle({ ...PAGE_TRANSITION_STYLES[trans], animationDuration: `${duration}s` });
         setCurrentPageId(destId);
       } else {
         const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-        } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
-          window.location.href = interaction.destination;
-        }
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+        else if (interaction.destination.match(/^(https?:\/\/|mailto:|\/)/)) window.location.href = interaction.destination;
       }
     } else if (interaction.action === "back") {
       if (history.length > 0) {
@@ -4587,9 +4572,7 @@ export function LiveSite({
         setHistory((h) => h.slice(0, -1));
         setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
         setCurrentPageId(prevId);
-      } else {
-        window.history.back();
-      }
+      } else window.history.back();
     }
   }, [currentPageId, history, pageMeta]);
 
@@ -4597,9 +4580,7 @@ export function LiveSite({
     const hasPages = safePages.length > 0;
     return (
       <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+        {hasPages ? "No page to display." : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
       </div>
     );
   }
@@ -4627,8 +4608,8 @@ export function LiveSite({
             onPrototypeAction={onPrototypeAction}
             mobileBreakpoint={mobileBreakpoint}
             enableFormInputs={enableFormInputs}
-            builderParityMode={true}
-            preserveAuthoredPositioning={true}
+            builderParityMode={false}
+            preserveAuthoredPositioning={false}
             layoutReferenceWidth={layoutReferenceWidth}
             layoutReferenceHeight={layoutReferenceHeight}
           />
@@ -4653,34 +4634,38 @@ export function LiveSite({
         key={currentPageId}
         ref={ref}
         style={{
-          width: isPhoneSize ? "100%" : width,
-          maxWidth: isPhoneSize ? "100%" : undefined,
-          minHeight,
+          width: "100%",
+          minHeight: "100vh",
           backgroundColor: background,
-          margin: isPhoneSize ? 0 : "0 auto",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          overflowX: "hidden",
           ...transitionStyle,
         }}
       >
-        {isPhoneSize ? (
-          <div
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              containerType: "inline-size",
-            }}
-          >
-            <div
-              ref={liveSiteWrapperRef}
-              className="frame-responsive-inner frame-fluid frame-mobile"
-            >
-              {pageChildren}
+        <div
+          style={{
+            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
+            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            backgroundColor: "transparent",
+            margin: "0 auto",
+            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
+            transformOrigin: "top center",
+          }}
+        >
+          {isPhoneSize ? (
+            <div style={{ width: "100%", boxSizing: "border-box", containerType: "inline-size" }}>
+              <div ref={liveSiteWrapperRef} className="frame-responsive-inner frame-fluid frame-mobile">
+                {pageChildren}
+              </div>
             </div>
-          </div>
-        ) : (
-          pageChildren
-        )}
+          ) : (
+            pageChildren
+          )}
+        </div>
       </div>
     </>
   );

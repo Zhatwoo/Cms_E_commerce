@@ -24,7 +24,7 @@ export default function SitePage() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const useBuilderParityMode = viewportWidth > PREVIEW_MOBILE_BREAKPOINT;
+
 
   useEffect(() => {
     if (!projectId) {
@@ -88,7 +88,7 @@ export default function SitePage() {
         pageIndex={0}
         mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
         enableFormInputs
-        builderParityMode={useBuilderParityMode}
+        builderParityMode={false}
       />
     </div>
   );

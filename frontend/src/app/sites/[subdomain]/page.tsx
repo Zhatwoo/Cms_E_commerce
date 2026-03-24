@@ -88,7 +88,7 @@ function PublicSiteContent() {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const useBuilderParityMode = viewportWidth > PREVIEW_MOBILE_BREAKPOINT;
+
 
   useEffect(() => {
     if (typeof window === 'undefined' || !subdomain) return;
@@ -207,7 +207,7 @@ function PublicSiteContent() {
           pageIndex={0}
           mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
           enableFormInputs
-          builderParityMode={useBuilderParityMode}
+          builderParityMode={false}
           storeContext={{ products, addToCart }}
         />
         <CartFab />
