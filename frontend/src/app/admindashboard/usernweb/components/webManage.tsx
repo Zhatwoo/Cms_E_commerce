@@ -349,30 +349,37 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
 
   const selection = useGDriveSelection();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await getDomainsManagement();
-        if (cancelled) return;
-        if (res.success) {
-          setWebsites(Array.isArray(res.data) ? res.data : []);
-        } else {
-          setWebsites([]);
-        }
-      } catch (e) {
-        if (!cancelled) {
-          setError(e instanceof Error ? e.message : 'Failed to load data');
-          setWebsites([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+  const loadWebsites = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const res = await getDomainsManagement();
+      if (res.success) {
+        setWebsites(Array.isArray(res.data) ? res.data : []);
+      } else {
+        setWebsites([]);
       }
-    })();
-    return () => { cancelled = true; };
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load data');
+      setWebsites([]);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    loadWebsites();
+  }, [loadWebsites]);
+
+  useEffect(() => {
+    // Listen for real-time updates from other admins
+    const handleUpdate = () => {
+      console.log('[WebManagement] Real-time notification received, refreshing list...');
+      loadWebsites();
+    };
+    window.addEventListener('notification:new_received', handleUpdate);
+    return () => window.removeEventListener('notification:new_received', handleUpdate);
+  }, [loadWebsites]);
 
   useEffect(() => {
     setSearch(urlSearch);
@@ -953,8 +960,9 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                           : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
                       }`}
                       onClick={(e) => {
-                        (e as React.MouseEvent).preventDefault?.();
-                        selection.handleRowClick(key, (e as React.MouseEvent).shiftKey, pagedWebsiteIds);
+                        const mouseEvent = e as unknown as React.MouseEvent;
+                        mouseEvent.preventDefault?.();
+                        selection.handleRowClick(key, mouseEvent.shiftKey, mouseEvent.ctrlKey || mouseEvent.metaKey, pagedWebsiteIds);
                       }}
                       onMouseDown={(e) => {
                         (e as React.MouseEvent).preventDefault?.();

@@ -194,6 +194,19 @@ exports.adminWebsiteAction = async (req, res) => {
       emailError = 'Recipient email not found';
     }
 
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: normalizedAction === 'take_down' ? 'Website Offline' : 'Website Deleted',
+        message: `${domain.subdomain || domainId} was ${normalizedAction === 'take_down' ? 'taken down' : 'deleted'} by admin`,
+        type: normalizedAction === 'take_down' ? 'warning' : 'error',
+        adminId: req.user?.id || 'admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Admin action notification failed:', e.message);
+    }
+
     return res.status(200).json({
       success: true,
       message:
