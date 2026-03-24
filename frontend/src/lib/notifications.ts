@@ -20,6 +20,7 @@ export interface NotificationItem {
   time: string; // ISO string for consistency
   read: boolean;
   type: 'success' | 'warning' | 'error' | 'info';
+  adminName?: string;
 }
 
 /**
@@ -49,7 +50,8 @@ export async function fetchSharedNotifications(): Promise<NotificationItem[]> {
         message: n.message,
         time: n.createdAt,
         read: n.read || false,
-        type: n.type
+        type: n.type,
+        adminName: n.adminName || 'Admin'
       }));
       saveNotifications(mapped);
       return mapped;

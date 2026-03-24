@@ -18,7 +18,7 @@ import {
     type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
-import { getNotifications, markAsRead, type NotificationItem } from '@/lib/notifications';
+import { getNotifications, markAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -132,12 +132,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         load();
         window.addEventListener('notificationsUpdate', load);
 
-        const onNewReceived = (e: any) => {
+        const onNewReceived = async (e: any) => {
             const newItem = e.detail;
             if (!newItem) return;
 
+            // Refresh the whole notification list from backend
+            await fetchSharedNotifications();
+
             // Only show toast if it's NOT from the current user (don't double notify)
-            // Or if current user is null (maybe just for testing)
             if (currentUser && newItem.adminId === currentUser.id) {
                 return;
             }
@@ -145,7 +147,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             setActiveToast({
                 id: newItem.id || `toast-${Date.now()}`,
                 title: newItem.title,
-                message: newItem.message,
+                message: `${newItem.adminName ? `${newItem.adminName}: ` : ''}${newItem.message}`,
                 type: newItem.type || 'info'
             });
 
@@ -604,7 +606,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                         )}
                                                     </div>
                                                     <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
-                                                    <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                    <div className="mt-1 flex items-center justify-between">
+                                                        <span className="text-[10px] font-medium text-[#B13BFF]/60">{n.adminName || 'Admin'}</span>
+                                                        <span className="text-[10px] font-medium text-[#B13BFF]/60">{n.time}</span>
+                                                    </div>
                                                 </button>
                                             ))}
                                         </div>

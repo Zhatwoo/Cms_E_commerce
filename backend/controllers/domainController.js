@@ -222,7 +222,8 @@ exports.setClientDomainStatus = async (req, res) => {
         title: 'Status Updated',
         message: `Domain ${subdomain || domainId} updated to ${normalized} status.`,
         type: 'info',
-        adminId: req.user?.id || 'admin'
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
@@ -291,6 +292,20 @@ exports.adminWebsiteAction = async (req, res) => {
       emailError = mail?.error || '';
     } else {
       emailError = 'Recipient email not found';
+    }
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: normalizedAction === 'take_down' ? 'Website Offline' : 'Website Deleted',
+        message: `${domain.subdomain || domainId} was ${normalizedAction === 'take_down' ? 'taken down' : 'deleted'} by admin`,
+        type: normalizedAction === 'take_down' ? 'warning' : 'error',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Admin action notification failed:', e.message);
     }
 
     return res.status(200).json({
@@ -451,7 +466,8 @@ exports.publish = async (req, res) => {
         title: 'Website Published',
         message: `${project.title || subdomain} has just gone live!`,
         type: 'success',
-        adminId: 'system'
+        adminId: req.user?.id || 'system',
+        adminName: req.user?.name || 'System'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
