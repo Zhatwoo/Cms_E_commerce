@@ -4288,7 +4288,7 @@ export function WebPreview({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageId]);
+  }, [isPhoneSize, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
