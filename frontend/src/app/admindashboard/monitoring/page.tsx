@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, useEffect, Suspense } from 'react';
+import React, { useMemo, useState, useEffect, Suspense, useRef } from 'react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -95,6 +95,8 @@ type WebsitePreviewThumbnailProps = {
 export function WebsitePreviewThumbnail({ domainName, borderColor, bgColor, className = '' }: WebsitePreviewThumbnailProps) {
   const [previewUrl, setPreviewUrl] = useState<string>('');
   const [frameError, setFrameError] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!domainName) return;
@@ -106,6 +108,24 @@ export function WebsitePreviewThumbnail({ domainName, borderColor, bgColor, clas
     }
   }, [domainName]);
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1, rootMargin: '200px' }
+    );
+
+    if (containerRef.current) {
+      observer.observe(containerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
   const cssToInject = `
     .cart-drawer, .shopping-cart, #checkout-button, .checkout-btn, .add-to-cart, .cart-icon, .cart-node, [id*="cart"], [class*="cart"] { display: none !important; }
     header { padding-top: 5px !important; padding-bottom: 5px !important; }
@@ -113,17 +133,19 @@ export function WebsitePreviewThumbnail({ domainName, borderColor, bgColor, clas
     * { pointer-events: none !important; }
   `;
 
-  if (!previewUrl || frameError) {
-    return (
-      <div className={`flex items-center justify-center text-[11px] font-medium ${className}`}
-        style={{ background: bgColor, border: `1px solid ${borderColor}`, color: '#a090c8' }}>
-        No preview available
-      </div>
-    );
+  const fallback = (
+    <div className={`flex items-center justify-center text-[11px] font-medium ${className}`}
+      style={{ background: bgColor, border: `1px solid ${borderColor}`, color: '#a090c8' }}>
+      {frameError ? 'No preview available' : 'Loading preview…'}
+    </div>
+  );
+
+  if (!previewUrl || frameError || !isInView) {
+    return <div ref={containerRef} className={className}>{fallback}</div>;
   }
 
   return (
-    <div className={`relative overflow-hidden ${className}`} style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
+    <div ref={containerRef} className={`relative overflow-hidden ${className}`} style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
       <iframe
         src={previewUrl}
         title={`Preview of ${domainName}`}
@@ -133,20 +155,174 @@ export function WebsitePreviewThumbnail({ domainName, borderColor, bgColor, clas
         onError={() => setFrameError(true)}
         onLoad={(e) => {
           try {
-            const doc = (e.currentTarget as HTMLIFrameElement).contentDocument;
+            const ifr = e.currentTarget as HTMLIFrameElement;
+            const doc = ifr.contentDocument || ifr.contentWindow?.document;
             if (doc) {
               const styleTag = doc.createElement('style');
               styleTag.textContent = cssToInject;
               doc.head.appendChild(styleTag);
             }
-          } catch { /* cross-origin */ }
+          } catch { 
+            // Silent catch for cross-origin. We expected this.
+          }
         }}
       />
     </div>
   );
 }
 
-/* ── Shared styles ──────────────────────────────────────────── */
+const MemoizedWebsitePreviewThumbnail = React.memo(WebsitePreviewThumbnail);
+
+/* ── Card Components ────────────────────────────────────────── */
+type WebsiteCardProps = {
+  w: WebsiteManagementRow;
+  viewUrl: string;
+  industry: string;
+  workingWebsiteKey: string | null;
+  openWebsiteActionModal: (w: WebsiteManagementRow) => void;
+};
+
+const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openWebsiteActionModal }: WebsiteCardProps) => {
+  const status = getWebsiteStatusMeta(w.status);
+  const domainLabel = w.domainName || '—';
+  const ownerLabel = w.owner || 'Unknown';
+  const domainNameClass = domainLabel.length > 28 ? 'text-sm' : 'text-base';
+  const ownerNameClass = ownerLabel.length > 16 ? 'text-xs' : 'text-sm';
+  const isWorking = workingWebsiteKey === `${w.userId}::${w.id}`;
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="overflow-hidden rounded-[20px] flex flex-col aspect-square min-h-[280px]"
+      style={{ border: '1px solid rgba(166,61,255,0.15)', boxShadow: '0 4px 20px rgba(103,2,191,0.08)', background: 'rgba(255,255,255,0.9)' }}
+    >
+      <div className="relative flex-1 overflow-hidden flex items-center justify-center"
+        style={{ borderBottom: '1px solid rgba(166,61,255,0.13)', background: '#f0eeff' }}>
+        {w.thumbnail ? (
+          <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-contain" loading="lazy" />
+        ) : (
+          <MemoizedWebsitePreviewThumbnail domainName={w.domainName}
+            borderColor="rgba(166,61,255,0.13)" bgColor="rgba(240,235,255,0.55)" className="h-full w-full" />
+        )}
+        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
+          style={{ background: 'rgba(255,255,255,0.95)', color: '#4a1a8a', border: '1px solid rgba(166,61,255,0.15)' }}>
+          <span className={`h-2 w-2 rounded-full ${status.dotClass}`} />
+          {status.label}
+        </span>
+        <span className="absolute bottom-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium z-10"
+          style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
+          {industry}
+        </span>
+      </div>
+      <div className="px-4 py-3 min-h-[108px] flex flex-col justify-between">
+        <div>
+          <p className={`${domainNameClass} font-bold truncate`} style={{ color: '#2d1a50' }} title={domainLabel}>{domainLabel}</p>
+          {w.createdAt && (
+            <p className="text-[10px] mt-0.5 mb-2" style={{ color: '#a090c8' }}>{formatToPHTimeShort(w.createdAt)}</p>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1 max-w-[58%]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#a090c8' }}>Publisher</p>
+            <p className={`${ownerNameClass} font-semibold truncate block w-full`} style={{ color: '#4a1a8a' }} title={ownerLabel}>{ownerLabel}</p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a href={viewUrl} target="_blank" rel="noopener noreferrer"
+              className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95"
+              style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
+              View
+            </a>
+            <button type="button" onClick={() => openWebsiteActionModal(w)}
+              disabled={isWorking}
+              className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+              style={{ background: '#ef4444' }}>
+              {isWorking ? 'Working…' : 'Dismiss'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.article>
+  );
+});
+
+type ProductCardProps = {
+  p: ApiProduct;
+  workingProductId: string | null;
+  setSelectedProduct: (p: ApiProduct) => void;
+  openDeleteProductModal: (p: ApiProduct) => void;
+};
+
+const ProductCard = React.memo(({ p, workingProductId, setSelectedProduct, openDeleteProductModal }: ProductCardProps) => {
+  const isWorking = workingProductId === p.id;
+  
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="overflow-hidden rounded-[20px] flex flex-col"
+      style={{ border: '1px solid rgba(166,61,255,0.15)', boxShadow: '0 4px 20px rgba(103,2,191,0.08)', background: 'rgba(255,255,255,0.9)' }}
+    >
+      <div className="relative h-52 overflow-hidden flex items-center justify-center" style={{ background: '#f0eeff' }}>
+        <Image src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
+          alt={p.name || 'Product'} fill sizes="280px"
+          className="object-contain p-3 scale-105"
+          unoptimized={Array.isArray(p.images) && !!p.images[0]} />
+        <span className="absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10px] font-semibold z-10"
+          style={{ background: '#FFCC00', color: '#1a1035' }}>
+          {p.subdomain || 'example.com'}
+        </span>
+        {p.status && (
+          <span className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[9px] font-semibold z-10"
+            style={{ background: 'rgba(255,255,255,0.9)', color: normalize(p.status) === 'published' ? '#16a34a' : '#a090c8' }}>
+            {p.status}
+          </span>
+        )}
+        <span className="absolute right-2.5 bottom-2.5 rounded-full px-2 py-0.5 text-[10px] font-medium z-10"
+          style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
+          {productIndustry(p)}
+        </span>
+      </div>
+      <div className="px-4 py-3 flex flex-col gap-2 flex-1">
+        <div className="flex items-start gap-2">
+          <p className="text-sm font-bold leading-tight truncate flex-1" style={{ color: '#2d1a50' }}>{p.name || 'Product Name'}</p>
+          <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap shrink-0"
+            style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8' }}>
+            {p.subcategory || 'General'}
+          </span>
+        </div>
+        <p className="text-xs truncate" style={{ color: '#a090c8' }}>SKU: {p.sku || 'N/A'}</p>
+        {p.createdAt && (
+          <p className="text-[10px]" style={{ color: '#a090c8' }}>{formatToPHTimeShort(p.createdAt)}</p>
+        )}
+        <div className="flex items-center gap-2 mt-auto pt-1">
+          <button type="button" onClick={() => setSelectedProduct(p)}
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95"
+            style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
+            View
+          </button>
+          <button type="button" onClick={() => openDeleteProductModal(p)}
+            disabled={isWorking}
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+            style={{ background: '#ef4444' }}>
+            {isWorking ? 'Deleting…' : 'Delete'}
+          </button>
+          <span className="ml-auto text-xs font-semibold whitespace-nowrap" style={{ color: '#c89000' }}>
+            {formatMoney(p.finalPrice ?? p.price)}
+          </span>
+        </div>
+      </div>
+    </motion.article>
+  );
+});
+
+
+WebsiteCard.displayName = 'WebsiteCard';
+ProductCard.displayName = 'ProductCard';
+
+/* ── Empty State ────────────────────────────────────────────── */
 const panelStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.84)',
   border: '1px solid rgba(166,61,255,0.13)',
@@ -734,68 +910,16 @@ function MonitoringPageContent() {
                       <EmptyState message="No websites found." sub="Try adjusting your filters." />
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-4">
-                        {uniqueFilteredWebsites.map((w) => {
-                          const status = getWebsiteStatusMeta(w.status);
-                          const viewUrl = websiteViewUrl(w.domainName);
-                          const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
-                          const domainLabel = w.domainName || '—';
-                          const ownerLabel = w.owner || 'Unknown';
-                          const domainNameClass = domainLabel.length > 28 ? 'text-sm' : 'text-base';
-                          const ownerNameClass = ownerLabel.length > 16 ? 'text-xs' : 'text-sm';
-
-                          return (
-                            <motion.article key={`${w.userId}::${w.id}`}
-                              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-                              className="overflow-hidden rounded-[20px] flex flex-col aspect-square min-h-[280px]"
-                              style={{ border: '1px solid rgba(166,61,255,0.15)', boxShadow: '0 4px 20px rgba(103,2,191,0.08)', background: 'rgba(255,255,255,0.9)' }}>
-                              <div className="relative flex-1 overflow-hidden flex items-center justify-center"
-                                style={{ borderBottom: '1px solid rgba(166,61,255,0.13)', background: '#f0eeff' }}>
-                                {w.thumbnail ? (
-                                  <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-contain" loading="lazy" />
-                                ) : (
-                                  <WebsitePreviewThumbnail domainName={w.domainName}
-                                    borderColor="rgba(166,61,255,0.13)" bgColor="rgba(240,235,255,0.55)" className="h-full w-full" />
-                                )}
-                                <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
-                                  style={{ background: 'rgba(255,255,255,0.95)', color: '#4a1a8a', border: '1px solid rgba(166,61,255,0.15)' }}>
-                                  <span className={`h-2 w-2 rounded-full ${status.dotClass}`} />
-                                  {status.label}
-                                </span>
-                                <span className="absolute bottom-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium z-10"
-                                  style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
-                                  {industry}
-                                </span>
-                              </div>
-                              <div className="px-4 py-3 min-h-[108px] flex flex-col justify-between">
-                                <div>
-                                  <p className={`${domainNameClass} font-bold truncate`} style={{ color: '#2d1a50' }} title={domainLabel}>{domainLabel}</p>
-                                  {w.createdAt && (
-                                    <p className="text-[10px] mt-0.5 mb-2" style={{ color: '#a090c8' }}>{formatToPHTimeShort(w.createdAt)}</p>
-                                  )}
-                                </div>
-                                <div className="flex items-center justify-between gap-3">
-                                  <div className="min-w-0 flex-1 max-w-[58%]">
-                                    <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#a090c8' }}>Publisher</p>
-                                    <p className={`${ownerNameClass} font-semibold truncate block w-full`} style={{ color: '#4a1a8a' }} title={ownerLabel}>{ownerLabel}</p>
-                                  </div>
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <a href={viewUrl} target="_blank" rel="noopener noreferrer"
-                                      className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95"
-                                      style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
-                                      View
-                                    </a>
-                                    <button type="button" onClick={() => openWebsiteActionModal(w)}
-                                      disabled={workingWebsiteKey === `${w.userId}::${w.id}`}
-                                      className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
-                                      style={{ background: '#ef4444' }}>
-                                      {workingWebsiteKey === `${w.userId}::${w.id}` ? 'Working…' : 'Dismiss'}
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </motion.article>
-                          );
-                        })}
+                        {uniqueFilteredWebsites.map((w) => (
+                          <WebsiteCard 
+                            key={`${w.userId}::${w.id}`}
+                            w={w}
+                            viewUrl={websiteViewUrl(w.domainName)}
+                            industry={websiteIndustryByDomain.get(w.domainName) || 'General'}
+                            workingWebsiteKey={workingWebsiteKey}
+                            openWebsiteActionModal={openWebsiteActionModal}
+                          />
+                        ))}
                       </div>
                     )}
                   </div>
@@ -815,60 +939,13 @@ function MonitoringPageContent() {
                     ) : (
                       <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-4">
                         {sortedProducts.map((p) => (
-                          <motion.article key={`${p.id}-${p.subdomain || 'site'}`}
-                            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}
-                            className="overflow-hidden rounded-[20px] flex flex-col"
-                            style={{ border: '1px solid rgba(166,61,255,0.15)', boxShadow: '0 4px 20px rgba(103,2,191,0.08)', background: 'rgba(255,255,255,0.9)' }}>
-                            <div className="relative h-52 overflow-hidden flex items-center justify-center" style={{ background: '#f0eeff' }}>
-                              <Image src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
-                                alt={p.name || 'Product'} fill sizes="280px"
-                                className="object-contain p-3 scale-105"
-                                unoptimized={Array.isArray(p.images) && !!p.images[0]} />
-                              <span className="absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10px] font-semibold z-10"
-                                style={{ background: '#FFCC00', color: '#1a1035' }}>
-                                {p.subdomain || 'example.com'}
-                              </span>
-                              {p.status && (
-                                <span className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[9px] font-semibold z-10"
-                                  style={{ background: 'rgba(255,255,255,0.9)', color: normalize(p.status) === 'published' ? '#16a34a' : '#a090c8' }}>
-                                  {p.status}
-                                </span>
-                              )}
-                              <span className="absolute right-2.5 bottom-2.5 rounded-full px-2 py-0.5 text-[10px] font-medium z-10"
-                                style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
-                                {productIndustry(p)}
-                              </span>
-                            </div>
-                            <div className="px-4 py-3 flex flex-col gap-2 flex-1">
-                              <div className="flex items-start gap-2">
-                                <p className="text-sm font-bold leading-tight truncate flex-1" style={{ color: '#2d1a50' }}>{p.name || 'Product Name'}</p>
-                                <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap shrink-0"
-                                  style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8' }}>
-                                  {p.subcategory || 'General'}
-                                </span>
-                              </div>
-                              <p className="text-xs truncate" style={{ color: '#a090c8' }}>SKU: {p.sku || 'N/A'}</p>
-                              {p.createdAt && (
-                                <p className="text-[10px]" style={{ color: '#a090c8' }}>{formatToPHTimeShort(p.createdAt)}</p>
-                              )}
-                              <div className="flex items-center gap-2 mt-auto pt-1">
-                                <button type="button" onClick={() => setSelectedProduct(p)}
-                                  className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95"
-                                  style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
-                                  View
-                                </button>
-                                <button type="button" onClick={() => openDeleteProductModal(p)}
-                                  disabled={workingProductId === p.id}
-                                  className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
-                                  style={{ background: '#ef4444' }}>
-                                  {workingProductId === p.id ? 'Deleting…' : 'Delete'}
-                                </button>
-                                <span className="ml-auto text-xs font-semibold whitespace-nowrap" style={{ color: '#c89000' }}>
-                                  {formatMoney(p.finalPrice ?? p.price)}
-                                </span>
-                              </div>
-                            </div>
-                          </motion.article>
+                          <ProductCard 
+                            key={`${p.id}-${p.subdomain || 'site'}`}
+                            p={p}
+                            workingProductId={workingProductId}
+                            setSelectedProduct={setSelectedProduct}
+                            openDeleteProductModal={openDeleteProductModal}
+                          />
                         ))}
                       </div>
                     )}

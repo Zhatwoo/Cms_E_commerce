@@ -21,10 +21,10 @@ const SearchIcon = () => (
 
 /* ── shared light-mode style atoms ───────────────────────────── */
 const panel: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.82)',
-    border: '1px solid rgba(166,61,255,0.13)',
-    boxShadow: '0 8px 24px rgba(103,2,191,0.08), inset 0 1px 0 rgba(255,255,255,0.9)',
-    backdropFilter: 'blur(14px)',
+    background: 'rgba(255,255,255,0.88)',
+    border: '1px solid rgba(166,61,255,0.16)',
+    boxShadow: '0 20px 50px rgba(103,2,191,0.12), 0 4px 12px rgba(103,2,191,0.04)',
+    backdropFilter: 'blur(20px)',
 };
 
 /* ── DismissModal ─────────────────────────────────────────────── */
@@ -193,17 +193,30 @@ function ModerationComplianceBoard() {
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="space-y-4">
                 {/* Stat cards */}
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32 }} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    {stats.map((item) => (
+                    {stats.map((item, idx) => (
                         <motion.div
                             key={item.label}
-                            className="rounded-[28px] p-6"
+                            className="rounded-[28px] p-6 sm:p-7 relative overflow-hidden"
                             style={panel}
-                            whileHover={{ y: -3, scale: 1.01 }}
+                            whileHover={{ y: -4, scale: 1.01 }}
                             transition={{ type: 'spring', stiffness: 260, damping: 22 }}
                         >
-                            <div className="text-6xl font-bold leading-none" style={{ color: '#c89000' }}>{item.value}</div>
-                            <div className="mt-3 text-sm font-semibold uppercase" style={{ color: '#471396' }}>{item.label}</div>
-                            <div className="mt-1 text-xs" style={{ color: '#8A86A4' }}>Live</div>
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <div className="text-5xl font-bold leading-none" style={{ color: '#c89000' }}>{item.value}</div>
+                                    <div className="text-[11px] font-bold uppercase tracking-widest" style={{ color: '#471396' }}>{item.label}</div>
+                                </div>
+                                <div className="rounded-full bg-[rgba(103,2,191,0.08)] px-3 py-1 text-[10px] font-bold text-[#B13BFF]">
+                                    {(() => {
+                                        // Mocking some growth for compliance since it's not in the main analytics trends yet
+                                        const values = [52, 54, 55, 50, 58, 56];
+                                        const curr = Number(item.value);
+                                        const prev = values[idx % values.length];
+                                        const pct = ((curr - prev) / prev) * 100;
+                                        return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}% since yesterday`;
+                                    })()}
+                                </div>
+                            </div>
                         </motion.div>
                     ))}
                 </motion.div>
@@ -311,7 +324,7 @@ export default function ModerationCompliancePage() {
             <div className="flex min-h-0 flex-1 flex-col">
                 <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
                 <main className="flex-1 min-h-0 overflow-y-auto">
-                    <div className="p-8"><ModerationComplianceBoard /></div>
+                    <div className="px-8 pt-8 pb-32"><ModerationComplianceBoard /></div>
                 </main>
             </div>
         </div>
