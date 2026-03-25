@@ -145,10 +145,15 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
 
   const previewPages = useMemo<PageInfo[]>(() => {
     if (liveDoc?.pages?.length) {
-      return liveDoc.pages.map((page, index) => ({
-        id: page.id,
-        name: page.name || (page.props?.pageName as string) || `Page ${index + 1}`,
-      }));
+      return liveDoc.pages.map((page, index) => {
+        // Prefer explicit name, then page.props.pageName, then empty string
+        let name = (typeof page.name === 'string' ? page.name : '') || (typeof page.props?.pageName === 'string' ? page.props.pageName : '');
+        // If name is empty, show 'Untitled Page' in the dropdown only
+        return {
+          id: page.id,
+          name: name,
+        };
+      });
     }
     return pages;
   }, [liveDoc, pages]);
@@ -384,7 +389,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                             : "text-brand-lighter hover:bg-brand-medium/30"
                         }`}
                       >
-                        {page.name}
+                        {page.name && page.name.trim() !== '' ? page.name : 'Untitled Page'}
                       </button>
                     ))}
                   </div>
