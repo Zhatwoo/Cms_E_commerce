@@ -158,6 +158,11 @@ exports.updateUser = async (req, res) => {
     if (isActive !== undefined) updates.isActive = isActive;
     if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
+    // Handle password update via Firebase Auth
+    if (req.body.password && req.body.password.trim().length >= 6) {
+      await auth.updateUser(req.params.id, { password: req.body.password.trim() });
+    }
+
     const updated = await User.update(req.params.id, updates);
 
     // Real-time notification

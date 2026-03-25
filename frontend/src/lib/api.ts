@@ -1592,7 +1592,6 @@ export async function getDomainsManagement(): Promise<{
   }>('/api/domains/admin/management');
 }
 
-/** Admin: list all clients from user/roles/client with subscription_plan. */
 export type ClientRow = {
   id: string;
   email: string;
@@ -1606,6 +1605,8 @@ export type ClientRow = {
   storageLimitBytes?: number;
   storageUsedGb?: number;
   storageLimitGb?: number;
+  phone?: string;
+  bio?: string;
 };
 
 export async function getClients(): Promise<{
@@ -1646,6 +1647,17 @@ export async function deleteClient(userId: string): Promise<{ success: boolean; 
   return apiFetch<{ success: boolean; message?: string }>(`/api/users/${userId}`, {
     method: 'DELETE',
   });
+}
+
+/** Admin: update a client's profile details (name, email, password, etc.). */
+export async function updateClientDetails(
+  userId: string,
+  data: { name?: string; email?: string; phone?: string; bio?: string; password?: string }
+): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
+  return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
+    `/api/users/${userId}`,
+    { method: 'PUT', body: JSON.stringify(data) }
+  );
 }
 
 /** Admin: set client domain status (published | suspended | flagged | draft). Uses same-origin proxy so cookies are sent. */
