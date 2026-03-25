@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
-import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+import { getNotifications, saveNotifications, markAsRead, markAllAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
 import { formatToPHTime } from "@/lib/dateUtils";
 
 type NotificationTab = "list" | "configure" | "trash";
@@ -95,7 +95,7 @@ function ActionButton({
 			type="button"
 			onClick={onClick}
 			disabled={disabled}
-			className="inline-flex items-center gap-3 rounded-[18px] border border-[rgba(177,59,255,0.16)] bg-white px-6 py-3 text-[1.05rem] font-semibold text-[#857E9F] shadow-[0_5px_0_rgba(208,168,255,0.55)] transition hover:-translate-y-[1px] hover:text-[#471396] disabled:cursor-not-allowed disabled:opacity-50"
+			className="inline-flex items-center gap-3 rounded-[18px] border border-[rgba(177,59,255,0.16)] bg-white px-6 py-3 text-[1.05rem] font-semibold text-[#857E9F] shadow-[0_5px_0_rgba(208,168,255,0.55)] transition hover:-translate-y-[1px] hover:text-[#471396] disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-[#F2F0F7] disabled:shadow-none"
 		>
 			{icon}
 			<span>{children}</span>
@@ -158,8 +158,15 @@ function NotificationsPageContent() {
 
 	const handleMarkAsRead = () => {
 		if (selectedIds.length === 0) return;
-		const updated = notifications.map((item) => (selectedIds.includes(item.id) ? { ...item, read: true } : item));
-		saveNotifications(updated);
+		markAsRead(selectedIds[0]); // Actually markAsRead should probably support multiple or I use a loop
+		// Wait, lib/notifications.ts markAsRead only takes one ID.
+		// But I should use the one I added: markAllAsRead or loop markAsRead.
+		selectedIds.forEach(id => markAsRead(id));
+		setSelectedIds([]);
+	};
+
+	const handleMarkAllAsRead = async () => {
+		await markAllAsRead();
 		setSelectedIds([]);
 	};
 
@@ -274,6 +281,9 @@ function NotificationsPageContent() {
 													</div>
 													<ActionButton onClick={handleMarkAsRead} disabled={selectedIds.length === 0} icon={<CheckIcon />}>
 														Mark as Read
+													</ActionButton>
+													<ActionButton onClick={handleMarkAllAsRead} disabled={notifications.every(n => n.read)} icon={<CheckIcon />}>
+														Mark all as Read
 													</ActionButton>
 													<ActionButton onClick={handleDelete} disabled={selectedIds.length === 0} icon={<TrashOutlineIcon />}>
 														Delete
