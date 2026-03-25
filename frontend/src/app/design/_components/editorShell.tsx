@@ -7,7 +7,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
-import FloatingMobilePreview from "@/app/design/_components/FloatingMobilePreview";
+import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";

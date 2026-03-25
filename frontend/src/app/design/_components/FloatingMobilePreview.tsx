@@ -16,8 +16,6 @@ interface FloatingMobilePreviewProps {
   canvasHeight?: number;
 }
 
-
-
 interface PageInfo {
   id: string;
   name: string;
@@ -54,17 +52,16 @@ const MOBILE_DEVICE_PRESETS: MobileDevicePreset[] = [
 
 const DEFAULT_MOBILE_DEVICE = MOBILE_DEVICE_PRESETS[0];
 
-export default function FloatingMobilePreview({
+export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   isOpen,
   onClose,
   activePageId,
   canvasWidth,
   canvasHeight,
-}: FloatingMobilePreviewProps) {
+}) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const { state, query } = useEditor((state, query) => ({ state, query }));
 
-  const { pages, selectedPageFromCanvas, nodes } = useMemo(() => {
+  const { query, pages, selectedPageFromCanvas, nodes } = useEditor((state) => {
     const allNodes = state.nodes ?? {};
     const pageList: PageInfo[] = [];
 
@@ -108,7 +105,7 @@ export default function FloatingMobilePreview({
       selectedPageFromCanvas: detectedPageId,
       nodes: allNodes,
     };
-  }, [state]);
+  });
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
@@ -306,9 +303,11 @@ export default function FloatingMobilePreview({
   const viewportHeightSafe = viewportSize.height > 0 ? viewportSize.height : previewHeight + 320;
   const availablePanelWidth = Math.max(320, viewportWidthSafe - 24);
   const panelWidth = isMinimized ? undefined : Math.min(previewWidth + 36, availablePanelWidth);
-  const availableFrameWidth = Math.max(180, (panelWidth ?? (previewWidth + 36)) - 8);
+  const availableFrameWidth = Math.max(220, (panelWidth ?? (previewWidth + 36)) - 16);
   const frameScale = Math.min(1, availableFrameWidth / frameWidth);
-  const screenHeight = Math.max(180, Math.min(previewHeight, 620, viewportHeightSafe - 180));
+  const screenHeight = Math.max(260, Math.min(previewHeight, 620, viewportHeightSafe - 280));
+
+  return (
     <div
       ref={panelRef}
       className={`fixed z-[100] bg-brand-darker/95 backdrop-blur-xl rounded-2xl border border-transparent shadow-2xl ${
@@ -318,9 +317,6 @@ export default function FloatingMobilePreview({
         left: position.x,
         top: position.y,
         width: isMinimized ? "auto" : panelWidth,
-        maxWidth: '98vw',
-        maxHeight: '98vh',
-        minWidth: 180,
         willChange: isDragging ? "left, top" : "auto",
       }}
       onMouseDown={handleMouseDown}
@@ -328,20 +324,18 @@ export default function FloatingMobilePreview({
     >
       <div
         data-drag-handle
-        className="flex items-center justify-between px-2 sm:px-4 py-2 sm:py-3 border-b border-transparent cursor-grab active:cursor-grabbing"
-        style={{ fontSize: 'clamp(13px, 2vw, 16px)' }}
+        className="flex items-center justify-between px-4 py-3 border-b border-transparent cursor-grab active:cursor-grabbing"
       >
         <div className="flex items-center gap-2">
           <Move className="w-4 h-4 text-brand-light/50" />
           <Smartphone className="w-4 h-4 text-blue-400" />
-          <span className="font-medium text-brand-lighter" style={{ fontSize: 'clamp(13px, 2vw, 16px)' }}>Mobile Preview</span>
+          <span className="text-sm font-medium text-brand-lighter">Mobile Preview</span>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setIsMinimized((v) => !v)}
             className="p-1.5 rounded-lg hover:bg-brand-medium/40 transition-colors text-brand-light hover:text-brand-lighter"
             title={isMinimized ? "Expand" : "Minimize"}
-            style={{ fontSize: 'clamp(13px, 2vw, 16px)' }}
           >
             <Minus className="w-4 h-4" />
           </button>
@@ -349,7 +343,6 @@ export default function FloatingMobilePreview({
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-brand-medium/40 transition-colors text-brand-light hover:text-brand-lighter"
             title="Close"
-            style={{ fontSize: 'clamp(13px, 2vw, 16px)' }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -444,18 +437,13 @@ export default function FloatingMobilePreview({
             <div
               className="flex flex-col items-center rounded-[44px]"
               style={{
-                width: '100%',
-                maxWidth: 'min(100vw, 480px)',
+                width: frameWidth,
                 background: "linear-gradient(160deg,#2c2c2c 0%,#191919 100%)",
                 border: "2.5px solid #383838",
                 boxShadow:
                   "inset 0 0 0 1px rgba(255,255,255,0.05), 0 32px 80px rgba(0,0,0,0.85), 0 0 0 0.5px rgba(0,0,0,0.95)",
                 transform: `scale(${frameScale})`,
                 transformOrigin: "top center",
-                minWidth: 180,
-                minHeight: 180,
-                maxHeight: '90vh',
-                overflow: 'hidden',
               }}
             >
               <div className="flex flex-col items-center w-full pt-2.5 pb-1">
@@ -481,10 +469,9 @@ export default function FloatingMobilePreview({
               ) : (
                 <div
                   style={{
-                    width: '100%',
-                    maxWidth: '100vw',
-                    maxHeight: 'min(90vh, 700px)',
-                    minHeight: Math.min(previewHeight, 180, screenHeight),
+                    width: previewWidth,
+                    maxHeight: screenHeight,
+                    minHeight: Math.min(previewHeight, 300, screenHeight),
                     borderRadius: 20,
                     overflowY: "auto",
                     overflowX: "hidden",
@@ -510,4 +497,5 @@ export default function FloatingMobilePreview({
         </>
       )}
     </div>
+  );
 };
