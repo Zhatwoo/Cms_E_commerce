@@ -189,6 +189,9 @@ export const TypographyGroup = ({
   const activeBtnCls = "border-[var(--builder-accent)] bg-[var(--builder-accent)] text-black";
   const inactiveBtnCls = "hover:border-[var(--builder-border-mid)] hover:text-[var(--builder-text)]";
 
+  // Always show alignment controls (fix for undefined variable)
+  const showAlignmentControls = true;
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
