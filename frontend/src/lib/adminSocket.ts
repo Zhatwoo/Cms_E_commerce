@@ -33,6 +33,11 @@ export function getAdminSocket(): Socket {
     fetchSharedNotifications();
   });
 
+  socket.on('notification:all_read', () => {
+    console.log('[AdminSocket] All notifications marked as read by another admin');
+    fetchSharedNotifications();
+  });
+
   return socket;
 }
 

@@ -18,7 +18,7 @@ import {
     type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
-import { getNotifications, markAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
+import { getNotifications, markAsRead, markAllAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
 import { formatToPHTime } from '@/lib/dateUtils';
 
 const SearchIcon = () => (
@@ -194,6 +194,11 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const handleMarkSingleRead = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         markAsRead(id);
+    };
+
+    const handleMarkAllRead = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        markAllAsRead();
     };
 
     const handleSearchNavigate = (href: string) => {
@@ -565,8 +570,15 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
                         {showNotifications ? (
                             <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-[18rem] overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
-                                <div className="border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-3">
+                                <div className="flex items-center justify-between border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-3">
                                     <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
+                                    <button
+                                        onClick={handleMarkAllRead}
+                                        disabled={unreadCount === 0}
+                                        className={`text-[10px] font-bold transition-all ${unreadCount > 0 ? 'text-[#B13BFF] hover:underline cursor-pointer' : 'text-[#8B85A5] cursor-not-allowed opacity-60'}`}
+                                    >
+                                        Mark all as read
+                                    </button>
                                 </div>
                                 <div className="max-h-[22rem] overflow-y-auto">
                                     {notifications.length === 0 ? (

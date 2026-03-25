@@ -1716,6 +1716,10 @@ export async function markSharedNotificationRead(id: string): Promise<{ success:
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'PUT' });
 }
 
+export async function markAllSharedNotificationsRead(): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>('/api/notifications/mark-all-read', { method: 'PUT' });
+}
+
 export async function deleteSharedNotification(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}`, { method: 'DELETE' });
 }
