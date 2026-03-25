@@ -4,6 +4,7 @@ import React from "react";
 import { Element, useNode } from "@craftjs/core";
 import { ChevronRight } from "../../Icon/ChevronRight/ChevronRight";
 import { TemplateEntry } from "../../_types";
+import { ProfileLoginSettings } from "./ProfileLoginSettings";
 
 export interface ProfileLoginNodeProps {
   text?: string;
@@ -13,6 +14,8 @@ export interface ProfileLoginNodeProps {
   fontStyle?: string;
   lineHeight?: number | string;
   letterSpacing?: number | string;
+  textAlign?: "left" | "center" | "right" | "justify";
+  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   color?: string;
   iconColor?: string;
   arrowSize?: number;
@@ -54,12 +57,14 @@ export interface ProfileLoginNodeProps {
 
 export const ProfileLoginNode = ({
   text = "Login",
-  fontSize = 34,
-  fontFamily = "EB Garamond",
-  fontWeight = "500",
+  fontSize = 18,
+  fontFamily = "Outfit",
+  fontWeight = "400",
   fontStyle = "normal",
-  lineHeight = 1.22,
+  lineHeight = 1.5,
   letterSpacing = 0,
+  textAlign = "left",
+  textTransform = "none",
   color = "#000000",
   iconColor = "#000000",
   arrowSize = 20,
@@ -184,6 +189,8 @@ export const ProfileLoginNode = ({
           fontSize: `${resolvedFontSize}px`,
           lineHeight: safeLineHeight,
           letterSpacing: typeof letterSpacing === "number" ? letterSpacing : 0,
+          textAlign,
+          textTransform,
           color,
           whiteSpace: "nowrap",
           overflow: "visible",
@@ -217,10 +224,13 @@ ProfileLoginNode.craft = {
   rules: {
     canMoveIn: () => false,
   },
+  related: {
+    settings: ProfileLoginSettings,
+  },
 };
 
 export const ProfileLogin: TemplateEntry = {
-  label: "Profile Login",
+  label: "Login Bar",
   description: "Profile login asset with clean single-node layers",
   preview: "👤 Login",
   category: "header",
@@ -229,9 +239,14 @@ export const ProfileLogin: TemplateEntry = {
     {
       is: ProfileLoginNode as any,
       text: "Login",
-      fontSize: 34,
-      fontFamily: "EB Garamond",
-      fontWeight: "500",
+      fontSize: 18,
+      fontFamily: "Outfit",
+      fontWeight: "400",
+      fontStyle: "normal",
+      lineHeight: 1.5,
+      letterSpacing: 0,
+      textAlign: "left",
+      textTransform: "none",
       color: "#000000",
       iconColor: "#000000",
       arrowSize: 20,

@@ -496,7 +496,8 @@ export default function DomainsPage() {
                             <button type="button" onClick={e => handleUnpublish(project.id, e)}
                               disabled={unpublishingId === project.id}
                               className="flex items-center justify-center p-1.5 rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                              style={{ borderColor: 'rgba(248,113,113,0.3)', backgroundColor: 'rgba(248,113,113,0.08)', color: '#f87171' }}>
+                              style={{ borderColor: 'rgba(248,113,113,0.3)', backgroundColor: 'rgba(248,113,113,0.08)', color: '#f87171' }}
+                              title="Unpublish and take down your live website">
                               <ArrowDownToLine size={12} />
                             </button>
                           )}
@@ -556,7 +557,8 @@ export default function DomainsPage() {
                           <button type="button" onClick={e => handleUnpublish(project.id, e)}
                             disabled={unpublishingId === project.id}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                            style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
+                            style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}
+                            title="Unpublish and take down your live website">
                             <ArrowDownToLine size={12} />
                             {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
                           </button>

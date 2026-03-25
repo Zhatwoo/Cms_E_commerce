@@ -18,8 +18,10 @@ import {
   LockOpen,
   Group,
   Ungroup,
+  Pencil,
 } from "lucide-react";
 import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard } from "../../_lib/canvasActions";
+import { slugFromName } from "../../_lib/slug";
 import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
 import { useDesignProject } from "../../_context/DesignProjectContext";
@@ -44,7 +46,7 @@ const CANVAS_CONTAINERS = new Set([
 
 /** Get ordered child node IDs from a node (Craft state or serialized shape). */
 function getChildIds(node: Record<string, unknown> | null | undefined): string[] {
-  if (!node || typeof node !== "object") return [];
+    if (!node || typeof node !== "object") return [];
   const data = node.data as Record<string, unknown> | undefined;
   const fromNodes = (data?.nodes ?? node.nodes) as unknown;
   const nodeIds = Array.isArray(fromNodes) ? (fromNodes as string[]) : [];
@@ -193,9 +195,47 @@ export const FilesPanel = () => {
   const expandedMapRef = useRef(expandedMap);
   expandedMapRef.current = expandedMap;
 
+  // Inline rename for Page nodes
+  const [renamingNodeId, setRenamingNodeId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const renameInputRef = useRef<HTMLInputElement | null>(null);
+
   const toggleExpanded = useCallback((nodeId: string) => {
     setExpandedMap((prev) => ({ ...prev, [nodeId]: !isExpanded(nodeId, prev) }));
   }, []);
+
+  const handleStartRename = useCallback((nodeId: string, currentName: string) => {
+    setRenamingNodeId(nodeId);
+    setRenameValue(currentName || "");
+    setContextMenu(null);
+  }, []);
+
+  const handleCommitRename = useCallback(() => {
+    if (!renamingNodeId) return;
+    const trimmed = renameValue.trim() || "Page";
+    const slug = slugFromName(trimmed);
+    try {
+      actions.setProp(renamingNodeId, (p: Record<string, unknown>) => {
+        p.pageName = trimmed;
+        p.pageSlug = slug;
+      });
+    } catch { /* node may be gone */ }
+    setRenamingNodeId(null);
+    setRenameValue("");
+  }, [renamingNodeId, renameValue, actions]);
+
+  const handleCancelRename = useCallback(() => {
+    setRenamingNodeId(null);
+    setRenameValue("");
+    setContextMenu(null);
+  }, []);
+
+  useEffect(() => {
+    if (renamingNodeId) {
+      requestAnimationFrame(() => renameInputRef.current?.focus());
+      renameInputRef.current?.select();
+    }
+  }, [renamingNodeId]);
 
   function isExpanded(nodeId: string, map: Record<string, boolean>): boolean {
     return map[nodeId] !== false; // default expanded
@@ -675,7 +715,10 @@ export const FilesPanel = () => {
     const baseName = nodeNameIndexMap.baseNameById[nodeId] || getNodeBaseName(node as Record<string, any>);
     const instanceIndex = nodeNameIndexMap.indexById[nodeId] ?? 1;
     const totalForName = nodeNameIndexMap.totalByName[baseName] ?? 1;
-    const name = totalForName > 1 ? `${baseName} ${instanceIndex}` : baseName;
+    const defaultName = totalForName > 1 ? `${baseName} ${instanceIndex}` : baseName;
+    const isPage = baseName === "Page";
+    const pageName = (props.pageName as string | undefined)?.trim();
+    const name = isPage && pageName ? pageName : defaultName;
     if (baseName === "Text") Icon = Type;
     else if (baseName === "Container") Icon = Layout;
     else if (baseName === "Image") Icon = ImageIcon;
@@ -780,9 +823,41 @@ export const FilesPanel = () => {
           </div>
 
           <Icon className="w-4 h-4 opacity-70 shrink-0" style={{ WebkitUserDrag: "none" } as React.CSSProperties} />
-          <span className="text-sm font-medium truncate flex-1 min-w-0">
-            {name || "Node"}
-          </span>
+          {isPage && permission !== "viewer" && renamingNodeId === nodeId ? (
+            <input
+              ref={renamingNodeId === nodeId ? renameInputRef : undefined}
+              type="text"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onBlur={handleCommitRename}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleCommitRename();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  handleCancelRename();
+                }
+                e.stopPropagation();
+              }}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="flex-1 min-w-0 text-sm font-medium bg-[var(--builder-surface-2)] border border-[var(--builder-accent)] rounded px-1.5 py-0.5 text-[var(--builder-text)] focus:outline-none"
+            />
+          ) : (
+            <span
+              className={`text-sm font-medium truncate flex-1 min-w-0 ${isPage && permission !== "viewer" ? "cursor-text" : ""}`}
+              onDoubleClick={(e) => {
+                if (isPage && permission !== "viewer") {
+                  e.stopPropagation();
+                  handleStartRename(nodeId, name || "Page");
+                }
+              }}
+              title={isPage && permission !== "viewer" ? "Double-click to rename" : undefined}
+            >
+              {name || "Node"}
+            </span>
+          )}
           {/* Visibility and Lock toggles (visible on hover or when selected, hidden for viewers) */}
           {permission !== "viewer" && (
             <div className={`flex items-center gap-0 shrink-0 ${isSel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}>
@@ -916,6 +991,20 @@ export const FilesPanel = () => {
           <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘V</span>
         </button>
         <div className="border-t border-[var(--builder-border)] my-0.5" />
+        {contextBaseName === "Page" && permission !== "viewer" && (
+          <button
+            onClick={() => {
+              const n = nodes[contextMenu.nodeId];
+              const pName = (n?.data?.props as Record<string, unknown>)?.pageName as string | undefined;
+              const currentName = (typeof pName === "string" && pName.trim()) ? pName.trim() : nodeName;
+              handleStartRename(contextMenu.nodeId, currentName);
+            }}
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Rename
+          </button>
+        )}
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDuplicate(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}

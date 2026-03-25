@@ -18,7 +18,7 @@ import {
     type User,
     type WebsiteManagementRow,
 } from '@/lib/api';
-import { getNotifications, markAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
+import { getNotifications, markAsRead, markAllAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
 import { formatToPHTime } from '@/lib/dateUtils';
 
 const SearchIcon = () => (
@@ -194,6 +194,11 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const handleMarkSingleRead = (id: string, e: React.MouseEvent) => {
         e.stopPropagation();
         markAsRead(id);
+    };
+
+    const handleMarkAllRead = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        markAllAsRead();
     };
 
     const handleSearchNavigate = (href: string) => {
@@ -449,8 +454,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         onClick={() => router.push('/admindashboard/notifications')}
                     >
                         <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
-                                activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
-                                    'from-[#B13BFF] to-[#8B5CF6]'
+                            activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
+                                'from-[#B13BFF] to-[#8B5CF6]'
                             }`}>
                             <svg viewBox="0 0 24 24" className="h-4 w-4 text-white" fill="none" stroke="currentColor" strokeWidth="2.5">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -565,8 +570,15 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
                         {showNotifications ? (
                             <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-[18rem] overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
-                                <div className="border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-3">
+                                <div className="flex items-center justify-between border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-3">
                                     <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
+                                    <button
+                                        onClick={handleMarkAllRead}
+                                        disabled={unreadCount === 0}
+                                        className={`text-[10px] font-bold transition-all ${unreadCount > 0 ? 'text-[#B13BFF] hover:underline cursor-pointer' : 'text-[#8B85A5] cursor-not-allowed opacity-60'}`}
+                                    >
+                                        Mark all as read
+                                    </button>
                                 </div>
                                 <div className="max-h-[22rem] overflow-y-auto">
                                     {notifications.length === 0 ? (
