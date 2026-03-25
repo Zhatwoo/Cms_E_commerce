@@ -360,7 +360,7 @@ function EmptyState({ message, sub }: { message: string; sub?: string }) {
 
 /* ── Main Page ──────────────────────────────────────────────── */
 function MonitoringPageContent() {
-  const { startLoading } = useAdminLoading();
+  const { startLoading, stopLoading } = useAdminLoading();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -409,6 +409,15 @@ function MonitoringPageContent() {
     window.addEventListener('notification:new_received', onNotifReceived);
     return () => window.removeEventListener('notification:new_received', onNotifReceived);
   }, []);
+
+  useEffect(() => {
+    if (loading) startLoading();
+    else stopLoading();
+
+    return () => {
+      stopLoading();
+    };
+  }, [loading, startLoading, stopLoading]);
 
   useEffect(() => {
     if (!toast.open) return;
@@ -563,11 +572,9 @@ function MonitoringPageContent() {
     if (tab === activeTab) return;
     startLoading();
     setActiveTab(tab);
-    if (typeof window !== 'undefined') {
-      const nextParams = new URLSearchParams(window.location.search);
-      nextParams.set('tab', tab);
-      window.history.replaceState(null, '', `/admindashboard/monitoring?${nextParams.toString()}`);
-    }
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.set('tab', tab);
+    router.replace(`/admindashboard/monitoring?${nextParams.toString()}`, { scroll: false });
   };
 
   const openWebsiteActionModal = (website: WebsiteManagementRow) => {

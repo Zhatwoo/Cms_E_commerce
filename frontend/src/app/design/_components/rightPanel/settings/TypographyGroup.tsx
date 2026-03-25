@@ -7,7 +7,11 @@ import type { TypographyProps, SetProp } from "../../../_types/components";
 
 interface TypographyGroupProps extends TypographyProps {
   setProp: SetProp<TypographyProps>;
-  showAlignmentControls?: boolean;
+}
+
+interface DropdownOption<T extends string> {
+  value: T;
+  label: string;
 }
 
 interface DropdownOption<T extends string> {
@@ -170,8 +174,7 @@ export const TypographyGroup = ({
   textAlign = "left",
   textTransform = "none",
   color = "#ffffff",
-  setProp,
-  showAlignmentControls = true,
+  setProp
 }: TypographyGroupProps) => {
   const italicActive = fontStyle === "italic";
   const boldActive = isBoldWeight(fontWeight);
@@ -185,6 +188,9 @@ export const TypographyGroup = ({
 
   const activeBtnCls = "border-[var(--builder-accent)] bg-[var(--builder-accent)] text-black";
   const inactiveBtnCls = "hover:border-[var(--builder-border-mid)] hover:text-[var(--builder-text)]";
+
+  // Always show alignment controls (fix for undefined variable)
+  const showAlignmentControls = true;
 
   return (
     <div className="flex flex-col gap-4">

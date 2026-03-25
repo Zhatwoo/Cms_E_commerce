@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   getClients,
   updateClientPlan,
@@ -170,6 +171,7 @@ export function UserManagement() {
     bio: '',
     password: '',
   });
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [actionReason, setActionReason] = useState('');
 
   const selection = useGDriveSelection();
@@ -208,6 +210,10 @@ export function UserManagement() {
     setSearch(urlSearch);
     setCurrentPage(1);
   }, [urlSearch, focusedClientId]);
+
+  useEffect(() => {
+    if (!editModal.isOpen) setShowEditPassword(false);
+  }, [editModal.isOpen]);
 
   const filtered = useMemo(() => {
     return clients.filter((c) => {
@@ -507,6 +513,7 @@ export function UserManagement() {
   };
 
   const handleEditClick = (client: ClientRow) => {
+    setShowEditPassword(false);
     setEditModal({
       isOpen: true,
       client,
@@ -520,18 +527,34 @@ export function UserManagement() {
 
   const handleUpdateClientDetails = async () => {
     if (!editModal.client) return;
+    const nextPassword = (editModal.password || '').trim();
+    if (nextPassword && nextPassword.length < 6) {
+      setToast('Password must be at least 6 characters.');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
     setActionLoadingId(editModal.client.id);
     try {
       const res = await updateClientDetails(editModal.client.id, {
-        name: editModal.name,
-        email: editModal.email,
-        phone: editModal.phone,
-        bio: editModal.bio,
-        password: editModal.password || undefined,
+        name: editModal.name.trim(),
+        email: editModal.email.trim(),
+        phone: editModal.phone.trim(),
+        bio: editModal.bio.trim(),
+        password: nextPassword || undefined,
       });
       if (res.success) {
+        const updatedUser = res.user;
         setClients((prev) =>
-          prev.map((c) => (editModal.client && c.id === editModal.client.id ? { ...c, displayName: editModal.name, email: editModal.email, phone: editModal.phone, bio: editModal.bio } : c))
+          prev.map((c) => (editModal.client && c.id === editModal.client.id
+            ? {
+                ...c,
+                displayName: updatedUser?.displayName ?? editModal.name.trim(),
+                email: updatedUser?.email ?? editModal.email.trim(),
+                phone: updatedUser?.phone ?? editModal.phone.trim(),
+                bio: updatedUser?.bio ?? editModal.bio.trim(),
+              }
+            : c))
         );
         addNotification("User Profile Updated", `Successfully updated details for ${editModal.name || editModal.email}.`, 'success');
         setToast('Client details updated.');
@@ -911,13 +934,23 @@ export function UserManagement() {
 
                 <div className="border-t border-[#F0E5FF] pt-4">
                   <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">New Password (optional)</label>
-                  <input
-                    type="password"
-                    value={editModal.password}
-                    onChange={(e) => setEditModal({ ...editModal, password: e.target.value })}
-                    className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all font-mono"
-                    placeholder="••••••••"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showEditPassword ? 'text' : 'password'}
+                      value={editModal.password}
+                      onChange={(e) => setEditModal({ ...editModal, password: e.target.value })}
+                      className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 pr-12 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all font-mono"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPassword((prev) => !prev)}
+                      aria-label={showEditPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#8E47D8] hover:bg-[#EBDDFF] transition-colors"
+                    >
+                      {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                   <p className="mt-2 text-[0.7rem] text-[#A48ABF] ml-1">Leave blank to keep current password. Minimum 6 characters.</p>
                 </div>
               </div>
