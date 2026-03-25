@@ -17,7 +17,6 @@ import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { addNotification } from '@/lib/notifications';
 import { formatToPHTimeShort } from '@/lib/dateUtils';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
-import { DraftPreviewThumbnail } from '@/app/m_dashboard/components/projects/DraftPreviewThumbnail';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -90,71 +89,16 @@ function subdomainFromDomain(domainName: string): string {
 
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
 
-/* ── Website Preview Thumbnail Component ────────────────────── */
-type WebsitePreviewThumbnailProps = {
-  domainName: string;
-  borderColor: string;
-  bgColor: string;
-  className?: string;
-};
-
-export function WebsitePreviewThumbnail({
-  domainName,
-  borderColor,
-  bgColor,
-  className = '',
-}: WebsitePreviewThumbnailProps) {
-  const [previewUrl, setPreviewUrl] = useState<string>('');
-  const [frameError, setFrameError] = useState(false);
-
-  useEffect(() => {
-    if (!domainName) return;
-    const sub = subdomainFromDomain(domainName);
-    if (!sub) return;
-
-    if (typeof window !== 'undefined') {
-      const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      setPreviewUrl(isLocal ? `http://${sub}.localhost:3000` : `https://${sub}.zhatwoo.com`);
-    }
-  }, [domainName]);
-
-  const cssToInject = `
-    /* Hide floating cart, checkout buttons, and other intrusive elements */
-    .cart-drawer, .shopping-cart, #checkout-button, .checkout-btn, .add-to-cart, .cart-icon, .cart-node, [id*="cart"], [class*="cart"] { display: none !important; }
-    header { padding-top: 5px !important; padding-bottom: 5px !important; }
-    footer { display: none !important; }
-    * { pointer-events: none !important; } /* Prevent interaction in preview */
-  `;
-
-  if (!previewUrl || frameError) {
-    return (
-      <div className={`flex items-center justify-center text-[11px] font-medium ${className}`}
-        style={{ background: bgColor, border: `1px solid ${borderColor}`, color: '#a090c8' }}>
-        No preview available
-      </div>
-    );
-  }
-
+/* ── Lightweight Website Preview Placeholder ─────────────────── */
+function WebsitePreviewFallback({ domainName }: { domainName: string }) {
   return (
-    <div className={`relative overflow-hidden ${className}`} style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
-      <iframe
-        src={previewUrl}
-        title={`Preview of ${domainName}`}
-        className="absolute inset-0 h-[400%] w-[400%] origin-top-left border-none"
-        style={{ transform: 'scale(0.25)', pointerEvents: 'none' }}
-        sandbox="allow-same-origin allow-scripts"
-        onError={() => setFrameError(true)}
-        onLoad={(e) => {
-          try {
-            const doc = (e.currentTarget as HTMLIFrameElement).contentDocument;
-            if (doc) {
-              const styleTag = doc.createElement('style');
-              styleTag.textContent = cssToInject;
-              doc.head.appendChild(styleTag);
-            }
-          } catch (err) { /* Cross-origin might block this */ }
-        }}
-      />
+    <div className="h-full w-full rounded-none flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f6f0ff 0%, #efe9ff 100%)' }}>
+      <div className="text-center px-3">
+        <p className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#8e7fb4' }}>Website Preview</p>
+        <p className="mt-1 text-xs font-medium truncate max-w-[180px]" style={{ color: '#6f5a9d' }} title={domainName || 'Unknown domain'}>
+          {domainName || 'Unknown domain'}
+        </p>
+      </div>
     </div>
   );
 }
@@ -824,7 +768,6 @@ function MonitoringPageContent() {
                           const status = getWebsiteStatusMeta(w.status);
                           const viewUrl = websiteViewUrl(w.domainName);
                           const industry = websiteIndustryByDomain.get(w.domainName) || 'General';
-                          const previewProjectId = (w.projectId || '').trim();
                           const domainLabel = w.domainName || '—';
                           const ownerLabel = w.owner || 'Unknown';
                           const domainNameClass = domainLabel.length > 28 ? 'text-sm' : 'text-base';
@@ -850,12 +793,7 @@ function MonitoringPageContent() {
                                     <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-contain" loading="lazy" />
                                   </div>
                                 ) : (
-                                  <WebsitePreviewThumbnail
-                                    domainName={w.domainName}
-                                    borderColor="rgba(166,61,255,0.13)"
-                                    bgColor="rgba(240,235,255,0.55)"
-                                    className="h-full w-full"
-                                  />
+                                  <WebsitePreviewFallback domainName={w.domainName} />
                                 )}
                                 {/* Status badge */}
                                 <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
