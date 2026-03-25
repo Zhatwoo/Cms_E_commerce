@@ -133,7 +133,7 @@ export const BooleanField = ({
       data-fluid-text="true"
       data-fluid-space="true"
       ref={(ref) => { if (ref) connect(drag(ref)); }}
-      className={`inline-flex flex-wrap items-start justify-start ${customClassName}`}
+      className={customClassName}
       style={{
         paddingTop: fluidSpace(pt),
         paddingRight: fluidSpace(pr),
@@ -155,7 +155,10 @@ export const BooleanField = ({
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
-        display: display ?? "inline-flex",
+        display: effectiveDisplay ?? "inline-flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        justifyContent: "flex-start",
       }}
     >
       {normalizedOptions.map((opt, idx) => {
