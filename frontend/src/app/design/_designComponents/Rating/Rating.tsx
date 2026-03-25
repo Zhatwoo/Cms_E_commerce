@@ -108,6 +108,7 @@ export const Rating = ({
   const rtr = radiusTopRight ?? br;
   const rbr = radiusBottomRight ?? br;
   const rbl = radiusBottomLeft ?? br;
+  const fluidFontSize = `clamp(${Math.max(10, Math.round(fontSize * 0.8))}px, ${(fontSize / 16 * 2.1).toFixed(2)}cqw, ${fontSize}px)`;
 
   const justifyContent =
     textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : textAlign === "justify" ? "space-between" : "flex-start";

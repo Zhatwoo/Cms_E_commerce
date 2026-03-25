@@ -53,6 +53,8 @@ type EditorActions = {
   selectNode: (nodeIdSelector?: NodeSelector) => void;
   delete: (id: string | string[]) => void;
   move?: (nodeId: string, parentId: string, index: number) => void;
+  addNodeTree: (tree: any, parentId: string, index?: number) => void;
+  setProp: (id: string, cb: (props: Record<string, unknown>) => void) => void;
 };
 
 const PROTECTED = new Set(["Viewport", "ROOT"]);
@@ -189,7 +191,7 @@ function cloneSubtree(
 
 /** Duplicate one or more nodes (each clone inserted after its original). */
 export function duplicateNodes(
-  actions: EditorActions & { addNodeTree: (tree: any, parentId: string, index?: number) => void },
+  actions: EditorActions,
   query: EditorQuery & { node: (id: string) => any },
   nodeIds: string[]
 ): string[] {
@@ -344,7 +346,7 @@ export function copySelection(
 
 /** Paste clipboard into parent at index using addNodeTree. */
 export function pasteClipboard(
-  actions: EditorActions & { addNodeTree: (tree: any, parentId: string, index?: number) => void },
+  actions: EditorActions,
   query: EditorQuery,
   options?: { parentId?: string; atIndex?: number }
 ): string[] {
@@ -367,7 +369,8 @@ export function pasteClipboard(
           const pageKids = state.nodes[firstPageId].data.nodes || [];
           const firstContainerId = pageKids[0];
           targetParentId = (firstContainerId && state.nodes[firstContainerId]) ? firstContainerId : firstPageId;
-          atIndex = targetParentId === firstPageId ? 0 : (state.nodes[targetParentId].data.nodes || []).length;
+          const targetNode = state.nodes[targetParentId as string];
+          atIndex = targetParentId === firstPageId ? 0 : (targetNode?.data?.nodes || []).length;
         } else {
           targetParentId = viewportId;
           atIndex = 0;
@@ -520,10 +523,7 @@ const UNGROUPABLE_TYPES = new Set([
  * `elementComponent` must be Craft.js `Element`.
  */
 export function groupSelection(
-  actions: EditorActions & {
-    addNodeTree: (tree: any, parentId: string, index?: number) => void;
-    setProp: (id: string, cb: (props: Record<string, unknown>) => void) => void;
-  },
+  actions: EditorActions,
   query: EditorQuery & {
     parseReactElement: (el: React.ReactElement) => { toNodeTree: () => any };
   },
@@ -687,9 +687,7 @@ export function groupSelection(
  * preserving order, then delete the empty container.
  */
 export function ungroupSelection(
-  actions: EditorActions & {
-    setProp: (id: string, cb: (props: Record<string, unknown>) => void) => void;
-  },
+  actions: EditorActions,
   query: EditorQuery,
   nodeIds: string[],
 ): string[] {
