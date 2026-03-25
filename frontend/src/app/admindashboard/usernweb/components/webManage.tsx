@@ -722,7 +722,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
       {/* Table */}
       <div className="bg-[#F5F4FF] border border-[rgba(177,59,255,0.29)] rounded-lg shadow overflow-hidden">
         <div className="px-6 py-6 border-b border-[rgba(177,59,255,0.18)]">
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 items-center gap-4">
             <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 justify-start">
               <div className="relative">
                 <select
@@ -807,59 +807,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
               </div>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 justify-center">
-              <button
-                type="button"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1 || loading || sortedVisibleWebsites.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {'<<'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading || sortedVisibleWebsites.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {'<'}
-              </button>
-              {pageItems.map((item, idx) =>
-                item === 'ellipsis' ? (
-                  <span key={`ellipsis-top-${idx}`} className="px-2 text-[#A48ABF] select-none">...</span>
-                ) : (
-                  <button
-                    key={`top-${item}`}
-                    type="button"
-                    onClick={() => setCurrentPage(item)}
-                    disabled={loading || sortedVisibleWebsites.length === 0}
-                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${
-                      currentPage === item
-                        ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
-                        : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
-                    } disabled:opacity-40 disabled:cursor-not-allowed`}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || loading || sortedVisibleWebsites.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {'>'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages || loading || sortedVisibleWebsites.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {'>>'}
-              </button>
-            </div>
 
             <div className="relative justify-self-end w-full max-w-[330px]">
               <input

@@ -7,6 +7,7 @@ import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 import BuiltInTemplates from './components/BuiltInTemplates';
 import UserTemplates from './components/UserTemplates';
+import { useAdminLoading } from '../components/LoadingProvider';
 
 interface Template {
   id: string;
@@ -24,6 +25,7 @@ const SearchIcon = () => (
 );
 
 export default function TemplatesAssetsPage() {
+  const { startLoading } = useAdminLoading();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -34,6 +36,8 @@ export default function TemplatesAssetsPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleTabChange = (tab: 'builtin' | 'user') => {
+    if (tab === activeTab) return;
+    startLoading();
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
     router.replace(`/admindashboard/templatesnassets?${params.toString()}`, { scroll: false });

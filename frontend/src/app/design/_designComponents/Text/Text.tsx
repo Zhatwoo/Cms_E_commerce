@@ -33,6 +33,16 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
+function applyRenderedTextTransform(value: string, transform: TextProps["textTransform"]): string {
+  if (!value) return value;
+  if (transform === "capitalize") {
+    return value
+      .toLowerCase()
+      .replace(/(^|[\s([{'"`-])([a-z])/g, (_, prefix: string, letter: string) => `${prefix}${letter.toUpperCase()}`);
+  }
+  return value;
+}
+
 export const Text = ({
   text,
   fontSize = 16,
@@ -82,6 +92,7 @@ export const Text = ({
   const isEditing = editingTextNodeId === id;
   const resolvedText = typeof text === "string" ? text : "";
   const isSeedPlaceholderText = isPlaceholderOnly(resolvedText);
+  const renderedText = applyRenderedTextTransform(resolvedText, textTransform);
   const editRef = useRef<HTMLDivElement | null>(null);
   const didInitEditingRef = useRef(false);
   const pendingTextRef = useRef<string>(resolvedText);
@@ -176,7 +187,7 @@ export const Text = ({
     lineHeight,
     letterSpacing: `${letterSpacing}px`,
     textAlign,
-    textTransform,
+    textTransform: textTransform === "capitalize" ? "none" : textTransform,
     color,
     position,
     zIndex,
@@ -329,7 +340,7 @@ export const Text = ({
         />
       ) : (
         resolvedText
-          ? resolvedText
+          ? renderedText
           : <span style={{ opacity: 0.58, display: "inline-block", minWidth: 0 }}>{NEW_TEXT_PLACEHOLDER}</span>
       )}
     </div>
