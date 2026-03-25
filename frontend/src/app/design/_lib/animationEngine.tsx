@@ -18,12 +18,16 @@ gsap.registerPlugin(ScrollTrigger);
 
 // Track which documents already have a scrollerProxy configured.
 const SCROLLER_PROXY_DOCS = new WeakSet<Document>();
+// Track which element scrollers already have scrollerProxy configured.
+const ELEMENT_SCROLLER_PROXIES = new WeakSet<HTMLElement>();
+// Track which element scrollers already have ResizeObserver wired.
+const SCROLLER_RESIZE_OBSERVERS = new WeakMap<HTMLElement, ResizeObserver>();
 
 // Global debounced refresh — prevents N animated elements from each calling refresh on mount,
 // which causes layout thrashing and visual jumps in the preview page.
 let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
-function scheduleScrollTriggerRefresh(delayMs = 80) {
-  if (_refreshTimer !== null) return; // Already scheduled
+function scheduleScrollTriggerRefresh(delayMs = 200) {
+  if (_refreshTimer !== null) clearTimeout(_refreshTimer); // Always reset to latest
   _refreshTimer = setTimeout(() => {
     _refreshTimer = null;
     ScrollTrigger.refresh();
@@ -42,6 +46,43 @@ function normalizeTriggerType(raw: unknown): AnimationConfig["trigger"]["type"] 
   if (v === "onhover" || v === "hover") return "onHover";
   if (v === "onclick" || v === "click" || v === "tap") return "onClick";
   return DEFAULT_ANIMATION.trigger.type;
+}
+
+function normalizeBoolean(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  if (typeof raw === "number") {
+    if (raw === 1) return true;
+    if (raw === 0) return false;
+  }
+  return undefined;
+}
+
+function normalizeScrollEffectType(raw: unknown): ScrollEffectType {
+  if (typeof raw !== "string") return DEFAULT_ANIMATION.scrollEffect.type;
+  const v = raw.trim().toLowerCase().replace(/[\s_-]/g, "");
+
+  const map: Record<string, ScrollEffectType> = {
+    none: "none",
+    parallax: "parallax",
+    fade: "fade",
+    scale: "scale",
+    rotate: "rotate",
+    blur: "blur",
+    horizontalmove: "horizontalMove",
+    freemove: "freeMove",
+    skew: "skew",
+    reveal: "reveal",
+    zoom: "zoom",
+    tilt3d: "tilt3d",
+    "tilt3d3": "tilt3d",
+  };
+
+  return map[v] ?? (DEFAULT_ANIMATION.scrollEffect.type as ScrollEffectType);
 }
 
 function normalizeAnimationConfig(animation: unknown): AnimationConfig {
@@ -63,6 +104,13 @@ function normalizeAnimationConfig(animation: unknown): AnimationConfig {
         scrollEffect.enabled === true ||
         scrollEffect.enabled === "true" ||
         scrollEffect.enabled === 1,
+      type: normalizeScrollEffectType(scrollEffect.type),
+      direction:
+        String(scrollEffect.direction ?? DEFAULT_ANIMATION.scrollEffect.direction).trim().toLowerCase() === "horizontal"
+          ? "horizontal"
+          : "vertical",
+      scrub:
+        normalizeBoolean(scrollEffect.scrub) ?? DEFAULT_ANIMATION.scrollEffect.scrub,
     },
     trigger: {
       ...DEFAULT_ANIMATION.trigger,
@@ -76,9 +124,6 @@ function resolveNearestScrollContainer(
   el: HTMLElement,
   view: Window
 ): HTMLElement | null {
-  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
-  if (explicitPreviewRoot instanceof HTMLElement) return explicitPreviewRoot;
-
   let cur: HTMLElement | null = el.parentElement;
   let styledScrollableFallback: HTMLElement | null = null;
   while (cur) {
@@ -111,26 +156,21 @@ function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  // Always check for an explicit preview scroll root first.
+  // 1. Explicit preview scroll root — ALWAYS return it without checking scrollability.
+  //    Content may not be rendered yet at mount time, so isElementScrollable would fail
+  //    and fall back to window, which is blocked by overflow-x-hidden parent.
   const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
   if (explicitPreviewRoot instanceof HTMLElement) {
-    // Preview root should only be used when it is actually scrollable at current viewport size.
-    if (isElementScrollable(explicitPreviewRoot)) {
-      return { primary: explicitPreviewRoot, fallback: null };
-    }
-    return { primary: null, fallback: null };
+    return { primary: explicitPreviewRoot, fallback: null };
   }
 
-  // Check if we are inside the builder canvas container. The canvas element is the
-  // scroll root in the builder — regardless of whether we're in an iframe or not.
+  // 2. Builder canvas container — explicit attribute, prefer over DOM walk.
   const canvasContainer = el.closest('[data-canvas-container]');
-  if (canvasContainer instanceof HTMLElement && isElementScrollable(canvasContainer)) {
+  if (canvasContainer instanceof HTMLElement) {
     return { primary: canvasContainer, fallback: null };
   }
 
-  // In the top-level window (not inside an iframe), default to window scroll.
-  // This is correct for the preview page, the live site, and any other top-level context.
-  // Do NOT walk the DOM here — random overflow:hidden containers will be picked up.
+  // 3. Top-level window (preview/live site without explicit scroll root) — use window.
   if (view.parent === view) {
     return { primary: null, fallback: null };
   }
@@ -412,6 +452,47 @@ function useGsapScrollEffect(
     const { primary: resolvedScroller, fallback: fallbackScroller } = resolveScrollRoots(el, view);
     const scroller = proxyScroller ?? resolvedScroller ?? fallbackScroller;
 
+    // For element-based scrollers (e.g. data-preview-scroll-root), set up:
+    // 1. scrollerProxy so GSAP computes trigger positions relative to element viewport
+    // 2. scroll event bridge so GSAP re-evaluates on every scroll tick
+    let elementScrollHandler: (() => void) | null = null;
+    if (scroller && !proxyScroller) {
+      // Set up scrollerProxy only once per element so GSAP knows buffer/viewport dimensions
+      if (!ELEMENT_SCROLLER_PROXIES.has(scroller)) {
+        ELEMENT_SCROLLER_PROXIES.add(scroller);
+        ScrollTrigger.scrollerProxy(scroller, {
+          scrollTop(value?: number) {
+            if (typeof value === "number") scroller.scrollTop = value;
+            return scroller.scrollTop;
+          },
+          scrollLeft(value?: number) {
+            if (typeof value === "number") scroller.scrollLeft = value;
+            return scroller.scrollLeft;
+          },
+          getBoundingClientRect() {
+            const width = scroller.clientWidth;
+            const height = scroller.clientHeight;
+            return { top: 0, left: 0, width, height, right: width, bottom: height } as DOMRect;
+          },
+          // Keep consistent pin behavior even though we don't use pinning here.
+          pinType: "transform",
+        });
+      }
+      // Forward scroll events from the element to ScrollTrigger
+      elementScrollHandler = () => ScrollTrigger.update();
+      scroller.addEventListener("scroll", elementScrollHandler, { passive: true });
+
+      // Content/images/fonts can change scroll height after mount; refresh when that happens.
+      if (!SCROLLER_RESIZE_OBSERVERS.has(scroller) && typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(() => {
+          // Keep this cheap: debounced refresh avoids layout thrashing.
+          scheduleScrollTriggerRefresh();
+        });
+        ro.observe(scroller);
+        SCROLLER_RESIZE_OBSERVERS.set(scroller, ro);
+      }
+    }
+
     const getScrollOffsets = () => {
       if (!scroller) return { x: view.scrollX, y: view.scrollY };
       // If proxied, offsets are the parent scroller's scroll positions.
@@ -557,6 +638,9 @@ function useGsapScrollEffect(
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
+        if (elementScrollHandler && scroller) {
+          scroller.removeEventListener("scroll", elementScrollHandler);
+        }
         if (proxiedParentScroller && parentScrollHandler) {
           proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
         }
@@ -612,6 +696,9 @@ function useGsapScrollEffect(
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
+        if (elementScrollHandler && scroller) {
+          scroller.removeEventListener("scroll", elementScrollHandler);
+        }
         if (proxiedParentScroller && parentScrollHandler) {
           proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
         }
