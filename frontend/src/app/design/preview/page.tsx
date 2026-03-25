@@ -791,9 +791,6 @@ function PreviewContent() {
     // Generic placeholder names used by the editor that should be replaced with numbered labels
     const GENERIC_NAME_PATTERNS = /^(page name|page|untitled|unnamed|new page)$/i;
     return doc.pages.map((page, index) => {
-      // getPageSlug inside WebPreview: page?.slug ?? `page-${index}` (0-based)
-      const slug = (page?.slug as string | undefined)?.trim() || `page-${index}`;
-      const id = (page?.id as string) || slug;
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
       const id = (page?.id as string) || `page-${index}`;
       const rawName = page?.name ?? pageProps.pageName;
