@@ -270,30 +270,12 @@ export function CanvasContextMenu() {
 
   const handlePasteHere = async () => {
     const clipboard = getClipboard();
-    
+
     // 1. Try internal Craft.js clipboard first
     if (clipboard && clipboard.nodeIds.length > 0) {
-      let parentIdOpt: string | undefined;
-      let atIndexOpt: number | undefined;
-      
-      if (menu.nodeId && state.nodes[menu.nodeId]) {
-        const node = state.nodes[menu.nodeId];
-        parentIdOpt = node?.data?.parent as string | undefined;
-        const sibs = parentIdOpt && state.nodes[parentIdOpt] ? (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [] : [];
-        const idx = sibs.indexOf(menu.nodeId);
-        atIndexOpt = idx === -1 ? sibs.length : idx + 1;
-      } else if (effectiveIds.length > 0) {
-        const lastId = effectiveIds[effectiveIds.length - 1]!;
-        const lastNode = state.nodes[lastId];
-        parentIdOpt = lastNode?.data?.parent as string | undefined;
-        if (parentIdOpt && state.nodes[parentIdOpt]) {
-          const sibs = (state.nodes[parentIdOpt]?.data?.nodes as string[]) ?? [];
-          const lastIndex = sibs.indexOf(lastId);
-          atIndexOpt = lastIndex === -1 ? sibs.length : lastIndex + 1;
-        }
-      }
-      
-      pasteClipboard(actions as any, query as any, { parentId: parentIdOpt, atIndex: atIndexOpt });
+      // Use the right-clicked node as the hint; pasteClipboard resolves the canvas parent
+      const hintId = menu.nodeId ?? effectiveIds[effectiveIds.length - 1] ?? undefined;
+      pasteClipboard(actions as any, query as any, hintId ? { parentId: hintId } : undefined);
       close();
       return;
     }

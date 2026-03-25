@@ -791,16 +791,12 @@ function PreviewContent() {
     // Generic placeholder names used by the editor that should be replaced with numbered labels
     const GENERIC_NAME_PATTERNS = /^(page name|page|untitled|unnamed|new page)$/i;
     return doc.pages.map((page, index) => {
-      // getPageSlug inside WebPreview: page?.slug ?? `page-${index}` (0-based)
-      const slug = (page?.slug as string | undefined)?.trim() || `page-${index}`;
-      const id = (page?.id as string) || slug;
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
-      const rawName = (page as any)?.name ?? pageProps.pageName;
-      const rawNameStr = typeof rawName === "string" ? rawName.trim() : "";
-      // Use a meaningful name: fall back to "Page N" if empty or a generic placeholder
-      const name = rawNameStr && !GENERIC_NAME_PATTERNS.test(rawNameStr)
-        ? rawNameStr
-        : `Page ${index + 1}`;
+      const id = (page?.id as string) || `page-${index}`;
+      const rawName = page?.name ?? pageProps.pageName;
+      const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
+      const rawSlug = page?.slug ?? pageProps.pageSlug;
+      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
       return { id, slug, name };
     });
   }, [effectiveCleanDoc]);

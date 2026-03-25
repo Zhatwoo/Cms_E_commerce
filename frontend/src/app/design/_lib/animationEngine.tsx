@@ -18,6 +18,21 @@ gsap.registerPlugin(ScrollTrigger);
 
 // Track which documents already have a scrollerProxy configured.
 const SCROLLER_PROXY_DOCS = new WeakSet<Document>();
+// Track which element scrollers already have scrollerProxy configured.
+const ELEMENT_SCROLLER_PROXIES = new WeakSet<HTMLElement>();
+// Track which element scrollers already have ResizeObserver wired.
+const SCROLLER_RESIZE_OBSERVERS = new WeakMap<HTMLElement, ResizeObserver>();
+
+// Global debounced refresh — prevents N animated elements from each calling refresh on mount,
+// which causes layout thrashing and visual jumps in the preview page.
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleScrollTriggerRefresh(delayMs = 200) {
+  if (_refreshTimer !== null) clearTimeout(_refreshTimer); // Always reset to latest
+  _refreshTimer = setTimeout(() => {
+    _refreshTimer = null;
+    ScrollTrigger.refresh();
+  }, delayMs);
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -31,6 +46,43 @@ function normalizeTriggerType(raw: unknown): AnimationConfig["trigger"]["type"] 
   if (v === "onhover" || v === "hover") return "onHover";
   if (v === "onclick" || v === "click" || v === "tap") return "onClick";
   return DEFAULT_ANIMATION.trigger.type;
+}
+
+function normalizeBoolean(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  if (typeof raw === "number") {
+    if (raw === 1) return true;
+    if (raw === 0) return false;
+  }
+  return undefined;
+}
+
+function normalizeScrollEffectType(raw: unknown): ScrollEffectType {
+  if (typeof raw !== "string") return DEFAULT_ANIMATION.scrollEffect.type;
+  const v = raw.trim().toLowerCase().replace(/[\s_-]/g, "");
+
+  const map: Record<string, ScrollEffectType> = {
+    none: "none",
+    parallax: "parallax",
+    fade: "fade",
+    scale: "scale",
+    rotate: "rotate",
+    blur: "blur",
+    horizontalmove: "horizontalMove",
+    freemove: "freeMove",
+    skew: "skew",
+    reveal: "reveal",
+    zoom: "zoom",
+    tilt3d: "tilt3d",
+    "tilt3d3": "tilt3d",
+  };
+
+  return map[v] ?? (DEFAULT_ANIMATION.scrollEffect.type as ScrollEffectType);
 }
 
 function normalizeAnimationConfig(animation: unknown): AnimationConfig {
@@ -52,6 +104,13 @@ function normalizeAnimationConfig(animation: unknown): AnimationConfig {
         scrollEffect.enabled === true ||
         scrollEffect.enabled === "true" ||
         scrollEffect.enabled === 1,
+      type: normalizeScrollEffectType(scrollEffect.type),
+      direction:
+        String(scrollEffect.direction ?? DEFAULT_ANIMATION.scrollEffect.direction).trim().toLowerCase() === "horizontal"
+          ? "horizontal"
+          : "vertical",
+      scrub:
+        normalizeBoolean(scrollEffect.scrub) ?? DEFAULT_ANIMATION.scrollEffect.scrub,
     },
     trigger: {
       ...DEFAULT_ANIMATION.trigger,
@@ -65,9 +124,6 @@ function resolveNearestScrollContainer(
   el: HTMLElement,
   view: Window
 ): HTMLElement | null {
-  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
-  if (explicitPreviewRoot instanceof HTMLElement) return explicitPreviewRoot;
-
   let cur: HTMLElement | null = el.parentElement;
   let styledScrollableFallback: HTMLElement | null = null;
   while (cur) {
@@ -100,26 +156,29 @@ function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  // Preview page runs in the top window (not iframe). To keep behavior stable across
-  // browser zoom levels, always use window scroll there.
+  // 1. Explicit preview scroll root — ALWAYS return it without checking scrollability.
+  //    Content may not be rendered yet at mount time, so isElementScrollable would fail
+  //    and fall back to window, which is blocked by overflow-x-hidden parent.
+  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
+  if (explicitPreviewRoot instanceof HTMLElement) {
+    return { primary: explicitPreviewRoot, fallback: null };
+  }
+
+  // 2. Builder canvas container — explicit attribute, prefer over DOM walk.
+  const canvasContainer = el.closest('[data-canvas-container]');
+  if (canvasContainer instanceof HTMLElement) {
+    return { primary: canvasContainer, fallback: null };
+  }
+
+  // 3. Top-level window (preview/live site without explicit scroll root) — use window.
   if (view.parent === view) {
     return { primary: null, fallback: null };
   }
 
-  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
-  if (explicitPreviewRoot instanceof HTMLElement) {
-    // Preview root should only be used when it is actually scrollable at current viewport size.
-    // Otherwise, scrolling is happening on the window and we should not force a custom root.
-    if (isElementScrollable(explicitPreviewRoot)) {
-      return { primary: explicitPreviewRoot, fallback: null };
-    }
-    return { primary: null, fallback: null };
-  }
-
+  // Inside an iframe (builder canvas in iframe mode), find the nearest scroll container.
   const nearest = resolveNearestScrollContainer(el, view);
   const primary = nearest && isElementScrollable(nearest) ? nearest : null;
-  const fallback = null;
-  return { primary, fallback };
+  return { primary, fallback: null };
 }
 
 // ─── Easing Map (Framer Motion) ──────────────────────────────────────────────
@@ -326,6 +385,7 @@ function useGsapScrollEffect(
     const view = el.ownerDocument?.defaultView ?? window;
     const doc = el.ownerDocument ?? document;
 
+
     // If we're rendering inside an iframe (builder canvas), the actual scrolling may happen
     // in the parent document on `.canvas-scroll-container` instead of inside the iframe.
     // In that case, proxy the iframe documentElement's scrollTop/Left to the parent scroller.
@@ -391,6 +451,47 @@ function useGsapScrollEffect(
     // Prefer the proxied scroller (iframe -> parent canvas scroll container).
     const { primary: resolvedScroller, fallback: fallbackScroller } = resolveScrollRoots(el, view);
     const scroller = proxyScroller ?? resolvedScroller ?? fallbackScroller;
+
+    // For element-based scrollers (e.g. data-preview-scroll-root), set up:
+    // 1. scrollerProxy so GSAP computes trigger positions relative to element viewport
+    // 2. scroll event bridge so GSAP re-evaluates on every scroll tick
+    let elementScrollHandler: (() => void) | null = null;
+    if (scroller && !proxyScroller) {
+      // Set up scrollerProxy only once per element so GSAP knows buffer/viewport dimensions
+      if (!ELEMENT_SCROLLER_PROXIES.has(scroller)) {
+        ELEMENT_SCROLLER_PROXIES.add(scroller);
+        ScrollTrigger.scrollerProxy(scroller, {
+          scrollTop(value?: number) {
+            if (typeof value === "number") scroller.scrollTop = value;
+            return scroller.scrollTop;
+          },
+          scrollLeft(value?: number) {
+            if (typeof value === "number") scroller.scrollLeft = value;
+            return scroller.scrollLeft;
+          },
+          getBoundingClientRect() {
+            const width = scroller.clientWidth;
+            const height = scroller.clientHeight;
+            return { top: 0, left: 0, width, height, right: width, bottom: height } as DOMRect;
+          },
+          // Keep consistent pin behavior even though we don't use pinning here.
+          pinType: "transform",
+        });
+      }
+      // Forward scroll events from the element to ScrollTrigger
+      elementScrollHandler = () => ScrollTrigger.update();
+      scroller.addEventListener("scroll", elementScrollHandler, { passive: true });
+
+      // Content/images/fonts can change scroll height after mount; refresh when that happens.
+      if (!SCROLLER_RESIZE_OBSERVERS.has(scroller) && typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(() => {
+          // Keep this cheap: debounced refresh avoids layout thrashing.
+          scheduleScrollTriggerRefresh();
+        });
+        ro.observe(scroller);
+        SCROLLER_RESIZE_OBSERVERS.set(scroller, ro);
+      }
+    }
 
     const getScrollOffsets = () => {
       if (!scroller) return { x: view.scrollX, y: view.scrollY };
@@ -496,9 +597,9 @@ function useGsapScrollEffect(
         : 1;
 
     if (config.type === "freeMove") {
-      // freeMove effect temporarily disabled
-      return;
-    } else {
+      const keyframes = computeFreeMoveKeyframes();
+      if (keyframes.length === 0) return;
+
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: el,
@@ -510,20 +611,94 @@ function useGsapScrollEffect(
           invalidateOnRefresh: true,
         },
       });
-      const { from, to } = getScrollEffectRange(config);
-      tl.fromTo(el, from, {
-        ...to,
-        ease: "none",
+
+      // Map progress-based keyframes to the scrubbed timeline
+      keyframes.forEach((kf, idx) => {
+        if (idx === 0) {
+          tl.set(el, { x: kf.x, y: kf.y, force3D: true });
+        } else {
+          const prev = keyframes[idx - 1];
+          const duration = kf.at - prev.at;
+          tl.to(el, {
+            x: kf.x,
+            y: kf.y,
+            duration,
+            ease: "none", // Linear segments since keyframes are sampled/progress-based
+            force3D: true,
+          }, prev.at);
+        }
       });
-      ScrollTrigger.refresh();
-      const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
+
+      // Schedule a single debounced refresh rather than calling refresh immediately
+      // per-component — prevents N simultaneous refreshes causing visual jumps.
+      scheduleScrollTriggerRefresh();
 
       return () => {
         tl.kill();
-        view.clearTimeout(settleRefresh);
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
+        if (elementScrollHandler && scroller) {
+          scroller.removeEventListener("scroll", elementScrollHandler);
+        }
+        if (proxiedParentScroller && parentScrollHandler) {
+          proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
+        }
+        if (parentResizeHandler) {
+          try {
+            view.parent?.removeEventListener("resize", parentResizeHandler as EventListener);
+          } catch {
+            // ignore
+          }
+        }
+      };
+    } else {
+      // Use a natural ease for all scroll effects for a clean, smooth feel
+      const naturalEase = config.scrub ? "none" : "power1.inOut";
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: el,
+          scroller: scroller ?? undefined,
+          start: config.start,
+          end: config.end,
+          scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
+          immediateRender: false,
+          invalidateOnRefresh: true,
+        },
+        defaults: { ease: naturalEase },
+      });
+      const { from, to } = getScrollEffectRange(config);
+      // Clamp and round all numeric values for pixel-perfect movement
+      const clampObj = (obj: Record<string, unknown>) => {
+        const out: Record<string, unknown> = {};
+        for (const k in obj) {
+          const v = obj[k];
+          if (typeof v === 'number') out[k] = Math.round(v * 1000) / 1000;
+          else out[k] = v;
+        }
+        return out;
+      };
+      // If rotate effect, set transformOrigin to center for true rotation
+      if (config.type === "rotate") {
+        gsap.set(el, { transformOrigin: "50% 50%" });
+      }
+      tl.fromTo(el, clampObj(from), {
+        ...clampObj(to),
+        // Use a natural ease for all effects
+        ease: naturalEase,
+        ...(config.type === "rotate" ? { transformOrigin: "50% 50%" } : {}),
+      });
+      // Schedule a single debounced refresh — prevents cascade of refreshes on mount.
+      scheduleScrollTriggerRefresh();
+
+      return () => {
+        tl.kill();
+        ScrollTrigger.getAll().forEach((t) => {
+          if (t.trigger === el) t.kill();
+        });
+        if (elementScrollHandler && scroller) {
+          scroller.removeEventListener("scroll", elementScrollHandler);
+        }
         if (proxiedParentScroller && parentScrollHandler) {
           proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
         }
@@ -705,7 +880,6 @@ export function AnimationWrapper({
 
   const ref = useRef<HTMLDivElement>(null);
   const inViewRootRef = useRef<Element | null>(null);
-  const [rootResolved, setRootResolved] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -714,7 +888,6 @@ export function AnimationWrapper({
     const view = el.ownerDocument?.defaultView ?? window;
     const { primary, fallback } = resolveScrollRoots(el, view);
     inViewRootRef.current = primary ?? fallback;
-    setRootResolved(true);
   }, []);
 
   const isInView = useInView(ref, {
