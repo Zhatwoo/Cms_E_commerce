@@ -21,6 +21,16 @@ function normalizeContainerHeight(value: string | undefined): string {
   return String(value).trim().toLowerCase() === "auto" ? "240px" : value;
 }
 
+function isColorLike(value: unknown): boolean {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return false;
+  if (v === "transparent" || v === "currentcolor" || v === "inherit") return true;
+  if (v.startsWith("#")) return true;
+  if (v.startsWith("rgb(") || v.startsWith("rgba(")) return true;
+  if (v.startsWith("hsl(") || v.startsWith("hsla(")) return true;
+  return ["white", "black", "red", "blue", "green", "gray", "grey"].includes(v);
+}
+
 export const Container = ({
   background = "#ffffff",
   padding = 0,
@@ -155,6 +165,31 @@ export const Container = ({
 
   const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
 
+  const resolvedBackground = React.useMemo(() => {
+    if (hasBackgroundVideo) return background;
+
+    if (backgroundImage) {
+      const overlayLayer =
+        backgroundOverlay && backgroundOverlay !== "transparent"
+          ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay})`
+          : null;
+      const imageLayer = `url(${backgroundImage}) ${backgroundPosition} / ${backgroundSize} ${backgroundRepeat}`;
+      const layers = [overlayLayer, imageLayer].filter(Boolean).join(", ");
+      const colorToken = isColorLike(background) ? ` ${background}` : "";
+      return `${layers}${colorToken}`;
+    }
+
+    return background;
+  }, [
+    background,
+    backgroundImage,
+    backgroundOverlay,
+    backgroundPosition,
+    backgroundRepeat,
+    backgroundSize,
+    hasBackgroundVideo,
+  ]);
+
   const effectiveDisplay =
     editorVisibility === "hide"
       ? "none"
@@ -175,16 +210,8 @@ export const Container = ({
       }}
       className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
       style={{
-        background: background,
+        background: resolvedBackground,
         isolation: "isolate",
-        backgroundImage: !hasBackgroundVideo && backgroundImage
-          ? backgroundOverlay
-            ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
-            : `url(${backgroundImage})`
-          : undefined,
-        backgroundSize: !hasBackgroundVideo && backgroundImage ? backgroundSize : undefined,
-        backgroundPosition: !hasBackgroundVideo && backgroundImage ? backgroundPosition : undefined,
-        backgroundRepeat: !hasBackgroundVideo && backgroundImage ? backgroundRepeat : undefined,
         ...spacingStyle,
         width,
         height: resolvedHeight,

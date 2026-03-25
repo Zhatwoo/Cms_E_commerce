@@ -2,6 +2,7 @@ import {
   getSharedNotifications,
   addSharedNotification,
   markSharedNotificationRead,
+  markAllSharedNotificationsRead,
   deleteSharedNotification
 } from './api';
 
@@ -112,6 +113,20 @@ export async function markAsRead(id: string) {
     saveNotifications(list);
     if (!isMissingNotificationsRoute(e)) {
       console.warn('Failed to sync mark-as-read remotely; updated local cache only.');
+    }
+  }
+}
+
+export async function markAllAsRead() {
+  try {
+    await markAllSharedNotificationsRead();
+    const list = getNotifications().map(n => ({ ...n, read: true }));
+    saveNotifications(list);
+  } catch (e) {
+    const list = getNotifications().map(n => ({ ...n, read: true }));
+    saveNotifications(list);
+    if (!isMissingNotificationsRoute(e)) {
+      console.warn('Failed to sync bulk mark-as-read remotely; updated local cache only.');
     }
   }
 }

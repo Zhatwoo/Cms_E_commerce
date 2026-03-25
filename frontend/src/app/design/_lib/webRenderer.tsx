@@ -4059,6 +4059,8 @@ function RenderNode({
           fontStyle={props.fontStyle as "normal" | "italic" | undefined}
           lineHeight={props.lineHeight as number | string | undefined}
           letterSpacing={props.letterSpacing as number | string | undefined}
+          textAlign={props.textAlign as "left" | "center" | "right" | "justify" | undefined}
+          textTransform={props.textTransform as "none" | "uppercase" | "lowercase" | "capitalize" | undefined}
           color={typeof props.color === "string" ? props.color : undefined}
           iconColor={typeof props.iconColor === "string" ? props.iconColor : undefined}
           arrowSize={typeof props.arrowSize === "number" ? props.arrowSize : undefined}
@@ -4288,7 +4290,7 @@ export function WebPreview({
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageId]);
+  }, [isPhoneSize, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
