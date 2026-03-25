@@ -785,17 +785,25 @@ function PreviewContent() {
   );
 
   const previewPages = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
-    return cleanDoc.pages.map((page, index) => {
+    // IMPORTANT: use effectiveCleanDoc (same source as WebPreview) so slugs match exactly
+    const doc = effectiveCleanDoc;
+    if (!doc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
+    // Generic placeholder names used by the editor that should be replaced with numbered labels
+    const GENERIC_NAME_PATTERNS = /^(page name|page|untitled|unnamed|new page)$/i;
+    return doc.pages.map((page, index) => {
+      // getPageSlug inside WebPreview: page?.slug ?? `page-${index}` (0-based)
+      const slug = (page?.slug as string | undefined)?.trim() || `page-${index}`;
+      const id = (page?.id as string) || slug;
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
-      const id = (page?.id as string) || `page-${index}`;
-      const rawName = page?.name ?? pageProps.pageName;
-      const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
-      const rawSlug = page?.slug ?? pageProps.pageSlug;
-      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
+      const rawName = (page as any)?.name ?? pageProps.pageName;
+      const rawNameStr = typeof rawName === "string" ? rawName.trim() : "";
+      // Use a meaningful name: fall back to "Page N" if empty or a generic placeholder
+      const name = rawNameStr && !GENERIC_NAME_PATTERNS.test(rawNameStr)
+        ? rawNameStr
+        : `Page ${index + 1}`;
       return { id, slug, name };
     });
-  }, [cleanDoc]);
+  }, [effectiveCleanDoc]);
 
   useEffect(() => {
     if (previewPages.length === 0) {
@@ -821,16 +829,16 @@ function PreviewContent() {
   }, [previewPages, selectedPreviewPageSlug]);
 
   const selectedPreviewPageIndex = useMemo(() => {
-    if (!cleanDoc?.pages?.length) return 0;
+    const doc = effectiveCleanDoc;
+    if (!doc?.pages?.length) return 0;
     if (!selectedPreviewPage?.slug) return 0;
-    const idx = cleanDoc.pages.findIndex((p, i) => {
-      const pageProps = (p?.props ?? {}) as Record<string, unknown>;
-      const rawSlug = p?.slug ?? pageProps.pageSlug;
-      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${i + 1}`;
+    const idx = doc.pages.findIndex((p, i) => {
+      // Match WebPreview's getPageSlug: page?.slug ?? `page-${index}` (0-based)
+      const slug = (p?.slug as string | undefined)?.trim() || `page-${i}`;
       return slug === selectedPreviewPage.slug;
     });
     return idx >= 0 ? idx : 0;
-  }, [cleanDoc, selectedPreviewPage?.slug]);
+  }, [effectiveCleanDoc, selectedPreviewPage?.slug]);
 
   const rawFormatted = useMemo(() => {
     if (!rawJson) return null;
@@ -1124,52 +1132,146 @@ function PreviewContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-brand-lighter font-sans">
-      {/* Animations for preview */}
+    <div className="min-h-screen bg-[#0d0d0f] text-brand-lighter font-sans flex flex-col">
+      {/* Animations */}
       <style>{`
-        .preview-fadein {
-          animation: previewFadeIn 0.7s cubic-bezier(.4,0,.2,1);
+        .preview-fadein { animation: previewFadeIn 0.5s cubic-bezier(.4,0,.2,1); }
+        @keyframes previewFadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        .preview-scroll { scroll-behavior: smooth; }
+        .pv-btn {
+          display: flex; align-items: center; gap: 6px;
+          padding: 6px 12px; border-radius: 8px; font-size: 13px;
+          transition: background 0.15s, color 0.15s, border-color 0.15s;
+          border: 1px solid transparent; cursor: pointer;
         }
-        @keyframes previewFadeIn {
-          from { opacity: 0; transform: translateY(32px); }
-          to { opacity: 1; transform: none; }
+        .pv-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        .pv-seg-btn {
+          display: flex; align-items: center; gap: 5px;
+          padding: 5px 11px; border-radius: 6px; font-size: 12.5px;
+          transition: background 0.13s, color 0.13s; cursor: pointer; font-weight: 500;
         }
-        .preview-scroll {
-          scroll-behavior: smooth;
+        .pv-seg-btn.active { background: rgba(255,255,255,0.1); color: #f4f4f5; }
+        .pv-seg-btn:not(.active) { color: #71717a; }
+        .pv-seg-btn:not(.active):hover { color: #d4d4d8; background: rgba(255,255,255,0.05); }
+        .device-frame-tablet {
+          border-radius: 20px;
+          box-shadow: 0 0 0 3px #27272a, 0 0 0 5px #18181b, 0 20px 60px rgba(0,0,0,0.6);
+          overflow: hidden;
         }
-        .preview-float-animate {
-          animation: previewFloat 2.8s ease-in-out infinite alternate;
+        .device-frame-mobile {
+          border-radius: 36px;
+          box-shadow: 0 0 0 4px #27272a, 0 0 0 7px #18181b, 0 24px 64px rgba(0,0,0,0.7);
+          overflow: hidden;
         }
-        @keyframes previewFloat {
-          from { transform: translateY(0); }
-          to { transform: translateY(-10px); }
+        .device-notch {
+          height: 28px; background: #18181b;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
         }
+        .device-notch-pill {
+          width: 80px; height: 8px; background: #27272a; border-radius: 99px;
+        }
+        .device-home-bar {
+          height: 24px; background: #18181b;
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+        .device-home-pill {
+          width: 100px; height: 4px; background: #3f3f46; border-radius: 99px;
+        }
+        .pv-loading-dot {
+          width: 8px; height: 8px; border-radius: 50%; background: #52525b;
+          animation: pvDot 1.2s ease-in-out infinite;
+        }
+        .pv-loading-dot:nth-child(2) { animation-delay: 0.15s; }
+        .pv-loading-dot:nth-child(3) { animation-delay: 0.3s; }
+        @keyframes pvDot { 0%,80%,100%{transform:scale(0.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
       `}</style>
-      {/* Top Bar */}
-      <div className="sticky top-0 z-50 bg-[#0a0a0a]/90 backdrop-blur border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+
+      {/* ── Toolbar ─────────────────────────────────────────────────── */}
+      <div className="sticky top-0 z-50 bg-[#0d0d0f]/95 backdrop-blur-md border-b border-white/[0.07] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 h-13 gap-2" style={{ minHeight: 52 }}>
+
+          {/* Left: Nav */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 text-sm text-brand-light hover:text-brand-lighter transition-colors"
+              className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]"
             >
-              <ArrowLeft size={16} />
-              Back to Editor
+              <ArrowLeft size={15} />
+              <span className="hidden sm:inline">Editor</span>
             </button>
             <button
               onClick={handleRefresh}
               disabled={loading}
-              title="Reload latest from editor or database"
-              className="flex items-center gap-2 text-sm text-brand-light hover:text-brand-lighter transition-colors disabled:opacity-50"
+              title="Reload from editor or database"
+              className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] disabled:opacity-40"
             >
-              <RotateCw size={16} className={loading ? "animate-spin" : ""} />
-              Refresh
+              <RotateCw size={14} className={loading ? "animate-spin" : ""} />
+              <span className="hidden sm:inline">Refresh</span>
             </button>
-            <div className="w-px h-5 bg-white/10" />
-            <h1 className="text-lg font-semibold">Preview</h1>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Center: Controls */}
+          <div className="flex items-center gap-2 flex-1 justify-center flex-wrap">
+            {/* Viewport switcher */}
+            <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
+              <button onClick={() => setPreviewViewport("desktop")} className={`pv-seg-btn ${previewViewport === "desktop" ? "active" : ""}`} title="Desktop">
+                <Monitor size={13} /><span className="hidden md:inline">Desktop</span>
+              </button>
+              <button onClick={() => setPreviewViewport("tablet")} className={`pv-seg-btn ${previewViewport === "tablet" ? "active" : ""}`} title="Tablet">
+                <Tablet size={13} /><span className="hidden md:inline">Tablet</span>
+              </button>
+              <button onClick={() => setPreviewViewport("mobile")} className={`pv-seg-btn ${previewViewport === "mobile" ? "active" : ""}`} title="Mobile">
+                <Smartphone size={13} /><span className="hidden md:inline">Mobile</span>
+              </button>
+            </div>
+
+            {/* View mode switcher */}
+            <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
+              <button onClick={() => setViewMode("Web-Preview")} className={`pv-seg-btn ${viewMode === "Web-Preview" ? "active" : ""}`}>
+                <Globe size={13} />Preview
+              </button>
+              <button onClick={() => setViewMode("clean")} className={`pv-seg-btn ${viewMode === "clean" ? "active" : ""}`}>
+                <Layers size={13} />Clean
+              </button>
+              <button onClick={() => setViewMode("raw")} className={`pv-seg-btn ${viewMode === "raw" ? "active" : ""}`}>
+                <Braces size={13} />Raw
+              </button>
+            </div>
+
+            {/* Page selector — always visible */}
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-zinc-600 font-medium hidden sm:inline">Page</span>
+              <select
+                value={selectedPreviewPage?.slug ?? ""}
+                onChange={(e) => setSelectedPreviewPageSlug(e.target.value || undefined)}
+                disabled={previewPages.length === 0}
+                className="bg-[#18181b] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-white/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed min-w-[90px]"
+              >
+                {previewPages.length === 0
+                  ? <option value="">—</option>
+                  : previewPages.map((page, idx) => (
+                    <option key={page.id || `page-${idx}`} value={page.slug}>{page.name}</option>
+                  ))
+                }
+              </select>
+            </div>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            {viewMode !== "Web-Preview" && activeJson && (
+              <>
+                <button onClick={handleCopy} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]">
+                  {copied ? <><Check size={13} className="text-emerald-400" /><span className="hidden sm:inline text-emerald-400">Copied</span></> : <><Copy size={13} /><span className="hidden sm:inline">Copy</span></>}
+                </button>
+                <button onClick={handleDownload} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]">
+                  <Download size={13} /><span className="hidden sm:inline">Download</span>
+                </button>
+                <div className="w-px h-4 bg-white/10 mx-0.5" />
+              </>
+            )}
             <button
               onClick={() => {
                 const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
@@ -1177,226 +1279,170 @@ function PreviewContent() {
                 else if (project) setShowSaveDialog(true);
               }}
               disabled={loading || !project}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-green-500/10 hover:bg-green-500/20 border border-green-500/30 text-green-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="pv-btn bg-emerald-500/10 border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20"
             >
-              <Save size={14} />
-              Save Template
+              <Save size={13} /><span className="hidden sm:inline">Template</span>
             </button>
             <button
               onClick={handlePublishClick}
               disabled={loading || !project}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="pv-btn bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25"
             >
-              <Upload size={14} />
-              Publish
+              <Upload size={13} /><span className="hidden sm:inline">Publish</span>
             </button>
-            {viewMode !== "Web-Preview" && activeJson && (
-              <>
-                <button
-                  onClick={handleCopy}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-                >
-                  {copied ? (
-                    <>
-                      <Check size={14} className="text-green-400" />
-                      Copied
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} />
-                      Copy
-                    </>
-                  )}
-                </button>
-                <button
-                  onClick={handleDownload}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm bg-white/5 hover:bg-white/10 border border-white/10 transition-colors"
-                >
-                  <Download size={14} />
-                  Download
-                </button>
-              </>
-            )}
           </div>
         </div>
       </div>
 
-      <div className={`${viewMode === "Web-Preview" ? "w-full" : "max-w-7xl mx-auto"} px-6 py-6 flex flex-col gap-6`}>
-        {/* View Toggle + Stats */}
-        <div className="flex flex-col items-center gap-3">
-          <div className="flex items-center justify-center gap-3 flex-wrap">
-            <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
-              <button
-                onClick={() => setPreviewViewport("desktop")}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${previewViewport === "desktop"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-              >
-                <Monitor size={14} />
-                Desktop
-              </button>
-              <button
-                onClick={() => setPreviewViewport("tablet")}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${previewViewport === "tablet"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-              >
-                <Tablet size={14} />
-                Tablet
-              </button>
-              <button
-                onClick={() => setPreviewViewport("mobile")}
-                className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${previewViewport === "mobile"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-              >
-                <Smartphone size={14} />
-                Mobile
-              </button>
-            </div>
-
-            <div className="flex items-center bg-[#111] rounded-lg border border-white/10 p-1">
-              <button
-                onClick={() => setViewMode("Web-Preview")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "Web-Preview"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-              >
-                <Globe size={14} />
-                Web-Preview
-              </button>
-              <button
-                onClick={() => setViewMode("clean")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "clean"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-              >
-                <Layers size={14} />
-                Clean
-              </button>
-              <button
-                onClick={() => setViewMode("raw")}
-                className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm transition-colors ${viewMode === "raw"
-                  ? "bg-white/10 text-brand-lighter"
-                  : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-              >
-                <Braces size={14} />
-                Raw (Craft.js)
-              </button>
-            </div>
-          </div>
-
-          {/* Stats (inside tabs area) */}
-          <div className="flex items-center justify-center gap-6 text-xs text-zinc-500 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-600">Page:</span>
-              <select
-                value={selectedPreviewPage?.slug ?? ""}
-                onChange={(e) => setSelectedPreviewPageSlug(e.target.value || undefined)}
-                disabled={previewPages.length === 0}
-                className="bg-[#111] border border-white/10 rounded-md px-2 py-1 text-xs text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/20 disabled:opacity-50"
-              >
-                {previewPages.map((page, idx) => (
-                  <option key={page.id || `page-${idx}`} value={page.slug}>
-                    {page.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span>{pageCount} pages</span>
-              <span className="text-zinc-700">|</span>
-              <span>
-                {viewMode === "raw" ? rawNodeCount : cleanNodeCount} nodes
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-600">Raw:</span>
-              <span className="text-zinc-400">{formatBytes(rawMinBytes)}</span>
-              <span className="text-zinc-700">→</span>
-              <span className="text-zinc-600">Clean:</span>
-              <span className="text-emerald-400">{formatBytes(cleanMinBytes)}</span>
-              <span
-                className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${reduction > 0
-                  ? "bg-emerald-500/10 text-emerald-400"
-                  : "bg-zinc-500/10 text-zinc-400"
-                  }`}
-              >
-                -{reduction}%
-              </span>
-            </div>
-          </div>
+      {/* ── Stats bar ───────────────────────────────────────────────── */}
+      {rawJson && (
+        <div className="flex items-center justify-center gap-5 px-6 py-1.5 border-b border-white/[0.05] text-[11px] text-zinc-600 flex-wrap bg-[#0d0d0f] flex-shrink-0">
+          <span><span className="text-zinc-700">Pages:</span> <span className="text-zinc-500">{pageCount}</span></span>
+          <span className="text-zinc-800">·</span>
+          <span><span className="text-zinc-700">Nodes:</span> <span className="text-zinc-500">{viewMode === "raw" ? rawNodeCount : cleanNodeCount}</span></span>
+          <span className="text-zinc-800">·</span>
+          <span className="text-zinc-700">Raw <span className="text-zinc-500">{formatBytes(rawMinBytes)}</span> → Clean <span className="text-emerald-600">{formatBytes(cleanMinBytes)}</span></span>
+          {reduction > 0 && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">-{reduction}%</span>}
         </div>
+      )}
 
-        {/* Content: Web preview or JSON */}
+      {/* ── Main content ────────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col">
         {loading ? (
-          <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mb-4"></div>
-            <p>Fetching latest clean data...</p>
+          <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32">
+            <div className="flex items-center gap-2">
+              <div className="pv-loading-dot" /><div className="pv-loading-dot" /><div className="pv-loading-dot" />
+            </div>
+            <p className="text-sm text-zinc-600">Loading preview…</p>
           </div>
         ) : viewMode === "Web-Preview" ? (
-          <div className={`py-6 h-full w-full min-w-0 overflow-x-hidden flex justify-center`}>
+          <div className="flex-1 flex flex-col items-center py-8 px-4 overflow-x-hidden">
             {effectiveCleanDoc ? (
-              <div
-                ref={previewRef}
-                className={`transition-[width] duration-300 ease-out overflow-hidden preview-fadein ${previewViewport === "desktop"
-                  ? "min-h-[calc(100vh-200px)] w-full min-w-0"
-                  : "min-h-[calc(100vh-200px)] rounded-xl border border-white/10"
-                  }`}
-                style={
-                  previewViewport === "desktop"
-                    ? { ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }
-                    : previewViewport === "tablet"
-                      ? { width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px" }
-                      : previewViewport === "mobile"
-                        ? { width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px" }
-                        : undefined
-                }
-              >
-                {/* Optionally, you can add preview-float-animate to any child for demo */}
-                <WebPreview
-                  key="preview-web"
-                  doc={effectiveCleanDoc}
-                  pageIndex={selectedPreviewPageIndex}
-                  initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                  mobileBreakpoint={
-                    previewViewport === "tablet" ? PREVIEW_TABLET_BREAKPOINT : PREVIEW_MOBILE_BREAKPOINT
-                  }
-                  enableFormInputs
-                  builderParityMode={false}
-                  fillViewport={previewViewport !== "desktop"}
-                  storeContext={previewStoreContext}
-                  simulatedWidth={
-                    previewViewport === "tablet" ? PREVIEW_TABLET_VIEWPORT_WIDTH : previewViewport === "mobile" ? PREVIEW_MOBILE_VIEWPORT_WIDTH : undefined
-                  }
-                  responsiveViewportWidth={
-                    previewViewport === "tablet" ? PREVIEW_TABLET_VIEWPORT_WIDTH : previewViewport === "mobile" ? PREVIEW_MOBILE_VIEWPORT_WIDTH : undefined
-                  }
-                />
-              </div>
+              <>
+                {/* Desktop — full width, no device frame */}
+                {previewViewport === "desktop" && (
+                  <div
+                    ref={previewRef}
+                    className="w-full min-w-0 preview-fadein bg-white"
+                    style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle, minHeight: "calc(100vh - 160px)" }}
+                  >
+                    <WebPreview
+                      key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
+                      doc={effectiveCleanDoc}
+                      pageIndex={selectedPreviewPageIndex}
+                      initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                      mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                      enableFormInputs
+                      builderParityMode={false}
+                      fillViewport={false}
+                      storeContext={previewStoreContext}
+                    />
+                  </div>
+                )}
+
+                {/* Tablet — device frame */}
+                {previewViewport === "tablet" && (
+                  <div className="flex flex-col items-center gap-3 preview-fadein">
+                    <p className="text-xs text-zinc-600 mb-1">{PREVIEW_TABLET_VIEWPORT_WIDTH}px · Tablet</p>
+                    <div
+                      className="device-frame-tablet flex flex-col bg-white"
+                      style={{ width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px" }}
+                    >
+                      {/* Top bar of tablet */}
+                      <div className="flex-shrink-0 h-8 bg-[#18181b] flex items-center justify-between px-4">
+                        <div className="flex gap-1.5">
+                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                        </div>
+                        <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
+                        <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                      </div>
+                      <div ref={previewRef} style={{ minHeight: "calc(100vh - 240px)" }}>
+                        <WebPreview
+                          key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
+                          doc={effectiveCleanDoc}
+                          pageIndex={selectedPreviewPageIndex}
+                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
+                          enableFormInputs
+                          builderParityMode={false}
+                          fillViewport
+                          storeContext={previewStoreContext}
+                          simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                          responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mobile — device frame */}
+                {previewViewport === "mobile" && (
+                  <div className="flex flex-col items-center gap-3 preview-fadein">
+                    <p className="text-xs text-zinc-600 mb-1">{PREVIEW_MOBILE_VIEWPORT_WIDTH}px · Mobile</p>
+                    <div
+                      className="device-frame-mobile flex flex-col bg-white"
+                      style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px" }}
+                    >
+                      <div className="device-notch"><div className="device-notch-pill" /></div>
+                      <div ref={previewRef} style={{ minHeight: "calc(100vh - 280px)" }}>
+                        <WebPreview
+                          key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
+                          doc={effectiveCleanDoc}
+                          pageIndex={selectedPreviewPageIndex}
+                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                          enableFormInputs
+                          builderParityMode={false}
+                          fillViewport
+                          storeContext={previewStoreContext}
+                          simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                          responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                        />
+                      </div>
+                      <div className="device-home-bar"><div className="device-home-pill" /></div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
-              <div className="flex flex-col items-center justify-center min-h-96 text-zinc-500 p-8 border border-white/10 rounded-xl">
-                <p className="text-base mb-1">No page data</p>
-                <p className="text-sm">Go back to the editor and press the play button to generate output.</p>
+              <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-2">
+                  <Globe size={28} className="text-zinc-700" />
+                </div>
+                <p className="text-sm font-medium text-zinc-400">No page data</p>
+                <p className="text-xs text-zinc-600 max-w-xs">Go back to the editor, design your page, then return here to preview it.</p>
+                <button onClick={() => router.back()} className="mt-2 pv-btn bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300 text-sm">
+                  <ArrowLeft size={14} /> Back to Editor
+                </button>
               </div>
             )}
           </div>
         ) : activeJson ? (
-          <pre className="bg-[#111] rounded-xl border border-white/10 p-6 text-sm leading-relaxed overflow-auto max-h-[calc(100vh-200px)] font-mono text-zinc-300 whitespace-pre-wrap wrap-break-word">
-            {activeJson}
-          </pre>
+          <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-6 py-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs text-zinc-600 font-mono uppercase tracking-widest">{viewMode === "clean" ? "Clean Document" : "Raw CraftJS"}</span>
+              <div className="flex items-center gap-2">
+                <button onClick={handleCopy} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] text-xs">
+                  {copied ? <><Check size={12} className="text-emerald-400" /> Copied</> : <><Copy size={12} /> Copy</>}
+                </button>
+                <button onClick={handleDownload} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] text-xs">
+                  <Download size={12} /> Download
+                </button>
+              </div>
+            </div>
+            <pre className="flex-1 bg-[#111113] rounded-xl border border-white/[0.08] p-5 text-[12.5px] leading-relaxed overflow-auto font-mono text-zinc-400 whitespace-pre-wrap break-all" style={{ maxHeight: "calc(100vh - 200px)" }}>
+              {activeJson}
+            </pre>
+          </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-64 text-zinc-500">
-            <p className="text-lg mb-2">No JSON data found</p>
-            <p className="text-sm">
-              Go back to the editor and press the play button to generate output.
-            </p>
+          <div className="flex flex-col items-center justify-center flex-1 gap-3 py-32 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-2">
+              <Braces size={24} className="text-zinc-700" />
+            </div>
+            <p className="text-sm font-medium text-zinc-400">No JSON data found</p>
+            <p className="text-xs text-zinc-600">Go back to the editor and press Play to generate output.</p>
           </div>
         )}
       </div>

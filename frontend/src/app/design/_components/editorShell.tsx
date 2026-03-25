@@ -1171,8 +1171,8 @@ const CollabCursorBroadcaster = ({
 };
 
 const COLLAB_EMIT_DEBOUNCE_MS = 250; 
-const DB_SAVE_DEBOUNCE_MS = 2500;     // Reduced from 10s to 2.5s for better responsiveness
-const DB_FORCE_SAVE_INTERVAL = 15000; // Reduced from 30s to 15s
+const DB_SAVE_DEBOUNCE_MS = 800;     // Reduced from 2.5s to 0.8s for much faster auto-save
+const DB_FORCE_SAVE_INTERVAL = 8000; // Reduced from 15s to 8s
 
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId, permission = "editor" }: EditorShellProps) => {
@@ -1209,6 +1209,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [leftPanelWidth, setLeftPanelWidth] = useState(LEFT_PANEL_DEFAULT_WIDTH);
   const [rightPanelWidth, setRightPanelWidth] = useState(RIGHT_PANEL_DEFAULT_WIDTH);
   const [rightPanelTab, setRightPanelTab] = useState<TabId>("design");
+  // ...existing code...
   const [canvasWidth, setCanvasWidth] = useState(1440);
   const [canvasHeight, setCanvasHeight] = useState(900);
   const [activeTool, setActiveTool] = useState<CanvasTool>(permission === "viewer" ? "hand" : "move");
@@ -1399,15 +1400,25 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     setRightPanelOpen(true);
   }, [panelsReady, permission]);
 
-  // Load pages from document
+  // Load pages from document, ensure unique names
   const loadPages = useCallback((content: string) => {
     try {
       const parsed = JSON.parse(content);
       if (parsed.version !== undefined && parsed.pages && Array.isArray(parsed.pages)) {
-        const pageTabs = (parsed.pages as Array<{ id: string; name?: string }>).map((p) => ({
-          id: p.id,
-          name: p.name || `Page ${parsed.pages.indexOf(p) + 1}`,
-        }));
+        // Ensure unique, sequential names
+        const usedNames = new Set<string>();
+        const pageTabs = (parsed.pages as Array<{ id: string; name?: string }>).map((p, idx) => {
+          let base = 'Page ';
+          let num = idx + 1;
+          let name = p.name && !usedNames.has(p.name) ? p.name : `${base}${num}`;
+          // If name is duplicate, find next available
+          while (usedNames.has(name)) {
+            num++;
+            name = `${base}${num}`;
+          }
+          usedNames.add(name);
+          return { id: p.id, name };
+        });
         setPages(pageTabs);
         if (pageTabs.length > 0) {
           setCurrentPageId((prev) => prev || pageTabs[0].id);
@@ -1422,9 +1433,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     if (!initialJson) return;
     try {
       const id = `page-${Date.now()}`;
+      // Find next available unique name
+      const existingNames = new Set(pages.map((p) => p.name));
+      let num = 1;
+      let name = `Page ${num}`;
+      while (existingNames.has(name)) {
+        num++;
+        name = `Page ${num}`;
+      }
       const newPage = {
         id,
-        name: `Page ${pages.length + 1}`,
+        name,
         props: { width: "100%", height: "auto" },
         children: [],
       };
@@ -1452,28 +1471,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     setCurrentPageId(id);
   }, []);
 
+  const handleRightPanelTabChange = useCallback((tab: TabId) => {
+    setRightPanelTab(tab);
+  }, []);
+
   const handleSelectPage = useCallback((pageId: string) => {
     setCurrentPageId(pageId);
   }, []);
-
-  const handleDeletePage = useCallback((pageId: string) => {
-    if (!initialJson || pages.length <= 1) return;
-    try {
-      const parsed = JSON.parse(initialJson);
-      parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
-      const updated = JSON.stringify(parsed);
-      const storageKey = getStorageKey(projectId);
-      safeSessionSet(storageKey, updated);
-      loadPages(updated);
-      if (currentPageId === pageId && parsed.pages.length > 0) {
-        setCurrentPageId(parsed.pages[0].id);
-      }
-      setInitialJson(updated);
-    } catch (error) {
-      console.error("Failed to delete page:", error);
-      showAlert("Failed to delete page", "error");
-    }
-  }, [initialJson, currentPageId, pages, projectId, loadPages, showAlert]);
 
   const handleRenamePage = useCallback((pageId: string, newName: string) => {
     if (!initialJson) return;
@@ -3005,7 +3009,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                                 projectId={projectId}
                                 width={rightPanelWidth}
                                 activeTab={rightPanelTab}
-                                setActiveTab={setRightPanelTab}
+                                setActiveTab={handleRightPanelTabChange}
                                 frameReady={frameReady}
                                 onClose={() => setRightPanelOpen(false)}
                               />
