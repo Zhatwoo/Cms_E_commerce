@@ -6,6 +6,7 @@ import type { TypographyProps, SetProp } from "../../../_types/components";
 
 interface TypographyGroupProps extends TypographyProps {
   setProp: SetProp<TypographyProps>;
+  showAlignmentControls?: boolean;
 }
 
 const FONT_OPTIONS = [
@@ -28,7 +29,8 @@ export const TypographyGroup = ({
   textAlign = "left",
   textTransform = "none",
   color = "#ffffff",
-  setProp
+  setProp,
+  showAlignmentControls = true,
 }: TypographyGroupProps) => {
   const [isItalic, setIsItalic] = useState(fontStyle === "italic");
   const [isBold, setIsBold] = useState(fontWeight === "700");
@@ -131,12 +133,14 @@ export const TypographyGroup = ({
       {/* Alignment & Transform */}
       <div className="flex justify-between items-center bg-[var(--builder-surface-2)] p-1.5 rounded-lg border border-[var(--builder-border)]">
         <div className="flex gap-1">
-          {alignmentOptions.map(({ val, icon: Icon }) => (
-            <button key={val} onClick={() => setProp((props) => { props.textAlign = val; })}
-              className={`p-1 rounded ${textAlign === val ? activeBtnCls : inactiveBtnCls}`}>
-              <Icon size={14} />
-            </button>
-          ))}
+          {showAlignmentControls
+            ? alignmentOptions.map(({ val, icon: Icon }) => (
+              <button key={val} onClick={() => setProp((props) => { props.textAlign = val; })}
+                className={`p-1 rounded ${textAlign === val ? activeBtnCls : inactiveBtnCls}`}>
+                <Icon size={14} />
+              </button>
+            ))
+            : null}
           <button onClick={handleItalicToggle} className={`p-1 rounded transition-colors ${isItalic ? activeBtnCls : inactiveBtnCls}`} title="Italic">
             <Italic size={14} />
           </button>
