@@ -17,6 +17,7 @@ import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { addNotification } from '@/lib/notifications';
 import { formatToPHTimeShort } from '@/lib/dateUtils';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
+import { useAdminLoading } from '../components/LoadingProvider';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -359,6 +360,7 @@ function EmptyState({ message, sub }: { message: string; sub?: string }) {
 
 /* ── Main Page ──────────────────────────────────────────────── */
 function MonitoringPageContent() {
+  const { startLoading } = useAdminLoading();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -558,6 +560,8 @@ function MonitoringPageContent() {
   const maxHistVal = useMemo(() => Math.max(...historicalChartData.flatMap(h => [h.p, h.o, h.d]), 1), [historicalChartData]);
 
   const handleTabChange = (tab: MonitoringTab) => {
+    if (tab === activeTab) return;
+    startLoading();
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const nextParams = new URLSearchParams(window.location.search);

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 import { addNotification } from '@/lib/notifications';
+import { useAdminLoading } from '../components/LoadingProvider';
 
 /* ── icon helpers ─────────────────────────────────────────────── */
 const ChevronRightIcon = () => (
@@ -150,6 +151,7 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, data }) =>
 
 /* ── Board ────────────────────────────────────────────────────── */
 function ModerationComplianceBoard() {
+    const { startLoading } = useAdminLoading();
     const [tab, setTab] = useState<'reports' | 'records'>('reports');
     const [searchQuery, setSearchQuery] = useState('');
     const [showDismissModal, setShowDismissModal] = useState(false);
@@ -227,7 +229,11 @@ function ModerationComplianceBoard() {
                         {(['reports', 'records'] as const).map((t) => (
                             <button
                                 key={t}
-                                onClick={() => setTab(t)}
+                                onClick={() => {
+                                    if (t === tab) return;
+                                    startLoading();
+                                    setTab(t);
+                                }}
                                 className="min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors"
                                 style={tab === t ? { background: '#FFCC00', color: '#471396' } : { color: '#66607E' }}
                             >

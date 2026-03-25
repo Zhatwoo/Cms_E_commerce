@@ -26,8 +26,6 @@ export interface ProfileLoginBlockProps {
   fontStyle?: string;
   lineHeight?: number | string;
   letterSpacing?: number | string;
-  textAlign?: "left" | "center" | "right" | "justify";
-  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   color?: string;
   iconColor?: string;
   arrowSize?: number;
@@ -86,14 +84,12 @@ function getUserAvatar(user: User | null, fallback: string): string {
 
 export function ProfileLoginBlock({
   text = "Login",
-  fontSize = 18,
-  fontFamily = "Outfit",
-  fontWeight = "400",
+  fontSize = 34,
+  fontFamily = "EB Garamond",
+  fontWeight = "500",
   fontStyle = "normal",
-  lineHeight = 1.5,
+  lineHeight = 1.22,
   letterSpacing = 0,
-  textAlign = "left",
-  textTransform = "none",
   color = "#000000",
   iconColor = "#000000",
   arrowSize = 20,
@@ -424,8 +420,6 @@ export function ProfileLoginBlock({
             fontSize: `${resolvedFontSize}px`,
             lineHeight: safeLineHeight,
             letterSpacing: typeof letterSpacing === "number" ? letterSpacing : 0,
-            textAlign,
-            textTransform,
             color,
             whiteSpace: "nowrap",
             overflow: "visible",

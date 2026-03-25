@@ -451,7 +451,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     background: "#ffffff",
     canvasX: 0,
     canvasY: 0,
-    pageName: "Page Name",
+    pageName: "",
     pageSlug: "page",
   },
   ImportedBlock: {
@@ -669,7 +669,8 @@ export function serializeCraftToClean(rawJson: string, files?: CodeFile[]): Buil
     }
 
     const pageProps = pageRaw.props ?? {};
-    const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
+    // If pageProps.pageName is an empty string, keep it empty
+    const name = typeof pageProps.pageName === 'string' ? pageProps.pageName : `Page ${index + 1}`;
     const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
 
     const pageLinkedChildIds = pageRaw.linkedNodes
