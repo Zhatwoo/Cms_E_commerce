@@ -2754,7 +2754,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
 
     // Force BooleanField aliases after all spreads so legacy snapshots always resolve.
-    const booleanFieldComp = asComponent(CRAFT_RESOLVER.BooleanField ?? BooleanField);
+    const booleanFieldComp = asComponent(BooleanField ?? CRAFT_RESOLVER.BooleanField);
     base.BooleanField = booleanFieldComp;
     base.booleanfield = booleanFieldComp;
     base.Booleanfield = booleanFieldComp;
