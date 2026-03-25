@@ -220,7 +220,7 @@ export const Pagination = ({
                 bottom: position !== "static" ? bottom : undefined,
                 left: position !== "static" ? left : undefined,
                 zIndex: zIndex !== 0 ? zIndex : undefined,
-                display: display ?? "inline-flex",
+                display: effectiveDisplay,
             }}
         >
             {renderContent()}

@@ -704,7 +704,8 @@ export function AnimationWrapper({
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
   const ref = useRef<HTMLDivElement>(null);
-  const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
+  const inViewRootRef = useRef<Element | null>(null);
+  const [rootResolved, setRootResolved] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -712,11 +713,12 @@ export function AnimationWrapper({
 
     const view = el.ownerDocument?.defaultView ?? window;
     const { primary, fallback } = resolveScrollRoots(el, view);
-    setInViewRoot(primary ?? fallback);
+    inViewRootRef.current = primary ?? fallback;
+    setRootResolved(true);
   }, []);
 
   const isInView = useInView(ref, {
-    root: inViewRoot,
+    root: inViewRootRef,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });
