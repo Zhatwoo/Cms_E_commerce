@@ -8,6 +8,7 @@ import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons
 import { getNotifications, saveNotifications, markAsRead, markAllAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
 
 import { formatToPHTime } from "@/lib/dateUtils";
+import { useAdminLoading } from "../components/LoadingProvider";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -105,6 +106,7 @@ function ActionButton({
 }
 
 function NotificationsPageContent() {
+	const { startLoading } = useAdminLoading();
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [activeTab, setActiveTab] = useState<NotificationTab>("list");
 	const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -245,7 +247,11 @@ function NotificationsPageContent() {
 										<button
 											key={tab.key}
 											type="button"
-											onClick={() => setActiveTab(tab.key)}
+											onClick={() => {
+												if (tab.key === activeTab) return;
+												startLoading();
+												setActiveTab(tab.key);
+											}}
 											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${activeTab === tab.key
 												? "bg-[#FFCC00] text-[#2F1859]"
 												: "text-[#787593] hover:bg-white/60"

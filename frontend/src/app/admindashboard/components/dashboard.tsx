@@ -16,6 +16,7 @@ import {
 } from '@/lib/config/adminDashboardMocks';
 import { getNotifications, type NotificationItem } from '@/lib/notifications';
 import { formatToPHTime, formatToPHTimeShort } from '@/lib/dateUtils';
+import { useAdminLoading } from './LoadingProvider';
 
 // ─── DashboardPanel ──────────────────────────────────────────────────────────
 
@@ -182,6 +183,7 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
 // ─── DashboardNotificationsPanel ─────────────────────────────────────────────
 
 function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
+    const { startLoading } = useAdminLoading();
     return (
         <motion.div
             initial={{ opacity: 0, x: 18 }}
@@ -193,6 +195,7 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
                     <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Notifications</h2>
                     <Link
                         href="/admindashboard/notifications"
+                        onClick={() => startLoading()}
                         className="text-xs font-semibold transition-opacity hover:opacity-70"
                         style={{ color: '#a090c8' }}
                     >
@@ -234,11 +237,16 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
 export function AdminDashboard() {
-    const [displayName, setDisplayName] = useState(() => {
+    const { startLoading } = useAdminLoading();
+    const [displayName, setDisplayName] = useState('Admin');
+
+    useEffect(() => {
         const stored = getStoredUser();
-        const baseName = (stored as any)?.username || stored?.name || stored?.email || 'Admin';
-        return String(baseName).includes("John Lloyd") ? "kurohara" : String(baseName).trim();
-    });
+        if (stored) {
+            const baseName = (stored as any)?.username || stored?.name || stored?.email || 'Admin';
+            setDisplayName(String(baseName).includes("John Lloyd") ? "kurohara" : String(baseName).trim());
+        }
+    }, []);
 
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [stats, setStats] = useState({
