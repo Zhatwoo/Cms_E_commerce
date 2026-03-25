@@ -314,8 +314,11 @@ exports.adminWebsiteAction = async (req, res) => {
 
     const owner = await User.findById(userId);
     const ownerEmail = owner?.email || '';
+    let emailSent = false;
+    let emailError = '';
+
     if (ownerEmail) {
-      await sendAdminActionEmail({
+      const mail = await sendAdminActionEmail({
         to: ownerEmail,
         name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
         subject: normalizedAction === 'take_down' ? 'Website taken down by admin' : 'Website deleted by admin',

@@ -20,6 +20,7 @@ import {
 } from '@/lib/api';
 import { getNotifications, markAsRead, markAllAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
 import { formatToPHTime } from '@/lib/dateUtils';
+import { useAdminLoading } from './LoadingProvider';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -106,7 +107,13 @@ function includesQuery(value: string, query: string): boolean {
 
 export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const router = useRouter();
-    const [currentUser, setCurrentUser] = useState<User | null>(() => getStoredUser());
+    const { startLoading } = useAdminLoading();
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+    useEffect(() => {
+        setCurrentUser(getStoredUser());
+    }, []);
+
     const [showProfileMenu, setShowProfileMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -170,6 +177,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
     const handleProfileClick = () => {
         setShowProfileMenu(false);
+        startLoading();
         router.push('/admindashboard/userAccount/profile');
     };
 
@@ -205,6 +213,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         setIsSearchOpen(false);
         setQuery('');
         setDebouncedQuery('');
+        startLoading();
         router.push(href);
     };
 
@@ -451,7 +460,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
                         className="fixed right-4 top-20 z-[9999] flex w-[320px] cursor-pointer items-start gap-3 rounded-2xl bg-white/95 p-4 shadow-[0_12px_45px_rgba(109,40,217,0.18)] backdrop-blur-md"
                         style={{ border: '1.5px solid rgba(177,59,255,0.2)' }}
-                        onClick={() => router.push('/admindashboard/notifications')}
+                        onClick={() => {
+                            startLoading();
+                            router.push('/admindashboard/notifications');
+                        }}
                     >
                         <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
                             activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
@@ -614,6 +626,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                         type="button"
                                         onClick={() => {
                                             setShowNotifications(false);
+                                            startLoading();
                                             router.push('/admindashboard/notifications');
                                         }}
                                         className="text-xs font-bold text-[#4a1a8a] transition-colors hover:text-[#B13BFF]"

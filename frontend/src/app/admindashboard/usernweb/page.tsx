@@ -7,17 +7,21 @@ import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
 import { UserManagement } from './components/userManange';
 import { WebManagement } from './components/webManage';
+import { useAdminLoading } from '../components/LoadingProvider';
 
 type TabId = 'clients' | 'domains';
 
 const UserWebsiteManagement = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { startLoading } = useAdminLoading();
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlTab = searchParams.get('tab');
   const activeTab: TabId = useMemo(() => (urlTab === 'domains' ? 'domains' : 'clients'), [urlTab]);
 
   const handleTabToggle = (tab: TabId) => {
+    if (tab === activeTab) return;
+    startLoading();
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
     router.replace(`/admindashboard/usernweb?${params.toString()}`, { scroll: false });
