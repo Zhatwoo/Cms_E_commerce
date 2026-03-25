@@ -277,7 +277,7 @@ export const SCROLL_EFFECT_LABELS: Record<ScrollEffectType, string> = {
   rotate: "Rotate on Scroll",
   blur: "Blur on Scroll",
   horizontalMove: "Horizontal Move",
-  // freeMove removed
+  freeMove: "Free Move",
   skew: "Skew on Scroll",
   reveal: "Reveal on Scroll",
   zoom: "Zoom on Scroll",

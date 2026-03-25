@@ -4375,8 +4375,8 @@ export function WebPreview({
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
+      {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
-        key={currentPageId}
         ref={ref}
         data-preview-scroll-root="true"
         style={{
@@ -4390,7 +4390,9 @@ export function WebPreview({
           backgroundColor: background,
         }}
       >
+        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
         <div
+          key={currentPageId}
           style={{
             width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
             maxWidth: isPhoneSize || fillViewport ? "100%" : width,
@@ -4606,8 +4608,8 @@ export function LiveSite({
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
+      {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
-        key={currentPageId}
         ref={ref}
         style={{
           width: "100%",
@@ -4620,7 +4622,9 @@ export function LiveSite({
           ...transitionStyle,
         }}
       >
+        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
         <div
+          key={currentPageId}
           style={{
             width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
             maxWidth: isPhoneSize || fillViewport ? "100%" : width,
