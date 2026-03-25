@@ -527,9 +527,9 @@ const frameResponsiveStyles = (
         max-width: 100% !important;
         width: 100% !important;
       }
-      .is-tablet-view [data-node-id],
-      .is-tablet-view img,
-      .is-tablet-view video {
+      .is-tablet-view [data-node-id]:not([data-animated="true"]),
+      .is-tablet-view img:not([data-animated="true"]),
+      .is-tablet-view video:not([data-animated="true"]) {
         width: 100% !important;
         max-width: 100% !important;
         position: relative !important;
@@ -641,10 +641,10 @@ const frameResponsiveStyles = (
           padding: clamp(10px, 2.8cqw, 16px) clamp(20px, 4cqw, 32px) !important;
         }
 
-        .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]) {
+        .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]):not([data-animated="true"]),
+        .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]):not([data-animated="true"]),
+        .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]):not([data-animated="true"]),
+        .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]):not([data-animated="true"]) {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -678,11 +678,11 @@ const frameResponsiveStyles = (
         align-items: stretch !important;
         width: 100% !important;
       }
-      .is-mobile-view [data-node-id],
-      .is-mobile-view [data-node-id] > *,
-      .is-mobile-view [data-fluid-media="true"],
-      .is-mobile-view img,
-      .is-mobile-view video {
+      .is-mobile-view [data-node-id]:not([data-animated="true"]),
+      .is-mobile-view [data-node-id] > *:not([data-animated="true"]),
+      .is-mobile-view [data-fluid-media="true"]:not([data-animated="true"]),
+      .is-mobile-view img:not([data-animated="true"]),
+      .is-mobile-view video:not([data-animated="true"]) {
         width: 100% !important;
         min-width: 100% !important;
         max-width: 100% !important;

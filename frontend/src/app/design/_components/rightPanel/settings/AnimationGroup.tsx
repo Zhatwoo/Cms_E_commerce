@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEditor } from "@craftjs/core";
@@ -921,6 +921,137 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                   )}
                 </div>
               </div>
+            </>
+          )}
+        </div>
+      </DesignSection>
+
+      {/* ─── Scroll Effect ─── */}
+      <DesignSection title="Scroll Effects" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 cursor-pointer mb-1">
+            <input
+              type="checkbox"
+              checked={animation.scrollEffect.enabled}
+              onChange={(e) => update("scrollEffect.enabled", e.target.checked)}
+              className={checkboxClass}
+            />
+            <span className={labelClass}>Enable Scroll Effects</span>
+          </label>
+
+          {animation.scrollEffect.enabled && (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Effect Type</label>
+                <select
+                  value={animation.scrollEffect.type}
+                  onChange={(e) => {
+                    const nextType = e.target.value as ScrollEffectType;
+                    update("scrollEffect.type", nextType);
+                    previewOnCanvas("scrollEffect", nextType);
+                  }}
+                  className={selectClass}
+                >
+                  {Object.entries(SCROLL_EFFECT_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+
+              {animation.scrollEffect.type !== "none" && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between">
+                      <label className={labelClass}>Speed / Multiplier</label>
+                      <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-2"
+                      max="2"
+                      step="0.1"
+                      value={animation.scrollEffect.speed}
+                      onChange={(e) => {
+                        update("scrollEffect.speed", Number(e.target.value));
+                        schedulePreview("scrollEffect");
+                      }}
+                      className={sliderClass}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className={labelClass}>Direction</label>
+                    <select
+                      value={animation.scrollEffect.direction}
+                      onChange={(e) => {
+                        update("scrollEffect.direction", e.target.value);
+                        schedulePreview("scrollEffect");
+                      }}
+                      className={selectClass}
+                    >
+                      <option value="vertical">Vertical</option>
+                      <option value="horizontal">Horizontal</option>
+                    </select>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <label className={labelClass}>Smooth Scrub</label>
+                    <input
+                      type="checkbox"
+                      checked={animation.scrollEffect.scrub}
+                      onChange={(e) => {
+                        update("scrollEffect.scrub", e.target.checked);
+                        schedulePreview("scrollEffect");
+                      }}
+                      className={checkboxClass}
+                    />
+                  </div>
+
+                  {animation.scrollEffect.scrub && (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <label className={labelClass}>Scrub Intensity</label>
+                        <span className={subLabelClass}>{animation.scrollEffect.intensity}s</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.1"
+                        value={animation.scrollEffect.intensity}
+                        onChange={(e) => {
+                          update("scrollEffect.intensity", Number(e.target.value));
+                          schedulePreview("scrollEffect");
+                        }}
+                        className={sliderClass}
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 mt-1">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>Start Trigger</label>
+                      <input
+                        type="text"
+                        value={animation.scrollEffect.start}
+                        onChange={(e) => update("scrollEffect.start", e.target.value)}
+                        className="w-full bg-[var(--builder-surface-2)] rounded-md text-[10px] text-[var(--builder-text)] px-2 py-1.5 focus:outline-none border border-transparent focus:border-[var(--builder-accent)]/50"
+                        placeholder="top bottom"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>End Trigger</label>
+                      <input
+                        type="text"
+                        value={animation.scrollEffect.end}
+                        onChange={(e) => update("scrollEffect.end", e.target.value)}
+                        className="w-full bg-[var(--builder-surface-2)] rounded-md text-[10px] text-[var(--builder-text)] px-2 py-1.5 focus:outline-none border border-transparent focus:border-[var(--builder-accent)]/50"
+                        placeholder="bottom top"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

@@ -47,6 +47,17 @@ function looksLikeCleanDocSnapshot(value: string): boolean {
 }
 
 function PreviewRoot({ children }: { children?: React.ReactNode }) {
+  useEffect(() => {
+    // Force GSAP to recalculate all trigger positions once the content is likely rendered
+    const timer = setTimeout(() => {
+      if (typeof window !== "undefined") {
+        gsap.registerPlugin(ScrollTrigger);
+        ScrollTrigger.refresh();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, []);
+
   return (
     <div
       data-preview-root
