@@ -19,6 +19,17 @@ gsap.registerPlugin(ScrollTrigger);
 // Track which documents already have a scrollerProxy configured.
 const SCROLLER_PROXY_DOCS = new WeakSet<Document>();
 
+// Global debounced refresh — prevents N animated elements from each calling refresh on mount,
+// which causes layout thrashing and visual jumps in the preview page.
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleScrollTriggerRefresh(delayMs = 80) {
+  if (_refreshTimer !== null) return; // Already scheduled
+  _refreshTimer = setTimeout(() => {
+    _refreshTimer = null;
+    ScrollTrigger.refresh();
+  }, delayMs);
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -537,12 +548,12 @@ function useGsapScrollEffect(
         }
       });
 
-      ScrollTrigger.refresh();
-      const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
+      // Schedule a single debounced refresh rather than calling refresh immediately
+      // per-component — prevents N simultaneous refreshes causing visual jumps.
+      scheduleScrollTriggerRefresh();
 
       return () => {
         tl.kill();
-        view.clearTimeout(settleRefresh);
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
@@ -593,12 +604,11 @@ function useGsapScrollEffect(
         ease: naturalEase,
         ...(config.type === "rotate" ? { transformOrigin: "50% 50%" } : {}),
       });
-      ScrollTrigger.refresh();
-      const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
+      // Schedule a single debounced refresh — prevents cascade of refreshes on mount.
+      scheduleScrollTriggerRefresh();
 
       return () => {
         tl.kill();
-        view.clearTimeout(settleRefresh);
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
