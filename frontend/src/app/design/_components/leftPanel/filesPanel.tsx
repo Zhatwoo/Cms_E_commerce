@@ -10,6 +10,7 @@ import {
   Image as ImageIcon,
   MousePointer2,
   Copy,
+  ClipboardPaste,
   Trash2,
   Eye,
   EyeOff,
@@ -19,7 +20,7 @@ import {
   Ungroup,
   Pencil,
 } from "lucide-react";
-import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection } from "../../_lib/canvasActions";
+import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard } from "../../_lib/canvasActions";
 import { slugFromName } from "../../_lib/slug";
 import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
@@ -297,6 +298,25 @@ export const FilesPanel = () => {
       setContextMenu(null);
     },
     [actions, query, startTransition]
+  );
+
+  const handleCopy = useCallback(
+    (nodeId: string) => {
+      copySelection(query as any, [nodeId]);
+      setContextMenu(null);
+    },
+    [query]
+  );
+
+  const handlePaste = useCallback(
+    (nodeId: string) => {
+      const clip = getClipboard();
+      if (!clip || clip.nodeIds.length === 0) { setContextMenu(null); return; }
+      // Pass the node as a hint; pasteClipboard resolves the canvas parent
+      pasteClipboard(actions as any, query as any, { parentId: nodeId });
+      setContextMenu(null);
+    },
+    [actions, query]
   );
 
   const handleDelete = useCallback(
@@ -952,6 +972,25 @@ export const FilesPanel = () => {
           <MousePointer2 className="w-3.5 h-3.5" />
           Select
         </button>
+        <button
+          onClick={() => !nodeProtected && permission !== "viewer" && handleCopy(contextMenu.nodeId)}
+          disabled={nodeProtected}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
+        >
+          <Copy className="w-3.5 h-3.5" />
+          Copy
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘C</span>
+        </button>
+        <button
+          onClick={() => permission !== "viewer" && handlePaste(contextMenu.nodeId)}
+          disabled={!getClipboard() || permission === "viewer"}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!getClipboard() || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
+        >
+          <ClipboardPaste className="w-3.5 h-3.5" />
+          Paste
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘V</span>
+        </button>
+        <div className="border-t border-[var(--builder-border)] my-0.5" />
         {contextBaseName === "Page" && permission !== "viewer" && (
           <button
             onClick={() => {
@@ -974,6 +1013,7 @@ export const FilesPanel = () => {
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
+          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘D</span>
         </button>
         <div className="border-t border-[var(--builder-border)] my-0.5" />
         <button

@@ -7,6 +7,7 @@ import {
   updateClientPlan,
   updateClientStatus,
   deleteClient,
+  updateClientDetails,
   type ClientRow,
 } from '@/lib/api';
 import { useGDriveSelection } from './useGDriveSelection';
@@ -123,6 +124,16 @@ type ActionModalState = {
   action?: (reason: string) => Promise<void> | void;
 };
 
+type EditModalState = {
+  isOpen: boolean;
+  client: ClientRow | null;
+  name: string;
+  email: string;
+  phone: string;
+  bio: string;
+  password?: string;
+};
+
 export function UserManagement() {
   const searchParams = useSearchParams();
   const urlSearch = searchParams.get('search') || '';
@@ -149,6 +160,15 @@ export function UserManagement() {
     message: '',
     confirmText: 'Confirm',
     confirmButtonClass: 'bg-[#6D28D9] hover:bg-[#5B21B6] text-white',
+  });
+  const [editModal, setEditModal] = useState<EditModalState>({
+    isOpen: false,
+    client: null,
+    name: '',
+    email: '',
+    phone: '',
+    bio: '',
+    password: '',
   });
   const [actionReason, setActionReason] = useState('');
 
@@ -486,6 +506,49 @@ export function UserManagement() {
     });
   };
 
+  const handleEditClick = (client: ClientRow) => {
+    setEditModal({
+      isOpen: true,
+      client,
+      name: client.displayName || '',
+      email: client.email || '',
+      phone: client.phone || '',
+      bio: client.bio || '',
+      password: '',
+    });
+  };
+
+  const handleUpdateClientDetails = async () => {
+    if (!editModal.client) return;
+    setActionLoadingId(editModal.client.id);
+    try {
+      const res = await updateClientDetails(editModal.client.id, {
+        name: editModal.name,
+        email: editModal.email,
+        phone: editModal.phone,
+        bio: editModal.bio,
+        password: editModal.password || undefined,
+      });
+      if (res.success) {
+        setClients((prev) =>
+          prev.map((c) => (editModal.client && c.id === editModal.client.id ? { ...c, displayName: editModal.name, email: editModal.email, phone: editModal.phone, bio: editModal.bio } : c))
+        );
+        addNotification("User Profile Updated", `Successfully updated details for ${editModal.name || editModal.email}.`, 'success');
+        setToast('Client details updated.');
+        setEditModal((prev) => ({ ...prev, isOpen: false }));
+        setTimeout(() => setToast(null), 2500);
+      } else {
+        setToast(res.message || 'Update failed');
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Update failed');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     setActionLoadingId(id);
     try {
@@ -582,7 +645,7 @@ export function UserManagement() {
       {/* Table */}
       <div className="bg-[#F5F4FF] border border-[rgba(177,59,255,0.29)] rounded-lg shadow overflow-hidden">
         <div className="px-6 py-6 border-b border-[rgba(177,59,255,0.18)]">
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 items-center gap-4">
             <div className="flex flex-wrap items-center gap-3 justify-start">
               <div className="relative">
                 <select
@@ -669,66 +732,6 @@ export function UserManagement() {
               </button>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 justify-center">
-              <button
-                type="button"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1 || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="First page"
-              >
-                {'<<'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Previous page"
-              >
-                {'<'}
-              </button>
-
-              {pageItems.map((item, idx) =>
-                item === 'ellipsis' ? (
-                  <span key={`ellipsis-${idx}`} className="px-2 text-[#A48ABF] select-none">...</span>
-                ) : (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setCurrentPage(item)}
-                    disabled={loading || filtered.length === 0}
-                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${currentPage === item
-                      ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
-                      : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
-                      } disabled:opacity-40 disabled:cursor-not-allowed`}
-                    aria-label={`Page ${item}`}
-                    aria-current={currentPage === item ? 'page' : undefined}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
-
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Next page"
-              >
-                {'>'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Last page"
-              >
-                {'>>'}
-              </button>
-            </div>
 
             <div className="justify-self-end w-full max-w-[390px]">
               <div className="flex items-center gap-3">
@@ -845,6 +848,93 @@ export function UserManagement() {
                   className={`px-4 py-2 rounded-lg font-medium ${actionModal.confirmButtonClass}`}
                 >
                   {actionModal.confirmText}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Client Edit Modal */}
+        {editModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(200,185,245,0.45)] backdrop-blur-[3px]" role="dialog" aria-modal="true">
+            <div className="rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-8 bg-white border border-[rgba(166,61,255,0.16)] flex flex-col gap-6" style={{ boxShadow: '0 25px 60px rgba(103,2,191,0.15)' }}>
+              <div>
+                <h3 className="text-2xl font-bold text-[#26155E] mb-1">Edit Client Profile</h3>
+                <p className="text-[#8E47D8]/70 text-sm">Update personal information and account security.</p>
+              </div>
+
+              <div className="flex flex-col gap-5 max-h-[60vh] overflow-y-auto px-1 pr-3 custom-scrollbar">
+                <div>
+                  <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={editModal.name}
+                    onChange={(e) => setEditModal({ ...editModal, name: e.target.value })}
+                    className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={editModal.email}
+                      onChange={(e) => setEditModal({ ...editModal, email: e.target.value })}
+                      className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={editModal.phone}
+                      onChange={(e) => setEditModal({ ...editModal, phone: e.target.value })}
+                      className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all"
+                      placeholder="Enter phone"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Bio</label>
+                  <textarea
+                    value={editModal.bio}
+                    onChange={(e) => setEditModal({ ...editModal, bio: e.target.value })}
+                    rows={3}
+                    className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all resize-none"
+                    placeholder="Client biography..."
+                  />
+                </div>
+
+                <div className="border-t border-[#F0E5FF] pt-4">
+                  <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">New Password (optional)</label>
+                  <input
+                    type="password"
+                    value={editModal.password}
+                    onChange={(e) => setEditModal({ ...editModal, password: e.target.value })}
+                    className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all font-mono"
+                    placeholder="••••••••"
+                  />
+                  <p className="mt-2 text-[0.7rem] text-[#A48ABF] ml-1">Leave blank to keep current password. Minimum 6 characters.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-[#F0E5FF]">
+                <button
+                  onClick={() => setEditModal({ ...editModal, isOpen: false })}
+                  className="px-6 py-2.5 text-[#6D28D9] bg-[#F3E8FF] rounded-xl hover:bg-[#EBDDFF] font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateClientDetails}
+                  disabled={actionLoadingId === editModal.client?.id}
+                  className="px-8 py-2.5 rounded-xl font-bold bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] text-white shadow-lg hover:shadow-[#B13BFF]/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoadingId === editModal.client?.id ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
             </div>
@@ -971,7 +1061,10 @@ export function UserManagement() {
                           <Tooltip label="Client profile">
                             <button
                               type="button"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(client);
+                              }}
                               className="p-1 hover:text-[#3D1C87] transition-colors"
                               aria-label="Client profile"
                             >

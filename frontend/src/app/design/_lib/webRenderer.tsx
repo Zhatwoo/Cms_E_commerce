@@ -546,15 +546,21 @@ const frameResponsiveStyles = (
       /* Refined Tablet (Standard iPad) */
       @container (max-width: 768px) {
         [data-layout="row"] {
-          gap: clamp(8px, 1.4cqw, 12px) !important;
+          gap: clamp(10px, 1.6cqw, 14px) !important;
           justify-content: center !important;
+          flex-wrap: wrap !important;
         }
         [data-layout="row"] > * {
-          min-width: 180px !important;
-          flex: 1 1 180px !important;
+          min-width: 200px !important;
+          flex: 1 1 200px !important;
+          max-width: 100% !important;
         }
         [data-fluid-text="true"] {
-          --fluid-font-cqw: 2cqw;
+          --fluid-font-cqw: 2.2cqw;
+        }
+        [data-fluid-space="true"] {
+          padding-left: clamp(12px, 2.2cqw, 20px) !important;
+          padding-right: clamp(12px, 2.2cqw, 20px) !important;
         }
       }
 
@@ -578,7 +584,7 @@ const frameResponsiveStyles = (
         }
         
         .frame-responsive-inner > * + * {
-          margin-top: clamp(10px, 2.8cqw, 16px) !important;
+          margin-top: clamp(12px, 3.2cqw, 18px) !important;
         }
 
         [data-layout="row"],
@@ -589,6 +595,7 @@ const frameResponsiveStyles = (
           min-height: 0 !important;
           width: 100% !important;
           display: flex !important;
+          gap: clamp(12px, 3cqw, 20px) !important;
         }
 
         [data-layout="row"] > *,
@@ -602,8 +609,8 @@ const frameResponsiveStyles = (
         }
 
         [data-fluid-space="true"] {
-          padding-left: clamp(8px, 3cqw, 24px) !important;
-          padding-right: clamp(8px, 3cqw, 24px) !important;
+          padding-left: clamp(10px, 3.5cqw, 28px) !important;
+          padding-right: clamp(10px, 3.5cqw, 28px) !important;
           margin-left: 0 !important;
           margin-right: 0 !important;
           height: auto !important;
@@ -624,13 +631,14 @@ const frameResponsiveStyles = (
 
         [data-fluid-grid="true"] {
           grid-template-columns: 1fr !important;
-          gap: clamp(12px, 2.8cqw, 24px) !important;
+          gap: clamp(14px, 3.2cqw, 26px) !important;
           display: grid !important;
         }
 
         [data-fluid-button="true"] {
           display: flex !important;
           justify-content: center !important;
+          padding: clamp(10px, 2.8cqw, 16px) clamp(20px, 4cqw, 32px) !important;
         }
 
         .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]),
@@ -651,7 +659,13 @@ const frameResponsiveStyles = (
           white-space: pre-wrap !important;
           overflow-wrap: anywhere !important;
           word-break: break-word !important;
-          --fluid-font-cqw: 3.2cqw;
+          --fluid-font-cqw: 3.6cqw;
+          line-height: 1.5 !important;
+        }
+
+        /* Better image scaling on mobile */
+        img, video, iframe {
+          border-radius: clamp(4px, 1.5cqw, 8px) !important;
         }
       }
 
@@ -4361,8 +4375,8 @@ export function WebPreview({
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
+      {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
-        key={currentPageId}
         ref={ref}
         data-preview-scroll-root="true"
         style={{
@@ -4376,7 +4390,9 @@ export function WebPreview({
           backgroundColor: background,
         }}
       >
+        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
         <div
+          key={currentPageId}
           style={{
             width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
             maxWidth: isPhoneSize || fillViewport ? "100%" : width,
@@ -4592,8 +4608,8 @@ export function LiveSite({
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
+      {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
-        key={currentPageId}
         ref={ref}
         style={{
           width: "100%",
@@ -4606,7 +4622,9 @@ export function LiveSite({
           ...transitionStyle,
         }}
       >
+        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
         <div
+          key={currentPageId}
           style={{
             width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
             maxWidth: isPhoneSize || fillViewport ? "100%" : width,

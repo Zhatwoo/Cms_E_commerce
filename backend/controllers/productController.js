@@ -435,8 +435,11 @@ exports.adminDelete = async (req, res) => {
 
     const owner = existing.userId ? await User.findById(existing.userId) : null;
     const ownerEmail = owner?.email || '';
+    let emailSent = false;
+    let emailError = '';
+
     if (ownerEmail) {
-      await sendAdminActionEmail({
+      const mail = await sendAdminActionEmail({
         to: ownerEmail,
         name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
         subject: 'Product removed by admin',
