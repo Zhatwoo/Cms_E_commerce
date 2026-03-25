@@ -101,11 +101,9 @@ export const ComponentsPanel = () => {
       element: <Banner background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8} text="FLASH SALE: Up to 70% off - Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" textAlign="center" lineHeight={1.2} />,
     },
     { label: "Badge",     icon: <Badge />,          iconStyle: COMP_STYLES.Badge.base,     hoverColor: COMP_STYLES.Badge.hoverColor,
-      element: (
-        <Element is={BadgeComponent} canvas background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8}>
-          <Text text="Badge" fontSize={14} fontWeight="600" color="#ffffff" position="relative" width="100%" textAlign="center" lineHeight={1.2} />
-        </Element>
-      ),
+      // Badge is a leaf node (it renders its own label from `text`).
+      // Creating it as a canvas with a child Text node can corrupt Craft's tree and crash the Frame render.
+      element: <BadgeComponent text="Badge" background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8} />,
     },
     { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
     { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" /> },

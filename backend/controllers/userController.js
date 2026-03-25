@@ -98,7 +98,7 @@ exports.createUser = async (req, res) => {
     }
     const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase(),
       password,
       role: normalizedRole,
       status: status || 'Published',
@@ -106,6 +106,18 @@ exports.createUser = async (req, res) => {
       bio,
       avatar
     });
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'New User Created',
+        message: `Admin created user: ${name} (${email})`,
+        type: 'info',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('User creation notification failed:', e.message); }
 
     res.status(201).json({
       success: true,
@@ -147,6 +159,19 @@ exports.updateUser = async (req, res) => {
     if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
     const updated = await User.update(req.params.id, updates);
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'User Updated',
+        message: `Admin updated profile for: ${updated.name || updated.email}`,
+        type: 'info',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('User update notification failed:', e.message); }
+
     res.status(200).json({
       success: true,
       message: 'User updated successfully',
@@ -203,6 +228,19 @@ exports.deleteUser = async (req, res) => {
     }
 
     await User.delete(req.params.id);
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'User Deleted',
+        message: `Admin removed user: ${user.name || user.email}`,
+        type: 'error',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('User deletion notification failed:', e.message); }
+
     res.status(200).json({
       success: true,
       message: 'User deleted successfully'
@@ -239,6 +277,19 @@ exports.updateUserRole = async (req, res) => {
     }
 
     const updated = await User.update(req.params.id, { role });
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'Role Updated',
+        message: `User ${updated.name || updated.email} role changed to ${role}`,
+        type: 'info',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user?.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) { console.warn('Role update notification failed:', e.message); }
+
     res.status(200).json({
       success: true,
       message: 'User role updated successfully',
@@ -312,12 +363,8 @@ exports.updateUserStatus = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message:
-        status === 'Suspended'
-          ? (emailSent ? 'User suspended and notified by email' : 'User suspended, but email notification was not sent')
-          : 'User status updated successfully',
-      user: stripPassword(updated),
-      ...(status === 'Suspended' ? { emailSent, emailError: emailSent ? undefined : emailError } : {}),
+      message: 'User status updated successfully',
+      user: stripPassword(updated)
     });
   } catch (error) {
     res.status(500).json({

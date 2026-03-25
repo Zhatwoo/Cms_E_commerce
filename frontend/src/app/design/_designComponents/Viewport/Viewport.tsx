@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";
 
-const PAGE_BASE_WIDTH = 1920;
-const PAGE_BASE_HEIGHT = 1200;
+const PAGE_BASE_WIDTH = 1440;
+const PAGE_BASE_HEIGHT = 900;
 const PAGE_GAP_X = 220;
 const PAGE_GAP_Y = 220;
 const PAGE_COLUMNS = 3;

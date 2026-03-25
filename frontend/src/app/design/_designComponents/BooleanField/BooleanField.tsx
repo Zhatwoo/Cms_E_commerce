@@ -13,6 +13,20 @@ function ensureOptions(props: Pick<BooleanFieldProps, "options" | "label" | "che
   ];
 }
 
+function fluidFontSize(value: number, min = 10): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = (value / 16 * 2.1).toFixed(2);
+  const floor = Math.max(min, Math.round(value * 0.8));
+  return `clamp(${floor}px, ${preferred}cqw, ${value}px)`;
+}
+
+function fluidSpace(value: number, min = 0): string {
+  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
+  const preferred = Math.max(0.1, value / 12);
+  const floor = Math.max(min, Math.round(value * 0.45));
+  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+}
+
 export const BooleanField = ({
   controlType = "checkbox",
   name = "boolean-field",
@@ -40,20 +54,40 @@ export const BooleanField = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
-  display,
+  display = "inline-flex",
+  editorVisibility = "auto",
   options,
   // back-compat single option
   label,
   checked,
   opacity = 1,
+  boxShadow = "none",
+  overflow = "visible",
+  cursor = "default",
+  visibility = "visible",
   customClassName = "",
+  rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
+
+  // Resolve spacing
+  const pt = paddingTop ?? 0;
+  const pr = paddingRight ?? 0;
+  const pb = paddingBottom ?? 0;
+  const pl = paddingLeft ?? 0;
+  const mt = marginTop ?? 0;
+  const mr = marginRight ?? 0;
+  const mb = marginBottom ?? 0;
+  const ml = marginLeft ?? 0;
+
   const normalizedControlType = useMemo(
     () => (String(controlType ?? "checkbox").trim().toLowerCase() === "radio" ? "radio" : "checkbox"),
     [controlType]
   );
+
   const isRadio = normalizedControlType === "radio";
   const groupName = useMemo(() => (isRadio ? `${name}-${id}` : undefined), [isRadio, name, id]);
   const normalizedOptions = useMemo(() => ensureOptions({ options, label, checked }), [options, label, checked]);
@@ -75,28 +109,46 @@ export const BooleanField = ({
     setPreviewById(next);
   }, [normalizedOptions]);
 
+  const fluidFSize = useMemo(() => fluidFontSize(fontSize, 8), [fontSize]);
+
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "inline-flex"
+        : display;
+
+  const transformStyle =
+    [
+      rotation ? `rotate(${rotation}deg)` : null,
+      flipHorizontal ? "scaleX(-1)" : null,
+      flipVertical ? "scaleY(-1)" : null,
+    ]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
     <div
       data-node-id={id}
+      data-fluid-text="true"
+      data-fluid-space="true"
       ref={(ref) => { if (ref) connect(drag(ref)); }}
-      className={`inline-flex flex-col items-start ${customClassName}`}
+      className={`inline-flex flex-wrap items-start justify-start ${customClassName}`}
       style={{
-        width,
-        height,
-        paddingTop: `${paddingTop}px`,
-        paddingRight: `${paddingRight}px`,
-        paddingBottom: `${paddingBottom}px`,
-        paddingLeft: `${paddingLeft}px`,
-        marginTop: `${marginTop}px`,
-        marginRight: `${marginRight}px`,
-        marginBottom: `${marginBottom}px`,
-        marginLeft: `${marginLeft}px`,
-        gap: `${itemGap}px`,
+        paddingTop: fluidSpace(pt),
+        paddingRight: fluidSpace(pr),
+        paddingBottom: fluidSpace(pb),
+        paddingLeft: fluidSpace(pl),
+        marginTop: fluidSpace(mt),
+        marginRight: fluidSpace(mr),
+        marginBottom: fluidSpace(mb),
+        marginLeft: fluidSpace(ml),
+        width: width ?? "auto",
+        height: height ?? "auto",
+        gap: fluidSpace(itemGap, 4),
         opacity,
-        cursor: disabled ? "not-allowed" : "default",
+        cursor: disabled ? "not-allowed" : cursor,
         userSelect: "none",
-        maxWidth: "100%",
-        boxSizing: "border-box",
         position,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
@@ -116,10 +168,11 @@ export const BooleanField = ({
           <label
             key={opt.id}
             htmlFor={inputId}
-            className="inline-flex items-center"
+            className="inline-flex items-center flex-wrap"
             style={{
-              gap: `${gap}px`,
+              gap: fluidSpace(gap, 4),
               cursor: disabled ? "not-allowed" : "pointer",
+              minWidth: "min-content",
               maxWidth: "100%",
             }}
           >
@@ -147,13 +200,13 @@ export const BooleanField = ({
               <span
                 style={{
                   color: labelColor,
-                  fontSize: `${fontSize}px`,
+                  fontSize: fluidFSize,
                   fontFamily,
                   fontWeight,
                   lineHeight: 1.2,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  whiteSpace: "normal",
                 }}
                 title={opt.label || `Option ${idx + 1}`}
               >

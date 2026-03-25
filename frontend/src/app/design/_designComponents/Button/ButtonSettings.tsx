@@ -161,7 +161,23 @@ export const ButtonSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Style">
+      <DesignSection title="Size & Spacing">
+        <SizePositionGroup
+          width={width}
+          height={height}
+          paddingLeft={paddingLeft}
+          paddingRight={paddingRight}
+          paddingTop={paddingTop}
+          paddingBottom={paddingBottom}
+          marginLeft={marginLeft}
+          marginRight={marginRight}
+          marginTop={marginTop}
+          marginBottom={marginBottom}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Appearance">
         <div className="flex flex-col gap-3">
           {/* Colors */}
           <div className="grid grid-cols-2 gap-3">
@@ -242,22 +258,6 @@ export const ButtonSettings = () => {
             </select>
           </div>
         </div>
-      </DesignSection>
-
-      <DesignSection title="Size & Spacing">
-        <SizePositionGroup
-          width={width}
-          height={height}
-          paddingLeft={paddingLeft}
-          paddingRight={paddingRight}
-          paddingTop={paddingTop}
-          paddingBottom={paddingBottom}
-          marginLeft={marginLeft}
-          marginRight={marginRight}
-          marginTop={marginTop}
-          marginBottom={marginBottom}
-          setProp={typedSetProp}
-        />
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

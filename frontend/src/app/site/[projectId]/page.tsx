@@ -10,9 +10,21 @@ import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 export default function SitePage() {
   const params = useParams();
   const projectId = typeof params.projectId === 'string' ? params.projectId : null;
+  const [viewportWidth, setViewportWidth] = useState<number>(
+    typeof window === 'undefined' ? 1440 : window.innerWidth
+  );
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setViewportWidth(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+
 
   useEffect(() => {
     if (!projectId) {
@@ -71,7 +83,13 @@ export default function SitePage() {
 
   return (
     <div className="min-h-screen w-full bg-white">
-      <WebPreview doc={cleanDoc} pageIndex={0} mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT} enableFormInputs builderParityMode />
+      <WebPreview
+        doc={cleanDoc}
+        pageIndex={0}
+        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+        enableFormInputs
+        builderParityMode={false}
+      />
     </div>
   );
 }

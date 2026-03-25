@@ -113,7 +113,7 @@ export function buildCraftResolver(): Resolver {
   const PaginationComp = asComponent(Pagination, ContainerComp);
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
-  const ProfileLoginComp = asComponent(ProfileLoginNode, ContainerComp);
+  const ProfileLoginNodeComp = asComponent(ProfileLoginNode, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -162,15 +162,6 @@ export function buildCraftResolver(): Resolver {
     banner: BannerComp,
     Badge: BadgeComp,
     badge: BadgeComp,
-    ProfileLogin: ProfileLoginComp,
-    ProfileLoginNode: ProfileLoginComp,
-    profilelogin: ProfileLoginComp,
-    profileloginnode: ProfileLoginComp,
-    "profile-login": ProfileLoginComp,
-    "Profile Login": ProfileLoginComp,
-    "profile login": ProfileLoginComp,
-    ProfileLoginComponent: ProfileLoginComp,
-    profilelogincomponent: ProfileLoginComp,
     Icon: IconComp,
     icon: IconComp,
     Circle: CircleComp,
@@ -195,6 +186,12 @@ export function buildCraftResolver(): Resolver {
     BooleanField: BooleanFieldComp,
     booleanfield: BooleanFieldComp,
     BOOLEANFIELD: BooleanFieldComp,
+    ProfileLoginNode: ProfileLoginNodeComp,
+    profileloginnode: ProfileLoginNodeComp,
+    PROFILELOGINNODE: ProfileLoginNodeComp,
+    ProfileLogin: ProfileLoginNodeComp,
+    profilelogin: ProfileLoginNodeComp,
+    PROFILELOGIN: ProfileLoginNodeComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -206,14 +203,6 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "Divider", DividerComp);
   addAliases(base, "Banner", BannerComp);
   addAliases(base, "Badge", BadgeComp);
-  addAliases(base, "ProfileLogin", ProfileLoginComp, [
-    "ProfileLoginNode",
-    "profileloginnode",
-    "Profile Login",
-    "profile login",
-    "ProfileLoginComponent",
-    "profilelogincomponent",
-  ]);
   addAliases(base, "Pagination", PaginationComp);
   addAliases(base, "BooleanField", BooleanFieldComp, [
     "Boolean Field",
@@ -224,6 +213,7 @@ export function buildCraftResolver(): Resolver {
     "Radio",
     "radio",
   ]);
+  addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   return base;
 }
 

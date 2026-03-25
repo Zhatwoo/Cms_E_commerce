@@ -2,9 +2,9 @@ const Product = require('../models/Product');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const User = require('../models/User');
-const { auth } = require('../config/firebase');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
 const { sendAdminActionEmail } = require('../utils/emailService');
+const Notification = require('../models/Notification');
 
 async function resolveClientContact(userId) {
   let displayName = 'Client';
@@ -205,6 +205,19 @@ exports.create = async (req, res) => {
       },
     });
 
+    try {
+      const notif = await Notification.create({
+        title: 'Product Created',
+        message: `${req.user.name} created product: ${name}`,
+        type: 'success',
+        adminId: req.user.id,
+        adminName: req.user.name
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product creation notification failed:', e.message);
+    }
+
     res.status(201).json({ success: true, message: 'Product created', data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
@@ -303,6 +316,19 @@ exports.update = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product updated', data });
+
+    try {
+      const notif = await Notification.create({
+        title: 'Product Updated',
+        message: `${req.user.name} updated product: ${data.name || req.params.id}`,
+        type: 'info',
+        adminId: req.user.id,
+        adminName: req.user.name
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product update notification failed:', e.message);
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
@@ -371,6 +397,19 @@ exports.delete = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product deleted' });
+
+    try {
+      const notif = await Notification.create({
+        title: 'Product Deleted',
+        message: `${req.user.name} deleted product: ${existing.name || req.params.id}`,
+        type: 'warning',
+        adminId: req.user.id,
+        adminName: req.user.name
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product deletion notification failed:', e.message);
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
@@ -394,13 +433,12 @@ exports.adminDelete = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    const contact = await resolveClientContact(existing.userId);
-    let emailSent = false;
-    let emailError = '';
-    if (contact.email) {
-      const mail = await sendAdminActionEmail({
-        to: contact.email,
-        name: contact.displayName,
+    const owner = existing.userId ? await User.findById(existing.userId) : null;
+    const ownerEmail = owner?.email || '';
+    if (ownerEmail) {
+      await sendAdminActionEmail({
+        to: ownerEmail,
+        name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
         subject: 'Product removed by admin',
         title: 'Your product was removed',
         intro: `Product \"${existing.name || 'Untitled Product'}\" was removed by an administrator.`,
@@ -412,13 +450,21 @@ exports.adminDelete = async (req, res) => {
       emailError = 'Recipient email not found';
     }
 
-    res.status(200).json({
-      success: true,
-      message: emailSent ? 'Product deleted and client notified by email' : 'Product deleted, but email notification was not sent',
-      data: { id: req.params.id },
-      emailSent,
-      emailError: emailSent ? undefined : emailError,
-    });
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'Product Removed',
+        message: `Admin removed product: ${existing.name || req.params.id}`,
+        type: 'error',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product removal notification failed:', e.message);
+    }
+
+    res.status(200).json({ success: true, message: 'Product deleted', data: { id: req.params.id } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }

@@ -95,6 +95,16 @@ class FrameErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      return <FallbackFrame />;
+    }
+
+    // Add safety check for children
+    if (!this.props.children) {
+      return <DeferredFrame data={EMPTY_FRAME_DATA} />;
+    }
+
+    // Add safety check for children
+    if (!this.props.children) {
       return <DeferredFrame data={EMPTY_FRAME_DATA} />;
     }
 
@@ -109,8 +119,8 @@ const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 // These must match the Viewport constants for proper page positioning
 const PAGE_GRID_ORIGIN_X = 30000;
 const PAGE_GRID_ORIGIN_Y = 30000;
-const PAGE_BASE_WIDTH = 1920;
-const PAGE_BASE_HEIGHT = 1200;
+const PAGE_BASE_WIDTH = 1440;
+const PAGE_BASE_HEIGHT = 900;
 
 const EMPTY_FRAME_DATA = JSON.stringify({
   ROOT: {
@@ -131,7 +141,8 @@ const EMPTY_FRAME_DATA = JSON.stringify({
       pageSlug: "page-0",
       canvasX: PAGE_GRID_ORIGIN_X,
       canvasY: PAGE_GRID_ORIGIN_Y,
-      height: "1200px",
+      height: "900px",
+      width: "1440px",
       background: "#ffffff"
     },
     displayName: "Page",
@@ -536,6 +547,26 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
         node.nodes = [];
       }
 
+      // Normalize required structural fields Craft expects.
+      if (!node.props || typeof node.props !== "object" || Array.isArray(node.props)) {
+        node.props = {};
+      }
+      if (!node.custom || typeof node.custom !== "object" || Array.isArray(node.custom)) {
+        node.custom = {};
+      }
+      if (typeof node.hidden !== "boolean") {
+        node.hidden = false;
+      }
+      if (typeof node.isCanvas !== "boolean") {
+        node.isCanvas = false;
+      }
+      if (node.parent !== undefined && typeof node.parent !== "string") {
+        delete node.parent;
+      }
+      if (!node.linkedNodes || typeof node.linkedNodes !== "object" || Array.isArray(node.linkedNodes)) {
+        node.linkedNodes = {};
+      }
+
       return true;
     }));
 
@@ -759,10 +790,23 @@ if (typeof window !== "undefined") {
       if (concat.includes("Accessing element.ref was removed")) return;
       // craftjs store updates trigger setState during Frame render in React 19 concurrent mode
       if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
-      // Known broken Unsplash image (content migration replaces; suppress noisy load error)
-      if (concat.includes("Error loading image") && concat.includes("photo-1581093458791-9f3c3900df4b")) return;
-      // Firebase Storage tokens may expire in old snapshots; surface visually in canvas but suppress noisy console spam.
-      if (concat.includes("Error loading image") && concat.includes("firebasestorage.googleapis.com")) return;
+      // Suppress ALL image-related errors from external CDNs (Firebase, Unsplash, etc.)
+      // Images have visual fallbacks, so console noise is unnecessary
+      if (
+        (
+          (concat.includes("Error loading") || concat.includes("error loading")) &&
+          concat.includes("image") &&
+          (concat.includes("firebasestorage") || concat.includes("firebasestorage.app") || concat.includes("firebasestorage.googleapis.com"))
+        ) ||
+        (
+          concat.includes("firebasestorage") &&
+          (concat.includes("image") || concat.includes("Error"))
+        ) ||
+        concat.includes("firebasestorage.app") ||
+        concat.includes("firebasestorage.googleapis.com")
+      ) {
+        return;
+      }
       originalError(...args);
     };
     win.__craftConsoleErrorPatched__ = true;
@@ -804,6 +848,65 @@ const DeferredFrame = ({ data, onMounted }: { data: string; onMounted?: () => vo
     );
   }
   return <Frame data={data} />;
+};
+
+/**
+ * JSX-based fallback that avoids Craft deserialize entirely.
+ * This is more resilient when serialized JSON is corrupted.
+ */
+const FallbackFrame = ({ onMounted }: { onMounted?: () => void }) => {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    let done = false;
+    const markMounted = () => {
+      if (done) return;
+      done = true;
+      setMounted(true);
+    };
+    const id = requestAnimationFrame(markMounted);
+    const fallback = window.setTimeout(markMounted, 220);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(fallback);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted || !onMounted) return;
+    const id = requestAnimationFrame(() => onMounted());
+    return () => cancelAnimationFrame(id);
+  }, [mounted, onMounted]);
+
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-brand-light">Loading editor...</div>
+      </div>
+    );
+  }
+
+  return (
+    <Frame>
+      <Element
+        is={Viewport}
+        canvas
+        id="ROOT"
+      >
+        <Element
+          is={Page}
+          canvas
+          id="page-1"
+          pageName="Page 1"
+          pageSlug="page-0"
+          canvasX={PAGE_GRID_ORIGIN_X}
+          canvasY={PAGE_GRID_ORIGIN_Y}
+          height="1200px"
+          background="#ffffff"
+        />
+      </Element>
+    </Frame>
+  );
 };
 
 /**
@@ -949,7 +1052,7 @@ const SafeFrame = ({
   }
 
   if (hasErrorBoundaryError || !renderData) {
-    return <DeferredFrame data={EMPTY_FRAME_DATA} onMounted={handleDeferredFrameMounted} />;
+    return <FallbackFrame onMounted={handleDeferredFrameMounted} />;
   }
 
   // Only mount Frame with data in a separate commit (frameDataToShow set in useEffect)
@@ -1067,9 +1170,9 @@ const CollabCursorBroadcaster = ({
   return null;
 };
 
-const COLLAB_EMIT_DEBOUNCE_MS = 250; // Faster feedback for collaborators
-const DB_SAVE_DEBOUNCE_MS = 10000;    // Save to Firestore every 10s of inactivity (drastically reduces writes)
-const DB_FORCE_SAVE_INTERVAL = 30000; // Force save every 30s regardless of activity
+const COLLAB_EMIT_DEBOUNCE_MS = 250; 
+const DB_SAVE_DEBOUNCE_MS = 2500;     // Reduced from 10s to 2.5s for better responsiveness
+const DB_FORCE_SAVE_INTERVAL = 15000; // Reduced from 30s to 15s
 
 /** Editor Shell */
 export const EditorShell = ({ projectId, pageId: initialPageId, permission = "editor" }: EditorShellProps) => {
@@ -2411,9 +2514,11 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const flushToDb = useCallback(async () => {
     const snapshot = lastSnapshotRef.current;
     if (!snapshot || !projectId || !draftLoadedRef.current) {
+      console.log("💾 [Auto-Save] Skip: No snapshot or project", { hasSnapshot: !!snapshot, projectId, draftLoaded: draftLoadedRef.current });
       setSaveStatus("idle");
       return;
     }
+    console.log("💾 [Auto-Save] Starting database write for project:", projectId);
     if (dbSaveInFlightRef.current) {
       dbSavePendingRef.current = true;
       return;
@@ -2431,7 +2536,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         saveStatusTimerRef.current = setTimeout(() => {
           setSaveStatus("idle");
           saveStatusTimerRef.current = null;
-        }, 1200);
+        }, 800); // Faster transition to idle
       } else {
         console.warn("Auto-save warning:", result.error);
         setSaveStatus("error");
@@ -2479,20 +2584,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       // We only save to Firestore when the user stops interacting for a while,
       // OR if a significant amount of time has passed since the last save.
       if (projectId && !isDragging) {
+        // Restore immediate feedback!
         setSaveStatus("saving");
         setSaveError(null);
-
-        if (dbSaveTimerRef.current) clearTimeout(dbSaveTimerRef.current);
 
         const now = Date.now();
         const timeSinceLastSave = now - lastDbSaveAtRef.current;
 
         if (timeSinceLastSave > DB_FORCE_SAVE_INTERVAL) {
-          // Force immediate save if we haven't saved in a while
           lastDbSaveAtRef.current = now;
           flushToDb();
         } else {
-          // Otherwise, wait for inactivity
+          if (dbSaveTimerRef.current) clearTimeout(dbSaveTimerRef.current);
+          
           dbSaveTimerRef.current = setTimeout(() => {
             dbSaveTimerRef.current = null;
             lastDbSaveAtRef.current = Date.now();

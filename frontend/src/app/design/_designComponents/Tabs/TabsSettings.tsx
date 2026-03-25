@@ -252,7 +252,21 @@ export const TabsSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Outer Size & Spacing">
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}
@@ -268,21 +282,7 @@ export const TabsSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Outer Layout & Layer" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Outer Appearance">
+      <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
           backgroundImage={backgroundImage}

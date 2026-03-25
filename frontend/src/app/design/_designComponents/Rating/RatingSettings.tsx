@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
@@ -56,8 +57,13 @@ export const RatingSettings = () => {
     bottom,
     left,
     editorVisibility,
+    rotation,
+    flipHorizontal,
+    flipVertical,
     opacity,
     boxShadow,
+    overflow,
+    cursor,
     actions: { setProp },
   } = useNode((node) => ({
     value: Math.round(node.data.props.value ?? 4),
@@ -106,8 +112,13 @@ export const RatingSettings = () => {
     bottom: node.data.props.bottom ?? "auto",
     left: node.data.props.left ?? "auto",
     editorVisibility: node.data.props.editorVisibility ?? "auto",
+    rotation: node.data.props.rotation ?? 0,
+    flipHorizontal: node.data.props.flipHorizontal ?? false,
+    flipVertical: node.data.props.flipVertical ?? false,
     opacity: node.data.props.opacity ?? 1,
     boxShadow: node.data.props.boxShadow ?? "none",
+    overflow: node.data.props.overflow ?? "visible",
+    cursor: node.data.props.cursor ?? "default",
   }));
 
   const typedSetProp = setProp as SetProp<RatingProps>;
@@ -228,7 +239,7 @@ export const RatingSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Value Text">
+      <DesignSection title="Typography">
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)] font-medium">Custom Value</label>
@@ -258,7 +269,46 @@ export const RatingSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Box Appearance" defaultOpen={false}>
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Size & Spacing" defaultOpen={false}>
+        <SizePositionGroup
+          width={width}
+          height={height}
+          paddingTop={paddingTop}
+          paddingRight={paddingRight}
+          paddingBottom={paddingBottom}
+          paddingLeft={paddingLeft}
+          marginTop={marginTop}
+          marginRight={marginRight}
+          marginBottom={marginBottom}
+          marginLeft={marginLeft}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Appearance" defaultOpen={false}>
         <AppearanceGroup
           background={background}
           borderRadius={borderRadius}
@@ -273,39 +323,14 @@ export const RatingSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Size & Effects" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
+      <DesignSection title="Effects" defaultOpen={false}>
+        <EffectsGroup
+          opacity={opacity}
+          boxShadow={boxShadow}
+          overflow={overflow}
+          cursor={cursor}
           setProp={typedSetProp}
         />
-        <div className="my-4 border-t border-[var(--builder-border)]" />
-        <SizePositionGroup
-          width={width}
-          height={height}
-          paddingTop={paddingTop}
-          paddingRight={paddingRight}
-          paddingBottom={paddingBottom}
-          paddingLeft={paddingLeft}
-          marginTop={marginTop}
-          marginRight={marginRight}
-          marginBottom={marginBottom}
-          marginLeft={marginLeft}
-          setProp={typedSetProp}
-        />
-        <div className="mt-4">
-          <EffectsGroup
-            opacity={opacity}
-            boxShadow={boxShadow}
-            setProp={typedSetProp}
-          />
-        </div>
       </DesignSection>
     </div>
   );

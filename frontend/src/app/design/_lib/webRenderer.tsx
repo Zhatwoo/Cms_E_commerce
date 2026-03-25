@@ -1,13 +1,15 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
 import { getComponentDefaults } from "./serializer";
-import { PREVIEW_MOBILE_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
+import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
+import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
@@ -174,15 +176,15 @@ function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, Cl
       })
       .sort((a, b) => b.score - a.score)[0]?.score > 0
       ? textCandidates
-          .map((candidate) => {
-            let score = 0;
-            if (candidate.explicitField === "price") score += 1000;
-            if (looksLikePriceText(candidate.text)) score += 180;
-            score += Math.min(50, candidate.fontWeight / 20);
-            if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
-            return { id: candidate.id, score };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+        .map((candidate) => {
+          let score = 0;
+          if (candidate.explicitField === "price") score += 1000;
+          if (looksLikePriceText(candidate.text)) score += 180;
+          score += Math.min(50, candidate.fontWeight / 20);
+          if (candidate.fontSize >= 14 && candidate.fontSize <= 28) score += 20;
+          return { id: candidate.id, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.id ?? null
       : null;
 
   const remainingTextCandidates = textCandidates.filter((candidate) => candidate.id !== priceNodeId);
@@ -203,19 +205,19 @@ function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, Cl
       })
       .sort((a, b) => b.score - a.score)[0]?.score > 0
       ? remainingTextCandidates
-          .map((candidate) => {
-            let score = 0;
-            const lower = candidate.text.toLowerCase();
-            if (candidate.explicitField === "name") score += 1000;
-            if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
-            if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
-            if (candidate.fontWeight >= 600) score += 35;
-            if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
-            if (candidate.text.length <= 40) score += 10;
-            if (looksLikeBadgeText(candidate.text)) score -= 150;
-            return { id: candidate.id, score };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+        .map((candidate) => {
+          let score = 0;
+          const lower = candidate.text.toLowerCase();
+          if (candidate.explicitField === "name") score += 1000;
+          if (/product name|luminous glow serum|rose toner mist|nourish face cream/i.test(lower)) score += 180;
+          if (!looksLikeBadgeText(candidate.text) && !looksLikePriceText(candidate.text)) score += 60;
+          if (candidate.fontWeight >= 600) score += 35;
+          if (candidate.fontSize >= 12 && candidate.fontSize <= 24) score += 25;
+          if (candidate.text.length <= 40) score += 10;
+          if (looksLikeBadgeText(candidate.text)) score -= 150;
+          return { id: candidate.id, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.id ?? null
       : null;
 
   const descriptionNodeId =
@@ -233,18 +235,18 @@ function analyzeProductCardTemplate(rootNodeId: string, nodes: Record<string, Cl
       })
       .sort((a, b) => b.score - a.score)[0]?.score > 0
       ? remainingTextCandidates
-          .filter((candidate) => candidate.id !== nameNodeId)
-          .map((candidate) => {
-            let score = 0;
-            const lower = candidate.text.toLowerCase();
-            if (candidate.explicitField === "description") score += 1000;
-            if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
-            if (candidate.text.length >= 24) score += 60;
-            if (candidate.fontSize <= 14) score += 25;
-            if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
-            return { id: candidate.id, score };
-          })
-          .sort((a, b) => b.score - a.score)[0]?.id ?? null
+        .filter((candidate) => candidate.id !== nameNodeId)
+        .map((candidate) => {
+          let score = 0;
+          const lower = candidate.text.toLowerCase();
+          if (candidate.explicitField === "description") score += 1000;
+          if (/[·-]/.test(candidate.text) || /\bml\b|vitamin|hydrating|brightening|sensitive/i.test(lower)) score += 160;
+          if (candidate.text.length >= 24) score += 60;
+          if (candidate.fontSize <= 14) score += 25;
+          if (looksLikePriceText(candidate.text) || looksLikeBadgeText(candidate.text)) score -= 200;
+          return { id: candidate.id, score };
+        })
+        .sort((a, b) => b.score - a.score)[0]?.id ?? null
       : null;
 
   return {
@@ -475,12 +477,7 @@ const frameResponsiveStyles = (
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
-        object-fit: cover;
-      }
 
-      .frame-responsive-inner.frame-fluid iframe {
-        aspect-ratio: var(--media-aspect-ratio, 16 / 9);
-      }
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
         min-width: 0;
@@ -489,286 +486,212 @@ const frameResponsiveStyles = (
         transition:
           width 180ms ease,
           max-width 180ms ease,
-          min-width 180ms ease,
-          margin 180ms ease,
-          transform 180ms ease,
-          left 180ms ease,
-          right 180ms ease,
-          top 180ms ease,
-          bottom 180ms ease,
-          opacity 180ms ease;
-      }
-
-      .frame-responsive-inner.frame-fluid [data-fluid-text="true"],
-      .frame-responsive-inner.frame-fluid [data-fluid-button="true"],
-      .frame-responsive-inner.frame-fluid [data-fluid-media="true"],
-      .frame-responsive-inner.frame-fluid [data-fluid-icon="true"] {
-        max-width: 100% !important;
-        overflow-wrap: break-word;
-        word-break: break-word;
-      }
-
-      .frame-responsive-inner [data-smooth="true"] {
-        transition:
-          width 180ms ease,
-          height 180ms ease,
           padding 180ms ease,
           margin 180ms ease,
           transform 180ms ease,
-          opacity 180ms ease,
-          box-shadow 180ms ease,
-          background-color 180ms ease,
-          border-color 180ms ease,
-          color 180ms ease;
+          opacity 180ms ease;
       }
 
-      @media (prefers-reduced-motion: reduce) {
-        .frame-responsive-inner [data-smooth="true"] {
-          transition: none !important;
+      /* Tablet & Smaller: Intermediate Reflow */
+      @container (max-width: 950px) {
+        .frame-fluid [data-layout="row"],
+        .frame-responsive-inner [data-layout="row"] {
+          flex-wrap: wrap !important;
+          gap: clamp(10px, 1.8cqw, 16px) !important;
+        }
+        .frame-fluid [data-layout="row"] > *,
+        .frame-responsive-inner [data-layout="row"] > * {
+          min-width: 250px !important;
+          flex: 1 1 250px !important;
+        }
+        [data-fluid-text="true"] {
+          --fluid-font-cqw: 1.8cqw;
         }
       }
 
-      .frame-responsive-inner.frame-fluid [data-fluid-media="true"] {
+      [data-page-node].is-tablet-view {
+        width: 100% !important;
+        max-width: 100% !important;
+      }
+      .is-tablet-view .frame-fluid [data-layout="row"],
+      .is-tablet-view .frame-responsive-inner [data-layout="row"] {
+        flex-wrap: wrap !important;
+        gap: 20px !important;
+        display: flex !important;
+        flex-direction: row !important;
+        width: 100% !important;
+      }
+      .is-tablet-view [data-layout="row"] > * {
+        min-width: 300px !important;
+        flex: 1 1 300px !important;
+        max-width: 100% !important;
+        width: 100% !important;
+      }
+      .is-tablet-view [data-node-id],
+      .is-tablet-view img,
+      .is-tablet-view video {
+        width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
+        transform: none !important;
+      }
+      .is-tablet-view img,
+      .is-tablet-view video {
+        height: auto !important;
         object-fit: cover !important;
-        width: 100%;
-        height: auto;
-        max-width: 100% !important;
-        aspect-ratio: var(--media-aspect-ratio, auto);
       }
 
-      .frame-responsive-inner.frame-fluid [data-fluid-space="true"] {
-        max-width: 100% !important;
+      /* Refined Tablet (Standard iPad) */
+      @container (max-width: 768px) {
+        [data-layout="row"] {
+          gap: clamp(8px, 1.4cqw, 12px) !important;
+          justify-content: center !important;
+        }
+        [data-layout="row"] > * {
+          min-width: 180px !important;
+          flex: 1 1 180px !important;
+        }
+        [data-fluid-text="true"] {
+          --fluid-font-cqw: 2cqw;
+        }
       }
 
-      .frame-responsive-inner.frame-fluid [data-fluid-grid="true"] {
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
-      }
-
-      @keyframes responsive-reflow-in {
-        from { opacity: 0.96; transform: translateY(4px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      @container (max-width: 960px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
-          font-size: clamp(12px, var(--fluid-font-cqw, 3.2cqw), var(--fluid-font-max, 48px)) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-top: clamp(4px, 1.4cqw, 18px) !important;
-          padding-bottom: clamp(4px, 1.4cqw, 18px) !important;
-          column-gap: clamp(8px, 2.2cqw, 24px) !important;
-          row-gap: clamp(8px, 2.2cqw, 24px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          padding-left: clamp(10px, 2.2cqw, 24px) !important;
-          padding-right: clamp(10px, 2.2cqw, 24px) !important;
-          gap: clamp(6px, 1.6cqw, 14px) !important;
-        }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-icon="true"] {
-          width: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
-          height: clamp(14px, 3.4cqw, var(--fluid-icon-max, 28px)) !important;
-        }
-      }
-      @container (max-width: 900px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-        }
-      }
+      /* Mobile: Full Stacking & Fluid Scaling */
       @container (max-width: 640px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
-          padding-left: clamp(10px, 3.2cqw, 16px) !important;
-          padding-right: clamp(10px, 3.2cqw, 16px) !important;
-          padding-top: clamp(8px, 2.4cqw, 14px) !important;
-          padding-bottom: clamp(10px, 3cqw, 18px) !important;
-        }
-
-        /* Force mobile-first flow: all top-level children stack and fill width. */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {
+        .frame-responsive-inner,
+        .frame-fluid {
           display: flex !important;
           flex-direction: column !important;
           align-items: stretch !important;
-          gap: clamp(10px, 2.8cqw, 16px) !important;
+          width: 100% !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * {
+        .frame-fluid > *,
+        .frame-responsive-inner > *,
+        [data-node-id] {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
+          flex-grow: 1 !important;
         }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) > * + * {
+        
+        .frame-responsive-inner > * + * {
           margin-top: clamp(10px, 2.8cqw, 16px) !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] {
+        [data-layout="row"],
+        [data-layout="column"] {
           flex-direction: column !important;
           align-items: stretch !important;
           height: auto !important;
           min-height: 0 !important;
+          width: 100% !important;
+          display: flex !important;
         }
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] > * {
+
+        [data-layout="row"] > *,
+        [data-layout="column"] > * {
           width: 100% !important;
           max-width: 100% !important;
           min-width: 0 !important;
           flex: 1 1 100% !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="column"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
+        [data-fluid-space="true"] {
+          padding-left: clamp(8px, 3cqw, 24px) !important;
+          padding-right: clamp(8px, 3cqw, 24px) !important;
+          margin-left: 0 !important;
+          margin-right: 0 !important;
           height: auto !important;
           min-height: 0 !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-mobile-font-scale="true"] {
-          font-size: clamp(14px, 5cqw, var(--mobile-source-font-size, 48px)) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-space="true"] {
-          padding-left: clamp(8px, 3cqw, 24px) !important;
-          padding-right: clamp(8px, 3cqw, 24px) !important;
-          margin-left: clamp(0px, 1.2cqw, 12px) !important;
-          margin-right: clamp(0px, 1.2cqw, 12px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"] {
-          display: flex !important;
+        [data-fluid-media="true"],
+        [data-fluid-button="true"],
+        [data-fluid-grid="true"],
+        img, 
+        video {
           width: 100% !important;
           max-width: 100% !important;
+          min-width: 0 !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        [data-fluid-grid="true"] {
+          grid-template-columns: 1fr !important;
+          gap: clamp(12px, 2.8cqw, 24px) !important;
+          display: grid !important;
+        }
+
+        [data-fluid-button="true"] {
+          display: flex !important;
           justify-content: center !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] a,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] button {
-          padding-left: clamp(10px, 3cqw, 20px) !important;
-          padding-right: clamp(10px, 3cqw, 20px) !important;
-          padding-top: clamp(8px, 2.2cqw, 14px) !important;
-          padding-bottom: clamp(8px, 2.2cqw, 14px) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-nav-container] .nav-menu > * {
+        .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]),
+        .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]) {
+          position: relative !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          bottom: auto !important;
+          transform: none !important;
           width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
+          margin-bottom: 12px !important;
         }
 
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[role="button"] {
-          max-width: 100% !important;
-          overflow-wrap: break-word;
-          white-space: normal;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          height: auto !important;
-          border-radius: clamp(8px, 2.4cqw, 14px) !important;
-          overflow: hidden;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-grid="true"] {
-          grid-template-columns: minmax(0, 1fr) !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id] {
-          max-width: 100% !important;
-          min-width: 0 !important;
-          width: 100% !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-text="true"] {
+        [data-fluid-text="true"] {
           white-space: pre-wrap !important;
           overflow-wrap: anywhere !important;
           word-break: break-word !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-button="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) a[data-fluid-space="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) button[data-fluid-space="true"] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-fluid-media="true"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) img,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) video,
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) iframe {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          height: auto !important;
-        }
-
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
-          position: relative !important;
-          left: auto !important;
-          right: auto !important;
-          top: auto !important;
-          bottom: auto !important;
-          transform: none !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-        }
-
-        /* Auto-reflow positioned elements (e.g. side labels/text) so they stack on mobile */
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:absolute"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position: fixed"],
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-node-id][data-mobile-overflow="true"][style*="position:fixed"] {
-          position: relative !important;
-          left: auto !important;
-          right: auto !important;
-          top: auto !important;
-          bottom: auto !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          margin-left: 0 !important;
-          margin-right: 0 !important;
-          transform: none !important;
-          animation: responsive-reflow-in 180ms ease;
+          --fluid-font-cqw: 3.2cqw;
         }
       }
+
+      /* Class-based fallback for Editor Reliability (Mobile) */
+      .is-mobile-view.frame-responsive-inner,
+      .is-mobile-view.frame-fluid,
+      [data-page-node].is-mobile-view {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+      }
+      .is-mobile-view [data-node-id],
+      .is-mobile-view [data-node-id] > *,
+      .is-mobile-view [data-fluid-media="true"],
+      .is-mobile-view img,
+      .is-mobile-view video {
+        width: 100% !important;
+        min-width: 100% !important;
+        max-width: 100% !important;
+        position: relative !important;
+        left: 0 !important;
+        right: 0 !important;
+        top: 0 !important;
+        transform: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+      }
+      .is-mobile-view [data-layout="row"] {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        display: flex !important;
+      }
+      .is-mobile-view [data-layout="row"] > * {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+      }
+
       @container (max-width: 400px) {
         .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [data-layout="row"] { gap: clamp(6px, 2cqw, 12px) !important; }
-      }
-
-      @container (max-width: 520px) {
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position: fixed"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) [style*="position:fixed"]:not([data-preserve-position="true"]) {
-          position: relative !important;
-          left: auto !important;
-          right: auto !important;
-          top: auto !important;
-          bottom: auto !important;
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          transform: none !important;
-        }
-      }
-
-      @container (max-width: ${PREVIEW_MOBILE_BREAKPOINT}px) {
-        .frame-responsive-inner.frame-fluid img,
-        .frame-responsive-inner.frame-fluid video,
-        .frame-responsive-inner.frame-fluid iframe,
-        .frame-responsive-inner.frame-fluid [data-responsive-asset] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          object-fit: cover !important;
-          height: auto !important;
-        }
       }
     `,
   }} />
@@ -1488,7 +1411,7 @@ function normalizePreviewWidth(
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
 ): string | undefined {
-  const isNarrow = !builderParityMode && viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+  const isNarrow = !builderParityMode && viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_TABLET_BREAKPOINT);
   if (typeof widthValue === "number") {
     if (!isNarrow) return `${widthValue}px`;
     return `min(100%, ${Math.max(1, widthValue)}px)`;
@@ -1621,7 +1544,8 @@ function isNarrowResponsivePreview(
 ): boolean {
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
-  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+  // Use Tablet breakpoint (950) by default to ensure tablet preview is also responsive/fluid
+  const breakpoint = toNumber(mobileBreakpoint, PREVIEW_TABLET_BREAKPOINT);
   return viewportWidth <= breakpoint;
 }
 
@@ -1663,7 +1587,7 @@ function normalizeResponsivePosition(
   if (!isNarrow) return position;
   if (position === "absolute" || position === "fixed") {
     if (isLikelyOverflowingNarrowViewport(props, viewportWidth)) return "relative";
-    return "relative";
+    return position; // Keep absolute if it fits!
   }
   return position;
 }
@@ -1906,8 +1830,8 @@ function PreviewTabs({
             props.tabAlignment === "center"
               ? "center"
               : props.tabAlignment === "right"
-              ? "flex-end"
-              : "flex-start",
+                ? "flex-end"
+                : "flex-start",
         }}
       >
         {tabs.map((tab) => {
@@ -1983,7 +1907,7 @@ function PreviewTabs({
                     viewportWidth={props.viewportWidth || 1200}
                     interactionState={props.interactionState || {}}
                     availableTriggerTargets={props.availableTriggerTargets || new Set()}
-                    onToggle={props.onToggle || (() => {})}
+                    onToggle={props.onToggle || (() => { })}
                     storeContext={props.storeContext || null}
                     nodeId={contentNodeId}
                     onPrototypeAction={props.onPrototypeAction}
@@ -2073,6 +1997,9 @@ function RenderNode({
     spacer: "Spacer",
     pagination: "Pagination",
     badge: "Badge",
+    profilelogin: "ProfileLogin",
+    "profile-login": "ProfileLogin",
+    "profile login": "ProfileLogin",
     circle: "Circle",
     square: "Square",
     triangle: "Triangle",
@@ -2106,11 +2033,11 @@ function RenderNode({
   const directProductTemplateIds =
     storeContext && !productBinding
       ? childIds.filter((id) => {
-          const childNode = nodes[id];
-          return Boolean(childNode) &&
-            String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
-            hasAddToCartButton(id, nodes);
-        })
+        const childNode = nodes[id];
+        return Boolean(childNode) &&
+          String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
+          hasAddToCartButton(id, nodes);
+      })
       : [];
   const productTemplateIdSet = new Set(directProductTemplateIds);
   const hasExplicitTemplateBinding = directProductTemplateIds.some((id) =>
@@ -2153,26 +2080,26 @@ function RenderNode({
 
   const children = directProductTemplateIds.length > 0
     ? childIds.flatMap((id) => {
-        if (!productTemplateIdSet.has(id)) {
-          const rendered = renderChildNode(id);
-          return rendered ? [rendered] : [];
-        }
-        if (hasExplicitTemplateBinding) {
-          const fallbackProductIndex = Math.max(0, directProductTemplateIds.indexOf(id));
-          const binding = createProductBinding(id, fallbackProductIndex, nodes, storeContext!);
-          const rendered = renderChildNode(id, binding);
-          return rendered ? [rendered] : [];
-        }
-        if (id !== directProductTemplateIds[0]) return [];
+      if (!productTemplateIdSet.has(id)) {
+        const rendered = renderChildNode(id);
+        return rendered ? [rendered] : [];
+      }
+      if (hasExplicitTemplateBinding) {
+        const fallbackProductIndex = Math.max(0, directProductTemplateIds.indexOf(id));
+        const binding = createProductBinding(id, fallbackProductIndex, nodes, storeContext!);
+        const rendered = renderChildNode(id, binding);
+        return rendered ? [rendered] : [];
+      }
+      if (id !== directProductTemplateIds[0]) return [];
 
-        return storeContext!.products.map((_, productIndex) => {
-          const templateId = directProductTemplateIds[
-            Math.min(productIndex, directProductTemplateIds.length - 1)
-          ] ?? directProductTemplateIds[0];
-          const binding = createProductBinding(templateId, productIndex, nodes, storeContext!);
-          return renderChildNode(templateId, binding, `${templateId}::product-${productIndex}`);
-        });
-      })
+      return storeContext!.products.map((_, productIndex) => {
+        const templateId = directProductTemplateIds[
+          Math.min(productIndex, directProductTemplateIds.length - 1)
+        ] ?? directProductTemplateIds[0];
+        const binding = createProductBinding(templateId, productIndex, nodes, storeContext!);
+        return renderChildNode(templateId, binding, `${templateId}::product-${productIndex}`);
+      });
+    })
     : childIds.map((id) => renderChildNode(id));
 
   const withNodeMeta = (el: React.ReactElement): React.ReactElement => {
@@ -2684,6 +2611,10 @@ function RenderNode({
       const flipH = props.flipHorizontal === true;
       const flipV = props.flipVertical === true;
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const textStyle: React.CSSProperties = {
         fontSize: typographySpec.fontSize,
         fontFamily: (props.fontFamily as string) || "Outfit",
@@ -2694,13 +2625,13 @@ function RenderNode({
         textAlign: props.textAlign as React.CSSProperties["textAlign"],
         textTransform: props.textTransform as React.CSSProperties["textTransform"],
         color: (props.color as string) || "#000000",
-        position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+        position: normalizedPos,
         display: ((props.display as React.CSSProperties["display"]) || "block"),
         zIndex: (props.zIndex as number | undefined) ?? 2,
-        top: isNarrowPreview ? undefined : (props.position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined),
-        right: isNarrowPreview ? undefined : (props.position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined),
-        bottom: isNarrowPreview ? undefined : (props.position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined),
-        left: isNarrowPreview ? undefined : (props.position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined),
+        top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+        left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+        right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+        bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
         width: normalizedTextWidth ?? (props.width as string | undefined),
         height: normalizedTextHeight ?? (props.height as string | undefined),
         minHeight: "1em",
@@ -2795,19 +2726,29 @@ function RenderNode({
       const imageWidthPx = parsePixelValue(props.width);
       const imageHeightPx = parsePixelValue(props.height);
       const mediaAspectRatio = imageWidthPx && imageHeightPx ? `${imageWidthPx} / ${imageHeightPx}` : undefined;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       return wrap(
         <img
           src={productImageUrl || (props.src as string) || "https://placehold.co/600x400?text=Photo"}
           alt={(resolvedProductField === "image" ? productBinding?.product.name : undefined) || (props.alt as string) || "Image"}
+          onError={(e) => {
+            const target = e.currentTarget;
+            if (target.src !== "https://placehold.co/600x400?text=Image+Not+Found") {
+              target.src = "https://placehold.co/600x400?text=Image+Not+Found";
+            }
+          }}
           data-fluid-space="true"
           data-fluid-media="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedImageWidth,
             height: resolvedImageHeight,
@@ -2843,20 +2784,20 @@ function RenderNode({
       const baseOptions = Array.isArray(props.options) && props.options.length > 0
         ? props.options
         : [
-            {
-              id: "opt-1",
-              label: (props.label as string) || "Option 1",
-              checked: Boolean(props.checked),
-            },
-            { id: "opt-2", label: "Option 2", checked: false },
-            { id: "opt-3", label: "Option 3", checked: false },
-          ];
+          {
+            id: "opt-1",
+            label: (props.label as string) || "Option 1",
+            checked: Boolean(props.checked),
+          },
+          { id: "opt-2", label: "Option 2", checked: false },
+          { id: "opt-3", label: "Option 3", checked: false },
+        ];
 
       const normalizedWidth =
         normalizeLayoutWidthForNarrow(
           normalizePreviewWidth(props.width, viewportWidth, builderParityMode, mobileBreakpoint) ||
-            (props.width as string) ||
-            "fit-content",
+          (props.width as string) ||
+          "fit-content",
           isNarrowPreview,
           builderParityMode,
         ) || "fit-content";
@@ -2980,6 +2921,10 @@ function RenderNode({
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
       const rawVideoSrc = typeof props.src === "string" ? props.src.trim() : "";
 
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       if (!rawVideoSrc) {
         return wrap(
           <div
@@ -2987,11 +2932,11 @@ function RenderNode({
             data-fluid-media="true"
             className={((props.customClassName as string) || "").trim() || undefined}
             style={{
-              position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-              top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-              left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-              right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-              bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+              position: normalizedPos,
+              top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+              left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+              right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+              bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
               zIndex: (props.zIndex as number | undefined) ?? 2,
               width: resolvedVideoWidth,
               height: resolvedVideoHeight,
@@ -3097,6 +3042,10 @@ function RenderNode({
       const btnTransform = [btnRot ? `rotate(${btnRot}deg)` : null, btnFlipH ? "scaleX(-1)" : null, btnFlipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const rawButtonFontSize = parsePixelValue(props.fontSize) ?? toNumber(props.fontSize, toNumber(DEFAULTS["Button"]?.fontSize, 14));
       const shouldScaleButtonFont = !builderParityMode && isNarrowPreview && rawButtonFontSize > 30;
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const content = (
         <span
           data-fluid-space="true"
@@ -3106,11 +3055,11 @@ function RenderNode({
           data-mobile-font-scale={shouldScaleButtonFont ? "true" : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             backgroundColor: bg,
             color,
@@ -3227,9 +3176,9 @@ function RenderNode({
       const items = itemsRaw.length > 0
         ? itemsRaw
         : [
-            { title: "Item 1", content: "Accordion content" },
-            { title: "Item 2", content: "Accordion content" },
-          ];
+          { title: "Item 1", content: "Accordion content" },
+          { title: "Item 2", content: "Accordion content" },
+        ];
 
       // Respect authored colors from the canvas to keep preview/theme parity.
       const headerBg = String(props.headerBg ?? "#1e1e2e");
@@ -3333,14 +3282,24 @@ function RenderNode({
       const bannerTextTransform = (props.textTransform as React.CSSProperties["textTransform"]) || "none";
       const bannerTextColor = (props.color as string) || "#ffffff";
       const hasBannerChildren = Array.isArray(children) && children.length > 0;
+      const originalPos = (props.position as string) || "relative";
+      const normalizedPosition = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const shouldClearNarrowOffsets = !builderParityMode && isNarrowPreview && (originalPos === "absolute" || originalPos === "fixed") && normalizedPosition === "relative";
+
       return wrap(
         <div
           data-layout="row"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizedPosition,
+            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            zIndex: (props.zIndex as number | undefined) ?? 3,
             width,
             height,
-            maxWidth: "100%",
+            maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
             minWidth: 0,
             background: (props.background as string) || "#ef4444",
             color: (props.color as string) || "#ffffff",
@@ -3352,6 +3311,8 @@ function RenderNode({
             margin: `${fluidSpace(props.marginTop ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginRight ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginBottom ?? props.margin, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(props.marginLeft ?? props.margin, 0, 0.35, 1.4, useFixedPx)}`,
             borderRadius: px(props.borderRadius),
             overflow: "hidden",
+            boxShadow: props.boxShadow as string,
+            opacity: props.opacity as number,
           }}
         >
           {hasBannerChildren ? children : (
@@ -3626,13 +3587,13 @@ function RenderNode({
         totalPages <= 5
           ? Array.from({ length: totalPages }, (_, i) => i + 1)
           : [1, Math.max(2, currentPage - 1), currentPage, Math.min(totalPages - 1, currentPage + 1), totalPages]
-              .filter((value, idx, arr) => arr.indexOf(value) === idx)
-              .sort((a, b) => a - b)
-              .flatMap((value, idx, arr) => {
-                if (idx === 0) return [value];
-                const prev = arr[idx - 1];
-                return value - prev > 1 ? ["...", value] : [value];
-              });
+            .filter((value, idx, arr) => arr.indexOf(value) === idx)
+            .sort((a, b) => a - b)
+            .flatMap((value, idx, arr) => {
+              if (idx === 0) return [value];
+              const prev = arr[idx - 1];
+              return value - prev > 1 ? ["...", value] : [value];
+            });
 
       const buttonBase: React.CSSProperties = {
         fontSize: fluidFont(fontSize, 10, 3),
@@ -3743,17 +3704,21 @@ function RenderNode({
       );
     }
 
-    case "Divider":
+    case "Divider": {
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       return wrap(
         <hr
           data-fluid-space="true"
           data-smooth="true"
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 1,
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
@@ -3766,8 +3731,13 @@ function RenderNode({
           }}
         />
       );
+    }
 
     case "Icon": {
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const iconSize = toNumber(props.size, 24);
       const normalizedIconWidth = normalizeLayoutWidthForNarrow(props.width as string, isNarrowPreview, builderParityMode);
       const normalizedIconHeight = normalizeLayoutHeightForNarrow(props.height as string, isNarrowPreview, builderParityMode);
@@ -3779,11 +3749,11 @@ function RenderNode({
           data-smooth="true"
           onClick={interactiveClick}
           style={{
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 3,
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
@@ -3844,11 +3814,15 @@ function RenderNode({
       `;
       const scopedCss = blockCss
         ? blockCss.replace(/([^{}]+)\{/g, (_: string, sel: string) => {
-            const s = sel.trim();
-            if (s.startsWith("@keyframes") || s.startsWith("@media") || s.startsWith("@")) return `${s} {`;
-            return `.${scopeId} ${s} {`;
-          })
+          const s = sel.trim();
+          if (s.startsWith("@keyframes") || s.startsWith("@media") || s.startsWith("@")) return `${s} {`;
+          return `.${scopeId} ${s} {`;
+        })
         : "";
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
       const m = toNumber(props.margin, 0);
       const p = toNumber(props.padding, 0);
       return wrap(
@@ -3859,11 +3833,11 @@ function RenderNode({
             minWidth: 1,
             minHeight: 1,
             maxWidth: "100%",
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            position: normalizedPos,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             margin: toNumber(props.margin, 0),
             marginTop: toNumber(props.marginTop ?? m, 0),
             marginRight: toNumber(props.marginRight ?? m, 0),
@@ -3900,8 +3874,18 @@ function RenderNode({
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
       const fill = (props.background as string) || (props.color as string) || "#999999";
-      const w = normalizeLayoutWidthForNarrow((props.width as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
-      const h = normalizeLayoutHeightForNarrow((props.height as string) || "200px", isNarrowPreview, builderParityMode) || "200px";
+      const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const originalPos = (props.position as string) || "relative";
+      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+
+      const rawW = (props.width as string) || "200px";
+      const rawH = (props.height as string) || "200px";
+      const resolvedW = isNarrowPreview ? (parseFloat(rawW) > viewportWidth * 0.8 ? "100%" : rawW) : rawW;
+      const isCircleOrSquare = type === "Circle" || type === "Square";
+      const resolvedH = isNarrowPreview
+        ? (isCircleOrSquare && resolvedW === "100%" ? "auto" : (parseFloat(rawH) > 360 ? (isCircleOrSquare ? rawH : "300px") : rawH))
+        : rawH;
+
       const bgImage = props.backgroundImage as string;
       const overlay = props.backgroundOverlay as string;
       const bw = toNumber(props.borderWidth, 0);
@@ -3917,17 +3901,18 @@ function RenderNode({
       return wrap(
         <div
           style={{
-            width: w,
-            height: h,
-            minWidth: w,
-            minHeight: h,
-            position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
+            width: resolvedW,
+            height: resolvedH,
+            aspectRatio: (isNarrowPreview && isCircleOrSquare && resolvedW === "100%") ? "1 / 1" : undefined,
+            minWidth: resolvedW === "100%" ? undefined : resolvedW,
+            minHeight: resolvedH === "auto" ? undefined : resolvedH,
+            position: normalizedPos,
             display: props.display as React.CSSProperties["display"],
             zIndex: toNumber(props.zIndex, 0) || undefined,
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
             transform: (() => {
               const r = toNumber(props.rotation, 0);
               const fh = props.flipHorizontal === true;
@@ -4064,6 +4049,57 @@ function RenderNode({
       );
     }
 
+    case "ProfileLogin":
+      return wrapWithAnimation(
+        <ProfileLoginBlock
+          text={typeof props.text === "string" ? props.text : undefined}
+          fontSize={typeof props.fontSize === "number" ? props.fontSize : undefined}
+          fontFamily={typeof props.fontFamily === "string" ? props.fontFamily : undefined}
+          fontWeight={typeof props.fontWeight === "string" ? props.fontWeight : undefined}
+          fontStyle={props.fontStyle as "normal" | "italic" | undefined}
+          lineHeight={props.lineHeight as number | string | undefined}
+          letterSpacing={props.letterSpacing as number | string | undefined}
+          color={typeof props.color === "string" ? props.color : undefined}
+          iconColor={typeof props.iconColor === "string" ? props.iconColor : undefined}
+          arrowSize={typeof props.arrowSize === "number" ? props.arrowSize : undefined}
+          avatarSrc={typeof props.avatarSrc === "string" ? props.avatarSrc : undefined}
+          avatarSize={typeof props.avatarSize === "number" ? props.avatarSize : undefined}
+          width={typeof props.width === "number" || typeof props.width === "string" ? props.width : undefined}
+          height={typeof props.height === "number" || typeof props.height === "string" ? props.height : undefined}
+          display={props.display as "inline-flex" | "flex" | "block" | undefined}
+          alignItems={props.alignItems as "flex-start" | "center" | "flex-end" | "stretch" | undefined}
+          justifyContent={props.justifyContent as "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | undefined}
+          gap={typeof props.gap === "number" ? props.gap : undefined}
+          paddingTop={typeof props.paddingTop === "number" ? props.paddingTop : undefined}
+          paddingRight={typeof props.paddingRight === "number" ? props.paddingRight : undefined}
+          paddingBottom={typeof props.paddingBottom === "number" ? props.paddingBottom : undefined}
+          paddingLeft={typeof props.paddingLeft === "number" ? props.paddingLeft : undefined}
+          marginTop={typeof props.marginTop === "number" ? props.marginTop : undefined}
+          marginRight={typeof props.marginRight === "number" ? props.marginRight : undefined}
+          marginBottom={typeof props.marginBottom === "number" ? props.marginBottom : undefined}
+          marginLeft={typeof props.marginLeft === "number" ? props.marginLeft : undefined}
+          background={typeof props.background === "string" ? props.background : undefined}
+          borderRadius={typeof props.borderRadius === "number" ? props.borderRadius : undefined}
+          borderColor={typeof props.borderColor === "string" ? props.borderColor : undefined}
+          borderWidth={typeof props.borderWidth === "number" ? props.borderWidth : undefined}
+          borderStyle={typeof props.borderStyle === "string" ? props.borderStyle : undefined}
+          boxShadow={typeof props.boxShadow === "string" ? props.boxShadow : undefined}
+          opacity={typeof props.opacity === "number" ? props.opacity : undefined}
+          overflow={typeof props.overflow === "string" ? props.overflow : undefined}
+          position={props.position as "static" | "relative" | "absolute" | "fixed" | "sticky" | undefined}
+          top={typeof props.top === "string" ? props.top : undefined}
+          right={typeof props.right === "string" ? props.right : undefined}
+          bottom={typeof props.bottom === "string" ? props.bottom : undefined}
+          left={typeof props.left === "string" ? props.left : undefined}
+          zIndex={typeof props.zIndex === "number" ? props.zIndex : undefined}
+          rotation={typeof props.rotation === "number" ? props.rotation : undefined}
+          customClassName={typeof props.customClassName === "string" ? props.customClassName : undefined}
+          interactive
+          nodeId={nodeId}
+        />,
+        animation,
+      );
+
     default:
       return <div data-unknown-type={type}>{children}</div>;
   }
@@ -4147,21 +4183,15 @@ export function WebPreview({
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
-  /** Initial page slug for multi-page (overrides pageIndex when set). */
   initialPageSlug?: string;
   storeContext?: StoreContext | null;
-  /** Notify parent when prototype navigation changes the visible page. */
   onNavigate?: (pageSlug: string) => void;
   simulatedWidth?: number;
-  /** Optional viewport width used only for responsive visibility/breakpoint logic. */
   responsiveViewportWidth?: number;
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
-  /** When true, keep nodes visible like the editor canvas (skip showOn/collapsible filtering). */
   builderParityMode?: boolean;
-  /** When true, content fills full viewport width (no max-width box, no side margins). */
   fillViewport?: boolean;
-  /** When true, render all nodes regardless of responsive visibility/collapsible rules. */
   renderAllNodes?: boolean;
 }): React.ReactElement {
   const safePages = React.useMemo(
@@ -4237,43 +4267,42 @@ export function WebPreview({
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
+  const pageWidthPx = parsePixelValue(width) ?? 1920;
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const pageRotation = toNumber(pageProps.pageRotation, 0);
-  const frameStyles = resolvePageFrameStyles(width);
-  const { ref, width: measuredWidth } = useContainerWidth(1000);
+
+  const { ref, width: measuredWidth } = useContainerWidth(1200);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
-  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_MOBILE_BREAKPOINT;
-  const isDesktopMode = simulatedWidth === undefined && viewportWidth > effectiveMobileBreakpoint;
-  const isPhoneSize = !isDesktopMode;
+  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
+  const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
+  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
-    if (!isDesktopMode && mobileWrapperRef.current) {
+    if (isPhoneSize && mobileWrapperRef.current) {
       mobileWrapperRef.current.removeAttribute("data-nav-preview-done");
       const t = setTimeout(() => {
         if (mobileWrapperRef.current) enhanceNavInPreview(mobileWrapperRef.current);
       }, 200);
       return () => clearTimeout(t);
     }
-  }, [isDesktopMode, currentPageId]);
+  }, [isPhoneSize, currentPageId]);
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
     for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
-      if (typeof target === "string" && target.trim()) {
-        targets.add(target.trim());
-      }
+      if (typeof target === "string" && target.trim()) targets.add(target.trim());
     }
     return targets;
   }, [safeNodes]);
+
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
-      const next =
-        action === "open" ? true :
-          action === "close" ? false :
-            !current;
+      const next = action === "open" ? true : action === "close" ? false : !current;
       return { ...prev, [target]: next };
     });
   }, []);
@@ -4282,15 +4311,10 @@ export function WebPreview({
     const hasPages = safePages.length > 0;
     return (
       <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+        {hasPages ? "No page to display." : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
       </div>
     );
   }
-
-  const pageWidthPx = parsePixelValue(width) ?? 1920;
-  const scale = (!isPhoneSize && !fillViewport && measuredWidth < pageWidthPx) ? measuredWidth / pageWidthPx : 1;
 
   const pageContent = (
     <>
@@ -4306,7 +4330,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? viewportWidth : pageWidthPx}
+            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4333,44 +4357,36 @@ export function WebPreview({
         @keyframes page-slide-down { from { transform: translateY(-100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         @keyframes page-push { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
-        .preview-input {
-          background: transparent;
-          border: none;
-          outline: none;
-          width: 100%;
-          min-width: 0;
-        }
-        .preview-input::placeholder {
-          color: var(--placeholder-color, #94a3b8);
-          opacity: 1;
-        }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
       <div
         key={currentPageId}
         ref={ref}
+        data-preview-scroll-root="true"
         style={{
           width: "100%",
-          minHeight: "100%",
+          minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           overflowX: "hidden",
           overflowY: "auto",
-          padding: isPhoneSize || fillViewport ? 0 : "60px 20px",
-          backgroundColor: isPhoneSize || fillViewport ? background : "var(--builder-canvas-bg)",
+          backgroundColor: background,
         }}
       >
         <div
           style={{
-            width: isPhoneSize || fillViewport ? "100%" : width,
-            maxWidth: isPhoneSize || fillViewport ? "100%" : undefined,
-            minHeight: isPhoneSize ? "100vh" : minHeight,
-            backgroundColor: background,
-            boxShadow: isPhoneSize || fillViewport ? "none" : "0 25px 50px -12px rgba(0,0,0,0.25), 0 0 1px rgba(0,0,0,0.1)",
-            borderRadius: isPhoneSize || fillViewport ? 0 : 4,
-            transform: `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}`,
+            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
+            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight),
+            backgroundColor: "transparent",
+            margin: "0 auto",
+            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: "top center",
+            position: "relative",
+            isolation: "isolate",
+            overflow: isScaling ? "visible" : "hidden",
             transition: "transform 0.2s ease, width 0.3s ease",
             ...transitionStyle,
           }}
@@ -4378,9 +4394,9 @@ export function WebPreview({
           {isPhoneSize ? (
             <div
               ref={mobileWrapperRef}
-              className="frame-responsive-inner frame-fluid frame-mobile"
+              className={(isPhoneSize || fillViewport) ? "frame-responsive-inner frame-fluid frame-mobile" : "frame-responsive-inner"}
               style={{
-                width: "100%",
+                width: isScaling ? pageWidthPx : "100%",
                 minHeight: "100vh",
                 boxSizing: "border-box",
                 containerType: "inline-size",
@@ -4397,38 +4413,29 @@ export function WebPreview({
   );
 }
 
-/**
- * Full-width live site renderer. No shadow, no border-radius, no max-width box.
- * The design fills the entire browser viewport as a real website.
- * Supports multi-page prototype navigation (Navigate to page) via currentPageId state.
- */
 export function LiveSite({
   doc,
   pageIndex = 0,
   storeContext,
   initialPageSlug,
-  mobileBreakpoint = PREVIEW_MOBILE_BREAKPOINT,
+  mobileBreakpoint = PREVIEW_TABLET_BREAKPOINT,
   enableFormInputs = false,
+  fillViewport = false,
 }: {
   doc: BuilderDocument;
   pageIndex?: number;
   storeContext?: StoreContext | null;
-  /** Optional initial page slug from URL (e.g. ?page=page-1) for deep linking */
   initialPageSlug?: string;
-  /** Width threshold (px) before switching to mobile frame behavior. */
   mobileBreakpoint?: number;
   enableFormInputs?: boolean;
+  fillViewport?: boolean;
 }): React.ReactElement {
   const safePages = React.useMemo(
-    () => (Array.isArray(doc?.pages)
-      ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page))
-      : []),
+    () => (Array.isArray(doc?.pages) ? doc.pages.filter((page): page is BuilderDocument["pages"][number] => Boolean(page)) : []),
     [doc]
   );
   const safeNodes = React.useMemo(
-    () => (doc?.nodes && typeof doc.nodes === "object"
-      ? (doc.nodes as Record<string, CleanNode>)
-      : {}),
+    () => (doc?.nodes && typeof doc.nodes === "object" ? (doc.nodes as Record<string, CleanNode>) : {}),
     [doc]
   );
 
@@ -4450,14 +4457,17 @@ export function LiveSite({
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
-  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const background = (pageProps.background as string) || "#ffffff";
+  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
-  
-  const { ref, width: measuredWidth } = useContainerWidth();
-  const isPhoneSize = measuredWidth <= mobileBreakpoint;
-  const viewportWidth = !isPhoneSize ? pageWidthPx : measuredWidth;
+
+  const { ref, width: measuredWidth } = useContainerWidth(1200);
+  const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
+  const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
+  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
 
@@ -4472,14 +4482,20 @@ export function LiveSite({
     }
   }, [isPhoneSize, currentPageId]);
 
+  React.useEffect(() => {
+    if (typeof document !== "undefined") {
+      const oldBg = document.body.style.backgroundColor;
+      document.body.style.backgroundColor = background;
+      return () => { document.body.style.backgroundColor = oldBg; };
+    }
+  }, [background]);
+
   const [interactionState, setInteractionState] = React.useState<Record<string, boolean>>({});
   const availableTriggerTargets = React.useMemo(() => {
     const targets = new Set<string>();
     for (const node of Object.values(safeNodes)) {
       const target = node?.props?.toggleTarget;
-      if (typeof target === "string" && target.trim()) {
-        targets.add(target.trim());
-      }
+      if (typeof target === "string" && target.trim()) targets.add(target.trim());
     }
     return targets;
   }, [safeNodes]);
@@ -4487,10 +4503,7 @@ export function LiveSite({
   const handleToggle = React.useCallback((target: string, action: "toggle" | "open" | "close") => {
     setInteractionState((prev) => {
       const current = prev[target] ?? false;
-      const next =
-        action === "open" ? true :
-          action === "close" ? false :
-            !current;
+      const next = action === "open" ? true : action === "close" ? false : !current;
       return { ...prev, [target]: next };
     });
   }, []);
@@ -4506,18 +4519,12 @@ export function LiveSite({
         setHistory((h) => [...h, currentPageId]);
         const duration = (interaction.duration ?? 300) / 1000;
         const trans = (interaction.transition as keyof typeof PAGE_TRANSITION_STYLES) ?? "dissolve";
-        setTransitionStyle({
-          ...PAGE_TRANSITION_STYLES[trans],
-          animationDuration: `${duration}s`,
-        });
+        setTransitionStyle({ ...PAGE_TRANSITION_STYLES[trans], animationDuration: `${duration}s` });
         setCurrentPageId(destId);
       } else {
         const el = document.getElementById(interaction.destination.startsWith("#") ? interaction.destination.slice(1) : interaction.destination);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth" });
-        } else if (interaction.destination.startsWith("http://") || interaction.destination.startsWith("https://") || interaction.destination.startsWith("mailto:") || interaction.destination.startsWith("/")) {
-          window.location.href = interaction.destination;
-        }
+        if (el) el.scrollIntoView({ behavior: "smooth" });
+        else if (interaction.destination.match(/^(https?:\/\/|mailto:|\/)/)) window.location.href = interaction.destination;
       }
     } else if (interaction.action === "back") {
       if (history.length > 0) {
@@ -4525,9 +4532,7 @@ export function LiveSite({
         setHistory((h) => h.slice(0, -1));
         setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
         setCurrentPageId(prevId);
-      } else {
-        window.history.back();
-      }
+      } else window.history.back();
     }
   }, [currentPageId, history, pageMeta]);
 
@@ -4535,9 +4540,7 @@ export function LiveSite({
     const hasPages = safePages.length > 0;
     return (
       <div style={{ padding: 24, color: "#666", textAlign: "center", maxWidth: 360 }}>
-        {hasPages
-          ? "No page to display."
-          : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
+        {hasPages ? "No page to display." : "No pages yet. Add a page in the editor, then open Preview again (Play button)."}
       </div>
     );
   }
@@ -4565,8 +4568,8 @@ export function LiveSite({
             onPrototypeAction={onPrototypeAction}
             mobileBreakpoint={mobileBreakpoint}
             enableFormInputs={enableFormInputs}
-            builderParityMode={true}
-            preserveAuthoredPositioning={true}
+            builderParityMode={false}
+            preserveAuthoredPositioning={false}
             layoutReferenceWidth={layoutReferenceWidth}
             layoutReferenceHeight={layoutReferenceHeight}
           />
@@ -4591,32 +4594,38 @@ export function LiveSite({
         key={currentPageId}
         ref={ref}
         style={{
-          width: isPhoneSize ? "100%" : width,
-          maxWidth: isPhoneSize ? "100%" : undefined,
-          minHeight,
+          width: "100%",
+          minHeight: "100vh",
           backgroundColor: background,
-          margin: isPhoneSize ? 0 : "0 auto",
-          transform: pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
-          transformOrigin: "center center",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          overflowX: "hidden",
           ...transitionStyle,
         }}
       >
-        {isPhoneSize ? (
-          <div
-            ref={liveSiteWrapperRef}
-            className="frame-responsive-inner frame-fluid frame-mobile"
-            style={{
-              width: "100%",
-              minHeight: "100vh",
-              boxSizing: "border-box",
-              containerType: "inline-size",
-            }}
-          >
-            {pageChildren}
-          </div>
-        ) : (
-          pageChildren
-        )}
+        <div
+          style={{
+            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
+            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            backgroundColor: "transparent",
+            margin: "0 auto",
+            transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
+            transformOrigin: "top center",
+          }}
+        >
+          {isPhoneSize ? (
+            <div style={{ width: "100%", boxSizing: "border-box", containerType: "inline-size" }}>
+              <div ref={liveSiteWrapperRef} className="frame-responsive-inner frame-fluid frame-mobile">
+                {pageChildren}
+              </div>
+            </div>
+          ) : (
+            pageChildren
+          )}
+        </div>
       </div>
     </>
   );

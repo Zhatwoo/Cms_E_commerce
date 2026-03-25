@@ -6,6 +6,7 @@ import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
 import { getNotifications, saveNotifications, markAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+import { formatToPHTime } from "@/lib/dateUtils";
 
 type NotificationTab = "list" | "configure" | "trash";
 
@@ -171,33 +172,6 @@ function NotificationsPageContent() {
 		setSelectedIds([]);
 	};
 
-	const handleDeleteSingle = (id: string) => {
-		const target = notifications.find((item) => item.id === id);
-		if (!target) return;
-		setTrash((current) => (current.some((item) => item.id === id) ? current : [target, ...current]));
-		const updated = notifications.filter((item) => item.id !== id);
-		saveNotifications(updated);
-		setSelectedIds((prev) => prev.filter((item) => item !== id));
-	};
-
-	const handleRowClick = (item: NotificationItem, event: React.MouseEvent<HTMLDivElement>) => {
-		const target = event.target as HTMLElement;
-		if (target.closest('button,input,label,a,textarea,select,[data-ignore-row-click="true"]')) return;
-		if (!item.read) {
-			markAsRead(item.id);
-			setNotifications((prev) => prev.map((entry) => (entry.id === item.id ? { ...entry, read: true } : entry)));
-		}
-	};
-
-	const handleRowDoubleClick = (item: NotificationItem, event: React.MouseEvent<HTMLDivElement>) => {
-		const target = event.target as HTMLElement;
-		if (target.closest('button,input,label,a,textarea,select,[data-ignore-row-click="true"]')) return;
-		if (!item.read) {
-			markAsRead(item.id);
-		}
-		setDetailItem(item);
-	};
-
 	const handleRestore = (id: string) => {
 		const restored = trash.find((item) => item.id === id);
 		if (!restored) return;
@@ -264,15 +238,14 @@ function NotificationsPageContent() {
 											key={tab.key}
 											type="button"
 											onClick={() => setActiveTab(tab.key)}
-											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${
-												activeTab === tab.key
+											className={`min-w-[130px] rounded-[10px] px-6 py-3 text-[1rem] font-semibold transition ${activeTab === tab.key
 													? "bg-[#FFCC00] text-[#2F1859]"
 													: "text-[#787593] hover:bg-white/60"
-											}`}
+												}`}
 										>
 											<span className="inline-flex items-center gap-2">
 												<span>{tab.label}</span>
-															{typeof tab.extra === "number" && tab.extra > 0 && (
+												{typeof tab.extra === "number" && (
 													<span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-sm text-[#514A73]">
 														{tab.extra}
 													</span>
@@ -312,43 +285,32 @@ function NotificationsPageContent() {
 														No new notifications
 													</div>
 												) : (
-													<div className="max-h-[540px] space-y-4 overflow-y-auto pr-2">
+													<div className="space-y-4">
 														{notifications.map((item) => (
 															<motion.div
 																key={item.id}
 																initial={{ opacity: 0, y: 8 }}
 																animate={{ opacity: 1, y: 0 }}
-																onClick={(event) => handleRowClick(item, event)}
-																onDoubleClick={(event) => handleRowDoubleClick(item, event)}
 																className="flex items-center justify-between gap-4 border-b border-[rgba(177,59,255,0.2)] bg-white px-4 py-5 shadow-[0_3px_0_rgba(210,175,255,0.7)]"
 															>
 																<div className="flex min-w-0 items-center gap-4">
 																	<div className="h-18 w-1 self-stretch rounded-full bg-[#FFCC00]" />
-																	<span className={`h-2.5 w-2.5 rounded-full ${item.read ? 'bg-[#C5BEDD]' : 'bg-[#FF5252]'}`} />
 																	<NotificationCheckbox
 																		checked={selectedIds.includes(item.id)}
 																		onChange={(checked) => toggleSelectOne(item.id, checked)}
-																		label={`Select notification at ${item.time}`}
+																		label={`Select notification at ${formatToPHTime(item.time)}`}
 																	/>
 																	<div className="min-w-0">
 																		<div className="truncate text-[1.08rem] font-semibold text-[#412793]">
 																			{item.title}
 																			{item.message && <span className="ml-2 font-normal text-[#8B85A5]">- {item.message}</span>}
 																		</div>
-																		<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																		<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																	</div>
 																</div>
 																<div className="flex items-center gap-5 pl-4 text-sm text-[#8B85A5]">
-																	<span>{item.date}</span>
-																	<button
-																		type="button"
-																		data-ignore-row-click="true"
-																		onClick={() => handleDeleteSingle(item.id)}
-																		className="rounded-full px-2 py-1 text-base font-bold text-[#A54DE0] transition hover:bg-[#F1E7FF] hover:text-[#7F23C7]"
-																		aria-label="Delete notification"
-																	>
-																		×
-																	</button>
+																	<span>{formatToPHTime(item.time)}</span>
+																	<span className={item.read ? "text-[#1AA54B]" : "text-[#FF5252]"}>{item.read ? <CheckIcon /> : "×"}</span>
 																</div>
 															</motion.div>
 														))}
@@ -434,14 +396,14 @@ function NotificationsPageContent() {
 																		<NotificationCheckbox
 																			checked={trashSelectedIds.includes(item.id)}
 																			onChange={(checked) => toggleTrashSelectOne(item.id, checked)}
-																			label={`Select trashed notification at ${item.time}`}
+																			label={`Select trashed notification at ${formatToPHTime(item.time)}`}
 																		/>
 																		<div className="min-w-0">
 																			<div className="truncate text-[1.08rem] font-semibold text-[#412793]">{item.title}</div>
-																			<div className="mt-1 text-sm text-[#8B85A5]">{item.time}</div>
+																			<div className="mt-1 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																		</div>
 																	</div>
-																	<div className="pl-4 text-sm text-[#8B85A5]">{item.date}</div>
+																	<div className="pl-4 text-sm text-[#8B85A5]">{formatToPHTime(item.time)}</div>
 																</motion.div>
 															))}
 														</div>
