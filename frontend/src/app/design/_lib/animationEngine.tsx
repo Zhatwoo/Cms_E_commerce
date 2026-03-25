@@ -100,26 +100,34 @@ function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  // Preview page runs in the top window (not iframe). To keep behavior stable across
-  // browser zoom levels, always use window scroll there.
-  if (view.parent === view) {
-    return { primary: null, fallback: null };
-  }
-
+  // Always check for an explicit preview scroll root first.
   const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
   if (explicitPreviewRoot instanceof HTMLElement) {
     // Preview root should only be used when it is actually scrollable at current viewport size.
-    // Otherwise, scrolling is happening on the window and we should not force a custom root.
     if (isElementScrollable(explicitPreviewRoot)) {
       return { primary: explicitPreviewRoot, fallback: null };
     }
     return { primary: null, fallback: null };
   }
 
+  // Check if we are inside the builder canvas container. The canvas element is the
+  // scroll root in the builder — regardless of whether we're in an iframe or not.
+  const canvasContainer = el.closest('[data-canvas-container]');
+  if (canvasContainer instanceof HTMLElement && isElementScrollable(canvasContainer)) {
+    return { primary: canvasContainer, fallback: null };
+  }
+
+  // In the top-level window (not inside an iframe), default to window scroll.
+  // This is correct for the preview page, the live site, and any other top-level context.
+  // Do NOT walk the DOM here — random overflow:hidden containers will be picked up.
+  if (view.parent === view) {
+    return { primary: null, fallback: null };
+  }
+
+  // Inside an iframe (builder canvas in iframe mode), find the nearest scroll container.
   const nearest = resolveNearestScrollContainer(el, view);
   const primary = nearest && isElementScrollable(nearest) ? nearest : null;
-  const fallback = null;
-  return { primary, fallback };
+  return { primary, fallback: null };
 }
 
 // ─── Easing Map (Framer Motion) ──────────────────────────────────────────────
@@ -326,14 +334,6 @@ function useGsapScrollEffect(
     const view = el.ownerDocument?.defaultView ?? window;
     const doc = el.ownerDocument ?? document;
 
-    // Force scroll container to top on preview/canvas load for accurate effect start
-    setTimeout(() => {
-      if (view && typeof view.scrollTo === 'function') {
-        view.scrollTo(0, 0);
-      } else if (view && view.document && view.document.scrollingElement) {
-        view.document.scrollingElement.scrollTop = 0;
-      }
-    }, 0);
 
     // If we're rendering inside an iframe (builder canvas), the actual scrolling may happen
     // in the parent document on `.canvas-scroll-container` instead of inside the iframe.
@@ -505,8 +505,58 @@ function useGsapScrollEffect(
         : 1;
 
     if (config.type === "freeMove") {
-      // freeMove effect temporarily disabled
-      return;
+      const keyframes = computeFreeMoveKeyframes();
+      if (keyframes.length === 0) return;
+
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: el,
+          scroller: scroller ?? undefined,
+          start: config.start,
+          end: config.end,
+          scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
+          immediateRender: false,
+          invalidateOnRefresh: true,
+        },
+      });
+
+      // Map progress-based keyframes to the scrubbed timeline
+      keyframes.forEach((kf, idx) => {
+        if (idx === 0) {
+          tl.set(el, { x: kf.x, y: kf.y, force3D: true });
+        } else {
+          const prev = keyframes[idx - 1];
+          const duration = kf.at - prev.at;
+          tl.to(el, {
+            x: kf.x,
+            y: kf.y,
+            duration,
+            ease: "none", // Linear segments since keyframes are sampled/progress-based
+            force3D: true,
+          }, prev.at);
+        }
+      });
+
+      ScrollTrigger.refresh();
+      const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
+
+      return () => {
+        tl.kill();
+        view.clearTimeout(settleRefresh);
+        ScrollTrigger.getAll().forEach((t) => {
+          if (t.trigger === el) t.kill();
+        });
+        if (proxiedParentScroller && parentScrollHandler) {
+          proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
+        }
+        if (parentResizeHandler) {
+          try {
+            view.parent?.removeEventListener("resize", parentResizeHandler as EventListener);
+          } catch {
+            // ignore
+          }
+        }
+      };
     } else {
       // Use a natural ease for all scroll effects for a clean, smooth feel
       const naturalEase = config.scrub ? "none" : "power1.inOut";
@@ -732,7 +782,7 @@ export function AnimationWrapper({
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
   const ref = useRef<HTMLDivElement>(null);
-  const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
+  const inViewRootRef = useRef<Element | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -740,11 +790,11 @@ export function AnimationWrapper({
 
     const view = el.ownerDocument?.defaultView ?? window;
     const { primary, fallback } = resolveScrollRoots(el, view);
-    setInViewRoot(primary ?? fallback);
+    inViewRootRef.current = primary ?? fallback;
   }, []);
 
   const isInView = useInView(ref, {
-    root: inViewRoot,
+    root: inViewRootRef,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });

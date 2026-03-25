@@ -790,7 +790,8 @@ function PreviewContent() {
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
       const id = (page?.id as string) || `page-${index}`;
       const rawName = page?.name ?? pageProps.pageName;
-      const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
+      const isPlaceholder = !rawName || (typeof rawName === "string" && rawName.trim().toLowerCase() === "page name");
+      const name = (!isPlaceholder && typeof rawName === "string" && rawName.trim()) ? rawName.trim() : `Page ${index + 1}`;
       const rawSlug = page?.slug ?? pageProps.pageSlug;
       const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
       return { id, slug, name };
