@@ -20,6 +20,8 @@ import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
+import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
+import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
 import { span } from 'framer-motion/m';
 
 const INDUSTRIES = [
@@ -337,6 +339,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     );
   };
 
+  const getIndustryIcon = (label: string) => {
+    const foundKey = Object.keys(INDUSTRY_CONFIG).find((key) => label.toLowerCase().includes(key));
+    return INDUSTRY_CONFIG[(foundKey || 'creative') as keyof typeof INDUSTRY_CONFIG].icon;
+  };
+
   return (
     <section className="dashboard-landing-light relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif]">
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
@@ -383,556 +390,46 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
         <AnimatePresence mode="wait" initial={false}>
           {activeTab === 'designs' ? (
-            <motion.div
-              key="designs-tab"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-            >
-              <div className="mt-10 mx-auto w-full max-w-none grid grid-cols-1 lg:grid-cols-[minmax(0,1.02fr)_minmax(0,1.18fr)] gap-8 lg:gap-12 items-center pt-3">
-                <div className="space-y-5 w-full max-w-190 lg:justify-self-start">
-                  <h2
-                    className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-[0.94] [font-family:var(--font-outfit),sans-serif]"
-                    style={{ color: theme === 'dark' ? '#FFFFFF' : '#120533' }}
-                  >
-                    Most Recent Project
-                  </h2>
-                  
-                  <p
-                    className="text-base sm:text-xl leading-relaxed max-w-190"
-                    style={{ color: theme === 'dark' ? 'rgba(255,255,255,0.72)' : 'rgba(30, 41, 59, 0.72)' }}
-                  >
-                    {loading
-                      ? 'Loading your latest project...'
-                      : featuredProject
-                        ? (
-                          <>
-                            {/* Using the vibrant purple/fuchsia for the project title in light mode */}
-                            <span style={{ 
-                              color: theme === 'dark' ? '#FFCE00' : '#8B5CF6', 
-                              fontWeight: 700 
-                            }}>
-                              {featuredProject.title || 'Untitled website'}
-                            </span>
-                            {` — ${formatLastEdited(featuredProject.updatedAt || featuredProject.createdAt)}. Continue building your responsive hero section and component library.`}
-                          </>
-                        )
-                        : `${userName}, create your first project to start building your website.`}
-                  </p>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (featuredProject?.id) router.push(`/design?projectId=${featuredProject.id}`);
-                      else router.push('/design');
-                    }}
-                    className={`
-                      rounded-full px-10 py-3 text-base font-bold cursor-pointer 
-                      transition-all duration-300 ease-out 
-                      hover:-translate-y-1 hover:brightness-110 active:scale-95
-                      text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]
-                    `}
-                    style={{
-                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
-                    }}
-                  >
-                    View Project
-                  </button>
-                </div>
-
-               <div className={`
-                  relative rounded-4xl border p-5 text-left overflow-hidden transition-all duration-500
-                  ${theme === 'dark' 
-                    ? 'bg-linear-to-br from-[#0D0C37] via-[#110F4D] to-[#0D0C37] border-[#6E6ABF]/40 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)]' 
-                    : 'admin-dashboard-panel border-0'
-                  }
-                `}>
-                  {/* Ambient Background Glows */}
-                  <div className={`
-                    absolute inset-0 pointer-events-none opacity-40 blur-[100px] transition-colors duration-700
-                    ${theme === 'dark' 
-                      ? 'bg-[radial-gradient(circle_at_top_right,#FFCE0010,transparent),radial-gradient(circle_at_bottom_left,#8B5CF620,transparent)]' 
-                      : 'bg-[radial-gradient(circle_at_top_right,#8B5CF615,transparent)]'
-                    }
-                  `} />
-
-                  <div className="relative flex items-center justify-between px-1 mb-4 min-h-6 z-10">
-                    {/* High-Energy Indicators */}
-                    <div className="flex items-center gap-2.5">
-                      {Array.from({ length: indicatorCount }).map((_, idx) => {
-                        const isActive = idx === displayProjectIndex;
-                        return (
-                          <button
-                            key={`indicator-${idx}`}
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault(); e.stopPropagation();
-                              setIsSliderTransitionEnabled(true);
-                              setActiveProjectIndex(idx);
-                            }}
-                            className={`
-                              relative h-2 rounded-full transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]
-                              ${isActive 
-                                ? (theme === 'dark' ? 'w-10 bg-linear-to-r from-[#FFCE00] to-[#FF8A00]' : 'w-10 bg-linear-to-r from-[#8B5CF6] to-[#D946EF]') 
-                                : (theme === 'dark' ? 'w-2 bg-[#6C6A98]/40 hover:bg-[#8B5CF6]/40' : 'w-2 bg-[#8B5CF6]/20 hover:bg-[#8B5CF6]/40')
-                              }
-                            `}
-                          >
-                            {isActive && (
-                              <span className={`absolute inset-0 rounded-full blur-[6px] animate-pulse ${theme === 'dark' ? 'bg-[#FFCE00]/60' : 'bg-[#D946EF]/50'}`} />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Stylish Label */}
-                    <span className={`
-                      text-[10px] font-[1000] uppercase tracking-[0.3em] transition-all duration-500
-                      ${theme === 'dark' 
-                        ? 'bg-linear-to-r from-[#FFCE00] to-[#FF8A00] bg-clip-text text-transparent' 
-                        : 'bg-linear-to-r from-[#8B5CF6] to-[#D946EF] bg-clip-text text-transparent'
-                      }
-                    `}>
-                      WORKSPACE // {toWorkspaceLabel(featuredProject)}
-                    </span>
-                  </div>
-
-                  <div
-                    role="button"
-                    onClick={() => featuredProject?.id ? router.push(`/design?projectId=${featuredProject.id}`) : router.push('/design')}
-                    className={`
-                      group relative w-full block rounded-2xl mt-2 overflow-hidden border transition-all duration-700 cursor-pointer
-                      ${theme === 'dark' 
-                        ? 'border-white/5 bg-[#0A092D] shadow-2xl' 
-                        : 'border-white bg-white shadow-lg'
-                      }
-                      hover:scale-[1.015]
-                    `}
-                  >
-                    {/* Adaptive All-around Glow Border */}
-                    <div className={`
-                      absolute inset-0 z-30 pointer-events-none transition-opacity duration-500 border-2 rounded-2xl opacity-0 group-hover:opacity-100
-                      ${theme === 'dark' ? 'border-[#FFCE00]/40' : 'border-[#8B5CF6]/50'}
-                    `} />
-
-                    <div className="w-full aspect-video">
-                      <div className="relative h-full w-full overflow-hidden">
-                        <div
-                          onTransitionEnd={handleTrackTransitionEnd}
-                          className={`flex h-full w-full ${getTrackTranslateClass()} ${isSliderTransitionEnabled ? 'transition-transform duration-700 cubic-bezier(0.23, 1, 0.32, 1)' : ''}`}
-                        >
-                          {carouselProjects.map((project, idx) => (
-                            <div key={`${project.id}-${idx}`} className="h-full w-full shrink-0 grow-0 basis-full">
-                              {renderProjectPreview(project)}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <section className="mx-auto w-full max-w-none pt-2 sm:pt-4 mt-10">
-                <div className="mb-4 flex items-center justify-between">
-                  <h3 
-                    className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
-                      ${theme === 'dark' 
-                        ? 'text-[#FFCE00]' 
-                        : 'text-[#8B5CF6]' 
-                      }
-                    `}
-                  >
-                    Other Projects
-                  </h3> 
-
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    {allProjects.length > 3 && (
-                      <button
-                        type="button"
-                        onClick={() => setShowAllOtherProjects((prev) => !prev)}
-                        className={`
-                          cursor-pointer rounded-lg px-4 py-1.5 text-xs sm:text-sm font-bold transition-all duration-300 active:scale-95 border-2
-                          ${theme === 'dark' 
-                            ? 'border-[#272261] bg-[#15093E]/70 text-white hover:border-[#FFCE00] hover:text-[#FFCE00]' 
-                            : 'border-[#8B5CF6] bg-transparent text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white'
-                          }
-                        `}
-                      >
-                        {showAllOtherProjects ? 'Show Less' : 'See All'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-                  <button
-                    type="button"
-                    onClick={() => setCreateModalOpen(true)}
-                    className={`
-                      cursor-pointer group relative flex flex-col items-center justify-center gap-6
-                      w-full min-h-60 sm:min-h-65 p-4 sm:p-5
-                      rounded-[40px] transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]
-                      hover:-translate-y-2
-                      
-                      ${theme === 'dark' 
-                        ? 'bg-[#15093E] border border-[#280E59] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' 
-                        : 'admin-dashboard-panel border-0'
-                      }
-                    `}
-                  >
-
-                    {/* Main Action Icon */}
-                    <div className="relative">
-                      <div 
-                        className={`
-                          h-20 w-20 rounded-[28px] flex items-center justify-center 
-                          transition-all duration-500 shadow-lg group-hover:scale-110 group-hover:rotate-90
-                          ${theme === 'dark'
-                            ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]'
-                            : 'bg-linear-to-br from-[#8B5CF6] to-[#D946EF] text-white shadow-[0_10px_25px_rgba(139,92,246,0.3)]'
-                          }
-                        `}
-                      >
-                        <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
-                        </svg>
-                      </div>
-                    </div>
-
-                    {/* Typography - Fixed spacing and font weight */}
-                    <div className="flex flex-col items-center gap-1">
-                      <span 
-                        className={`
-                          text-xl font-black tracking-tighter transition-colors duration-300
-                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
-                        `}
-                      >
-                        New Project
-                      </span>
-                      <div className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
-                    </div>
-                  </button>
-                  {otherProjects.map((project) => (
-                    <div
-                      key={project.id}
-                      className={`
-                        group relative rounded-4xl overflow-hidden transition-all duration-500 cursor-pointer
-                        ${theme === 'dark' 
-                          ? 'bg-[#15093E] border border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]' 
-                          : 'admin-dashboard-panel-soft border-0'
-                        }
-                        hover:-translate-y-2
-                      `}
-                    >
-                      {/* Default State Violet Highlight - Ambient Top Glow */}
-                      {theme === 'light' && (
-                        <div className="absolute inset-0 z-10 pointer-events-none bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-[#8B5CF6]/10 via-transparent to-transparent opacity-100" />
-                      )}
-
-                      {/* Hover Border Overlay - All-around Glow */}
-                      <div className={`
-                        absolute inset-0 z-30 rounded-4xl pointer-events-none transition-all duration-500
-                        border-2 opacity-0 group-hover:opacity-100
-                        ${theme === 'dark' ? 'border-[#FFCE00]/50' : 'border-[#8B5CF6]/60'}
-                      `} />
-
-                      {/* Action Menu */}
-                      {!project.isShared && (
-                        <div className="absolute right-3 top-3 z-40" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault(); e.stopPropagation();
-                              setOpenProjectMenuId((prev) => (prev === project.id ? null : project.id));
-                            }}
-                            className={`
-                              cursor-pointer h-8 w-8 rounded-full flex items-center justify-center transition-all backdrop-blur-md
-                              ${theme === 'dark' ? 'bg-black/20 text-white/40 hover:text-white' : 'bg-[#8B5CF6]/10 text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white'}
-                            `}
-                          >
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                              <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
-                            </svg>
-                          </button>
-
-                          {openProjectMenuId === project.id && (
-                            <div className={`
-                              absolute right-0 mt-2 w-36 rounded-2xl border p-1 shadow-xl animate-in fade-in zoom-in duration-200 z-50
-                              ${theme === 'dark' ? 'bg-[#15093E] border-[#272261] text-white' : 'bg-white border-[#8B5CF6]/20 text-slate-700'}
-                            `}>
-                              <button
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleEditActiveProject(project); }}
-                                className={`w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 transition-colors ${theme === 'dark' ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" /></svg>
-                                Edit
-                              </button>
-                              <button
-                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleDeleteActiveProject(project); }}
-                                className={`w-full px-3 py-2 rounded-xl text-left text-sm text-red-500 flex items-center gap-2 transition-colors ${theme === 'dark' ? 'hover:bg-red-500/10' : 'hover:bg-red-50'}`}
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                                Delete
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Content Area */}
-                      <div role="button" onClick={() => router.push(`/design?projectId=${project.id}`)}>
-                        <div className={`relative w-full aspect-video overflow-hidden ${theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white'}`}>
-                          <DraftPreviewThumbnail
-                            projectId={project.id}
-                            borderColor="transparent"
-                            bgColor="transparent"
-                            className="w-full h-full aspect-16/10! rounded-none!"
-                          />
-                          {/* Subtle Violet Wash on Image */}
-                          <div className={`absolute inset-0 opacity-10 ${theme === 'light' ? 'bg-[#8B5CF6]' : 'bg-transparent'}`} />
-                        </div>
-
-                        <div className="p-6">
-                          <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
-                            theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
-                          }`}>
-                            {project.title || 'Untitled Project'}
-                          </h3>
-                          <p className={`text-[11px] font-bold tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
-                            {project.isShared ? `by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </motion.div>
+            <YourDesignsTabContent
+              theme={theme}
+              userName={userName}
+              loading={loading}
+              featuredProject={featuredProject}
+              indicatorCount={indicatorCount}
+              displayProjectIndex={displayProjectIndex}
+              carouselProjects={carouselProjects}
+              otherProjects={otherProjects}
+              allProjectsCount={allProjects.length}
+              showAllOtherProjects={showAllOtherProjects}
+              openProjectMenuId={openProjectMenuId}
+              isSliderTransitionEnabled={isSliderTransitionEnabled}
+              formatLastEdited={formatLastEdited}
+              formatEditedDate={formatEditedDate}
+              toWorkspaceLabel={toWorkspaceLabel}
+              getTrackTranslateClass={getTrackTranslateClass}
+              onTrackTransitionEnd={handleTrackTransitionEnd}
+              onOpenDesign={(projectId) => {
+                if (projectId) {
+                  router.push(`/design?projectId=${projectId}`);
+                  return;
+                }
+                router.push('/design');
+              }}
+              setActiveProjectIndex={setActiveProjectIndex}
+              setIsSliderTransitionEnabled={setIsSliderTransitionEnabled}
+              setShowAllOtherProjects={setShowAllOtherProjects}
+              setCreateModalOpen={setCreateModalOpen}
+              setOpenProjectMenuId={setOpenProjectMenuId}
+              onEditProject={handleEditActiveProject}
+              onDeleteProject={handleDeleteActiveProject}
+              renderProjectPreview={renderProjectPreview}
+            />
           ) : (
-            /* ── TEMPLATES TAB ──────────────────────────────────────── */
-            <motion.div
-              key="templates-tab"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-            >
-              {/* Browse by Industry */}
-              <section className="mx-auto w-full max-w-none pt-2 my-10">
-                <div className="mb-5 flex items-center justify-between">
-                  <h3 
-                    className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
-                      ${theme === 'dark' 
-                        ? 'text-[#FFCE00]' 
-                        : 'text-[#8B5CF6]' 
-                      }
-                    `}
-                  >
-                    Browse by Industry
-                  </h3> 
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                  {INDUSTRIES.map((industry) => {
-                    const foundKey = Object.keys(INDUSTRY_CONFIG).find(k => 
-                      industry.label.toLowerCase().includes(k)
-                    );      
-                    const activeIcon = INDUSTRY_CONFIG[(foundKey || 'creative') as keyof typeof INDUSTRY_CONFIG].icon;
-                    
-                    return (
-                      <button
-                        key={industry.label}
-                        type="button"
-                        className={`
-                          group relative h-25 sm:h-27.5 w-full overflow-hidden rounded-3xl border transition-all duration-300 text-left
-                          /* Dark Mode: Original preserved */
-                          ${theme === 'dark' 
-                            ? 'border-[#272261]/50 bg-[#23164E] hover:border-[#B13BFF] hover:bg-[#2A1756]' 
-                            : 'admin-dashboard-panel border-0'
-                          }
-                          hover:-translate-y-1 active:scale-95
-                        `}
-                      >
-                        {/* Background Detail: Soft Violet Curve */}
-                        <div className={`
-                          absolute -right-4 -top-6 h-[140%] w-[65%] rounded-full transition-transform duration-500 group-hover:scale-110
-                          ${theme === 'dark' ? 'bg-[#1A0D45]' : 'bg-[#A855F7]/10'}
-                        `} />
-
-                        {/* Foreground Content */}
-                        <div className="relative z-10 flex h-full w-full items-center justify-between px-5 sm:px-6">
-                          <span className={`
-                            max-w-[50%] text-sm sm:text-base font-[1000] leading-tight tracking-tight transition-all
-                            ${theme === 'dark' 
-                              ? 'text-white group-hover:text-white/90' 
-                              : 'text-[#7C3AED] group-hover:text-[#6B21A8]'
-                            }
-                          `}>
-                            {industry.label}
-                          </span>
-
-                          <div className="relative flex items-center justify-center">
-                            {/* Icon Housing: Crisp Violet Glass */}
-                            <div className={`
-                              relative flex h-14 w-14 items-center justify-center rounded-[22px] border transition-all duration-300 sm:h-16 sm:w-16
-                              ${theme === 'dark'
-                                ? 'border-[#3C3161] bg-[#26194E] [box-shadow:inset_0_2px_10px_rgba(255,255,255,0.02),inset_0_-2px_10px_rgba(0,0,0,0.4)] group-hover:border-[#FFCE00]/30 group-hover:bg-[#301E3D]'
-                                : 'border-[#A855F7]/20 bg-white/50 backdrop-blur-sm group-hover:bg-white group-hover:border-[#A855F7]/40 shadow-sm'
-                              }
-                            `}>
-                              <svg 
-                                className={`
-                                  h-7 w-7 transition-all duration-300 group-hover:scale-110
-                                  ${theme === 'dark' ? 'text-white/70 group-hover:text-[#FFCE00]' : 'text-[#A855F7]'} 
-                                `} 
-                                fill="none" 
-                                stroke="currentColor" 
-                                strokeWidth={2.5} 
-                                viewBox="0 0 24 24"
-                              >
-                                {activeIcon}
-                              </svg>
-                            </div>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <div className="mt-8 flex justify-center">
-                 <button
-                  type="button"
-                  className={`
-                    cursor-pointer text-sm font-black tracking-[0.2em] transition-all duration-300
-                    ${theme === 'dark' 
-                      ? 'text-[#8C84C8] hover:text-[#FFCE00]' 
-                      /* Light Mode: Using the Orchid/Amethyst theme from your reference */
-                      : 'text-[#A855F7] hover:text-[#7C3AED] hover:translate-x-1'
-                    }
-                  `}
-                >
-                  See More
-                </button>
-
-                </div>
-              </section>
-              <section className="mx-auto w-full max-w-none pt-2">
-                <div className="mb-5">
-                  <h3 
-                    className={`
-                      text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
-                      ${theme === 'dark' 
-                        ? 'text-[#FFCE00]' 
-                        : 'text-[#8B5CF6]' 
-                      }
-                    `}
-                  >
-                    Featured Templates
-                  </h3> 
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-[1.4fr_1fr] gap-4 h-auto lg:h-155">
-                  {/* Left — large featured card */}
-                  <div className="relative rounded-[22px] overflow-hidden h-105 lg:h-full group cursor-pointer hover:-translate-y-0.5 transition-transform">
-                    <img src="/images/template-portfolio.jpg" alt="PC Website" className="template-pan-img" loading="lazy" />
-                    
-                    {/* Clean, Light-First Overlays */}
-                    <div className={`
-                      absolute inset-0 transition-all duration-500
-                      ${theme === 'dark' 
-                        ? 'bg-linear-to-t from-[#0A0730]/95 via-[#0A0730]/40 to-transparent' 
-                        : 'bg-linear-to-t from-white/90 via-white/20 to-transparent group-hover:from-[#F3E8FF]/90'
-                      }
-                    `} />
-
-                    <div className="absolute bottom-0 left-0 p-6 flex flex-col gap-2">
-                      <span className={`
-                        text-[10px] font-black tracking-[0.22em] uppercase
-                        ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#A855F7]'}
-                      `}>
-                        Template
-                      </span>
-                      <h4 className={`
-                        text-2xl sm:text-3xl font-extrabold leading-tight transition-colors
-                        ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
-                      `}>
-                        Fashion Website
-                      </h4>
-                      <button type="button" className={`
-                        mt-1 flex items-center gap-2 text-xs font-black tracking-widest uppercase group-hover:gap-3 transition-all duration-200
-                        ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#A855F7]'}
-                      `}>
-                        Explore Collection
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right — 2 stacked cards */}
-                  <div className="flex flex-col gap-4 h-full">
-                    {/* Top right */}
-                    <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-60">
-                      <img src="/images/template-saas.jpg" alt="Simple Website" className="template-pan-img-slow" loading="lazy" />
-                      <div className={`
-                        absolute inset-0 transition-all duration-500
-                        ${theme === 'dark' 
-                          ? 'bg-linear-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent' 
-                          : 'bg-linear-to-t from-white/80 via-white/10 to-transparent'
-                        }
-                      `} />
-                      <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
-                        <span className={`
-                          text-[10px] font-black tracking-[0.22em] uppercase
-                          ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#A855F7]'}
-                        `}>
-                          Template
-                        </span>
-                        <h4 className={`
-                          text-xl font-extrabold leading-tight
-                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
-                        `}>
-                          Simple Website
-                        </h4>
-                      </div>
-                    </div>
-
-                    {/* Bottom right */}
-                    <div className="relative rounded-[22px] overflow-hidden flex-1 group cursor-pointer hover:-translate-y-0.5 transition-transform min-h-60">
-                      <img src="/images/template-fashion.jpg" alt="Fashion Website" className="template-pan-img" loading="lazy" />
-                      <div className={`
-                        absolute inset-0 transition-all duration-500
-                        ${theme === 'dark' 
-                          ? 'bg-linear-to-t from-[#0A0730]/90 via-[#0A0730]/30 to-transparent' 
-                          : 'bg-linear-to-t from-white/80 via-white/10 to-transparent'
-                        }
-                      `} />
-                      <div className="absolute bottom-0 left-0 p-5 flex flex-col gap-1">
-                        <span className={`
-                          text-[10px] font-black tracking-[0.22em] uppercase
-                          ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#A855F7]'}
-                        `}>
-                          Template
-                        </span>
-                        <h4 className={`
-                          text-xl font-extrabold leading-tight
-                          ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}
-                        `}>
-                          Fashion Website
-                        </h4>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-            </motion.div>
+            <TemplatesTabContent
+              theme={theme}
+              industries={INDUSTRIES}
+              getIndustryIcon={getIndustryIcon}
+            />
           )}
         </AnimatePresence>
       </div>
