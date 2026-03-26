@@ -1,12 +1,20 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNode, useEditor } from "@craftjs/core";
 import { listProducts, type ApiProduct } from "@/lib/api";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { ProductSliderSettings } from "./ProductSliderSettings";
+import { ProductImageOverlays } from "../productOverlays";
 
 export interface ProductSliderProps {
+  position?: string;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  zIndex?: number;
+
   // General
   showTitle?: boolean;
   title?: string;
@@ -51,6 +59,12 @@ const formatPrice = (price: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(price);
 
 export const ProductSlider = ({
+  position = "relative",
+  top,
+  left,
+  right,
+  bottom,
+  zIndex,
   showTitle = true,
   title = "Our Products",
   titleFontSize = 28,
@@ -60,8 +74,8 @@ export const ProductSlider = ({
   width = "100%",
   paddingTop = 48,
   paddingBottom = 48,
-  paddingLeft = 24,
-  paddingRight = 24,
+  paddingLeft = 0,
+  paddingRight = 0,
   gap = 18,
   cardWidth = 240,
   imageHeight = 220,
@@ -89,6 +103,41 @@ export const ProductSlider = ({
 
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(0);
+
+  // Track container width for responsive card sizing (use offsetWidth = full element width)
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setContainerWidth(el.offsetWidth);
+    });
+    ro.observe(el);
+    setContainerWidth(el.offsetWidth);
+    return () => ro.disconnect();
+  }, []);
+
+  // Responsive card count & width: fills full inner width at every breakpoint
+  const responsiveCardWidth = (() => {
+    if (containerWidth <= 0) return cardWidth;
+    // containerWidth = offsetWidth (full element width including padding)
+    // inner = content area after subtracting left+right padding
+    const inner = Math.max(0, containerWidth - paddingLeft - paddingRight);
+    let targetCount: number;
+    if (inner <= 480)       targetCount = 1;   // phone
+    else if (inner <= 768)  targetCount = 2;   // tablet portrait
+    else if (inner <= 1024) targetCount = 3;   // tablet landscape
+    else if (inner <= 1440) targetCount = 4;   // laptop
+    else                    targetCount = 5;   // desktop 1920+
+    const visibleCount = Math.max(1, Math.min(targetCount, products.length || targetCount));
+    return Math.floor((inner - gap * (visibleCount - 1)) / visibleCount);
+  })();
+
+  // Scale image height proportionally with card width (maintain ~1:1.1 aspect ratio)
+  const responsiveImageHeight = containerWidth <= 0
+    ? imageHeight
+    : Math.round(responsiveCardWidth * (imageHeight / Math.max(cardWidth, 1)));
 
   useEffect(() => {
     let cancelled = false;
@@ -102,15 +151,35 @@ export const ProductSlider = ({
 
   const isEmpty = !loading && products.length === 0;
 
+  const isFluidWidth = typeof width === "string" && width.trim().endsWith("%");
+
   return (
     <div
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => { if (ref) { connect(drag(ref)); (containerRef as React.MutableRefObject<HTMLDivElement | null>).current = ref; } }}
       data-node-id={id}
-      style={{ width, background, paddingTop, paddingBottom, paddingLeft, paddingRight, boxSizing: "border-box" }}
+      style={{
+        width,
+        minWidth: isFluidWidth ? width : undefined,
+        maxWidth: "100%",
+        display: "block",
+        alignSelf: isFluidWidth ? "stretch" : undefined,
+        background,
+        paddingTop,
+        paddingBottom,
+        paddingLeft,
+        paddingRight,
+        boxSizing: "border-box",
+        position: position as React.CSSProperties["position"],
+        top: top ?? undefined,
+        left: left ?? undefined,
+        right: right ?? undefined,
+        bottom: bottom ?? undefined,
+        zIndex: zIndex ?? undefined,
+      }}
     >
       {/* Title */}
       {showTitle && (
-        <h2 style={{ fontSize: titleFontSize, fontWeight: 700, color: titleColor, textAlign: titleAlign, marginBottom: gap, marginTop: 0 }}>
+        <h2 style={{ fontSize: titleFontSize, fontWeight: 700, color: titleColor, textAlign: titleAlign, marginBottom: gap, marginTop: 0, paddingLeft: 24, paddingRight: 24 }}>
           {title}
         </h2>
       )}
@@ -119,7 +188,7 @@ export const ProductSlider = ({
       {loading && (
         <div style={{ display: "flex", gap, overflowX: "auto", paddingBottom: 8 }}>
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} style={{ minWidth: cardWidth, height: imageHeight + 120, borderRadius: cardBorderRadius, background: "#e5e7eb", flexShrink: 0 }} />
+            <div key={i} style={{ minWidth: responsiveCardWidth, height: responsiveImageHeight + 120, borderRadius: cardBorderRadius, background: "#e5e7eb", flexShrink: 0 }} />
           ))}
         </div>
       )}
@@ -133,7 +202,7 @@ export const ProductSlider = ({
 
       {/* Slider */}
       {!loading && !isEmpty && (
-        <div style={{ display: "flex", gap, overflowX: "auto", paddingBottom: 8, scrollSnapType: "x mandatory" }}>
+        <div style={{ display: "flex", gap, overflowX: "hidden", paddingBottom: 4, flexWrap: "nowrap" }}>
           {products.map((product) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;
@@ -143,27 +212,14 @@ export const ProductSlider = ({
 
             return (
               <div key={product.id} style={{
-                minWidth: cardWidth, maxWidth: cardWidth, flexShrink: 0,
+                minWidth: responsiveCardWidth, maxWidth: responsiveCardWidth, flexShrink: 0,
                 background: cardBackground, borderRadius: cardBorderRadius,
                 border: `1px solid ${cardBorderColor}`,
                 display: "flex", flexDirection: "column", overflow: "hidden",
-                scrollSnapAlign: "start", position: "relative",
+                position: "relative",
               }}>
-                {/* Ribbon — right side of image, arrow points right */}
-                {showRibbon && (
-                  <div style={{
-                    position: "absolute", top: 8, right: -2, zIndex: 1,
-                    background: ribbonColor, color: "#fff",
-                    fontSize: 12, fontWeight: 700, padding: "4px 14px 4px 10px",
-                    clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)",
-                    letterSpacing: "0.02em",
-                  }}>
-                    {ribbonText}
-                  </div>
-                )}
-
                 {/* Image */}
-                <div style={{ position: "relative", width: "100%", height: imageHeight, flexShrink: 0 }}>
+                <div style={{ position: "relative", width: "100%", height: responsiveImageHeight, flexShrink: 0 }}>
                   {image ? (
                     <img src={image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                   ) : (
@@ -171,12 +227,15 @@ export const ProductSlider = ({
                       No image
                     </div>
                   )}
-                  {/* Discount badge */}
-                  {showDiscountBadge && hasDiscount && (
-                    <span style={{ position: "absolute", top: 8, left: 8, background: "#1e293b", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>
-                      {discountPct}% Off
-                    </span>
-                  )}
+                  <ProductImageOverlays
+                    frameWidth={responsiveCardWidth}
+                    showDiscountBadge={showDiscountBadge}
+                    hasDiscount={hasDiscount}
+                    discountPct={discountPct}
+                    showRibbon={showRibbon}
+                    ribbonText={ribbonText}
+                    ribbonColor={ribbonColor}
+                  />
                   {/* Quick view */}
                   {showQuickView && (
                     <button type="button" style={{
@@ -234,9 +293,10 @@ export const ProductSlider = ({
 ProductSlider.craft = {
   displayName: "Product Slider",
   props: {
+    position: "relative", top: "auto", left: "auto", right: "auto", bottom: "auto",
     showTitle: true, title: "Our Products", titleFontSize: 28, titleColor: "#111827", titleAlign: "center",
     background: "#f9fafb", width: "100%",
-    paddingTop: 48, paddingBottom: 48, paddingLeft: 24, paddingRight: 24,
+    paddingTop: 48, paddingBottom: 48, paddingLeft: 0, paddingRight: 0,
     gap: 18, cardWidth: 240, imageHeight: 220, cardBorderRadius: 8,
     cardBackground: "#ffffff", cardBorderColor: "#e5e7eb",
     showProductName: true, showPrice: true, showDivider: false,
@@ -245,7 +305,9 @@ ProductSlider.craft = {
     showAddToCart: true, buttonLabel: "Add to Cart",
     buttonBackground: "#111827", buttonTextColor: "#ffffff", buttonBorderRadius: 6,
     showQuickView: false,
+    zIndex: undefined,
   },
+  custom: { isPrebuiltBlock: true },
   related: { settings: ProductSliderSettings },
   rules: { canDrag: () => true, canDrop: () => true, canMoveIn: () => false },
   isCanvas: false,
