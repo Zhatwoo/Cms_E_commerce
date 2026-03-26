@@ -1555,12 +1555,16 @@ function isNarrowResponsivePreview(
   viewportWidth: number,
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
+  layoutReferenceWidth?: number,
 ): boolean {
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
-  // Use Tablet breakpoint (950) by default to ensure tablet preview is also responsive/fluid
   const breakpoint = toNumber(mobileBreakpoint, PREVIEW_TABLET_BREAKPOINT);
-  return viewportWidth <= breakpoint;
+  const authoredLayoutWidth =
+    typeof layoutReferenceWidth === "number" && Number.isFinite(layoutReferenceWidth) && layoutReferenceWidth > 0
+      ? layoutReferenceWidth
+      : null;
+  return viewportWidth <= breakpoint || (authoredLayoutWidth !== null && viewportWidth < authoredLayoutWidth);
 }
 
 function parsePixelValue(value: unknown): number | null {
@@ -1993,7 +1997,10 @@ function RenderNode({
   insideTabsContext?: boolean;
 }): React.ReactElement {
   void preserveAuthoredPositioning;
-  void layoutReferenceWidth;
+  const effectiveLayoutReferenceWidth =
+    typeof layoutReferenceWidth === "number" && Number.isFinite(layoutReferenceWidth) && layoutReferenceWidth > 0
+      ? layoutReferenceWidth
+      : undefined;
   void layoutReferenceHeight;
   // Normalize legacy lowercase node types so published and preview payloads render identically.
   const rawType = typeof node.type === "string" && node.type.trim() ? node.type : "Container";
@@ -2028,7 +2035,12 @@ function RenderNode({
   const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   const useFixedPx = Boolean(builderParityMode);
-  const isNarrowPreview = isNarrowResponsivePreview(viewportWidth, builderParityMode, mobileBreakpoint);
+  const isNarrowPreview = isNarrowResponsivePreview(
+    viewportWidth,
+    builderParityMode,
+    mobileBreakpoint,
+    effectiveLayoutReferenceWidth,
+  );
   if (!builderParityMode && !renderAllNodes && !shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
   }
@@ -3059,6 +3071,14 @@ function RenderNode({
       const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
       const originalPos = (props.position as string) || "relative";
       const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+      const isTrueMobileWidth = viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+      const shouldForceMobileButtonWidth =
+        !builderParityMode &&
+        isTrueMobileWidth &&
+        (originalPos === "absolute" || originalPos === "fixed" || isPercentWidth);
+      const resolvedButtonWidth = shouldForceMobileButtonWidth
+        ? "100%"
+        : (isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width);
 
       const content = (
         <span
@@ -3084,20 +3104,20 @@ function RenderNode({
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
             padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
             margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
-            width: isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width,
+            width: resolvedButtonWidth,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
             boxSizing: "border-box",
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
-            display: "inline-flex",
+            display: shouldForceMobileButtonWidth ? "flex" : "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: interactiveClick ? "pointer" : undefined,
             transform: btnTransform,
             transformOrigin: "center center",
-            minWidth: isPercentWidth ? (isNarrowPreview ? 0 : undefined) : "max-content",
-            flexShrink: isAutoWidth ? 0 : 1,
+            minWidth: shouldForceMobileButtonWidth ? 0 : (isPercentWidth ? (isNarrowPreview ? 0 : undefined) : "max-content"),
+            flexShrink: shouldForceMobileButtonWidth ? 1 : (isAutoWidth ? 0 : 1),
             textTransform: isCta ? "uppercase" : undefined,
             letterSpacing: isCta ? "0.08em" : undefined,
             whiteSpace: isNarrowPreview ? "normal" : "nowrap",
@@ -3134,7 +3154,7 @@ function RenderNode({
             style={{
               all: "unset",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
-              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              width: isPercentWidth || isNarrowPreview ? resolvedButtonWidth : undefined,
               cursor: "pointer",
             }}
           >
@@ -3159,7 +3179,7 @@ function RenderNode({
             style={{
               all: "unset",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
-              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              width: isPercentWidth || isNarrowPreview ? resolvedButtonWidth : undefined,
               cursor: "pointer",
             }}
           >
@@ -3175,7 +3195,7 @@ function RenderNode({
             style={{
               textDecoration: "none",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
-              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              width: isPercentWidth || isNarrowPreview ? resolvedButtonWidth : undefined,
             }}
           >
             {content}
@@ -4290,8 +4310,10 @@ export function WebPreview({
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
   const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
-  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const shouldUseResponsiveViewport = !fillViewport && viewportWidth > 0 && viewportWidth < pageWidthPx;
+  const isScaling = !isPhoneSize && !fillViewport && !shouldUseResponsiveViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
   const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+  const shouldStretchDesktopPage = !isPhoneSize && !fillViewport && !isScaling;
 
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -4344,7 +4366,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
+            viewportWidth={isPhoneSize || shouldUseResponsiveViewport ? viewportWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4382,7 +4404,7 @@ export function WebPreview({
           minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
           overflowY: "auto",
           backgroundColor: background,
@@ -4392,14 +4414,14 @@ export function WebPreview({
         <div
           key={currentPageId}
           style={{
-            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
-            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
+            maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
             height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
             minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight),
             backgroundColor: "transparent",
-            margin: "0 auto",
+            margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
-            transformOrigin: "top center",
+            transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
             position: "relative",
             isolation: "isolate",
             overflow: isScaling ? "visible" : "hidden",
@@ -4410,7 +4432,9 @@ export function WebPreview({
           {isPhoneSize ? (
             <div
               ref={mobileWrapperRef}
-              className={(isPhoneSize || fillViewport) ? "frame-responsive-inner frame-fluid frame-mobile" : "frame-responsive-inner"}
+              className={isPhoneSize
+                ? "frame-responsive-inner frame-fluid frame-mobile is-mobile-view"
+                : (fillViewport ? "frame-responsive-inner frame-fluid" : "frame-responsive-inner")}
               style={{
                 width: isScaling ? pageWidthPx : "100%",
                 minHeight: "100vh",
@@ -4481,8 +4505,11 @@ export function LiveSite({
   const { ref, width: measuredWidth } = useContainerWidth(1200);
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
   const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
-  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const viewportWidth = measuredWidth;
+  const shouldUseResponsiveViewport = !fillViewport && viewportWidth > 0 && viewportWidth < pageWidthPx;
+  const isScaling = !isPhoneSize && !fillViewport && !shouldUseResponsiveViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
   const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+  const shouldStretchDesktopPage = !isPhoneSize && !fillViewport && !isScaling;
 
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
@@ -4575,7 +4602,7 @@ export function LiveSite({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
+            viewportWidth={isPhoneSize || shouldUseResponsiveViewport ? viewportWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4615,7 +4642,7 @@ export function LiveSite({
           backgroundColor: background,
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
           ...transitionStyle,
         }}
@@ -4624,19 +4651,19 @@ export function LiveSite({
         <div
           key={currentPageId}
           style={{
-            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
-            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
+            maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
             height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
             minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
             backgroundColor: "transparent",
-            margin: "0 auto",
+            margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
-            transformOrigin: "top center",
+            transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
           }}
         >
           {isPhoneSize ? (
             <div style={{ width: "100%", boxSizing: "border-box", containerType: "inline-size" }}>
-              <div ref={liveSiteWrapperRef} className="frame-responsive-inner frame-fluid frame-mobile">
+              <div ref={liveSiteWrapperRef} className="frame-responsive-inner frame-fluid frame-mobile is-mobile-view">
                 {pageChildren}
               </div>
             </div>
