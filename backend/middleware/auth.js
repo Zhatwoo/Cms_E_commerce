@@ -39,7 +39,7 @@ exports.protect = async (req, res, next) => {
     req.user = {
       id: user.id,
       email: user.email,
-      name: user.displayName || user.email,
+      name: user.displayName || user.email || 'Administrator',
       role: user.role
     };
     next();

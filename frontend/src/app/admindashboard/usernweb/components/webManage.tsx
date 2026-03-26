@@ -324,7 +324,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
   const focusedWebsiteId = searchParams.get('websiteId') || '';
   const focusedWebsiteUserId = searchParams.get('websiteUserId') || '';
   const PAGE_SIZE = 20;
-  type SortOption = 'recent' | 'az' | 'za';
+  type SortOption = 'recent' | 'oldest' | 'az' | 'za';
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -338,7 +338,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [storageHintRowKey, setStorageHintRowKey] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const [actionModal, setActionModal] = useState<ActionModalState>({
     isOpen: false,
     title: '',
@@ -416,11 +415,12 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     const copy = [...visibleWebsites];
     if (sortOption === 'az') {
       copy.sort((a, b) => (a.domainName || '').localeCompare((b.domainName || ''), undefined, { sensitivity: 'base' }));
-      return copy;
-    }
-    if (sortOption === 'za') {
+    } else if (sortOption === 'za') {
       copy.sort((a, b) => (b.domainName || '').localeCompare((a.domainName || ''), undefined, { sensitivity: 'base' }));
-      return copy;
+    } else if (sortOption === 'recent') {
+      copy.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } else if (sortOption === 'oldest') {
+      copy.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     }
     return copy;
   }, [visibleWebsites, sortOption]);
@@ -428,18 +428,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
   useEffect(() => {
     setCurrentPage(1);
   }, [search, statusFilter, planFilter, domainTypeFilter, sortOption]);
-
-  useEffect(() => {
-    if (!sortMenuOpen) return;
-    const handleOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (sortMenuRef.current && !sortMenuRef.current.contains(target)) {
-        setSortMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [sortMenuOpen]);
 
   const totalPages = Math.max(1, Math.ceil(sortedVisibleWebsites.length / PAGE_SIZE));
 
@@ -767,42 +755,40 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9A62D8]"><ChevronDownIcon /></div>
               </div>
-              <div className="relative" ref={sortMenuRef}>
+
+              <div className="relative">
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((v) => !v)}
-                  className="h-11 w-11 inline-flex items-center justify-center rounded-[12px] border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF]"
+                  className="h-11 w-11 inline-flex items-center justify-center rounded-full border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF] transition-all"
                   aria-label="Sort websites"
                   title="Sort"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h12M4 12h16M10 18h10" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                   </svg>
                 </button>
                 {sortMenuOpen && (
-                  <div className="absolute left-0 top-12 z-40 w-44 rounded-xl border border-[#E2C7FF] bg-white shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('recent'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'recent' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Recently
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('az'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'az' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Alphabetical A-Z
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('za'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'za' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Alphabetical Z-A
-                    </button>
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setSortMenuOpen(false)} />
+                    <div className="absolute left-0 top-12 z-40 w-48 rounded-2xl border border-[#E2C7FF] bg-white/95 backdrop-blur-md shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5 animate-in fade-in zoom-in duration-200">
+                      {(['recent', 'oldest', 'az', 'za'] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => { setSortOption(opt); setSortMenuOpen(false); }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                            sortOption === opt ? 'bg-[#F3E8FF] text-[#6D28D9]' : 'text-[#6F657E] hover:bg-[#F8F2FF]'
+                          }`}
+                        >
+                          {opt === 'recent' && 'Recently Created'}
+                          {opt === 'oldest' && 'Oldest First'}
+                          {opt === 'az' && 'Alphabetical (A–Z)'}
+                          {opt === 'za' && 'Alphabetical (Z–A)'}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
             </div>
