@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
-import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
+import { PREVIEW_TABLET_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 
 export default function SubdomainSitePage() {
@@ -101,7 +101,7 @@ export default function SubdomainSitePage() {
       <WebPreview
         doc={cleanDoc}
         pageIndex={0}
-        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+        mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
         enableFormInputs
         builderParityMode={false}
       />

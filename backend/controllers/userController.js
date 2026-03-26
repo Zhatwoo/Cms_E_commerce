@@ -139,6 +139,7 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { name, email, role, status, phone, bio, avatar, isActive, subscriptionPlan } = req.body;
+    const nextPassword = typeof req.body.password === 'string' ? req.body.password.trim() : '';
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
@@ -158,9 +159,18 @@ exports.updateUser = async (req, res) => {
     if (isActive !== undefined) updates.isActive = isActive;
     if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
-    // Handle password update via Firebase Auth
-    if (req.body.password && req.body.password.trim().length >= 6) {
-      await auth.updateUser(req.params.id, { password: req.body.password.trim() });
+    if (nextPassword && nextPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const authUpdates = {};
+    if (email !== undefined) authUpdates.email = email.toLowerCase();
+    if (nextPassword) authUpdates.password = nextPassword;
+    if (Object.keys(authUpdates).length > 0) {
+      await auth.updateUser(req.params.id, authUpdates);
     }
 
     const updated = await User.update(req.params.id, updates);
