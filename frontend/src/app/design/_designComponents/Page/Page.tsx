@@ -77,7 +77,7 @@ export const Page = ({
         width,
         height: height === "auto" ? "auto" : height,
         minHeight: "800px",
-        backgroundColor: background,
+        background,
         overflowX: "hidden",
         overflowY: "visible",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,

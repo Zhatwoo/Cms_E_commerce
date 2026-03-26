@@ -232,7 +232,7 @@ export const Badge = ({
 			}}
 			className={customClassName}
 			style={{
-				backgroundColor: background,
+				background,
 				paddingLeft: fluidSpace(pl, 0),
 				paddingRight: fluidSpace(pr, 0),
 				paddingTop: fluidSpace(pt, 0),
