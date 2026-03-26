@@ -199,12 +199,14 @@ export const FilesPanel = () => {
   const [renamingNodeId, setRenamingNodeId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const renameInputRef = useRef<HTMLInputElement | null>(null);
+  const renameFocusedNodeIdRef = useRef<string | null>(null);
 
   const toggleExpanded = useCallback((nodeId: string) => {
     setExpandedMap((prev) => ({ ...prev, [nodeId]: !isExpanded(nodeId, prev) }));
   }, []);
 
   const handleStartRename = useCallback((nodeId: string, currentName: string) => {
+    renameFocusedNodeIdRef.current = null;
     setRenamingNodeId(nodeId);
     setRenameValue(currentName || "");
     setContextMenu(null);
@@ -220,22 +222,17 @@ export const FilesPanel = () => {
         p.pageSlug = slug;
       });
     } catch { /* node may be gone */ }
+    renameFocusedNodeIdRef.current = null;
     setRenamingNodeId(null);
     setRenameValue("");
   }, [renamingNodeId, renameValue, actions]);
 
   const handleCancelRename = useCallback(() => {
+    renameFocusedNodeIdRef.current = null;
     setRenamingNodeId(null);
     setRenameValue("");
     setContextMenu(null);
   }, []);
-
-  useEffect(() => {
-    if (renamingNodeId) {
-      requestAnimationFrame(() => renameInputRef.current?.focus());
-      renameInputRef.current?.select();
-    }
-  }, [renamingNodeId]);
 
   function isExpanded(nodeId: string, map: Record<string, boolean>): boolean {
     return map[nodeId] !== false; // default expanded
@@ -499,6 +496,7 @@ export const FilesPanel = () => {
     if (UNDRAGGABLE.has(displayName)) return;
     // Don't initiate drag from chevron clicks
     const target = e.target as HTMLElement;
+    if (renamingNodeId === nodeId || target.closest("input, textarea, [contenteditable='true']")) return;
     if (target.closest("[data-layer-expand]")) return;
 
     e.preventDefault();
@@ -716,7 +714,8 @@ export const FilesPanel = () => {
     const instanceIndex = nodeNameIndexMap.indexById[nodeId] ?? 1;
     const totalForName = nodeNameIndexMap.totalByName[baseName] ?? 1;
     const defaultName = totalForName > 1 ? `${baseName} ${instanceIndex}` : baseName;
-    const isPage = baseName === "Page";
+    const isPage = node.data?.displayName === "Page";
+    const isRenamingThisNode = renamingNodeId === nodeId;
     const pageName = (props.pageName as string | undefined)?.trim();
     const name = isPage && pageName ? pageName : defaultName;
     if (baseName === "Text") Icon = Type;
@@ -736,8 +735,10 @@ export const FilesPanel = () => {
           data-layer-parent={parentId || ""}
           data-layer-index={siblingIndex}
           data-layer-depth={depth}
-          onMouseDown={(e) => handleLayerMouseDown(e, nodeId, parentId)}
-          onClick={(e) => {
+          onMouseDown={isRenamingThisNode ? undefined : (e) => handleLayerMouseDown(e, nodeId, parentId)}
+          onClick={isRenamingThisNode ? undefined : (e) => {
+            const target = e.target as HTMLElement;
+            if (renamingNodeId === nodeId || target.closest("input, textarea, [contenteditable='true']")) return;
             if (dragRef.current?.activated) return;
             e.stopPropagation();
             const isMulti = e.ctrlKey || e.metaKey;
@@ -823,13 +824,23 @@ export const FilesPanel = () => {
           </div>
 
           <Icon className="w-4 h-4 opacity-70 shrink-0" style={{ WebkitUserDrag: "none" } as React.CSSProperties} />
-          {isPage && permission !== "viewer" && renamingNodeId === nodeId ? (
+          {isPage && permission !== "viewer" && isRenamingThisNode ? (
             <input
-              ref={renamingNodeId === nodeId ? renameInputRef : undefined}
+              ref={(node) => {
+                if (renamingNodeId !== nodeId) return;
+                renameInputRef.current = node;
+                if (node && renameFocusedNodeIdRef.current !== nodeId) {
+                  renameFocusedNodeIdRef.current = nodeId;
+                  node.focus();
+                  node.select();
+                }
+              }}
               type="text"
+              autoFocus
               value={renameValue}
               onChange={(e) => setRenameValue(e.target.value)}
               onBlur={handleCommitRename}
+              onMouseDown={(e) => e.stopPropagation()}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -938,6 +949,8 @@ export const FilesPanel = () => {
     const contextBaseName =
       nodeNameIndexMap.baseNameById[contextMenu.nodeId] ||
       getNodeBaseName(nodes[contextMenu.nodeId] as Record<string, any>);
+    const contextNode = nodes[contextMenu.nodeId];
+    const contextIsPage = contextNode?.data?.displayName === "Page";
     const contextIndex = nodeNameIndexMap.indexById[contextMenu.nodeId] ?? 1;
     const contextTotal = nodeNameIndexMap.totalByName[contextBaseName] ?? 1;
     const nodeName = contextTotal > 1 ? `${contextBaseName} ${contextIndex}` : contextBaseName;
@@ -991,11 +1004,10 @@ export const FilesPanel = () => {
           <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘V</span>
         </button>
         <div className="border-t border-[var(--builder-border)] my-0.5" />
-        {contextBaseName === "Page" && permission !== "viewer" && (
+        {contextIsPage && permission !== "viewer" && (
           <button
             onClick={() => {
-              const n = nodes[contextMenu.nodeId];
-              const pName = (n?.data?.props as Record<string, unknown>)?.pageName as string | undefined;
+              const pName = (contextNode?.data?.props as Record<string, unknown>)?.pageName as string | undefined;
               const currentName = (typeof pName === "string" && pName.trim()) ? pName.trim() : nodeName;
               handleStartRename(contextMenu.nodeId, currentName);
             }}
