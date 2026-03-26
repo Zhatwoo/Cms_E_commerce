@@ -1,7 +1,7 @@
 // routes/domainRoutes.js
 const express = require('express');
 const router = express.Router();
-const { getMyDomains, getOne, create, delete: deleteDomain, getAll, updateStatus, syncPublicLookup, publish, unpublish, updateSubdomain, schedulePublish, getSchedule, getPublishHistory, getManagementList, setClientDomainStatus, adminWebsiteAction } = require('../controllers/domainController');
+const { getMyDomains, getOne, create, delete: deleteDomain, getAll, updateStatus, syncPublicLookup, publish, unpublish, updateSubdomain, schedulePublish, getSchedule, getPublishHistory, getManagementList, setClientDomainStatus, adminWebsiteAction, adminUpdateClientSubdomain } = require('../controllers/domainController');
 const { listCustomDomains, addCustomDomain, verifyCustomDomain, removeCustomDomain } = require('../controllers/customDomainController');
 const { protect, admin } = require('../middleware/auth');
 
@@ -9,6 +9,7 @@ router.get('/my', protect, getMyDomains);
 router.get('/admin/management', protect, admin, getManagementList);
 router.post('/admin/set-client-status', protect, admin, setClientDomainStatus);
 router.post('/admin/website-action', protect, admin, adminWebsiteAction);
+router.post('/admin/update-subdomain', protect, admin, adminUpdateClientSubdomain);
 router.post('/publish', protect, publish);
 router.post('/unpublish', protect, unpublish);
 router.post('/update-subdomain', protect, updateSubdomain);

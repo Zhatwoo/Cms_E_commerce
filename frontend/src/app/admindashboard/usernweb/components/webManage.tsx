@@ -4,32 +4,32 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   getDomainsManagement,
+  adminUpdateClientDomainSubdomain,
   setClientDomainStatus,
+  updateProject,
   type WebsiteManagementRow,
 } from '@/lib/api';
 import { useGDriveSelection } from './useGDriveSelection';
 import {
   ChevronDownIcon,
-  ExternalLinkIcon,
   SearchIcon,
   StorageIcon,
-  TrashOutlineIcon,
 } from '@/lib/icons/adminIcons';
 import { getPlanPillClasses } from '@/lib/config/planConfig';
 import { getStatusBadgeClasses, getStatusLabel } from '@/lib/utils/adminStatus';
+import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 import { addNotification } from '@/lib/notifications';
 
 const ManageIcon = () => (
-  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5.12 17.804A11.953 11.953 0 0112 15.75c2.517 0 4.854.778 6.88 2.104M15 9a3 3 0 11-6 0 3 3 0 016 0z" />
-    <circle cx="12" cy="12" r="9" strokeWidth={2} />
-  </svg>
+  <img src="/icons/actions/editing.png" alt="Edit website" className="h-5 w-5 object-contain" />
 );
 
 const LockIcon = () => (
-  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V8a4 4 0 10-8 0v3m-1 0h10a1 1 0 011 1v7a1 1 0 01-1 1H7a1 1 0 01-1-1v-7a1 1 0 011-1z" />
-  </svg>
+  <img src="/icons/actions/padlock.png" alt="Take down" className="h-6 w-6 object-contain" />
+);
+
+const TrashIcon = () => (
+  <img src="/icons/actions/trash-bin.png" alt="Delete website" className="h-5 w-5 object-contain" />
 );
 
 function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
@@ -97,65 +97,91 @@ interface ManageWebsiteDetailProps {
 
 function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): React.ReactElement {
   const { id, userId, domainName, owner, plan: planParam } = website;
+  const initialIndustryRaw = website.industry || '';
+  const normalizedInitialIndustry = normalizeIndustryKey(initialIndustryRaw);
+  const hasKnownIndustryOption = INDUSTRY_OPTIONS.some((item) => item.key === normalizedInitialIndustry);
+  const initialIndustry = hasKnownIndustryOption ? normalizedInitialIndustry : '';
 
   const [status, setStatus] = useState(website.status ?? 'Live');
-  const [suspending, setSuspending] = useState(false);
+  const [working, setWorking] = useState(false);
+  const [currentDomainName, setCurrentDomainName] = useState(domainName || '');
+  const [currentIndustry, setCurrentIndustry] = useState(initialIndustry);
+  const [editableDomainName, setEditableDomainName] = useState(domainName || '');
+  const [editableIndustry, setEditableIndustry] = useState(initialIndustry);
   const [toast, setToast] = useState<string | null>(null);
 
-  const viewUrl = getViewWebsiteUrl(domainName);
-  const isSuspended = status.toLowerCase() === 'suspended';
+  const currentIndustryLabel = useMemo(() => {
+    if (!currentIndustry) return 'Not set';
+    const found = INDUSTRY_OPTIONS.find((item) => item.key === currentIndustry);
+    return found?.label || currentIndustry;
+  }, [currentIndustry]);
+
+  const viewUrl = getViewWebsiteUrl(currentDomainName);
 
   const handleViewWebsite = useCallback(() => {
     if (viewUrl && viewUrl !== '#') window.open(viewUrl, '_blank', 'noopener,noreferrer');
   }, [viewUrl]);
 
-  const handleSuspend = useCallback(async () => {
-    if (!userId || !id) {
-      setToast('Missing domain or user.');
+  const toSubdomain = useCallback((value: string): string => {
+    const host = value.trim().toLowerCase().replace(/^https?:\/\//, '').split('/')[0] || '';
+    const noPort = host.split(':')[0] || '';
+    const firstPart = noPort.split('.')[0] || noPort;
+    return firstPart.replace(/[^a-z0-9-]/g, '').replace(/^-+|-+$/g, '');
+  }, []);
+
+  const handleSaveWebsiteDetails = useCallback(async () => {
+    if (!website.userId) {
+      setToast('This website cannot be edited because userId is missing.');
       setTimeout(() => setToast(null), 3000);
       return;
     }
-    setSuspending(true);
-    try {
-      const res = await setClientDomainStatus(userId, id, 'suspended');
-      if (res.success) {
-        setStatus('Suspended');
-        addNotification("Website Suspended", `Suspended ${domainName || 'unknown website'}.`, 'warning');
-        setToast('Website suspended.');
-        setTimeout(() => setToast(null), 3000);
-      } else {
-        setToast(res.message ?? 'Failed to suspend');
-        setTimeout(() => setToast(null), 3000);
-      }
-    } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Failed to suspend');
-      setTimeout(() => setToast(null), 3000);
-    } finally {
-      setSuspending(false);
-    }
-  }, [userId, id]);
 
-  const handleReactivate = useCallback(async () => {
-    if (!userId || !id) return;
-    setSuspending(true);
+    const trimmedDomain = editableDomainName.trim();
+    const normalizedDomain = trimmedDomain.replace(/^https?:\/\//, '').split('/')[0].toLowerCase();
+    const trimmedIndustry = editableIndustry.trim();
+    const domainChanged = normalizedDomain !== currentDomainName;
+    const industryChanged = trimmedIndustry !== currentIndustry;
+
+    if (!domainChanged && !industryChanged) {
+      setToast('No changes to save.');
+      setTimeout(() => setToast(null), 2000);
+      return;
+    }
+
+    setWorking(true);
     try {
-      const res = await setClientDomainStatus(userId, id, 'published');
-      if (res.success) {
-        setStatus('Live');
-        addNotification("Website Reactivated", `Reactivated ${domainName || 'unknown website'}.`, 'success');
-        setToast('Website reactivated.');
-        setTimeout(() => setToast(null), 3000);
-      } else {
-        setToast(res.message ?? 'Failed to reactivate');
-        setTimeout(() => setToast(null), 3000);
+      if (domainChanged) {
+        const nextSubdomain = toSubdomain(normalizedDomain);
+        if (!nextSubdomain) throw new Error('Enter a valid domain name.');
+        const res = await adminUpdateClientDomainSubdomain(website.userId, nextSubdomain, {
+          projectId: website.projectId,
+          domainId: website.id,
+        });
+        if (!res.success) throw new Error(res.message || 'Failed to update domain name');
       }
+
+      if (industryChanged) {
+        if (!website.projectId) throw new Error('Industry can only be updated when projectId is available.');
+        const res = await updateProject(website.projectId, { industry: trimmedIndustry || null });
+        if (!res.success) throw new Error(res.message || 'Failed to update industry');
+      }
+
+      if (domainChanged) {
+        setCurrentDomainName(normalizedDomain);
+        setEditableDomainName(normalizedDomain);
+      }
+      if (industryChanged) setCurrentIndustry(trimmedIndustry);
+
+      addNotification('Website Updated', `${website.domainName || 'Website'} details were updated.`, 'success');
+      setToast('Website details updated.');
+      setTimeout(() => setToast(null), 2500);
     } catch (e) {
-      setToast(e instanceof Error ? e.message : 'Failed to reactivate');
+      setToast(e instanceof Error ? e.message : 'Failed to update website details');
       setTimeout(() => setToast(null), 3000);
     } finally {
-      setSuspending(false);
+      setWorking(false);
     }
-  }, [userId, id]);
+  }, [website, editableDomainName, editableIndustry, currentDomainName, currentIndustry, toSubdomain]);
 
   const handleCopyUrl = useCallback(() => {
     if (viewUrl && viewUrl !== '#') {
@@ -168,7 +194,7 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
 
   const handleFlag = useCallback(async () => {
     if (!userId || !id) return;
-    setSuspending(true);
+    setWorking(true);
     try {
       const res = await setClientDomainStatus(userId, id, 'flagged');
       if (res.success) {
@@ -184,23 +210,33 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
       setToast(e instanceof Error ? e.message : 'Failed to flag');
       setTimeout(() => setToast(null), 3000);
     } finally {
-      setSuspending(false);
+      setWorking(false);
     }
   }, [userId, id]);
 
   return (
-    <div className="w-full p-6 lg:p-8">
+    <div className="w-full px-6 pb-6 lg:px-8 lg:pb-8">
       {toast && (
         <div className="fixed top-6 right-6 z-50 bg-gray-900 text-white text-sm px-4 py-2.5 rounded-lg shadow-lg">
           {toast}
         </div>
       )}
 
+      <div className="mb-5 -mt-11 flex justify-start">
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
+        >
+          <span aria-hidden="true">←</span>
+          <span>Back to Domain Management</span>
+        </button>
+      </div>
+
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Manage Website</h1>
-          <p className="text-gray-600 mt-1">{domainName || '—'}</p>
+          <p className="text-gray-600 mt-1">{currentDomainName || '—'}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button
@@ -220,29 +256,19 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
           {(status.toLowerCase() !== 'flagged') && (
             <button
               onClick={handleFlag}
-              disabled={suspending}
+              disabled={working}
               className="px-6 py-2.5 bg-amber-100 text-amber-800 rounded-lg hover:bg-amber-200 disabled:opacity-50 transition-all font-medium"
             >
               Flag
             </button>
           )}
-          {isSuspended ? (
-            <button
-              onClick={handleReactivate}
-              disabled={suspending}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all font-medium"
-            >
-              {suspending ? 'Updating…' : 'Reactivate'}
-            </button>
-          ) : (
-            <button
-              onClick={handleSuspend}
-              disabled={suspending}
-              className="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all font-medium"
-            >
-              {suspending ? 'Suspending…' : 'Suspend'}
-            </button>
-          )}
+          <button
+            onClick={handleSaveWebsiteDetails}
+            disabled={working}
+            className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-all font-medium"
+          >
+            {working ? 'Saving…' : 'Save changes'}
+          </button>
         </div>
       </div>
 
@@ -259,7 +285,12 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Domain</p>
-                <p className="text-base font-semibold text-gray-900">{domainName || '—'}</p>
+                <input
+                  value={editableDomainName}
+                  onChange={(e) => setEditableDomainName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF]"
+                  placeholder="website.localhost:3000"
+                />
               </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Status</p>
@@ -270,11 +301,27 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
                 </span>
               </div>
               <div>
-                <p className="text-sm text-gray-600 mb-1">Plan</p>
-                <p className="text-base font-semibold text-gray-900">{planParam} Plan</p>
+                <label htmlFor="manage-website-industry" className="text-sm text-gray-600 mb-1 block">Industry</label>
+                <select
+                  id="manage-website-industry"
+                  data-industry-select="true"
+                  value={editableIndustry}
+                  onChange={(e) => setEditableIndustry(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF]"
+                >
+                  <option value="" disabled>Select industry</option>
+                  {INDUSTRY_OPTIONS.map((item) => (
+                    <option key={item.key} value={item.key}>{item.label}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">Current: {currentIndustryLabel}</p>
               </div>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-6 pt-6 border-t border-gray-200">
+              <div>
+                <p className="text-sm text-gray-600 mb-1">Plan</p>
+                <p className="text-base font-semibold text-gray-900">{planParam} Plan</p>
+              </div>
               <div>
                 <p className="text-sm text-gray-600 mb-1">Domain Type</p>
                 <p className="text-base font-semibold text-gray-900">Subdomain</p>
@@ -288,14 +335,8 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Actions</h2>
             <p className="text-sm text-gray-600 mb-4">
-              Use &quot;View Website&quot; to open the site. &quot;Copy URL&quot; copies the link. &quot;Suspend&quot; disables the site; &quot;Reactivate&quot; brings it back. &quot;Flag&quot; marks for review.
+              Edit domain name and industry, then click &quot;Save changes&quot;. Use &quot;View Website&quot; to open the site and &quot;Copy URL&quot; to copy the current link.
             </p>
-            <button
-              onClick={onBack}
-              className="text-gray-600 hover:text-gray-900 text-sm font-medium"
-            >
-              ← Back to Domain Management
-            </button>
           </div>
         </div>
       </div>
@@ -497,19 +538,23 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     return items;
   }, [currentPage, totalPages]);
 
-  const handleToggleSuspend = async (w: WebsiteManagementRow) => {
+  const handleTakeDown = async (w: WebsiteManagementRow) => {
+    if ((w.status || '').toLowerCase() === 'suspended') {
+      setToast('Website is already taken down');
+      setTimeout(() => setToast(null), 2500);
+      return;
+    }
     setActionLoadingId(w.id);
-    const nextStatus = (w.status || '').toLowerCase() === 'suspended' ? 'published' : 'suspended';
+    const nextStatus = 'suspended';
     try {
       const res = await setClientDomainStatus(w.userId, w.id, nextStatus);
       if (res.success) {
         setWebsites((prev) => prev.map((row) =>
           row.id === w.id && row.userId === w.userId
-            ? { ...row, status: nextStatus === 'published' ? 'Live' : 'Suspended' }
+            ? { ...row, status: 'Suspended' }
             : row
         ));
-        const actionLabel = nextStatus === 'published' ? 'Reactivated' : 'Suspended';
-        addNotification(`Website ${actionLabel}`, `${actionLabel} ${w.domainName}.`, nextStatus === 'published' ? 'success' : 'warning');
+        addNotification('Website Taken Down', `Taken down ${w.domainName}.`, 'warning');
       } else {
         setToast(res.message || 'Failed to update status');
         setTimeout(() => setToast(null), 2500);
@@ -557,26 +602,23 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     if (action) await action();
   };
 
-  const confirmToggleSuspend = async (w: WebsiteManagementRow) => {
-    const isSuspended = (w.status || '').toLowerCase() === 'suspended';
+  const confirmTakeDown = async (w: WebsiteManagementRow) => {
     openActionModal({
-      title: isSuspended ? 'Reactivate website?' : 'Suspend website?',
-      message: isSuspended ? 'This website will be set back to active.' : 'This website will be suspended.',
-      confirmText: isSuspended ? 'Reactivate' : 'Suspend',
-      confirmButtonClass: isSuspended
-        ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-        : 'bg-amber-600 hover:bg-amber-700 text-white',
+      title: 'Take down website?',
+      message: 'This website will be suspended.',
+      confirmText: 'Take down',
+      confirmButtonClass: 'bg-amber-600 hover:bg-amber-700 text-white',
       action: async () => {
-        await handleToggleSuspend(w);
+        await handleTakeDown(w);
       },
     });
   };
 
-  const confirmFlag = async (w: WebsiteManagementRow) => {
+  const confirmDelete = async (w: WebsiteManagementRow) => {
     openActionModal({
-      title: 'Delete/flag website?',
+      title: 'Delete website?',
       message: 'This action cannot be easily undone.',
-      confirmText: 'Delete',
+      confirmText: 'Delete website',
       confirmButtonClass: 'bg-red-600 hover:bg-red-700 text-white',
       action: async () => {
         await handleFlag(w);
@@ -891,7 +933,6 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                 <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : sortedVisibleWebsites.length > 0 ? (
                 pagedWebsites.map((w) => {
-                  const viewUrl = getViewWebsiteUrl(w.domainName);
                   const key = `${w.userId}::${w.id}`;
                   const busy = actionLoadingId === w.id;
                   const storage = getWebsiteStorage(w);
@@ -969,49 +1010,38 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                       </td>
                       <td className="px-3 py-4 text-right">
                         <div className="inline-flex items-center gap-3 justify-end text-[#5A2AA8]">
-                          <Tooltip label="Manage website details">
+                          <Tooltip label="Edit website">
                             <button
                               type="button"
                               onClick={() => onManage(w)}
                               className="p-1.5 hover:text-[#3D1C87] transition-colors"
-                              aria-label="Manage website"
+                              aria-label="Edit website"
                             >
                               <ManageIcon />
                             </button>
                           </Tooltip>
-                          <Tooltip label={(w.status || '').toLowerCase() === 'suspended' ? 'Reactivate website' : 'Suspend website'}>
+                          <Tooltip label="Take down website">
                             <button
                               type="button"
-                              onClick={() => confirmToggleSuspend(w)}
+                              onClick={() => confirmTakeDown(w)}
                               disabled={busy}
                               className="p-1.5 hover:text-[#3D1C87] disabled:opacity-50 transition-colors"
-                              aria-label="Toggle website suspension"
+                              aria-label="Take down website"
                             >
                               <LockIcon />
                             </button>
                           </Tooltip>
-                          <button
-                            type="button"
-                            onClick={() => confirmFlag(w)}
-                            disabled={busy}
-                            className="p-1.5 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
-                            aria-label="Flag website"
-                          >
-                            <TrashOutlineIcon />
-                          </button>
-                          {viewUrl !== '#' && (
-                            <Tooltip label="Open website in new tab">
-                              <a
-                                href={viewUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-1.5 hover:text-[#3D1C87] transition-colors"
-                                aria-label="Open website"
-                              >
-                                <span className="inline-flex h-6 w-6 items-center justify-center"><ExternalLinkIcon /></span>
-                              </a>
-                            </Tooltip>
-                          )}
+                          <Tooltip label="Delete website">
+                            <button
+                              type="button"
+                              onClick={() => confirmDelete(w)}
+                              disabled={busy}
+                              className="p-1.5 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
+                              aria-label="Delete website"
+                            >
+                              <TrashIcon />
+                            </button>
+                          </Tooltip>
                         </div>
                       </td>
                     </tr>

@@ -88,6 +88,7 @@ exports.getManagementList = async (req, res) => {
       const domainName = subdomain ? `${subdomain}.${BASE_DOMAIN}` : '—';
       let projectId = rawProjectId ? String(rawProjectId).trim() : '';
       let projectThumbnail = null;
+      let projectIndustry = null;
       const ownerInfo = ownerMap.get(userId) || { owner: 'Unknown User', planDisplay: 'Free' };
       if (userId) {
         // Best-effort project lookup so admin cards can render real thumbnails.
@@ -102,6 +103,7 @@ exports.getManagementList = async (req, res) => {
           if (project) {
             projectId = String(project.id || projectId || '').trim();
             projectThumbnail = project.thumbnail || null;
+            projectIndustry = project.industry || null;
           }
         } catch (e) {
           // keep defaults
@@ -115,6 +117,7 @@ exports.getManagementList = async (req, res) => {
         userId: userId || '',
         domainName,
         thumbnail: projectThumbnail || undefined,
+        industry: projectIndustry || undefined,
         owner: ownerInfo.owner,
         status,
         plan: ownerInfo.planDisplay,
@@ -146,6 +149,9 @@ exports.getManagementList = async (req, res) => {
           if (!existing.thumbnail && project.thumbnail) {
             existing.thumbnail = project.thumbnail;
           }
+          if (!existing.industry && project.industry) {
+            existing.industry = project.industry;
+          }
           if ((!existing.domainName || existing.domainName === '—') && project.subdomain) {
             existing.domainName = `${project.subdomain}.${BASE_DOMAIN}`;
           }
@@ -176,6 +182,7 @@ exports.getManagementList = async (req, res) => {
           userId: client.id,
           domainName,
           thumbnail: project.thumbnail || undefined,
+          industry: project.industry || undefined,
           owner: client.displayName || client.fullName || client.email || 'Unknown User',
           status: normalizedStatus,
           plan: ((client.subscriptionPlan || 'free').toString().trim().toLowerCase().replace(/^./, (ch) => ch.toUpperCase())),
@@ -623,6 +630,82 @@ exports.updateSubdomain = async (req, res) => {
         console.warn('updateSubdomain: Realtime DB sync failed:', e.message);
       }
     }
+    res.status(200).json({ success: true, message: 'Subdomain updated', data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+// Admin: update subdomain for a client project/domain
+exports.adminUpdateClientSubdomain = async (req, res) => {
+  try {
+    const { userId, projectId, domainId, subdomain } = req.body || {};
+    if (!userId || !String(userId).trim()) {
+      return res.status(400).json({ success: false, message: 'userId is required' });
+    }
+    if (!subdomain || !String(subdomain).trim()) {
+      return res.status(400).json({ success: false, message: 'subdomain is required' });
+    }
+
+    const ownerId = String(userId).trim();
+    const normalized = String(subdomain).trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (!normalized) {
+      return res.status(400).json({ success: false, message: 'Subdomain must contain only letters, numbers, and hyphens' });
+    }
+
+    const providedProjectId = projectId ? String(projectId).trim() : '';
+    const providedDomainId = domainId ? String(domainId).trim() : '';
+    let targetProjectId = providedProjectId;
+
+    let domain = null;
+    if (providedDomainId) {
+      domain = await Domain.get(ownerId, providedDomainId);
+      if (!domain) {
+        domain = await Domain.findByProjectId(ownerId, providedDomainId);
+      }
+      if (!domain) {
+        const bySubdomain = await Domain.findBySubdomain(providedDomainId);
+        if (bySubdomain && bySubdomain.userId === ownerId && bySubdomain.id) {
+          domain = await Domain.get(ownerId, bySubdomain.id);
+        }
+      }
+    }
+
+    if (!targetProjectId && domain?.projectId) {
+      targetProjectId = String(domain.projectId).trim();
+    }
+
+    if (!targetProjectId && providedDomainId) {
+      targetProjectId = providedDomainId;
+    }
+
+    if (!targetProjectId) {
+      return res.status(400).json({ success: false, message: 'projectId or domainId is required' });
+    }
+
+    const project = await Project.get(ownerId, targetProjectId);
+    if (!project) {
+      return res.status(404).json({ success: false, message: 'Project not found' });
+    }
+
+    const ownerSnapshot = await buildOwnerSnapshot(ownerId);
+    const data = await Domain.updateSubdomainForClient(ownerId, targetProjectId, normalized, ownerSnapshot);
+    if (!data) {
+      return res.status(400).json({ success: false, message: 'Domain not found. Publish the site first.' });
+    }
+
+    await Project.update(ownerId, targetProjectId, { subdomain: normalized });
+
+    const rtdb = getRealtimeDb();
+    if (rtdb) {
+      try {
+        const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${targetProjectId}`);
+        await rtdbRef.update({ subdomain: normalized });
+      } catch (e) {
+        console.warn('adminUpdateClientSubdomain: Realtime DB sync failed:', e.message);
+      }
+    }
+
     res.status(200).json({ success: true, message: 'Subdomain updated', data });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
