@@ -1,36 +1,78 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface LoadingContextType {
     startLoading: () => void;
+    stopLoading: () => void;
 }
 
 const LoadingContext = createContext<LoadingContextType | undefined>(undefined);
 
 export function LoadingProvider({ children, forceLoading = false }: { children: React.ReactNode; forceLoading?: boolean }) {
+    const MIN_VISIBLE_MS = 350;
+    const MAX_LOADING_MS = 20000;
+
     const [isLoading, setIsLoading] = useState(false);
-    const [startPath, setStartPath] = useState<string | null>(null);
+    const [startRouteKey, setStartRouteKey] = useState<string | null>(null);
+    const startedAtRef = useRef<number>(0);
+    const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+
+    const routeKey = `${pathname}?${searchParams.toString()}`;
 
     const startLoading = () => {
-        setStartPath(pathname);
+        if (stopTimerRef.current) {
+            clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
+        }
+        startedAtRef.current = Date.now();
+        setStartRouteKey(routeKey);
         setIsLoading(true);
     };
 
-    useEffect(() => {
-        if (pathname !== startPath) {
-            setIsLoading(false);
-            setStartPath(null);
+    const stopLoading = () => {
+        if (stopTimerRef.current) {
+            clearTimeout(stopTimerRef.current);
+            stopTimerRef.current = null;
         }
-    }, [pathname, startPath]);
+        setIsLoading(false);
+        setStartRouteKey(null);
+    };
 
-    const routeLoading = forceLoading || (isLoading && startPath === pathname);
+    useEffect(() => {
+        if (!isLoading || !startRouteKey) return;
+        if (startRouteKey && routeKey !== startRouteKey) {
+            const elapsed = Date.now() - startedAtRef.current;
+            const delay = Math.max(0, MIN_VISIBLE_MS - elapsed);
+            stopTimerRef.current = window.setTimeout(() => {
+                stopLoading();
+            }, delay);
+        }
+    }, [routeKey, startRouteKey, isLoading]);
+
+    useEffect(() => {
+        if (!isLoading) return;
+        const timer = window.setTimeout(() => {
+            stopLoading();
+        }, MAX_LOADING_MS);
+        return () => window.clearTimeout(timer);
+    }, [isLoading]);
+
+    useEffect(() => {
+        return () => {
+            if (stopTimerRef.current) clearTimeout(stopTimerRef.current);
+        };
+    }, []);
+
+    const routeLoading = forceLoading || isLoading;
 
     return (
-        <LoadingContext.Provider value={{ startLoading }}>
+        <LoadingContext.Provider value={{ startLoading, stopLoading }}>
             <AnimatePresence>
                 {routeLoading && (
                     <motion.div 
@@ -59,6 +101,6 @@ export function LoadingProvider({ children, forceLoading = false }: { children: 
 export const useAdminLoading = () => contextValue(useContext(LoadingContext));
 
 function contextValue(context: LoadingContextType | undefined) {
-    if (!context) return { startLoading: () => {} }; // Fallback to no-op
+    if (!context) return { startLoading: () => {}, stopLoading: () => {} }; // Fallback to no-op
     return context;
 }
