@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
@@ -38,6 +39,7 @@ export const ButtonSettings = () => {
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
+    position, display, zIndex, top, right, bottom, left, editorVisibility,
     actions: { setProp }
   } = useNode(node => ({
     label: node.data.props.label,
@@ -65,18 +67,40 @@ export const ButtonSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
   }));
 
   const typedSetProp = setProp as SetProp<ButtonProps>;
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Position & Transform">
+      <DesignSection title="Transform">
         <TransformGroup
           rotation={rotation}
           flipHorizontal={flipHorizontal}
           flipVertical={flipVertical}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
@@ -137,7 +161,23 @@ export const ButtonSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Style">
+      <DesignSection title="Size & Spacing">
+        <SizePositionGroup
+          width={width}
+          height={height}
+          paddingLeft={paddingLeft}
+          paddingRight={paddingRight}
+          paddingTop={paddingTop}
+          paddingBottom={paddingBottom}
+          marginLeft={marginLeft}
+          marginRight={marginRight}
+          marginTop={marginTop}
+          marginBottom={marginBottom}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Appearance">
         <div className="flex flex-col gap-3">
           {/* Colors */}
           <div className="grid grid-cols-2 gap-3">
@@ -218,22 +258,6 @@ export const ButtonSettings = () => {
             </select>
           </div>
         </div>
-      </DesignSection>
-
-      <DesignSection title="Size & Position">
-        <SizePositionGroup
-          width={width}
-          height={height}
-          paddingLeft={paddingLeft}
-          paddingRight={paddingRight}
-          paddingTop={paddingTop}
-          paddingBottom={paddingBottom}
-          marginLeft={marginLeft}
-          marginRight={marginRight}
-          marginTop={marginTop}
-          marginBottom={marginBottom}
-          setProp={typedSetProp}
-        />
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

@@ -20,11 +20,13 @@ export const PageSettings = () => {
   const typedSetProp = setProp as SetProp<PageProps>;
 
   const handlePageNameChange = (name: string) => {
-    const trimmed = name.trim() || "Page Name";
-    const slug = slugFromName(trimmed);
+    const trimmed = name.trim();
     typedSetProp((props) => {
       props.pageName = trimmed;
-      props.pageSlug = slug;
+      // Only update slug if name is not empty
+      if (trimmed) {
+        props.pageSlug = slugFromName(trimmed);
+      }
     });
   };
 

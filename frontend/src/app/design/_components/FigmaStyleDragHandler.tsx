@@ -362,6 +362,15 @@ export const FigmaStyleDragHandler = () => {
     initialSelectionRect: Rect | null;
   } | null>(null);
 
+  const sectionDragRef = useRef<{
+    sectionId: string;
+    startX: number;
+    startY: number;
+    lastX: number;
+    lastY: number;
+    committed: boolean;
+  } | null>(null);
+
   useEffect(() => {
     actionsRef.current = actions;
     queryRef.current = query;
@@ -544,6 +553,60 @@ export const FigmaStyleDragHandler = () => {
       props.marginLeft = clamp(rawMarginLeft, MARGIN_MIN, MARGIN_MAX);
     };
 
+    const clearSectionDropIndicator = () => {
+      const indicator = insertIndicatorRef.current;
+      if (indicator) indicator.style.display = "none";
+    };
+
+    const updateSectionDropIndicator = (sectionId: string, clientY: number) => {
+      try {
+        const state = queryRef.current.getState();
+        const nodes = state.nodes as NodesMap;
+        const sectionNode = nodes[sectionId];
+        const parentId = sectionNode?.data?.parent as string | undefined;
+        let pageId: string | undefined = parentId;
+        while (pageId && nodes[pageId]?.data?.displayName !== "Page" && nodes[pageId]?.data?.displayName !== "Viewport") {
+          pageId = nodes[pageId]?.data?.parent as string | undefined;
+        }
+        if (!pageId) pageId = Object.keys(nodes).find(id => nodes[id]?.data?.displayName === "Page");
+        if (!pageId) return;
+
+        const siblings = ((nodes[pageId] as any)?.data?.nodes as string[] | undefined) ?? [];
+        const insertIdx = computeInsertIndex(pageId, 0, clientY, nodes, [sectionId], queryRef.current.node);
+
+        // Find the DOM element to position the indicator near
+        let refDom: HTMLElement | null = null;
+        let insertBefore = true;
+        if (insertIdx < siblings.length) {
+          const refId = siblings.filter(id => id !== sectionId)[insertIdx] ?? siblings[insertIdx];
+          try { refDom = queryRef.current.node(refId).get()?.dom ?? null; } catch { refDom = null; }
+          insertBefore = true;
+        } else {
+          const lastId = siblings.filter(id => id !== sectionId).at(-1);
+          if (lastId) {
+            try { refDom = queryRef.current.node(lastId).get()?.dom ?? null; } catch { refDom = null; }
+            insertBefore = false;
+          }
+        }
+
+        if (!refDom) return;
+        const rect = refDom.getBoundingClientRect();
+        const y = insertBefore ? rect.top : rect.bottom;
+
+        let indicator = insertIndicatorRef.current;
+        if (!indicator) {
+          indicator = document.createElement("div");
+          indicator.style.cssText = "position:fixed;left:0;right:0;height:3px;background:#3b82f6;pointer-events:none;z-index:99999;border-radius:2px;";
+          document.body.appendChild(indicator);
+          insertIndicatorRef.current = indicator;
+        }
+        indicator.style.top = `${y - 1.5}px`;
+        indicator.style.display = "block";
+      } catch {
+        clearSectionDropIndicator();
+      }
+    };
+
     const handleMouseDown = (e: MouseEvent) => {
       if (e.button !== 0) return;
       const target = e.target as HTMLElement | null;
@@ -576,6 +639,26 @@ export const FigmaStyleDragHandler = () => {
         return;
       }
 
+      const clickedDisplayName = state.nodes[nodeIdFromTarget]?.data?.displayName as string | undefined;
+      if (clickedDisplayName === "Section") {
+        // Section drag is handled via the drag handle — let it through only if the handle was clicked
+        const isDragHandle = !!(target as HTMLElement).closest("[data-section-drag-handle='true']");
+        if (!isDragHandle) return;
+        // Start section drag tracking
+        if (e.cancelable) e.preventDefault();
+        e.stopPropagation();
+        sectionDragRef.current = {
+          sectionId: nodeIdFromTarget,
+          startX: e.clientX,
+          startY: e.clientY,
+          lastX: e.clientX,
+          lastY: e.clientY,
+          committed: false,
+        };
+        document.body.dataset[EDITOR_DRAGGING_FLAG] = "true";
+        document.body.style.userSelect = "none";
+        return;
+      }
       const node = nodesMap[nodeIdFromTarget];
       const locked = node?.data?.props?.locked === true;
       if (locked) return;
@@ -632,7 +715,29 @@ export const FigmaStyleDragHandler = () => {
       }
 
       const d = dragRef.current;
-      if (!d) return;
+      if (!d) {
+        // Handle section drag tracking
+        const sd = sectionDragRef.current;
+        if (sd) {
+          if ((e.buttons & 1) === 0) {
+            sectionDragRef.current = null;
+            delete document.body.dataset[EDITOR_DRAGGING_FLAG];
+            document.body.style.userSelect = "";
+            clearSectionDropIndicator();
+            return;
+          }
+          sd.lastX = e.clientX;
+          sd.lastY = e.clientY;
+          if (!sd.committed) {
+            const dy = sd.lastY - sd.startY;
+            if (Math.abs(dy) >= 5) sd.committed = true;
+          }
+          if (sd.committed) {
+            updateSectionDropIndicator(sd.sectionId, sd.lastY);
+          }
+        }
+        return;
+      }
 
       // Fail-safe: if left button is no longer pressed but mouseup was missed,
       // force drag cleanup so element doesn't keep following the cursor.
@@ -843,6 +948,41 @@ export const FigmaStyleDragHandler = () => {
     };
 
     const handleMouseUp = () => {
+      // Handle section drag drop
+      const sd = sectionDragRef.current;
+      if (sd) {
+        sectionDragRef.current = null;
+        delete document.body.dataset[EDITOR_DRAGGING_FLAG];
+        document.body.style.userSelect = "";
+        clearSectionDropIndicator();
+
+        if (sd.committed) {
+          try {
+            const state = queryRef.current.getState();
+            const nodes = state.nodes as NodesMap;
+            const sectionNode = nodes[sd.sectionId];
+            const parentId = sectionNode?.data?.parent as string | undefined;
+            // Find the Page parent (walk up if needed)
+            let pageId: string | undefined = parentId;
+            while (pageId && nodes[pageId]?.data?.displayName !== "Page" && nodes[pageId]?.data?.displayName !== "Viewport") {
+              pageId = nodes[pageId]?.data?.parent as string | undefined;
+            }
+            if (!pageId) pageId = Object.keys(nodes).find(id => nodes[id]?.data?.displayName === "Page");
+            if (pageId) {
+              const siblings = ((nodes[pageId] as any)?.data?.nodes as string[] | undefined) ?? [];
+              const insertIdx = computeInsertIndex(pageId, sd.lastX, sd.lastY, nodes, [sd.sectionId], queryRef.current.node);
+              const currentIdx = siblings.indexOf(sd.sectionId);
+              if (insertIdx !== currentIdx && insertIdx !== currentIdx + 1) {
+                actionsRef.current.move(sd.sectionId, pageId, insertIdx);
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
+        return;
+      }
+
       const d = dragRef.current;
       if (!d) {
         // Always clear any stray drag styles on mouseup

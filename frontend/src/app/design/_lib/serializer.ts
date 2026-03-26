@@ -60,6 +60,7 @@ function normalizeComponentType(rawType: unknown): ComponentType {
   if (lowered === "spacer" || lowered.includes("spacer")) return "Spacer";
   if (lowered === "pagination" || lowered.includes("pagination")) return "Pagination";
   if (lowered === "badge" || lowered.includes("badge")) return "Badge";
+  if (lowered === "profilelogin" || lowered === "profile login" || lowered === "profile-login" || lowered.includes("profilelogin")) return "ProfileLogin";
   if (lowered === "circle" || lowered.includes("circle")) return "Circle";
   if (lowered === "square" || lowered.includes("square")) return "Square";
   if (lowered === "triangle" || lowered.includes("triangle")) return "Triangle";
@@ -450,13 +451,57 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     background: "#ffffff",
     canvasX: 0,
     canvasY: 0,
-    pageName: "Page Name",
+    pageName: "",
     pageSlug: "page",
   },
   ImportedBlock: {
     blockName: "Imported",
     blockCss: "",
     blockHtml: "<div>Empty</div>",
+  },
+  ProfileLogin: {
+    text: "Login",
+    fontSize: 34,
+    fontFamily: "EB Garamond",
+    fontWeight: "500",
+    fontStyle: "normal",
+    lineHeight: 1.22,
+    letterSpacing: 0,
+    color: "#000000",
+    iconColor: "#000000",
+    arrowSize: 20,
+    avatarSrc: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=96&h=96&fit=crop&crop=face",
+    avatarSize: 34,
+    width: "220px",
+    height: "fit-content",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 10,
+    background: "transparent",
+    paddingTop: 8,
+    paddingRight: 14,
+    paddingBottom: 8,
+    paddingLeft: 12,
+    marginTop: 0,
+    marginRight: 0,
+    marginBottom: 0,
+    marginLeft: 0,
+    borderRadius: 0,
+    borderColor: "transparent",
+    borderWidth: 0,
+    borderStyle: "solid",
+    boxShadow: "none",
+    opacity: 1,
+    overflow: "visible",
+    position: "relative",
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+    zIndex: 0,
+    rotation: 0,
+    customClassName: "",
   },
   Accordion: {
     items: [],
@@ -624,7 +669,8 @@ export function serializeCraftToClean(rawJson: string, files?: CodeFile[]): Buil
     }
 
     const pageProps = pageRaw.props ?? {};
-    const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
+    // If pageProps.pageName is an empty string, keep it empty
+    const name = typeof pageProps.pageName === 'string' ? pageProps.pageName : `Page ${index + 1}`;
     const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
 
     const pageLinkedChildIds = pageRaw.linkedNodes

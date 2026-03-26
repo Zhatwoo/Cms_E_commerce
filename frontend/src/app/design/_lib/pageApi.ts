@@ -155,7 +155,9 @@ export async function getDraft(projectId: string): Promise<DraftResponse> {
                 return { success: false, data: null, error: 'auth' };
             }
             if (response.status === 403) {
-                return { success: false, data: null, error: 'forbidden' };
+                const forbidden = { success: false, data: null, error: 'forbidden' };
+                draftCache.set(projectId, { expiresAt: now + DRAFT_CACHE_TTL_MS, value: forbidden });
+                return forbidden;
             }
             console.warn('⚠️ Database load failed:', msg);
             const fallback = { success: true, data: null };

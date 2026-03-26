@@ -8,12 +8,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { logout } from '@/lib/api';
 import { ADMIN_NAV_ITEMS, isAdminNavItemMatch } from '@/lib/config/adminNavigation';
 import { ChevronDownIcon, CloseIcon, LogoutIcon } from '@/lib/icons/adminIcons';
+import { useAdminLoading } from './LoadingProvider';
 
 interface AdminSidebarProps {
     mobile?: boolean;
     onClose?: () => void;
     forcedActiveItemId?: string;
     forcedActiveChildId?: string;
+    onNavigateStart?: () => void;
 }
 
 function isChildPathMatch(pathname: string, matchIncludes: string): boolean {
@@ -22,7 +24,6 @@ function isChildPathMatch(pathname: string, matchIncludes: string): boolean {
 
 let desktopSidebarExpandedMemory = false;
 
-/* ── shared inline style helpers ─────────────────────────────── */
 const panelStyle: React.CSSProperties = {
     background: 'rgba(255,255,255,0.86)',
     border: '1px solid rgba(166,61,255,0.13)',
@@ -40,13 +41,23 @@ const navActiveStyle: React.CSSProperties = {
     color: '#6b21d8',
 };
 
-export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forcedActiveChildId }: AdminSidebarProps) {
+export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forcedActiveChildId, onNavigateStart }: AdminSidebarProps) {
     const [isHovered, setIsHovered] = useState(() => (!mobile && desktopSidebarExpandedMemory));
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
+    // NEW: tracks which nav item is currently hovered (for desktop hover dropdowns)
+    const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // NEW: per-item hover leave timers so dropdown doesn't flicker on slight mouse movement
+    const itemLeaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const pathname = usePathname();
     const router = useRouter();
+    const { startLoading } = useAdminLoading();
+
+    const handleNavigate = () => {
+        startLoading();
+        onNavigateStart?.();
+    };
 
     const handleLogout = async () => {
         if (isLoggingOut) return;
@@ -61,12 +72,16 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
 
     useEffect(() => { if (!mobile) desktopSidebarExpandedMemory = isHovered; }, [isHovered, mobile]);
 
-    const toggleDropdown = (id: string) => setOpenDropdowns((prev) => prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]);
+    const toggleDropdown = (id: string) =>
+        setOpenDropdowns((prev) =>
+            prev.includes(id) ? prev.filter((d) => d !== id) : [...prev, id]
+        );
 
     const handleMouseEnter = () => {
         if (collapseTimerRef.current) { clearTimeout(collapseTimerRef.current); collapseTimerRef.current = null; }
         desktopSidebarExpandedMemory = true;
         setIsHovered(true);
+        setTimeout(() => window.dispatchEvent(new Event('resize')), 1);
     };
 
     const handleMouseLeave = () => {
@@ -75,11 +90,33 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             desktopSidebarExpandedMemory = false;
             setIsHovered(false);
             setOpenDropdowns([]);
+            // NEW: also clear the hovered item when sidebar collapses
+            setHoveredItemId(null);
             collapseTimerRef.current = null;
+            window.dispatchEvent(new Event('resize'));
         }, 180);
     };
 
-    useEffect(() => () => { if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current); }, []);
+    // NEW: hover handlers for individual nav items (desktop dropdown)
+    const handleNavItemMouseEnter = (id: string) => {
+        if (itemLeaveTimers.current[id]) {
+            clearTimeout(itemLeaveTimers.current[id]);
+            delete itemLeaveTimers.current[id];
+        }
+        setHoveredItemId(id);
+    };
+
+    const handleNavItemMouseLeave = (id: string) => {
+        itemLeaveTimers.current[id] = setTimeout(() => {
+            setHoveredItemId((prev) => (prev === id ? null : prev));
+            delete itemLeaveTimers.current[id];
+        }, 120);
+    };
+
+    useEffect(() => () => {
+        if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current);
+        Object.values(itemLeaveTimers.current).forEach(clearTimeout);
+    }, []);
 
     const matchedActiveItem = ADMIN_NAV_ITEMS.find((item) => isAdminNavItemMatch(pathname, item))?.id;
     const activeItem = forcedActiveItemId ?? matchedActiveItem;
@@ -120,7 +157,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                             </div>
                         </div>
 
-                        {/* Nav */}
+                        {/* Nav — mobile keeps click-to-toggle */}
                         <nav className="flex-1 space-y-1 overflow-y-auto">
                             {ADMIN_NAV_ITEMS.map((item) => {
                                 const isActive = activeItem === item.id;
@@ -146,7 +183,10 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         ) : (
                                             <Link
                                                 href={item.href}
-                                                onClick={() => onClose?.()}
+                                                onClick={() => {
+                                                    onClose?.();
+                                                    handleNavigate();
+                                                }}
                                                 className="flex items-center gap-3 rounded-[18px] px-4 py-3 transition-colors"
                                                 style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                             >
@@ -171,8 +211,11 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                                 <Link
                                                                     key={child.id}
                                                                     href={child.href}
-                                                                    onClick={() => onClose?.()}
-                                                                    className="flex items-center rounded-[14px] px-4 py-2.5 text-sm font-medium transition-colors"
+                                                                    onClick={() => {
+                                                                        setHoveredItemId(null);
+                                                                        handleNavigate();
+                                                                    }}
+                                                                    className="flex items-center rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
                                                                     style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
                                                                 >
                                                                     {child.label}
@@ -213,7 +256,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
     /* ── Desktop sidebar ─────────────────────────────────────── */
     return (
         <motion.aside
-            className="sticky top-0 z-20 hidden h-[100dvh] overflow-hidden px-4 py-4 lg:flex"
+            className="sticky top-0 z-20 hidden h-[100dvh] flex-shrink-0 overflow-hidden px-4 py-4 lg:flex"
             initial={false}
             animate={{ width: isHovered ? EXPANDED_WIDTH : COLLAPSED_WIDTH }}
             transition={{ duration: 0.18, ease: 'easeOut' }}
@@ -223,7 +266,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             <div className="flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5" style={panelStyle}>
                 {/* Logo */}
                 <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
-                    <Link href="/admindashboard" aria-label="Dashboard Home">
+                    <Link href="/admindashboard" aria-label="Dashboard Home" onClick={handleNavigate}>
                         <Image src="/images/logo.svg" alt="CMS E-commerce" width={48} height={48} className="h-9 w-auto max-w-[48px] object-contain" />
                     </Link>
                 </div>
@@ -233,14 +276,21 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     {ADMIN_NAV_ITEMS.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
-                        const isOpen = openDropdowns.includes(item.id) || (!!forcedActiveChildId && item.id === activeItem);
+                        // NEW: dropdown is open when this item is being hovered (desktop)
+                        const isOpen = hoveredItemId === item.id || (!!forcedActiveChildId && item.id === activeItem);
 
                         return (
-                            <div key={item.id} className="w-full shrink-0">
+                            <div
+                                key={item.id}
+                                className="w-full shrink-0"
+                                // NEW: attach hover handlers to the entire item wrapper (including children)
+                                onMouseEnter={() => hasChildren ? handleNavItemMouseEnter(item.id) : undefined}
+                                onMouseLeave={() => hasChildren ? handleNavItemMouseLeave(item.id) : undefined}
+                            >
                                 {hasChildren ? (
                                     <button
                                         type="button"
-                                        onClick={() => isHovered && toggleDropdown(item.id)}
+                                        // No click handler needed for desktop — hover controls it
                                         aria-label={item.label}
                                         suppressHydrationWarning
                                         className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
@@ -255,17 +305,18 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <span className={`mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
                                             <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                         </span>
-                                        {isActive ? (
+                                        {isActive && (
                                             <span
                                                 className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
                                                 style={{ background: '#f5c000' }}
                                             />
-                                        ) : null}
+                                        )}
                                     </button>
                                 ) : (
                                     <Link
                                         href={item.href}
                                         aria-label={item.label}
+                                        onClick={handleNavigate}
                                         className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
                                         style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
@@ -275,32 +326,46 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <span className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
                                             {item.label}
                                         </span>
-                                        {isActive ? (
+                                        {isActive && (
                                             <span
                                                 className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
                                                 style={{ background: '#f5c000' }}
                                             />
-                                        ) : null}
+                                        )}
                                     </Link>
                                 )}
 
-                                {hasChildren && isOpen && isHovered ? (
-                                    <div className="mt-1 flex flex-col gap-0.5 pl-4">
-                                        {(item.children ?? []).map((child) => {
-                                            const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
-                                            return (
-                                                <Link
-                                                    key={child.id}
-                                                    href={child.href}
-                                                    className="flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors"
-                                                    style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
-                                                >
-                                                    {child.label}
-                                                </Link>
-                                            );
-                                        })}
-                                    </div>
-                                ) : null}
+                                {/* NEW: hover-driven animated dropdown — no click required */}
+                                <AnimatePresence>
+                                    {hasChildren && isOpen && isHovered && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            transition={{ duration: 0.18 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="mt-1 flex flex-col gap-0.5 pl-4">
+                                                {(item.children ?? []).map((child) => {
+                                                    const isChildActive = forcedActiveChildId
+                                                        ? child.id === forcedActiveChildId
+                                                        : isChildPathMatch(pathname, child.matchIncludes);
+                                                    return (
+                                                        <Link
+                                                            key={child.id}
+                                                            href={child.href}
+                                                            onClick={handleNavigate}
+                                                            className="flex items-center rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
+                                                            style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
+                                                        >
+                                                            {child.label}
+                                                        </Link>
+                                                    );
+                                                })}
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         );
                     })}

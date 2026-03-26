@@ -16,6 +16,7 @@ const POSITION_OPTIONS: { value: PositionProps["position"]; label: string }[] = 
 
 const DISPLAY_OPTIONS: { value: PositionProps["display"]; label: string }[] = [
   { value: "flex", label: "Flex" },
+  { value: "inline-flex", label: "Inline Flex" },
   { value: "grid", label: "Grid" },
   { value: "block", label: "Block" },
   { value: "inline-block", label: "Inline Block" },

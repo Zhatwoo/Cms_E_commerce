@@ -83,6 +83,8 @@ export interface AppearanceProps {
   backgroundPosition?: string;
   backgroundRepeat?: "no-repeat" | "repeat" | "repeat-x" | "repeat-y";
   backgroundOverlay?: string;
+  /** Background video source URL (used by Container/Section media fill). */
+  backgroundVideo?: string;
   borderColor?: string;
   borderWidth?: number;
   borderStyle?: string;
@@ -164,6 +166,12 @@ export interface ContainerProps
   children?: ReactNode;
 }
 
+/** Section component props — major layout block with content width constraints. */
+export interface SectionProps extends ContainerProps {
+  contentWidth?: "full" | "constrained";
+  contentMaxWidth?: string;
+}
+
 /** Text component props — combines typography, spacing, and basic effects. */
 export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps {
   text: string;
@@ -187,6 +195,10 @@ export interface ImageProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  /** Optional badge label rendered as an overlay on the image (e.g. "50% Off") */
+  badge?: string;
+  /** Background color of the badge overlay. Defaults to #1e293b */
+  badgeColor?: string;
   _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
@@ -257,7 +269,7 @@ export interface DividerProps extends TransformProps, PositionProps, AnimatableP
 export interface SpacerProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, EffectsProps { }
 
 /** Pagination component props — navigation for lists and data. */
-export interface PaginationProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, TypographyProps {
+export interface PaginationProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, TypographyProps, EffectsProps {
   totalItems?: number;
   itemsPerPage?: number;
   currentPage?: number;
@@ -274,6 +286,8 @@ export interface PaginationProps extends SizeProps, SpacingProps, PositionProps,
 export interface RatingProps extends SizeProps, SpacingProps, PositionProps, TransformProps, AppearanceProps, EffectsProps, TypographyProps {
   value?: number;
   max?: number;
+  /** If true, allows fractional values (e.g. 4.6 stars). Defaults to rounding to a whole number. */
+  allowFractional?: boolean;
   size?: number;
   gap?: number;
   valueGap?: number;
@@ -285,13 +299,12 @@ export interface RatingProps extends SizeProps, SpacingProps, PositionProps, Tra
 }
 
 /** Icon component props — displays a clickable icon with styling. */
-export interface IconProps extends SpacingProps, PositionProps, AnimatableProps {
+export interface IconProps extends SpacingProps, PositionProps, TransformProps, EffectsProps, AnimatableProps {
   iconType?: string;
   size?: number;
   color?: string;
   width?: string;
   height?: string;
-  opacity?: number;
   link?: string;
 }
 
@@ -329,7 +342,7 @@ export interface TabsProps
   activeTabTextColor?: string;
 }
 
-export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps {
+export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps, TransformProps {
   controlType?: "checkbox" | "radio";
   /** Used as radio group name (scoped per-node to avoid collisions). */
   name?: string;

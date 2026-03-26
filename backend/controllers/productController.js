@@ -4,6 +4,34 @@ const Project = require('../models/Project');
 const User = require('../models/User');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
 const { sendAdminActionEmail } = require('../utils/emailService');
+const Notification = require('../models/Notification');
+
+async function resolveClientContact(userId) {
+  let displayName = 'Client';
+  let email = '';
+
+  if (!userId) return { email, displayName };
+
+  const user = await User.findById(userId);
+  if (user) {
+    displayName = user.displayName || user.fullName || user.email || displayName;
+    email = user.email || '';
+  }
+
+  if (!email) {
+    try {
+      const authUser = await auth.getUser(userId);
+      email = authUser.email || '';
+      if (authUser.displayName && (!user || !user.displayName)) {
+        displayName = authUser.displayName;
+      }
+    } catch {
+      // keep best-effort values
+    }
+  }
+
+  return { email: String(email || '').trim(), displayName };
+}
 
 function getAllowedProductImagePrefixes(userId) {
   // Keep previous path for backwards compatibility and cleanup of older uploads.
@@ -177,6 +205,19 @@ exports.create = async (req, res) => {
       },
     });
 
+    try {
+      const notif = await Notification.create({
+        title: 'Product Created',
+        message: `${req.user.name} created product: ${name}`,
+        type: 'success',
+        adminId: req.user.id,
+        adminName: req.user.name
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product creation notification failed:', e.message);
+    }
+
     res.status(201).json({ success: true, message: 'Product created', data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
@@ -275,6 +316,19 @@ exports.update = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product updated', data });
+
+    try {
+      const notif = await Notification.create({
+        title: 'Product Updated',
+        message: `${req.user.name} updated product: ${data.name || req.params.id}`,
+        type: 'info',
+        adminId: req.user.id,
+        adminName: req.user.name
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product update notification failed:', e.message);
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
@@ -343,6 +397,19 @@ exports.delete = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Product deleted' });
+
+    try {
+      const notif = await Notification.create({
+        title: 'Product Deleted',
+        message: `${req.user.name} deleted product: ${existing.name || req.params.id}`,
+        type: 'warning',
+        adminId: req.user.id,
+        adminName: req.user.name
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product deletion notification failed:', e.message);
+    }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
   }
@@ -368,8 +435,11 @@ exports.adminDelete = async (req, res) => {
 
     const owner = existing.userId ? await User.findById(existing.userId) : null;
     const ownerEmail = owner?.email || '';
+    let emailSent = false;
+    let emailError = '';
+
     if (ownerEmail) {
-      await sendAdminActionEmail({
+      const mail = await sendAdminActionEmail({
         to: ownerEmail,
         name: owner?.displayName || owner?.fullName || owner?.email || 'Client',
         subject: 'Product removed by admin',
@@ -377,6 +447,24 @@ exports.adminDelete = async (req, res) => {
         intro: `Product \"${existing.name || 'Untitled Product'}\" was removed by an administrator.`,
         reason: deleteReason,
       });
+      emailSent = !!mail?.sent;
+      emailError = mail?.error || '';
+    } else {
+      emailError = 'Recipient email not found';
+    }
+
+    // Real-time notification
+    try {
+      const notif = await Notification.create({
+        title: 'Product Removed',
+        message: `Admin removed product: ${existing.name || req.params.id}`,
+        type: 'error',
+        adminId: req.user?.id || 'admin',
+        adminName: req.user.name || 'Admin'
+      });
+      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
+    } catch (e) {
+      console.warn('Product removal notification failed:', e.message);
     }
 
     res.status(200).json({ success: true, message: 'Product deleted', data: { id: req.params.id } });

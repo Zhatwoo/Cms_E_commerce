@@ -70,11 +70,11 @@ export type ScrollEffectType =
   | "rotate"
   | "blur"
   | "horizontalMove"
+  | "freeMove"
   | "skew"
   | "reveal"
   | "zoom"
-  | "tilt3d"
-  | "customMove";
+  | "tilt3d";
 
 export type TriggerType = "onLoad" | "onScroll" | "onHover" | "onClick";
 
@@ -108,14 +108,37 @@ export interface ScrollEffectConfig {
   enabled: boolean;
   type: ScrollEffectType;
   speed: number;
+  /**
+   * Scroll smoothing intensity when scrub is enabled.
+   * Maps to GSAP ScrollTrigger `scrub` numeric value (seconds).
+   * Higher = smoother / more lag.
+   */
+  intensity: number;
   direction: "vertical" | "horizontal";
   scrub: boolean;
   start: string;
   end: string;
-  fromX?: number;
-  fromY?: number;
-  toX?: number;
-  toY?: number;
+  freeMove?: {
+    /**
+     * How captured points should be interpreted.
+     * - relative: points are stored as deltas from the captured start position (recommended; stable across layouts).
+     * - absolute: points are stored as page coordinates.
+     */
+    mode?: "relative" | "absolute";
+    /**
+     * Captured start position in page coords (used as reference when mode="relative").
+     * Note: runtime uses the element's current layout as the base, so this is only a capture-time reference.
+     */
+    origin?: { x: number; y: number };
+    start?: { x: number; y: number };
+    mids?: Array<{ x: number; y: number }>;
+    end?: { x: number; y: number };
+    /**
+     * Multi-keyframe path. Each keyframe is in page coordinates (x/y) with progress t in [0..1].
+     * When present, this takes precedence over start/mid/end.
+     */
+    keyframes?: Array<{ t: number; x: number; y: number }>;
+  };
 }
 
 export interface TriggerConfig {
@@ -164,14 +187,11 @@ export const DEFAULT_SCROLL_EFFECT: ScrollEffectConfig = {
   enabled: false,
   type: "none",
   speed: 0.5,
+  intensity: 1,
   direction: "vertical",
   scrub: true,
   start: "top bottom",
   end: "bottom top",
-  fromX: 0,
-  fromY: 0,
-  toX: 0,
-  toY: 200,
 };
 
 export const DEFAULT_TRIGGER: TriggerConfig = {
@@ -257,11 +277,11 @@ export const SCROLL_EFFECT_LABELS: Record<ScrollEffectType, string> = {
   rotate: "Rotate on Scroll",
   blur: "Blur on Scroll",
   horizontalMove: "Horizontal Move",
+  freeMove: "Free Move",
   skew: "Skew on Scroll",
   reveal: "Reveal on Scroll",
   zoom: "Zoom on Scroll",
   tilt3d: "3D Tilt on Scroll",
-  customMove: "Free Move",
 };
 
 export const TRIGGER_LABELS: Record<TriggerType, string> = {

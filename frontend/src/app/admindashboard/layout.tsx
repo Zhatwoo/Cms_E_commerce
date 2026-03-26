@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, logout, setStoredUser } from '@/lib/api';
 
+import { LoadingProvider } from './components/LoadingProvider';
+
 function isAdminRole(role?: string): boolean {
   const normalized = (role || '').toLowerCase();
   return normalized === 'admin' || normalized === 'super_admin';
@@ -59,13 +61,26 @@ export default function AdminDashboardLayout({
     };
   }, [pathname, router, searchParams]);
 
-  if (isChecking || !isAuthorized) {
-    return (
-      <div className="admin-dashboard-shell flex min-h-screen items-center justify-center">
-        <p className="admin-dashboard-soft-text text-sm">Checking admin access...</p>
-      </div>
-    );
-  }
+  // Real-time notifications connection
+  useEffect(() => {
+    if (isAuthorized) {
+      const { getAdminSocket, disconnectAdminSocket } = require('@/lib/adminSocket');
+      const { fetchSharedNotifications } = require('@/lib/notifications');
+      
+      console.log('[AdminLayout] Initializing real-time shared notifications...');
+      getAdminSocket();
+      fetchSharedNotifications();
 
-  return <>{children}</>;
-}
+      return () => {
+        disconnectAdminSocket();
+      };
+    }
+  }, [isAuthorized]);
+
+
+  return (
+    <LoadingProvider forceLoading={isChecking}>
+      {isAuthorized ? children : null}
+    </LoadingProvider>
+  );
+}

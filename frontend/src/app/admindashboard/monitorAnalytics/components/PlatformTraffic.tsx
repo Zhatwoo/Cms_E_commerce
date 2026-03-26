@@ -55,7 +55,7 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: true,
+                maintainAspectRatio: false,
                 interaction: {
                     mode: 'index',
                     intersect: false,
@@ -138,8 +138,8 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                     </div>
                 </div>
 
-                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8">
-                    <canvas ref={trafficChartRef} height="80"></canvas>
+                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8 w-full">
+                    <canvas ref={trafficChartRef} height="110" className="w-full"></canvas>
                 </div>
             </div>
         </motion.div>

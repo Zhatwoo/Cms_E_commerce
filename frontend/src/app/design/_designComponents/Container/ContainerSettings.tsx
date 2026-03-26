@@ -17,7 +17,7 @@ export const ContainerSettings = () => {
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     width, height,
-    backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
+    backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay, backgroundVideo,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap,
@@ -47,6 +47,7 @@ export const ContainerSettings = () => {
     backgroundPosition: node.data.props.backgroundPosition,
     backgroundRepeat: node.data.props.backgroundRepeat,
     backgroundOverlay: node.data.props.backgroundOverlay,
+    backgroundVideo: node.data.props.backgroundVideo,
     borderRadius: node.data.props.borderRadius,
     radiusTopLeft: node.data.props.radiusTopLeft,
     radiusTopRight: node.data.props.radiusTopRight,
@@ -98,15 +99,6 @@ export const ContainerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Position & Transform" defaultOpen={false}>
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
       {display === "grid" ? (
         <DesignSection title="Grid Layout">
           <GridLayoutGroup
@@ -133,7 +125,30 @@ export const ContainerSettings = () => {
         </DesignSection>
       ) : null}
 
-      <DesignSection title="Size & Position">
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
           height={height}
@@ -149,20 +164,6 @@ export const ContainerSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Position & Display" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
       <DesignSection title="Appearance">
         <AppearanceGroup
           background={background}
@@ -171,6 +172,7 @@ export const ContainerSettings = () => {
           backgroundPosition={backgroundPosition}
           backgroundRepeat={backgroundRepeat}
           backgroundOverlay={backgroundOverlay}
+          backgroundVideo={backgroundVideo}
           borderColor={borderColor}
           borderWidth={borderWidth}
           borderStyle={borderStyle}
@@ -179,6 +181,7 @@ export const ContainerSettings = () => {
           radiusTopRight={radiusTopRight}
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
+          enableMediaFillModes
           setProp={typedSetProp}
         />
       </DesignSection>

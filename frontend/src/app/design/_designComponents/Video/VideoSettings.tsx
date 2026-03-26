@@ -3,11 +3,13 @@ import { useNode } from "@craftjs/core";
 import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { uploadMediaApi } from "@/lib/api";
+import { addFileToMediaLibrary } from "../../_lib/mediaActions";
 import type { VideoProps, SetProp } from "../../_types/components";
 
 export const VideoSettings = () => {
@@ -17,8 +19,9 @@ export const VideoSettings = () => {
         borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
         paddingLeft, paddingRight, paddingTop, paddingBottom,
         marginLeft, marginRight, marginTop, marginBottom,
-        opacity, boxShadow,
+        opacity, boxShadow, overflow, cursor,
         rotation, flipHorizontal, flipVertical,
+        position, display, zIndex, top, right, bottom, left, editorVisibility,
         actions: { setProp }
     } = useNode(node => ({
         src: node.data.props.src,
@@ -44,9 +47,19 @@ export const VideoSettings = () => {
         marginBottom: node.data.props.marginBottom,
         opacity: node.data.props.opacity,
         boxShadow: node.data.props.boxShadow,
+        overflow: node.data.props.overflow,
+        cursor: node.data.props.cursor,
         rotation: node.data.props.rotation,
         flipHorizontal: node.data.props.flipHorizontal,
         flipVertical: node.data.props.flipVertical,
+        position: node.data.props.position,
+        display: node.data.props.display,
+        zIndex: node.data.props.zIndex,
+        top: node.data.props.top,
+        right: node.data.props.right,
+        bottom: node.data.props.bottom,
+        left: node.data.props.left,
+        editorVisibility: node.data.props.editorVisibility,
     }));
 
     const typedSetProp = setProp as SetProp<VideoProps>;
@@ -68,11 +81,9 @@ export const VideoSettings = () => {
             setUploading(true);
             setUploadProgress(0);
             try {
-                const { url } = await uploadMediaApi(projectId, file, {
-                    folder: "videos",
-                    onProgress: (percent) => setUploadProgress(percent),
-                });
-                typedSetProp((props) => { props.src = url; });
+                // Use addFileToMediaLibrary to ensure this upload shows up in the 'Media' tab in the left panel
+                const item = await addFileToMediaLibrary(projectId, file);
+                typedSetProp((props) => { props.src = item.url; });
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 console.error("Upload failed:", err);
@@ -96,16 +107,7 @@ export const VideoSettings = () => {
 
     return (
         <div className="flex flex-col pb-4">
-            <DesignSection title="Position & Transform">
-                <TransformGroup
-                    rotation={rotation}
-                    flipHorizontal={flipHorizontal}
-                    flipVertical={flipVertical}
-                    setProp={typedSetProp}
-                />
-            </DesignSection>
-
-            <DesignSection title="Video Source">
+            <DesignSection title="Video">
                 <div className="flex flex-col gap-3">
                     {/* Source URL */}
                     <div className="flex flex-col gap-1">
@@ -165,6 +167,9 @@ export const VideoSettings = () => {
                                 Upload failed: {uploadError}
                             </p>
                         )}
+                        <p className="text-[9px] text-[var(--builder-text-faint)] mt-2 italic px-1">
+                            Tip: Drag & drop from the Media tab to replace instantly.
+                        </p>
                     </div>
 
                     {/* Object Fit */}
@@ -187,7 +192,7 @@ export const VideoSettings = () => {
                 </div>
             </DesignSection>
 
-            <DesignSection title="Playback Settings">
+            <DesignSection title="Playback">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center justify-between p-2 bg-[var(--builder-surface-2)]/30 rounded-md border border-[var(--builder-border)]">
                         <span className="text-[10px] text-[var(--builder-text)] uppercase tracking-wider">Autoplay</span>
@@ -228,7 +233,30 @@ export const VideoSettings = () => {
                 </div>
             </DesignSection>
 
-            <DesignSection title="Size & Position">
+            <DesignSection title="Transform" defaultOpen={false}>
+                <TransformGroup
+                    rotation={rotation}
+                    flipHorizontal={flipHorizontal}
+                    flipVertical={flipVertical}
+                    setProp={typedSetProp}
+                />
+            </DesignSection>
+
+            <DesignSection title="Layout & Layer" defaultOpen={false}>
+                <PositionGroup
+                    position={position}
+                    display={display}
+                    zIndex={zIndex}
+                    top={top}
+                    right={right}
+                    bottom={bottom}
+                    left={left}
+                    editorVisibility={editorVisibility}
+                    setProp={typedSetProp as any}
+                />
+            </DesignSection>
+
+            <DesignSection title="Size & Spacing">
                 <SizePositionGroup
                     width={width}
                     height={height}
@@ -250,7 +278,6 @@ export const VideoSettings = () => {
                     radiusTopRight={radiusTopRight}
                     radiusBottomRight={radiusBottomRight}
                     radiusBottomLeft={radiusBottomLeft}
-                    showBackgroundImageOption={false}
                     setProp={typedSetProp}
                 />
             </DesignSection>
@@ -259,6 +286,8 @@ export const VideoSettings = () => {
                 <EffectsGroup
                     opacity={opacity}
                     boxShadow={boxShadow}
+                    overflow={overflow}
+                    cursor={cursor}
                     setProp={typedSetProp}
                 />
             </DesignSection>

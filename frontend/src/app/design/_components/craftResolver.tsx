@@ -26,6 +26,9 @@ import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
+import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-login";
+import { ProductSlider } from "../_designComponents/ProductSlider/ProductSlider";
+import { ProductCard as ProductCardComponent } from "../_designComponents/ProductCard/ProductCard";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -112,6 +115,9 @@ export function buildCraftResolver(): Resolver {
   const PaginationComp = asComponent(Pagination, ContainerComp);
   const RatingComp = asComponent(Rating, ContainerComp);
   const BooleanFieldComp = asComponent(BooleanField, ContainerComp);
+  const ProfileLoginNodeComp = asComponent(ProfileLoginNode, ContainerComp);
+  const ProductSliderComp = asComponent(ProductSlider, ContainerComp);
+  const ProductCardComp = asComponent(ProductCardComponent, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -184,6 +190,18 @@ export function buildCraftResolver(): Resolver {
     BooleanField: BooleanFieldComp,
     booleanfield: BooleanFieldComp,
     BOOLEANFIELD: BooleanFieldComp,
+    ProfileLoginNode: ProfileLoginNodeComp,
+    profileloginnode: ProfileLoginNodeComp,
+    PROFILELOGINNODE: ProfileLoginNodeComp,
+    ProfileLogin: ProfileLoginNodeComp,
+    profilelogin: ProfileLoginNodeComp,
+    PROFILELOGIN: ProfileLoginNodeComp,
+    ProductSlider: ProductSliderComp,
+    productslider: ProductSliderComp,
+    "Product Slider": ProductSliderComp,
+    ProductCard: ProductCardComp,
+    productcard: ProductCardComp,
+    "Product Card": ProductCardComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -205,6 +223,9 @@ export function buildCraftResolver(): Resolver {
     "Radio",
     "radio",
   ]);
+  addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
+  addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
+  addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   return base;
 }
 
