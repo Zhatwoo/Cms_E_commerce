@@ -1607,6 +1607,7 @@ export type ClientRow = {
   storageLimitGb?: number;
   phone?: string;
   bio?: string;
+  lastSeen?: string;
 };
 
 export async function getClients(): Promise<{

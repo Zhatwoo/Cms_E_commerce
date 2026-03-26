@@ -57,6 +57,14 @@ function formatDate(value: string | undefined): string {
   return formatToPHTime(value);
 }
 
+function isUserOnline(lastSeen?: string): boolean {
+  if (!lastSeen) return false;
+  const now = new Date();
+  const ls = new Date(lastSeen);
+  // within last 5 minutes = Online
+  return (now.getTime() - ls.getTime()) < 5 * 60 * 1000;
+}
+
 function getPlanStorageLimitGb(plan: string): number {
   switch ((plan || '').toLowerCase()) {
     case 'pro': return 100;
@@ -715,28 +723,22 @@ export function UserManagement() {
                     </div>
                   </>
                 )}
-              </div>/n
+              </div>
             </div>
 
 
-            <div className="justify-self-end w-full max-w-[390px]">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FFCC00] text-[#5F3A84] shadow-[0_2px_8px_rgba(177,59,255,0.15)]"
-                  aria-label="Search users"
-                >
-                  <SearchIcon />
-                </button>
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    placeholder="Search name or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-12 w-full px-4 pr-11 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30"
-                  />
-                  {search && (
+            <div className="relative justify-self-end w-full max-w-[390px]">
+              <input
+                type="text"
+                placeholder="Search name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-14 pr-4 py-3 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF]"
+              />
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-[#FFCC00] text-[#5F3A84] flex items-center justify-center pointer-events-none shadow-sm">
+                <SearchIcon />
+              </div>
+              {search && (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
@@ -745,9 +747,7 @@ export function UserManagement() {
                     >
                       x
                     </button>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -938,16 +938,16 @@ export function UserManagement() {
         )}
 
         <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
-          <table className="w-full min-w-[920px]">
+          <table className="w-full min-w-[920px] table-fixed">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="w-[15%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
+                <th className="w-[23%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
+                <th className="w-[16%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
+                <th className="w-[13%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
+                <th className="w-[13%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
+                <th className="w-[8%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
+                <th className="w-[12%] px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -956,9 +956,23 @@ export function UserManagement() {
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
+                  const online = isUserOnline(client.lastSeen);
                   const busy = actionLoadingId === client.id;
                   const storage = getClientStorage(client);
-                  const statusLabel = active ? 'Active' : 'Inactive';
+                  
+                  const s = (client.status || '').toLowerCase();
+                  const isSuspended = s === 'suspended';
+                  const isRestricted = s === 'restricted';
+                  
+                  let statusLabel = active ? 'Active' : 'Inactive';
+                  if (active) {
+                    statusLabel = online ? 'Online' : 'Offline';
+                  } else if (isSuspended) {
+                    statusLabel = 'Suspended';
+                  } else if (isRestricted) {
+                    statusLabel = 'Restricted';
+                  }
+
                   const isSelected = selection.selectedIds.has(client.id);
                   return (
                     <tr
@@ -982,8 +996,12 @@ export function UserManagement() {
                         if (!selection.isDragging) selection.handleRowMouseUp();
                       }}
                     >
-                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E]">{client.displayName || '—'}</td>
-                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium">{client.email}</td>
+                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={client.displayName || ''}>
+                        {client.displayName || '—'}
+                      </td>
+                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={client.email}>
+                        {client.email}
+                      </td>
                       <td className="px-3 py-4 text-[0.95rem]">
                         <div className="relative inline-flex items-center gap-3">
                           <Tooltip label="Click to view storage usage and remaining space">
@@ -1047,13 +1065,27 @@ export function UserManagement() {
                           {savingId === client.id && <span className="text-xs text-[#82788F]">Saving…</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{websiteLabel(client)}</td>
+                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold truncate" title={websiteLabel(client)}>
+                        {websiteLabel(client)}
+                      </td>
                       <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
-                      <td className={`px-3 py-4 text-[1rem] font-semibold ${active ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>
-                        {statusLabel}
+                      <td className={`px-3 py-4 text-[1rem] font-semibold`}>
+                        <div className="flex items-center gap-1.5">
+                          {active ? (
+                            <>
+                              <div className={`h-2 w-2 rounded-full ${online ? 'bg-[#00C438] shadow-[0_0_8px_rgba(0,196,56,0.6)]' : 'bg-[#B2AEBF]'}`} />
+                              <span className={online ? 'text-[#00C438]' : 'text-[#6F657E]'}>{statusLabel}</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`h-2 w-2 rounded-full ${isSuspended ? 'bg-[#FF0000]' : 'bg-[#FFCC00]'}`} />
+                              <span className={isSuspended ? 'text-[#FF0000]' : 'text-[#A08100]'}>{statusLabel}</span>
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-center">
-                        <div className="inline-flex items-center gap-2 flex-wrap justify-center text-[#5A2AA8]">
+                        <div className="inline-flex items-center gap-2 justify-center text-[#5A2AA8]">
                           <Tooltip label="Client profile">
                             <button
                               type="button"
