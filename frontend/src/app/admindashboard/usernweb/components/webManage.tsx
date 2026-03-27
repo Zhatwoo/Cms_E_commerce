@@ -222,7 +222,7 @@ function ManageWebsiteDetail({ website, onBack }: ManageWebsiteDetailProps): Rea
         </div>
       )}
 
-      <div className="mb-5 -mt-11 flex justify-start">
+      <div className="mb-5 -mt-7 flex justify-start">
         <button
           onClick={onBack}
           className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-all hover:border-gray-300 hover:bg-gray-50 hover:text-gray-900"
