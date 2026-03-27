@@ -918,7 +918,8 @@ export function AnimationWrapper({
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
   const ref = useRef<HTMLDivElement>(null);
-  const inViewRootRef = useRef<Element | null>(null);
+  const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
+  const [hasResolvedInViewRoot, setHasResolvedInViewRoot] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -926,11 +927,20 @@ export function AnimationWrapper({
 
     const view = el.ownerDocument?.defaultView ?? window;
     const { primary, fallback } = resolveScrollRoots(el, view);
-    inViewRootRef.current = primary ?? fallback;
+    const explicitPreviewRoot = el.ownerDocument?.querySelector(
+      '[data-preview-scroll-root="true"]'
+    ) as HTMLElement | null;
+
+    setInViewRoot(primary ?? fallback ?? explicitPreviewRoot);
+    setHasResolvedInViewRoot(true);
   }, []);
 
+  // Root may legitimately be null (window scrolling). We still want onScroll to work.
+  const rootReady = config.trigger.type !== "onScroll" || hasResolvedInViewRoot;
+
   const isInView = useInView(ref, {
-    root: inViewRootRef,
+    // Pass the actual Element (not a ref object) so IntersectionObserver uses it as root.
+    root: inViewRoot ?? undefined,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });
@@ -942,10 +952,10 @@ export function AnimationWrapper({
   useEffect(() => {
     if (config.trigger.type === "onLoad") {
       setHasTriggered(true);
-    } else if (config.trigger.type === "onScroll" && isInView) {
+    } else if (config.trigger.type === "onScroll" && rootReady && isInView) {
       setHasTriggered(true);
     }
-  }, [config.trigger.type, isInView]);
+  }, [config.trigger.type, isInView, rootReady]);
 
   useEffect(() => {
     const el = ref.current;
