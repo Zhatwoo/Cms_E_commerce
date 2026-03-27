@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { useEditor } from "@craftjs/core";
@@ -212,6 +212,10 @@ function getDomXY(el: HTMLElement): { x: number; y: number } {
 
 function countMids(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
+}
+
+function toFixedPoint(value: number): number {
+  return Math.round(value * 1000) / 1000;
 }
 
 function applyScrollPreviewIndicator(element: HTMLElement): () => void {
@@ -533,6 +537,71 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
       midCount: countMids(mids),
     };
   }, [animation.scrollEffect.freeMove?.start, animation.scrollEffect.freeMove?.end, animation.scrollEffect.freeMove?.mids]);
+
+  const captureFreeMovePoint = useCallback(
+    (point: "start" | "mid" | "end") => {
+      if (!firstId) return;
+
+      let element: HTMLElement | null = null;
+      try {
+        element = query.node(firstId).get()?.dom ?? null;
+      } catch {
+        element = null;
+      }
+      if (!element) return;
+
+      const absolute = getDomXY(element);
+      const current = animation.scrollEffect.freeMove;
+      const mode = current?.mode ?? "relative";
+      const originAbs = current?.origin ?? absolute;
+
+      const toStoredPoint = (abs: { x: number; y: number }) => {
+        if (mode === "absolute") {
+          return { x: toFixedPoint(abs.x), y: toFixedPoint(abs.y) };
+        }
+        return {
+          x: toFixedPoint(abs.x - originAbs.x),
+          y: toFixedPoint(abs.y - originAbs.y),
+        };
+      };
+
+      if (point === "start") {
+        const nextFreeMove = {
+          mode,
+          origin: { x: toFixedPoint(absolute.x), y: toFixedPoint(absolute.y) },
+          start: { x: 0, y: 0 },
+          mids: [] as Array<{ x: number; y: number }>,
+          end: undefined as { x: number; y: number } | undefined,
+        };
+        update("scrollEffect.freeMove", nextFreeMove);
+        return;
+      }
+
+      const start = current?.start;
+      if (!start) return;
+      const nextPoint = toStoredPoint(absolute);
+
+      if (point === "mid") {
+        const mids = Array.isArray(current?.mids) ? [...current.mids] : [];
+        mids.push(nextPoint);
+        update("scrollEffect.freeMove.mids", mids);
+        return;
+      }
+
+      update("scrollEffect.freeMove.end", nextPoint);
+    },
+    [animation.scrollEffect.freeMove, firstId, query, update]
+  );
+
+  const removeLastMidPoint = useCallback(() => {
+    const mids = animation.scrollEffect.freeMove?.mids;
+    if (!Array.isArray(mids) || mids.length === 0) return;
+    update("scrollEffect.freeMove.mids", mids.slice(0, -1));
+  }, [animation.scrollEffect.freeMove?.mids, update]);
+
+  const clearFreeMovePath = useCallback(() => {
+    update("scrollEffect.freeMove", undefined);
+  }, [update]);
 
   return (
     <div className="flex flex-col pb-4">
@@ -921,6 +990,204 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                   )}
                 </div>
               </div>
+            </>
+          )}
+        </div>
+      </DesignSection>
+
+      {/* ─── Scroll Effect ─── */}
+      <DesignSection title="Scroll Effects" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <label className="flex items-center gap-2 cursor-pointer mb-1">
+            <input
+              type="checkbox"
+              checked={animation.scrollEffect.enabled}
+              onChange={(e) => update("scrollEffect.enabled", e.target.checked)}
+              className={checkboxClass}
+            />
+            <span className={labelClass}>Enable Scroll Effects</span>
+          </label>
+
+          {animation.scrollEffect.enabled && (
+            <>
+              <div className="flex flex-col gap-1">
+                <label className={labelClass}>Effect Type</label>
+                <select
+                  value={animation.scrollEffect.type}
+                  onChange={(e) => {
+                    const nextType = e.target.value as ScrollEffectType;
+                    update("scrollEffect.type", nextType);
+                    previewOnCanvas("scrollEffect", nextType);
+                  }}
+                  className={selectClass}
+                >
+                  {Object.entries(SCROLL_EFFECT_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+
+              {animation.scrollEffect.type !== "none" && (
+                <>
+                  <div className="flex flex-col gap-1">
+                    <div className="flex justify-between">
+                      <label className={labelClass}>Speed</label>
+                      <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="-2"
+                      max="2"
+                      step="0.1"
+                      value={animation.scrollEffect.speed}
+                      onChange={(e) => {
+                        update("scrollEffect.speed", Number(e.target.value));
+                        schedulePreview("scrollEffect");
+                      }}
+                      className={sliderClass}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className={labelClass}>Direction</label>
+                    <select
+                      value={animation.scrollEffect.direction}
+                      onChange={(e) => {
+                        update("scrollEffect.direction", e.target.value);
+                        schedulePreview("scrollEffect");
+                      }}
+                      className={selectClass}
+                    >
+                      <option value="vertical">Vertical</option>
+                      <option value="horizontal">Horizontal</option>
+                    </select>
+                  </div>
+
+                  {animation.scrollEffect.type === "freeMove" && (
+                    <div className="rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2.5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className={labelClass}>Free Move Keyframes</label>
+                        <span className={subLabelClass}>Mid Frames: {freeMoveStatus.midCount}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => captureFreeMovePoint("start")}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
+                        >
+                          Capture Start
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => captureFreeMovePoint("mid")}
+                          disabled={!freeMoveStatus.hasStart}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Add Mid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => captureFreeMovePoint("end")}
+                          disabled={!freeMoveStatus.hasStart}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Capture End
+                        </button>
+                        <button
+                          type="button"
+                          onClick={removeLastMidPoint}
+                          disabled={freeMoveStatus.midCount === 0}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Remove Last Mid
+                        </button>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className={subLabelClass}>
+                          {freeMoveStatus.hasStart ? "Start set" : "Start not set"} |{" "}
+                          {freeMoveStatus.hasEnd ? "End set" : "End not set"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => previewOnCanvas("scrollEffect", "freeMove")}
+                            disabled={!freeMoveStatus.hasStart || !freeMoveStatus.hasEnd}
+                            className="rounded-md border border-[var(--builder-border)] px-2 py-1 text-[10px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Preview Movement
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearFreeMovePath}
+                            className="rounded-md border border-[var(--builder-border)] px-2 py-1 text-[10px] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
+                          >
+                            Clear Path
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between">
+                    <label className={labelClass}>Smooth Scrub</label>
+                    <input
+                      type="checkbox"
+                      checked={animation.scrollEffect.scrub}
+                      onChange={(e) => {
+                        update("scrollEffect.scrub", e.target.checked);
+                        schedulePreview("scrollEffect");
+                      }}
+                      className={checkboxClass}
+                    />
+                  </div>
+
+                  {animation.scrollEffect.scrub && (
+                    <div className="flex flex-col gap-1">
+                      <div className="flex justify-between">
+                        <label className={labelClass}>Scrub Intensity</label>
+                        <span className={subLabelClass}>{animation.scrollEffect.intensity}s</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0.1"
+                        max="2"
+                        step="0.1"
+                        value={animation.scrollEffect.intensity}
+                        onChange={(e) => {
+                          update("scrollEffect.intensity", Number(e.target.value));
+                          schedulePreview("scrollEffect");
+                        }}
+                        className={sliderClass}
+                      />
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 mt-1">
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>Start Trigger</label>
+                      <input
+                        type="text"
+                        value={animation.scrollEffect.start}
+                        onChange={(e) => update("scrollEffect.start", e.target.value)}
+                        className="w-full bg-[var(--builder-surface-2)] rounded-md text-[10px] text-[var(--builder-text)] px-2 py-1.5 focus:outline-none border border-transparent focus:border-[var(--builder-accent)]/50"
+                        placeholder="top bottom"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className={labelClass}>End Trigger</label>
+                      <input
+                        type="text"
+                        value={animation.scrollEffect.end}
+                        onChange={(e) => update("scrollEffect.end", e.target.value)}
+                        className="w-full bg-[var(--builder-surface-2)] rounded-md text-[10px] text-[var(--builder-text)] px-2 py-1.5 focus:outline-none border border-transparent focus:border-[var(--builder-accent)]/50"
+                        placeholder="bottom top"
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>

@@ -5,9 +5,18 @@ import { useNode, useEditor } from "@craftjs/core";
 import { listProducts, type ApiProduct } from "@/lib/api";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { ProductCardSettings } from "./ProductCardSettings";
+import { ProductImageOverlays } from "../productOverlays";
 export interface ProductCardProps {
   // Product binding
   boundProductId?: string;
+
+  // Position (for canvas drag)
+  position?: string;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  zIndex?: number;
 
   // Layout toggles
   showImage?: boolean;
@@ -56,8 +65,20 @@ export interface ProductCardProps {
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(price);
 
+const parsePixelWidth = (value?: string) => {
+  if (!value) return undefined;
+  const match = value.trim().match(/^([0-9]+(?:\.[0-9]+)?)px$/i);
+  return match ? Number.parseFloat(match[1]) : undefined;
+};
+
 export const ProductCard = ({
   boundProductId,
+  position = "absolute",
+  top = "0px",
+  left = "0px",
+  right,
+  bottom,
+  zIndex,
   showImage = true,
   showProductName = true,
   showPrice = true,
@@ -122,6 +143,7 @@ export const ProductCard = ({
   const hasDiscount = !!compareAt && compareAt > price;
   const discountPct = hasDiscount ? Math.round(((compareAt! - price) / compareAt!) * 100) : 0;
   const image = product?.images?.[0] ?? "";
+  const frameWidth = parsePixelWidth(width);
 
   // Show placeholder while loading or when no product is bound/found
   if (!boundProductId || loading || !product) {
@@ -135,9 +157,14 @@ export const ProductCard = ({
           borderRadius: cardBorderRadius, boxShadow: cardShadow,
           overflow: "hidden", display: "flex", flexDirection: "column",
           boxSizing: "border-box",
+          position: position as any,
+          top: top ?? undefined,
+          left: left ?? undefined,
+          right: right ?? undefined,
+          bottom: bottom ?? undefined,
+          zIndex: zIndex ?? undefined,
         }}
       >
-        {/* Placeholder image area */}
         <div style={{
           height: imageHeight, background: "#f3f4f6",
           display: "flex", flexDirection: "column",
@@ -176,6 +203,12 @@ export const ProductCard = ({
         borderRadius: cardBorderRadius, boxShadow: cardShadow,
         overflow: "hidden", display: "flex", flexDirection: "column",
         boxSizing: "border-box",
+        position: position as any,
+        top: top ?? undefined,
+        left: left ?? undefined,
+        right: right ?? undefined,
+        bottom: bottom ?? undefined,
+        zIndex: zIndex ?? undefined,
       }}
     >
       {/* Image */}
@@ -188,21 +221,15 @@ export const ProductCard = ({
               No image
             </div>
           )}
-          {showDiscountBadge && hasDiscount && (
-            <span style={{ position: "absolute", top: 8, left: 8, background: "#1e293b", color: "#fff", fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 4 }}>
-              {discountPct}% Off
-            </span>
-          )}
-          {showRibbon && (
-            <div style={{
-              position: "absolute", top: 8, right: -2, zIndex: 1,
-              background: ribbonColor, color: "#fff",
-              fontSize: 12, fontWeight: 700, padding: "4px 14px 4px 10px",
-              clipPath: "polygon(0 0, calc(100% - 8px) 0, 100% 50%, calc(100% - 8px) 100%, 0 100%)",
-            }}>
-              {ribbonText}
-            </div>
-          )}
+          <ProductImageOverlays
+            frameWidth={frameWidth}
+            showDiscountBadge={showDiscountBadge}
+            hasDiscount={hasDiscount}
+            discountPct={discountPct}
+            showRibbon={showRibbon}
+            ribbonText={ribbonText}
+            ribbonColor={ribbonColor}
+          />
           {showQuickView && (
             <button type="button" style={{
               position: "absolute", bottom: 8, left: "50%", transform: "translateX(-50%)",
@@ -260,6 +287,7 @@ ProductCard.craft = {
   displayName: "Product Card",
   props: {
     boundProductId: undefined,
+    position: "absolute", top: "0px", left: "0px",
     showImage: true, showProductName: true, showPrice: true,
     showDescription: false, showDivider: false,
     showDiscountBadge: true, showRibbon: false,
@@ -275,6 +303,7 @@ ProductCard.craft = {
     buttonLabel: "Add to Cart", buttonBackground: "#111827", buttonTextColor: "#ffffff",
     buttonBorderRadius: 6, buttonBorderColor: "transparent", buttonBorderWidth: 0, buttonFontSize: 13,
   },
+  custom: {},
   related: { settings: ProductCardSettings },
   rules: { canDrag: () => true, canDrop: () => true, canMoveIn: () => false },
   isCanvas: false,

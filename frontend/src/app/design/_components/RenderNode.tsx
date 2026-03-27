@@ -329,6 +329,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
           nodeId={id}
           dom={dom}
           disableRotate={name === "Section"}
+          disableResize={name === "Product Slider"}
         />
       ) : null}
 

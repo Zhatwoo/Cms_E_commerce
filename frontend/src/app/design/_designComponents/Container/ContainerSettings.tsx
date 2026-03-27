@@ -8,7 +8,6 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { ProductBindingGroup } from "../../_components/rightPanel/settings/ProductBindingGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const ContainerSettings = () => {
@@ -183,18 +182,6 @@ export const ContainerSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           enableMediaFillModes
           setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Product Binding" defaultOpen={false}>
-        <ProductBindingGroup
-          productId={productId}
-          onChange={(nextProductId) =>
-            typedSetProp((props) => {
-              props.productId = nextProductId;
-              props.productIndex = undefined;
-            })
-          }
         />
       </DesignSection>
 

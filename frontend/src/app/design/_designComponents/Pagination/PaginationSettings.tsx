@@ -23,6 +23,7 @@ export const PaginationSettings = () => {
     fontWeight,
     color,
     textAlign,
+    textDecoration,
     width,
     height,
     paddingTop,
@@ -71,6 +72,7 @@ export const PaginationSettings = () => {
     fontWeight: node.data.props.fontWeight ?? "400",
     color: node.data.props.color ?? "#a1a1aa",
     textAlign: node.data.props.textAlign ?? "center",
+    textDecoration: node.data.props.textDecoration ?? "none",
     width: node.data.props.width ?? "auto",
     height: node.data.props.height ?? "auto",
     paddingTop: node.data.props.paddingTop ?? 0,
@@ -137,6 +139,7 @@ export const PaginationSettings = () => {
           fontWeight={fontWeight}
           color={color}
           textAlign={textAlign}
+          textDecoration={textDecoration}
           setProp={typedSetProp}
         />
       </DesignSection>

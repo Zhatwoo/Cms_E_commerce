@@ -18,7 +18,8 @@ exports.addNotification = async (req, res) => {
       title,
       message,
       type: type || 'info', 
-      adminId: req.user?.id || 'admin'
+      adminId: req.user?.id || 'admin',
+      adminName: req.user?.name || req.user?.email || 'Administrator'
     });
 
     const io = req.app.get('io');
