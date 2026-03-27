@@ -1481,6 +1481,25 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     setCurrentPageId(pageId);
   }, []);
 
+  const handleDeletePage = useCallback((pageId: string) => {
+    if (!initialJson || pages.length <= 1) return;
+    try {
+      const parsed = JSON.parse(initialJson);
+      parsed.pages = (parsed.pages || []).filter((p: any) => p.id !== pageId);
+      const updated = JSON.stringify(parsed);
+      const storageKey = getStorageKey(projectId);
+      safeSessionSet(storageKey, updated);
+      loadPages(updated);
+      if (currentPageId === pageId && parsed.pages.length > 0) {
+        setCurrentPageId(parsed.pages[0].id);
+      }
+      setInitialJson(updated);
+    } catch (error) {
+      console.error("Failed to delete page:", error);
+      showAlert("Failed to delete page", "error");
+    }
+  }, [initialJson, currentPageId, pages, projectId, loadPages, showAlert]);
+
   const handleRenamePage = useCallback((pageId: string, newName: string) => {
     if (!initialJson) return;
     try {
