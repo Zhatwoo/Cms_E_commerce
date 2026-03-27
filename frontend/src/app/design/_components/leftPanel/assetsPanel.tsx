@@ -23,6 +23,20 @@ import { Icon } from "../../_designComponents/Icon/Icon";
 import { Rating } from "../../_designComponents/Rating/Rating";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 
+// Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
+// context that isn't available in the isolated preview Editor.
+const ProductCardPreviewStub = () => (
+  <div style={{ width: 280, height: 380, background: "#f3f4f6", borderRadius: 10, border: "1px solid #e5e7eb", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    <span style={{ fontSize: 11, color: "#9ca3af" }}>Product Card</span>
+  </div>
+);
+const ProductSliderPreviewStub = () => (
+  <div style={{ width: "100%", minHeight: 120, background: "#f3f4f6", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <span style={{ fontSize: 12, color: "#9ca3af" }}>Product Slider</span>
+  </div>
+);
+
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
   ((props: any) => React.createElement("div", props, props?.children));
@@ -170,6 +184,12 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   profileloginnode: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).profileloginnode ?? (BASE_CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   Accordion: asComponent(Accordion),
   accordion: asComponent(Accordion),
+  ProductCard: ProductCardPreviewStub,
+  productcard: ProductCardPreviewStub,
+  "Product Card": ProductCardPreviewStub,
+  ProductSlider: ProductSliderPreviewStub,
+  productslider: ProductSliderPreviewStub,
+  "Product Slider": ProductSliderPreviewStub,
 });
 
 export const AssetLivePreview = ({
