@@ -43,11 +43,6 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function websiteLabel(client: ClientRow): string {
-  const prefix = client.email?.split('@')[0]?.trim().toLowerCase();
-  return prefix ? `${prefix}.com` : 'example.com';
-}
-
 function isClientActive(client: ClientRow): boolean {
   const s = (client.status || '').toLowerCase();
   return s === 'published' || s === 'active' || client.isActive === true;
@@ -55,6 +50,14 @@ function isClientActive(client: ClientRow): boolean {
 
 function formatDate(value: string | undefined): string {
   return formatToPHTime(value);
+}
+
+function isUserOnline(lastSeen?: string): boolean {
+  if (!lastSeen) return false;
+  const now = new Date();
+  const ls = new Date(lastSeen);
+  // within last 5 minutes = Online
+  return (now.getTime() - ls.getTime()) < 5 * 60 * 1000;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -140,7 +143,7 @@ export function UserManagement() {
   const urlSearch = searchParams.get('search') || '';
   const focusedClientId = searchParams.get('clientId') || '';
   const PAGE_SIZE = 20;
-  type SortOption = 'recent' | 'az' | 'za';
+  type SortOption = 'recent' | 'oldest' | 'az' | 'za';
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,7 +157,6 @@ export function UserManagement() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [storageHintClientId, setStorageHintClientId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const [actionModal, setActionModal] = useState<ActionModalState>({
     isOpen: false,
     title: '',
@@ -236,18 +238,13 @@ export function UserManagement() {
     const copy = [...filtered];
     if (sortOption === 'az') {
       copy.sort((a, b) => (a.displayName || a.email || '').localeCompare((b.displayName || b.email || ''), undefined, { sensitivity: 'base' }));
-      return copy;
-    }
-    if (sortOption === 'za') {
+    } else if (sortOption === 'za') {
       copy.sort((a, b) => (b.displayName || b.email || '').localeCompare((a.displayName || a.email || ''), undefined, { sensitivity: 'base' }));
-      return copy;
+    } else if (sortOption === 'recent') {
+      copy.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } else if (sortOption === 'oldest') {
+      copy.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     }
-
-    copy.sort((a, b) => {
-      const aTime = new Date(a.createdAt || 0).getTime();
-      const bTime = new Date(b.createdAt || 0).getTime();
-      return bTime - aTime;
-    });
     return copy;
   }, [filtered, sortOption]);
 
@@ -265,17 +262,6 @@ export function UserManagement() {
     setCurrentPage(1);
   }, [search, planFilter, statusFilter, sortOption]);
 
-  useEffect(() => {
-    if (!sortMenuOpen) return;
-    const handleOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (sortMenuRef.current && !sortMenuRef.current.contains(target)) {
-        setSortMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [sortMenuOpen]);
 
   const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / PAGE_SIZE));
 
@@ -698,82 +684,56 @@ export function UserManagement() {
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9A62D8]"><ChevronDownIcon /></div>
               </div>
-              <div className="relative" ref={sortMenuRef}>
+              <div className="relative">
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((v) => !v)}
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-[12px] border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF]"
+                  className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF] transition-all"
                   aria-label="Sort users"
                   title="Sort"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h12M4 12h16M10 18h10" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                   </svg>
                 </button>
                 {sortMenuOpen && (
-                  <div className="absolute left-0 top-12 z-40 w-44 rounded-xl border border-[#E2C7FF] bg-white shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('recent'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'recent' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Recently
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('az'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'az' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Alphabetical A-Z
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('za'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'za' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Alphabetical Z-A
-                    </button>
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setSortMenuOpen(false)} />
+                    <div className="absolute left-0 top-12 z-40 w-48 rounded-2xl border border-[#E2C7FF] bg-white/95 backdrop-blur-md shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5 animate-in fade-in zoom-in duration-200">
+                      {(['recent', 'oldest', 'az', 'za'] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => { setSortOption(opt); setSortMenuOpen(false); }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                            sortOption === opt ? 'bg-[#F3E8FF] text-[#6D28D9]' : 'text-[#6F657E] hover:bg-[#F8F2FF]'
+                          }`}
+                        >
+                          {opt === 'recent' && 'Recently Created'}
+                          {opt === 'oldest' && 'Oldest First'}
+                          {opt === 'az' && 'Alphabetical (A–Z)'}
+                          {opt === 'za' && 'Alphabetical (Z–A)'}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={toggleSortDirection}
-                className="h-10 w-10 inline-flex items-center justify-center rounded-[12px] border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF]"
-                aria-label={isAscending ? 'Switch to descending sort' : 'Switch to ascending sort'}
-                title={isAscending ? 'Ascending (A-Z)' : 'Descending (Z-A)'}
-              >
-                {isAscending ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17V5m0 0L3.5 8.5M7 5l3.5 3.5M14 7h7M14 12h5M14 17h3" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7v12m0 0L3.5 15.5M7 19l3.5-3.5M14 7h3M14 12h5M14 17h7" />
-                  </svg>
-                )}
-              </button>
             </div>
 
 
-            <div className="justify-self-end w-full max-w-[390px]">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FFCC00] text-[#5F3A84] shadow-[0_2px_8px_rgba(177,59,255,0.15)]"
-                  aria-label="Search users"
-                >
-                  <SearchIcon />
-                </button>
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    placeholder="Search name or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-12 w-full px-4 pr-11 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30"
-                  />
-                  {search && (
+            <div className="relative justify-self-end w-full max-w-[390px]">
+              <input
+                type="text"
+                placeholder="Search name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-14 pr-4 py-3 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF]"
+              />
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-[#FFCC00] text-[#5F3A84] flex items-center justify-center pointer-events-none shadow-sm">
+                <SearchIcon />
+              </div>
+              {search && (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
@@ -782,9 +742,7 @@ export function UserManagement() {
                     >
                       x
                     </button>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -975,13 +933,12 @@ export function UserManagement() {
         )}
 
         <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
-          <table className="w-full min-w-[920px]">
+          <table className="w-full min-w-[860px]">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
                 <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
@@ -989,13 +946,27 @@ export function UserManagement() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
+                  const online = isUserOnline(client.lastSeen);
                   const busy = actionLoadingId === client.id;
                   const storage = getClientStorage(client);
-                  const statusLabel = active ? 'Active' : 'Inactive';
+                  
+                  const s = (client.status || '').toLowerCase();
+                  const isSuspended = s === 'suspended';
+                  const isRestricted = s === 'restricted';
+                  
+                  let statusLabel = active ? 'Active' : 'Inactive';
+                  if (active) {
+                    statusLabel = online ? 'Online' : 'Offline';
+                  } else if (isSuspended) {
+                    statusLabel = 'Suspended';
+                  } else if (isRestricted) {
+                    statusLabel = 'Restricted';
+                  }
+
                   const isSelected = selection.selectedIds.has(client.id);
                   return (
                     <tr
@@ -1019,8 +990,12 @@ export function UserManagement() {
                         if (!selection.isDragging) selection.handleRowMouseUp();
                       }}
                     >
-                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E]">{client.displayName || '—'}</td>
-                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium">{client.email}</td>
+                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={client.displayName || ''}>
+                        {client.displayName || '—'}
+                      </td>
+                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={client.email}>
+                        {client.email}
+                      </td>
                       <td className="px-3 py-4 text-[0.95rem]">
                         <div className="relative inline-flex items-center gap-3">
                           <Tooltip label="Click to view storage usage and remaining space">
@@ -1084,13 +1059,24 @@ export function UserManagement() {
                           {savingId === client.id && <span className="text-xs text-[#82788F]">Saving…</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{websiteLabel(client)}</td>
                       <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
-                      <td className={`px-3 py-4 text-[1rem] font-semibold ${active ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>
-                        {statusLabel}
+                      <td className={`px-3 py-4 text-[1rem] font-semibold`}>
+                        <div className="flex items-center gap-1.5">
+                          {active ? (
+                            <>
+                              <div className={`h-2 w-2 rounded-full ${online ? 'bg-[#00C438] shadow-[0_0_8px_rgba(0,196,56,0.6)]' : 'bg-[#B2AEBF]'}`} />
+                              <span className={online ? 'text-[#00C438]' : 'text-[#6F657E]'}>{statusLabel}</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`h-2 w-2 rounded-full ${isSuspended ? 'bg-[#FF0000]' : 'bg-[#FFCC00]'}`} />
+                              <span className={isSuspended ? 'text-[#FF0000]' : 'text-[#A08100]'}>{statusLabel}</span>
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-center">
-                        <div className="inline-flex items-center gap-2 flex-wrap justify-center text-[#5A2AA8]">
+                        <div className="inline-flex items-center gap-2 justify-center text-[#5A2AA8]">
                           <Tooltip label="Client profile">
                             <button
                               type="button"
@@ -1140,7 +1126,7 @@ export function UserManagement() {
                   );
                 })
               ) : (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
               )}
             </tbody>
           </table>
