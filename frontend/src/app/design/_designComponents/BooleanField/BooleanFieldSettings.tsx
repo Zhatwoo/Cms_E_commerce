@@ -33,6 +33,7 @@ export const BooleanFieldSettings = () => {
     letterSpacing,
     textAlign,
     textTransform,
+    textDecoration,
     options,
     width,
     height,
@@ -77,6 +78,7 @@ export const BooleanFieldSettings = () => {
     letterSpacing: (node.data.props as any).letterSpacing ?? 0,
     textAlign: (node.data.props as any).textAlign ?? "left",
     textTransform: (node.data.props as any).textTransform ?? "none",
+    textDecoration: (node.data.props as any).textDecoration ?? "none",
     options: node.data.props.options,
     width: node.data.props.width ?? "fit-content",
     height: node.data.props.height ?? "fit-content",
@@ -347,6 +349,7 @@ export const BooleanFieldSettings = () => {
           letterSpacing={(letterSpacing as any) ?? 0}
           textAlign={(textAlign as any) ?? "left"}
           textTransform={(textTransform as any) ?? "none"}
+          textDecoration={(textDecoration as any) ?? "none"}
           color={(color as any) ?? labelColor ?? "#000000"}
           setProp={typedSetTypographyProp}
         />
