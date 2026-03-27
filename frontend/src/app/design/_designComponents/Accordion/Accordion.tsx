@@ -3,47 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { AccordionSettings } from "./AccordionSettings";
-import type { PositionProps } from "../../_types/components";
-
-export interface AccordionItem {
-  title: string;
-  content: string;
-  mediaType?: "none" | "image" | "video";
-  mediaUrl?: string;
-}
-
-export interface AccordionProps extends PositionProps {
-  items?: AccordionItem[];
-  stylePreset?: "classic" | "wix";
-  editorPreviewMode?: "normal" | "expand-all" | "collapse-all";
-  allowMultiple?: boolean;
-  allowCollapseAll?: boolean;
-  defaultOpenIndex?: number;
-  animationDurationMs?: number;
-  // Container
-  width?: string;
-  minHeight?: number;
-  marginTop?: number;
-  marginRight?: number;
-  marginBottom?: number;
-  marginLeft?: number;
-  borderRadius?: number;
-  // Header row
-  backgroundColor?: string;
-  headerBg?: string;
-  headerTextColor?: string;
-  headerFontSize?: number;
-  headerFontWeight?: string;
-  // Content panel
-  contentBg?: string;
-  contentTextColor?: string;
-  contentFontSize?: number;
-  // Border
-  borderColor?: string;
-  borderWidth?: number;
-  // Icon
-  iconColor?: string;
-}
+import type { PositionProps, AccordionProps, AccordionItem } from "../../_types/components";
 
 const DEFAULT_ITEMS: AccordionItem[] = [
   { title: "What is this?", content: "This is the content of the first accordion item. Click the header to expand or collapse.", mediaType: "none", mediaUrl: "" },
@@ -89,9 +49,23 @@ export const Accordion = ({
   headerTextColor = "#e2e8f0",
   headerFontSize = 14,
   headerFontWeight = "600",
+  headerFontStyle = "normal",
+  headerLetterSpacing = "0.01em",
+  headerLineHeight = 1.3,
+  headerTextAlign = "left",
+  headerTextTransform = "none",
+  headerTextDecoration = "none",
   contentBg = "#12121c",
   contentTextColor = "#a0aec0",
   contentFontSize = 13,
+  contentFontWeight = "400",
+  contentFontStyle = "normal",
+  contentLetterSpacing = 0,
+  contentLineHeight = "1.6",
+  contentTextAlign = "left",
+  contentTextTransform = "none",
+  contentTextDecoration = "none",
+  fontFamily = "Outfit",
   borderColor = "#2d2d44",
   borderWidth = 1,
   iconColor = "#94a3b8",
@@ -310,14 +284,19 @@ export const Accordion = ({
                 color: headerTextColor,
                 fontSize: fluidHeaderFontSize,
                 fontWeight: headerFontWeight,
+                fontFamily,
+                fontStyle: headerFontStyle ?? "normal",
+                letterSpacing: headerLetterSpacing ?? "0.01em",
+                lineHeight: headerLineHeight ?? 1.3,
+                textAlign: headerTextAlign ?? "left",
+                textTransform: headerTextTransform ?? "none",
+                textDecoration: headerTextDecoration ?? "none",
                 cursor: "pointer",
-                textAlign: "left",
                 border: "none",
                 outline: "none",
-                letterSpacing: "0.01em",
               }}
             >
-              <span style={{ flex: 1, lineHeight: 1.3, display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+              <span style={{ flex: 1, lineHeight: "inherit", display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
                 {isWix && (
                   <span aria-hidden="true" style={{ width: "10px", display: "inline-flex", justifyContent: "center", opacity: 0.6, flexShrink: 0 }}>
                     <svg width="8" height="16" viewBox="0 0 8 16" fill="none">
@@ -330,7 +309,7 @@ export const Accordion = ({
                     </svg>
                   </span>
                 )}
-                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>{item.title}</span>
+                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, textDecoration: "inherit" }}>{item.title}</span>
                 {!isWix && (
                   <span
                     style={{
@@ -437,12 +416,19 @@ export const Accordion = ({
                   backgroundColor: contentBg,
                   color: contentTextColor,
                   fontSize: fluidContentFontSize,
-                  lineHeight: "1.6",
+                  fontWeight: contentFontWeight ?? "400",
+                  fontFamily,
+                  fontStyle: contentFontStyle ?? "normal",
+                  letterSpacing: contentLetterSpacing ?? 0,
+                  lineHeight: contentLineHeight ?? "1.6",
+                  textAlign: contentTextAlign ?? "left",
+                  textTransform: contentTextTransform ?? "none",
+                  textDecoration: contentTextDecoration ?? "none",
                   borderTop: `1px solid ${hexToRgba(borderColor, 0.45)}`,
                 }}
               >
                 {/* Text content — padded */}
-                <div style={{ padding: isWix ? "10px 44px 10px" : "10px 16px 10px" }}>{item.content}</div>
+                <div style={{ padding: isWix ? "10px 44px 10px" : "10px 16px 10px", textDecoration: "inherit" }}>{item.content}</div>
                 {mediaType !== "none" && mediaUrl && (
                   <div style={{ padding: isWix ? "0 44px 10px" : "0 16px 10px" }}>
                     {mediaType === "image"

@@ -4,51 +4,10 @@ import { DesignSection } from "../../_components/rightPanel/settings/DesignSecti
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
+import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
+import type { TypographyProps, SetProp, AccordionProps, AccordionItem } from "../../_types/components";
 import { Plus, Trash2 } from "lucide-react";
 import { uploadMediaApi } from "@/lib/api";
-
-interface AccordionItem {
-  title: string;
-  content: string;
-  mediaType?: "none" | "image" | "video";
-  mediaUrl?: string;
-}
-
-interface AccordionStyleProps {
-  items?: AccordionItem[];
-  stylePreset?: "classic" | "wix";
-  editorPreviewMode?: "normal" | "expand-all" | "collapse-all";
-  allowMultiple?: boolean;
-  allowCollapseAll?: boolean;
-  defaultOpenIndex?: number;
-  animationDurationMs?: number;
-  width?: string;
-  minHeight?: number;
-  marginTop?: number;
-  marginRight?: number;
-  marginBottom?: number;
-  marginLeft?: number;
-  position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
-  display?: "flex" | "grid" | "block" | "inline-block" | "none";
-  zIndex?: number;
-  top?: string;
-  right?: string;
-  bottom?: string;
-  left?: string;
-  editorVisibility?: "auto" | "show" | "hide";
-  borderRadius?: number;
-  backgroundColor?: string;
-  headerBg?: string;
-  headerTextColor?: string;
-  headerFontSize?: number;
-  headerFontWeight?: string;
-  contentBg?: string;
-  contentTextColor?: string;
-  contentFontSize?: number;
-  borderColor?: string;
-  borderWidth?: number;
-  iconColor?: string;
-}
 
 export const AccordionSettings = () => {
   const fileInputRefs = React.useRef<Record<number, HTMLInputElement | null>>({});
@@ -88,6 +47,8 @@ export const AccordionSettings = () => {
     borderColor,
     borderWidth,
     iconColor,
+    node,
+    fontFamily,
     actions: { setProp },
   } = useNode((node) => ({
     items: node.data.props.items as AccordionItem[],
@@ -103,32 +64,47 @@ export const AccordionSettings = () => {
     marginRight: node.data.props.marginRight as number,
     marginBottom: node.data.props.marginBottom as number,
     marginLeft: node.data.props.marginLeft as number,
-    position: node.data.props.position as AccordionStyleProps["position"],
-    display: node.data.props.display as AccordionStyleProps["display"],
+    position: node.data.props.position as AccordionProps["position"],
+    display: node.data.props.display as AccordionProps["display"],
     zIndex: node.data.props.zIndex as number,
     top: node.data.props.top as string,
     right: node.data.props.right as string,
     bottom: node.data.props.bottom as string,
     left: node.data.props.left as string,
-    editorVisibility: node.data.props.editorVisibility as AccordionStyleProps["editorVisibility"],
+    editorVisibility: node.data.props.editorVisibility as AccordionProps["editorVisibility"],
     borderRadius: node.data.props.borderRadius as number,
     backgroundColor: node.data.props.backgroundColor as string,
     headerBg: node.data.props.headerBg as string,
     headerTextColor: node.data.props.headerTextColor as string,
     headerFontSize: node.data.props.headerFontSize as number,
     headerFontWeight: node.data.props.headerFontWeight as string,
+    headerFontStyle: node.data.props.headerFontStyle as string,
+    headerLetterSpacing: node.data.props.headerLetterSpacing as string | number,
+    headerLineHeight: node.data.props.headerLineHeight as string | number,
+    headerTextAlign: node.data.props.headerTextAlign as any,
+    headerTextTransform: node.data.props.headerTextTransform as any,
+    headerTextDecoration: node.data.props.headerTextDecoration as string,
     contentBg: node.data.props.contentBg as string,
     contentTextColor: node.data.props.contentTextColor as string,
     contentFontSize: node.data.props.contentFontSize as number,
+    contentFontWeight: node.data.props.contentFontWeight as string,
+    contentFontStyle: node.data.props.contentFontStyle as string,
+    contentLetterSpacing: node.data.props.contentLetterSpacing as string | number,
+    contentLineHeight: node.data.props.contentLineHeight as string | number,
+    contentTextAlign: node.data.props.contentTextAlign as any,
+    contentTextTransform: node.data.props.contentTextTransform as any,
+    contentTextDecoration: node.data.props.contentTextDecoration as string,
+    fontFamily: node.data.props.fontFamily as string,
     borderColor: node.data.props.borderColor as string,
     borderWidth: node.data.props.borderWidth as number,
     iconColor: node.data.props.iconColor as string,
+    node,
   }));
 
   const safeItems: AccordionItem[] = Array.isArray(items) ? items : [];
 
   const updateItem = (index: number, key: keyof AccordionItem, value: string) => {
-    setProp((props: AccordionStyleProps) => {
+    setProp((props: AccordionProps) => {
       const copy = [...(props.items ?? [])];
       copy[index] = { ...copy[index], [key]: value };
       props.items = copy;
@@ -136,7 +112,7 @@ export const AccordionSettings = () => {
   };
 
   const addItem = () => {
-    setProp((props: AccordionStyleProps) => {
+    setProp((props: AccordionProps) => {
       props.items = [
         ...(props.items ?? []),
         { title: `Item ${(props.items?.length ?? 0) + 1}`, content: "Add your content here.", mediaType: "none", mediaUrl: "" },
@@ -145,7 +121,7 @@ export const AccordionSettings = () => {
   };
 
   const removeItem = (index: number) => {
-    setProp((props: AccordionStyleProps) => {
+    setProp((props: AccordionProps) => {
       props.items = (props.items ?? []).filter((_, i) => i !== index);
     });
   };
@@ -184,7 +160,7 @@ export const AccordionSettings = () => {
         mediaUrl = URL.createObjectURL(file);
       }
 
-      setProp((props: AccordionStyleProps) => {
+      setProp((props: AccordionProps) => {
         const next = [...(props.items ?? [])];
         const current = next[index];
         if (!current) return;
@@ -225,7 +201,7 @@ export const AccordionSettings = () => {
             <label className="text-[10px] text-[var(--builder-text)]">Width</label>
             <select
               value={width ?? "100%"}
-              onChange={(e) => setProp((p: AccordionStyleProps) => { p.width = e.target.value; })}
+              onChange={(e) => setProp((p: AccordionProps) => { p.width = e.target.value; })}
               className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
             >
               <option value="100%">Full (100%)</option>
@@ -236,24 +212,24 @@ export const AccordionSettings = () => {
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Min Height</label>
-            <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.minHeight = v; })} />
+            <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.minHeight = v; })} />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Margin Top</label>
-              <NumericInput value={marginTop ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginTop = v; })} />
+              <NumericInput value={marginTop ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginTop = v; })} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Margin Bottom</label>
-              <NumericInput value={marginBottom ?? 16} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginBottom = v; })} />
+              <NumericInput value={marginBottom ?? 16} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginBottom = v; })} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Margin Left</label>
-              <NumericInput value={marginLeft ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginLeft = v; })} />
+              <NumericInput value={marginLeft ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginLeft = v; })} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Margin Right</label>
-              <NumericInput value={marginRight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.marginRight = v; })} />
+              <NumericInput value={marginRight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginRight = v; })} />
             </div>
           </div>
         </div>
@@ -263,70 +239,115 @@ export const AccordionSettings = () => {
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Container Background</label>
-            <ColorPicker value={backgroundColor ?? "transparent"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.backgroundColor = v; })} className="w-full" />
+            <ColorPicker value={backgroundColor ?? "transparent"} onChange={(v) => setProp((p: AccordionProps) => { p.backgroundColor = v; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Border Color</label>
-            <ColorPicker value={borderColor ?? "#2d2d44"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderColor = v; })} className="w-full" />
+            <ColorPicker value={borderColor ?? "#2d2d44"} onChange={(v) => setProp((p: AccordionProps) => { p.borderColor = v; })} className="w-full" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
-              <NumericInput value={borderWidth ?? 1} min={0} max={8} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderWidth = v; })} />
+              <NumericInput value={borderWidth ?? 1} min={0} max={8} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.borderWidth = v; })} />
             </div>
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Radius</label>
-              <NumericInput value={borderRadius ?? 8} min={0} max={32} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.borderRadius = v; })} />
+              <NumericInput value={borderRadius ?? 8} min={0} max={32} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.borderRadius = v; })} />
             </div>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Header Background</label>
-            <ColorPicker value={headerBg ?? "#1e1e2e"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerBg = v; })} className="w-full" />
+            <ColorPicker value={headerBg ?? "#1e1e2e"} onChange={(v) => setProp((p: AccordionProps) => { p.headerBg = v; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Content Background</label>
-            <ColorPicker value={contentBg ?? "#12121c"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentBg = v; })} className="w-full" />
+            <ColorPicker value={contentBg ?? "#12121c"} onChange={(v) => setProp((p: AccordionProps) => { p.contentBg = v; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Icon Color</label>
-            <ColorPicker value={iconColor ?? "#94a3b8"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.iconColor = v; })} className="w-full" />
+            <ColorPicker value={iconColor ?? "#94a3b8"} onChange={(v) => setProp((p: AccordionProps) => { p.iconColor = v; })} className="w-full" />
           </div>
         </div>
       </DesignSection>
 
-      <DesignSection title="Typography">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Header Text Color</label>
-            <ColorPicker value={headerTextColor ?? "#e2e8f0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerTextColor = v; })} className="w-full" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Header Font Size</label>
-              <NumericInput value={headerFontSize ?? 14} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.headerFontSize = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Header Weight</label>
-              <select
-                value={headerFontWeight ?? "600"}
-                onChange={(e) => setProp((p: AccordionStyleProps) => { p.headerFontWeight = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-              >
-                {["400", "500", "600", "700", "800"].map((w) => (
-                  <option key={w} value={w}>{w}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Content Text Color</label>
-            <ColorPicker value={contentTextColor ?? "#a0aec0"} onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentTextColor = v; })} className="w-full" />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Content Font Size</label>
-            <NumericInput value={contentFontSize ?? 13} min={8} max={48} unit="px" onChange={(v) => setProp((p: AccordionStyleProps) => { p.contentFontSize = v; })} />
-          </div>
-        </div>
+      <DesignSection title="Header Typography">
+        <TypographyGroup
+          fontSize={headerFontSize}
+          fontWeight={headerFontWeight}
+          fontFamily={fontFamily}
+          fontStyle={node.data.props.headerFontStyle}
+          lineHeight={node.data.props.headerLineHeight}
+          letterSpacing={node.data.props.headerLetterSpacing}
+          textAlign={node.data.props.headerTextAlign}
+          textTransform={node.data.props.headerTextTransform}
+          textDecoration={node.data.props.headerTextDecoration}
+          color={headerTextColor}
+          setProp={(cb) => setProp((props: any) => {
+            const fake: TypographyProps = {
+              fontSize: props.headerFontSize,
+              fontWeight: props.headerFontWeight,
+              fontFamily: props.fontFamily,
+              fontStyle: props.headerFontStyle,
+              lineHeight: props.headerLineHeight,
+              letterSpacing: props.headerLetterSpacing,
+              textAlign: props.headerTextAlign,
+              textTransform: props.headerTextTransform,
+              textDecoration: props.headerTextDecoration,
+              color: props.headerTextColor,
+            };
+            cb(fake);
+            props.headerFontSize = fake.fontSize;
+            props.headerFontWeight = fake.fontWeight;
+            props.fontFamily = fake.fontFamily;
+            props.headerFontStyle = fake.fontStyle;
+            props.headerLineHeight = fake.lineHeight;
+            props.headerLetterSpacing = fake.letterSpacing;
+            props.headerTextAlign = fake.textAlign;
+            props.headerTextTransform = fake.textTransform;
+            props.headerTextDecoration = fake.textDecoration;
+            props.headerTextColor = fake.color;
+          })}
+        />
+      </DesignSection>
+
+      <DesignSection title="Content Typography">
+        <TypographyGroup
+          fontSize={contentFontSize}
+          fontWeight={node.data.props.contentFontWeight}
+          fontFamily={fontFamily}
+          fontStyle={node.data.props.contentFontStyle}
+          lineHeight={node.data.props.contentLineHeight}
+          letterSpacing={node.data.props.contentLetterSpacing}
+          textAlign={node.data.props.contentTextAlign}
+          textTransform={node.data.props.contentTextTransform}
+          textDecoration={node.data.props.contentTextDecoration}
+          color={contentTextColor}
+          setProp={(cb) => setProp((props: any) => {
+            const fake: TypographyProps = {
+              fontSize: props.contentFontSize,
+              fontWeight: props.contentFontWeight,
+              fontFamily: props.fontFamily,
+              fontStyle: props.contentFontStyle,
+              lineHeight: props.contentLineHeight,
+              letterSpacing: props.contentLetterSpacing,
+              textAlign: props.contentTextAlign,
+              textTransform: props.contentTextTransform,
+              textDecoration: props.contentTextDecoration,
+              color: props.contentTextColor,
+            };
+            cb(fake);
+            props.contentFontSize = fake.fontSize;
+            props.contentFontWeight = fake.fontWeight;
+            props.fontFamily = fake.fontFamily;
+            props.contentFontStyle = fake.fontStyle;
+            props.contentLineHeight = fake.lineHeight;
+            props.contentLetterSpacing = fake.letterSpacing;
+            props.contentTextAlign = fake.textAlign;
+            props.contentTextTransform = fake.textTransform;
+            props.contentTextDecoration = fake.textDecoration;
+            props.contentTextColor = fake.color;
+          })}
+        />
       </DesignSection>
 
       {/* Items */}
@@ -337,7 +358,7 @@ export const AccordionSettings = () => {
             <div className="grid grid-cols-2 gap-1 bg-[var(--builder-surface-2)] p-1 rounded-lg border border-[var(--builder-border)]">
               <button
                 type="button"
-                onClick={() => setProp((props: AccordionStyleProps) => { props.editorPreviewMode = "expand-all"; })}
+                onClick={() => setProp((props: AccordionProps) => { props.editorPreviewMode = "expand-all"; })}
                 className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "expand-all"
                   ? "bg-[var(--builder-accent)] text-black"
                   : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
@@ -347,7 +368,7 @@ export const AccordionSettings = () => {
               </button>
               <button
                 type="button"
-                onClick={() => setProp((props: AccordionStyleProps) => { props.editorPreviewMode = "collapse-all"; })}
+                onClick={() => setProp((props: AccordionProps) => { props.editorPreviewMode = "collapse-all"; })}
                 className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "collapse-all"
                   ? "bg-[var(--builder-accent)] text-black"
                   : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
@@ -468,7 +489,7 @@ export const AccordionSettings = () => {
             <span className="text-[10px] text-[var(--builder-text)]">Allow Multiple Open</span>
             <button
               type="button"
-              onClick={() => setProp((props: AccordionStyleProps) => { props.allowMultiple = !props.allowMultiple; })}
+              onClick={() => setProp((props: AccordionProps) => { props.allowMultiple = !props.allowMultiple; })}
               className={`relative w-9 h-5 rounded-full transition-colors ${allowMultiple ? "bg-blue-500" : "bg-[var(--builder-surface-3)]"}`}
             >
               <span
@@ -481,7 +502,7 @@ export const AccordionSettings = () => {
             <span className="text-[10px] text-[var(--builder-text)]">Allow Collapse All</span>
             <button
               type="button"
-              onClick={() => setProp((props: AccordionStyleProps) => { props.allowCollapseAll = !props.allowCollapseAll; })}
+              onClick={() => setProp((props: AccordionProps) => { props.allowCollapseAll = !props.allowCollapseAll; })}
               className={`relative w-9 h-5 rounded-full transition-colors ${allowCollapseAll !== false ? "bg-blue-500" : "bg-[var(--builder-surface-3)]"}`}
             >
               <span
@@ -495,7 +516,7 @@ export const AccordionSettings = () => {
               <label className="text-[10px] text-[var(--builder-text)]">Style Preset</label>
               <select
                 value={stylePreset ?? "wix"}
-                onChange={(e) => setProp((props: AccordionStyleProps) => { props.stylePreset = e.target.value as "classic" | "wix"; })}
+                onChange={(e) => setProp((props: AccordionProps) => { props.stylePreset = e.target.value as "classic" | "wix"; })}
                 className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
               >
                 <option value="wix">Wix</option>
@@ -508,7 +529,7 @@ export const AccordionSettings = () => {
                 value={defaultOpenIndex ?? 0}
                 min={0}
                 max={Math.max(0, safeItems.length - 1)}
-                onChange={(v) => setProp((props: AccordionStyleProps) => { props.defaultOpenIndex = v; })}
+                onChange={(v) => setProp((props: AccordionProps) => { props.defaultOpenIndex = v; })}
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -518,7 +539,7 @@ export const AccordionSettings = () => {
                 min={80}
                 max={1200}
                 unit="ms"
-                onChange={(v) => setProp((props: AccordionStyleProps) => { props.animationDurationMs = v; })}
+                onChange={(v) => setProp((props: AccordionProps) => { props.animationDurationMs = v; })}
               />
             </div>
           </div>

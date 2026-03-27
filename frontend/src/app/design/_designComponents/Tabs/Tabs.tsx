@@ -82,6 +82,15 @@ export const Tabs = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
+  fontSize = 14,
+  fontWeight = "600",
+  fontFamily = "Outfit",
+  fontStyle = "normal",
+  lineHeight = 1.2,
+  letterSpacing = 0,
+  textAlign = "center",
+  textTransform = "none",
+  textDecoration = "none",
   children,
 }: TabsProps & { children?: React.ReactNode }) => {
   const {
@@ -266,7 +275,16 @@ export const Tabs = ({
                 color: isActive ? activeTabTextColor : tabHeaderTextColor,
                 borderBottomColor: isActive ? (activeTabTextColor || "#3b82f6") : "transparent",
                 transform: isActive ? "scale(1.02)" : "scale(1)",
-                zIndex: isActive ? 1 : 0
+                zIndex: isActive ? 1 : 0,
+                fontSize,
+                fontWeight,
+                fontFamily,
+                fontStyle,
+                lineHeight,
+                letterSpacing,
+                textAlign,
+                textTransform,
+                textDecoration,
               }}
             >
               {tab.title}
