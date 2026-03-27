@@ -933,7 +933,6 @@ export function UserManagement() {
         )}
 
         <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
-<<<<<<< HEAD
           <table className="w-full min-w-[860px]">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
@@ -943,18 +942,6 @@ export function UserManagement() {
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
                 <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
-=======
-          <table className="w-full min-w-[920px] table-fixed">
-            <thead>
-              <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="w-[15%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
-                <th className="w-[23%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
-                <th className="w-[16%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="w-[13%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
-                <th className="w-[13%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
-                <th className="w-[8%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="w-[12%] px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
->>>>>>> c58e195cf05eeb681de0b851e0cbe0f7637f58ee
               </tr>
             </thead>
             <tbody>
@@ -1072,12 +1059,6 @@ export function UserManagement() {
                           {savingId === client.id && <span className="text-xs text-[#82788F]">Saving…</span>}
                         </div>
                       </td>
-<<<<<<< HEAD
-=======
-                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold truncate" title={websiteLabel(client)}>
-                        {websiteLabel(client)}
-                      </td>
->>>>>>> c58e195cf05eeb681de0b851e0cbe0f7637f58ee
                       <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
                       <td className={`px-3 py-4 text-[1rem] font-semibold`}>
                         <div className="flex items-center gap-1.5">
