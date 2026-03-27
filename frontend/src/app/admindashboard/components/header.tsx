@@ -167,9 +167,15 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
         window.addEventListener('notification:new_received', onNewReceived);
 
+        // Background poll for shared notifications every 60s as high-frequency fallback
+        const interval = setInterval(() => {
+            fetchSharedNotifications();
+        }, 60000);
+
         return () => {
             window.removeEventListener('notificationsUpdate', load);
             window.removeEventListener('notification:new_received', onNewReceived);
+            clearInterval(interval);
         };
     }, [currentUser]);
 

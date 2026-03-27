@@ -389,26 +389,34 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
 
   const selection = useGDriveSelection();
 
-  const loadWebsites = useCallback(async () => {
+  const loadWebsites = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const res = await getDomainsManagement();
       if (res.success) {
         setWebsites(Array.isArray(res.data) ? res.data : []);
       } else {
-        setWebsites([]);
+        if (!silent) setWebsites([]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load data');
-      setWebsites([]);
+      if (!silent) {
+        setError(e instanceof Error ? e.message : 'Failed to load data');
+        setWebsites([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     loadWebsites();
+    
+    // Auto-refresh website list every 30 seconds for real-time status/usage
+    const interval = setInterval(() => {
+      loadWebsites(true);
+    }, 30000);
+    return () => clearInterval(interval);
   }, [loadWebsites]);
 
   useEffect(() => {
