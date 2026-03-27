@@ -7,7 +7,7 @@ import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
 import { TopPanel, type DevicePreset } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
-import { FloatingMobilePreview } from "@/app/design/_components/FloatingMobilePreview";
+import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
 import { Container } from "../_designComponents/Container/Container";
 import { Text } from "../_designComponents/Text/Text";
@@ -50,6 +50,7 @@ import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
 import { migratePublishedContent } from "../_lib/contentMigration";
+import { slugFromName } from "../_lib/slug";
 import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { useThemeOptional } from "@/app/m_dashboard/components/context/theme-context";
@@ -57,6 +58,7 @@ import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
 import { buildCraftResolver, CRAFT_RESOLVER } from "./craftResolver";
+
 import {
   MIN_SCALE,
   MAX_SCALE,
@@ -1485,7 +1487,15 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       const parsed = JSON.parse(initialJson);
       const page = (parsed.pages || []).find((p: any) => p.id === pageId);
       if (page) {
-        page.name = newName;
+        const trimmedName = newName.trim() || "Page";
+        const nextSlug = slugFromName(trimmedName);
+        page.name = trimmedName;
+        page.slug = nextSlug;
+        page.props = {
+          ...(page.props || {}),
+          pageName: trimmedName,
+          pageSlug: nextSlug,
+        };
         const updated = JSON.stringify(parsed);
         const storageKey = getStorageKey(projectId);
         safeSessionSet(storageKey, updated);
@@ -3040,8 +3050,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                         isOpen={showDualView}
                         onClose={() => setShowDualView(false)}
                         activePageId={currentPageId}
-                        canvasWidth={canvasWidth}
-                        canvasHeight={canvasHeight}
+                        onRenamePage={handleRenamePage}
                       />
                     )}
                   </InlineTextEditProvider>

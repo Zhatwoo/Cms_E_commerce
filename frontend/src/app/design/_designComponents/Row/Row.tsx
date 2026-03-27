@@ -112,7 +112,7 @@ export const Row = ({
       }}
       className={`min-h-[40px] ${customClassName}`}
       style={{
-        backgroundColor: background,
+        background,
         paddingLeft: fluidSpace(pl, 0),
         paddingRight: fluidSpace(pr, 0),
         paddingTop: fluidSpace(pt, 0),

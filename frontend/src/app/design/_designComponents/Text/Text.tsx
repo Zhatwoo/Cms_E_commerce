@@ -176,11 +176,9 @@ export const Text = ({
   const pr = paddingRight !== undefined ? paddingRight : p;
 
   const baseStyle: React.CSSProperties & Record<string, string | number | undefined> = {
-    "--fluid-font-max": isFlowText ? `${fontSize}px` : undefined,
-    "--fluid-font-cqw": isFlowText ? `${(fontSize / 16) * 2.4}cqw` : undefined,
-    fontSize: isFlowText
-      ? `clamp(${fluidFontMin}px, ${fluidFontCqw}cqw, ${fontSize}px)`
-      : `${fontSize}px`,
+    "--fluid-font-max": `${fontSize}px`,
+    "--fluid-font-cqw": `${(fontSize / 16) * 2.4}cqw`,
+    fontSize: `clamp(${fluidFontMin}px, ${fluidFontCqw}cqw, ${fontSize}px)`,
     isolation: "isolate",
     WebkitFontSmoothing: "antialiased",
     fontFamily,
@@ -201,9 +199,11 @@ export const Text = ({
     height: hasExplicitHeight ? height : "auto",
     maxWidth: "100%",
     minWidth: 0,
+    minWidth: 0,
     alignSelf: undefined,
     boxSizing: "border-box",
     minHeight: hasExplicitHeight ? undefined : "min-content",
+    wordBreak: "break-word",
     overflow: hasExplicitHeight ? "hidden" : "visible",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",

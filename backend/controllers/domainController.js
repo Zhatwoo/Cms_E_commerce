@@ -239,7 +239,7 @@ exports.setClientDomainStatus = async (req, res) => {
         message: `Domain ${subdomain || domainId} updated to ${normalized} status.`,
         type: 'info',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
@@ -348,7 +348,7 @@ exports.adminWebsiteAction = async (req, res) => {
         message: `${targetSubdomain || domainId} was ${normalizedAction === 'take_down' ? 'taken down' : 'deleted'} by admin`,
         type: normalizedAction === 'take_down' ? 'warning' : 'error',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {

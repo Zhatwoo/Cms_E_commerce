@@ -276,6 +276,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
         { id: 's2', position: 47, color: '#ECECEC', alpha: 100 },
         { id: 's3', position: 100, color: '#999999', alpha: 100 },
     ]);
+    const [selectedStopId, setSelectedStopId] = useState<string>('s1');
     const [patternType, setPatternType] = useState<PatternType>('grid');
     const [patternColor, setPatternColor] = useState('#777777');
     const [patternCellSize, setPatternCellSize] = useState(18);
@@ -283,6 +284,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const [videoUrl, setVideoUrl] = useState('');
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
+    const gradientTrackRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!enableMediaFillModes && (paintMode === "image" || paintMode === "video")) {
@@ -320,7 +322,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             // Calculate default position (viewport-based)
             const rect = anchorRef.current.getBoundingClientRect();
             const viewportPadding = 8;
-            const desiredWidth = enableFillModes ? 280 : 240;
+            const desiredWidth = enableFillModes ? (paintMode === "gradient" ? 320 : 280) : 240;
             const nextWidth = Math.min(desiredWidth, Math.max(220, window.innerWidth - viewportPadding * 2));
             const popHeight = popoverRef.current?.offsetHeight || 336;
 
@@ -359,6 +361,65 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const applyGradient = useCallback((nextStops = gradientStops, nextType = gradientType, nextAngle = gradientAngle) => {
         onChange(buildGradientCss(nextType, nextAngle, nextStops));
     }, [gradientStops, gradientType, gradientAngle, onChange]);
+
+    const updateGradientStop = useCallback((stopId: string, patch: Partial<GradientStop>) => {
+        setGradientStops((prev) => {
+            const next = prev
+                .map((stop) => (stop.id === stopId ? { ...stop, ...patch } : stop))
+                .map((stop) => ({ ...stop, position: clamp(stop.position, 0, 100), alpha: clamp(stop.alpha, 0, 100) }));
+            applyGradient(next);
+            return next;
+        });
+    }, [applyGradient]);
+
+    const resolveTrackPosition = useCallback((clientX: number) => {
+        const trackEl = gradientTrackRef.current;
+        if (!trackEl) return 0;
+        const rect = trackEl.getBoundingClientRect();
+        if (rect.width <= 0) return 0;
+        return clamp(Math.round(((clientX - rect.left) / rect.width) * 100), 0, 100);
+    }, []);
+
+    const startGradientStopDrag = useCallback((e: React.MouseEvent, stopId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedStopId(stopId);
+
+        const handleMove = (ev: MouseEvent) => {
+            const nextPosition = resolveTrackPosition(ev.clientX);
+            updateGradientStop(stopId, { position: nextPosition });
+        };
+
+        const handleUp = () => {
+            window.removeEventListener("mousemove", handleMove);
+            window.removeEventListener("mouseup", handleUp);
+        };
+
+        window.addEventListener("mousemove", handleMove);
+        window.addEventListener("mouseup", handleUp);
+    }, [resolveTrackPosition, updateGradientStop]);
+
+    const handleGradientTrackClick = useCallback((e: React.MouseEvent) => {
+        const nextPosition = resolveTrackPosition(e.clientX);
+        const base =
+            gradientStops.find((stop) => stop.id === selectedStopId) ||
+            gradientStops[gradientStops.length - 1] ||
+            { color: '#FFFFFF', alpha: 100 };
+
+        const nextStop: GradientStop = {
+            id: `s${Date.now()}`,
+            position: nextPosition,
+            color: base.color,
+            alpha: base.alpha,
+        };
+
+        setGradientStops((prev) => {
+            const next = [...prev, nextStop].sort((a, b) => a.position - b.position);
+            applyGradient(next);
+            return next;
+        });
+        setSelectedStopId(nextStop.id);
+    }, [resolveTrackPosition, gradientStops, selectedStopId, applyGradient]);
 
     const applyPattern = useCallback((nextType = patternType, nextColor = patternColor, nextCell = patternCellSize) => {
         onChange(buildPatternCss(nextType, nextColor, nextCell));
@@ -526,6 +587,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 width: `${popoverWidth}px`,
                 maxHeight: '85vh',
                 overflowY: 'auto',
+                overflowX: 'hidden',
                 top: `${coords.top + dragOffset.y}px`,
                 left: `${coords.left + dragOffset.x}px`,
                 opacity: 1,
@@ -728,8 +790,35 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             )}
 
             {enableFillModes && paintMode === "gradient" && (
-                <div className="flex flex-col gap-3">
-                    <div className="h-8 rounded-md border border-[var(--builder-border)]" style={{ background: buildGradientCss(gradientType, gradientAngle, gradientStops) }} />
+                <div className="flex flex-col gap-3 w-full min-w-0">
+                    <div
+                        ref={gradientTrackRef}
+                        onMouseDown={handleGradientTrackClick}
+                        className="relative h-6 rounded-md border border-[var(--builder-border)] cursor-crosshair"
+                        style={{ background: buildGradientCss(gradientType, gradientAngle, gradientStops) }}
+                    >
+                        {gradientStops.map((stop) => {
+                            const isSelected = stop.id === selectedStopId;
+                            return (
+                                <button
+                                    key={stop.id}
+                                    type="button"
+                                    onMouseDown={(e) => startGradientStopDrag(e, stop.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedStopId(stop.id);
+                                    }}
+                                    className={`absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${isSelected ? "border-[#2f8cff]" : "border-white"}`}
+                                    style={{
+                                        left: `clamp(8px, ${stop.position}%, calc(100% - 8px))`,
+                                        background: rgbaCss(stop.color, stop.alpha),
+                                        boxShadow: isSelected ? "0 0 0 2px rgba(47,140,255,0.35)" : "0 0 0 1px rgba(0,0,0,0.35)",
+                                    }}
+                                    title={`Stop ${stop.position}%`}
+                                />
+                            );
+                        })}
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                         <select
                             value={gradientType}
@@ -744,7 +833,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             <option value="radial">Radial</option>
                         </select>
                         <input
-                            type="number"
+                            type="range"
                             min={0}
                             max={360}
                             value={gradientAngle}
@@ -753,24 +842,25 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                 setGradientAngle(nextAngle);
                                 applyGradient(gradientStops, gradientType, nextAngle);
                             }}
-                            className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                            className="w-full accent-[#2f8cff]"
                         />
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="w-full bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)] text-center">
+                        Angle: {gradientAngle}deg
+                    </div>
+                    <div className="flex flex-col gap-2 w-full min-w-0">
                         {gradientStops.map((stop, idx) => (
-                            <div key={stop.id} className="grid grid-cols-[52px_1fr_48px_28px] gap-2 items-center">
+                            <div key={stop.id} className="grid w-full min-w-0 grid-cols-[44px_minmax(0,1fr)_44px_24px] gap-2 items-center">
                                 <input
                                     type="number"
                                     min={0}
                                     max={100}
                                     value={stop.position}
                                     onChange={(e) => {
-                                        const next = [...gradientStops];
-                                        next[idx] = { ...stop, position: clamp(parseInt(e.target.value || "0", 10), 0, 100) };
-                                        setGradientStops(next);
-                                        applyGradient(next);
+                                        const nextPosition = clamp(parseInt(e.target.value || "0", 10), 0, 100);
+                                        updateGradientStop(stop.id, { position: nextPosition });
                                     }}
-                                    className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-1.5 py-1.5 text-xs text-[var(--builder-text)]"
                                 />
                                 <input
                                     type="text"
@@ -778,12 +868,9 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                     onChange={(e) => {
                                         const normalized = normalizeHex(e.target.value);
                                         if (!normalized) return;
-                                        const next = [...gradientStops];
-                                        next[idx] = { ...stop, color: normalized };
-                                        setGradientStops(next);
-                                        applyGradient(next);
+                                        updateGradientStop(stop.id, { color: normalized });
                                     }}
-                                    className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
                                 />
                                 <input
                                     type="number"
@@ -791,12 +878,10 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                     max={100}
                                     value={stop.alpha}
                                     onChange={(e) => {
-                                        const next = [...gradientStops];
-                                        next[idx] = { ...stop, alpha: clamp(parseInt(e.target.value || "0", 10), 0, 100) };
-                                        setGradientStops(next);
-                                        applyGradient(next);
+                                        const nextAlpha = clamp(parseInt(e.target.value || "0", 10), 0, 100);
+                                        updateGradientStop(stop.id, { alpha: nextAlpha });
                                     }}
-                                    className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-1.5 py-1.5 text-xs text-[var(--builder-text)]"
                                 />
                                 <button
                                     type="button"
@@ -806,8 +891,11 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                         const next = gradientStops.filter((_, stopIndex) => stopIndex !== idx);
                                         setGradientStops(next);
                                         applyGradient(next);
+                                        if (selectedStopId === stop.id && next[0]) {
+                                            setSelectedStopId(next[0].id);
+                                        }
                                     }}
-                                    className="h-7 w-7 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] disabled:opacity-40"
+                                    className="h-6 w-6 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] disabled:opacity-40"
                                     title="Remove stop"
                                 >
                                     -
@@ -818,14 +906,17 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                     <button
                         type="button"
                         onClick={() => {
-                            const next: GradientStop[] = [...gradientStops, {
+                            const selected = gradientStops.find((stop) => stop.id === selectedStopId) || gradientStops[gradientStops.length - 1];
+                            const nextStop: GradientStop = {
                                 id: `s${Date.now()}`,
                                 position: clamp(Math.round(100 / (gradientStops.length + 1) * gradientStops.length), 0, 100),
-                                color: '#FFFFFF',
-                                alpha: 100,
-                            }];
+                                color: selected?.color || '#FFFFFF',
+                                alpha: selected?.alpha ?? 100,
+                            };
+                            const next: GradientStop[] = [...gradientStops, nextStop];
                             setGradientStops(next);
                             applyGradient(next);
+                            setSelectedStopId(nextStop.id);
                         }}
                         className="h-8 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text)] text-xs"
                     >

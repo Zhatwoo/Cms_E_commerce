@@ -26,17 +26,33 @@ export const BooleanInput = ({
     <label
       className={`flex items-center gap-2 select-none ${layout === "spread" ? "justify-between" : "justify-start"} ${disabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer"} ${className}`}
     >
-      <input
-        type={variant}
-        checked={value}
-        disabled={disabled}
-        onChange={(e) => onChange(e.target.checked)}
-        className="h-4 w-4 accent-[var(--builder-accent)]"
-      />
-      {label ? (
-        <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
-      ) : null}
-      {layout === "spread" && !label ? <span className="flex-1" /> : null}
+      {layout === "spread" ? (
+        <>
+          {label ? (
+            <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
+          ) : null}
+          <input
+            type={variant}
+            checked={value}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked)}
+            className="h-4 w-4 accent-[var(--builder-accent)]"
+          />
+        </>
+      ) : (
+        <>
+          <input
+            type={variant}
+            checked={value}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked)}
+            className="h-4 w-4 accent-[var(--builder-accent)]"
+          />
+          {label ? (
+            <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
+          ) : null}
+        </>
+      )}
     </label>
   );
 };

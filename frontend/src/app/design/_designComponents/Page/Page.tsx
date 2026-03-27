@@ -24,6 +24,12 @@ export const Page = ({
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(pageName || "");
 
+  // Sync editValue with pageName prop so border label updates from sidebar
+  React.useEffect(() => {
+    setEditValue(pageName || "");
+    if (editing) setEditing(false);
+  }, [pageName]);
+
   const handleBlur = useCallback(() => {
     setEditing(false);
     const trimmed = editValue.trim();
@@ -71,7 +77,7 @@ export const Page = ({
         width,
         height: height === "auto" ? "auto" : height,
         minHeight: "800px",
-        backgroundColor: background,
+        background,
         overflowX: "hidden",
         overflowY: "visible",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,

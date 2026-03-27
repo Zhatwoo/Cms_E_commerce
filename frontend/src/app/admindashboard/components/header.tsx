@@ -614,7 +614,12 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                             />
                                                         )}
                                                     </div>
-                                                    <p className="line-clamp-2 text-xs text-[#8B85A5]">{n.message}</p>
+                                                    <p className="text-xs text-[#8B85A5]">
+                                                        {n.adminName && !n.message.toLowerCase().includes(n.adminName.toLowerCase()) ? (
+                                                            <span className="font-bold text-[#B13BFF]">{n.adminName}: </span>
+                                                        ) : null}
+                                                        {n.message}
+                                                    </p>
                                                     <span className="mt-1 text-[10px] font-medium text-[#B13BFF]/60">{formatToPHTime(n.time)}</span>
                                                 </div>
                                             ))}
