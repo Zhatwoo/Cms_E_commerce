@@ -10,6 +10,7 @@ import {
   listProducts,
   adminWebsiteAction,
   adminDeleteProduct,
+  getStoredUser,
   type WebsiteManagementRow,
   type ApiProduct
 } from '@/lib/api';
@@ -592,9 +593,11 @@ function MonitoringPageContent() {
       const res = await adminWebsiteAction({ userId: website.userId, domainId: website.id, action: websiteActionModal.action, reason });
       if (!res.success) throw new Error(res.message || 'Website action failed');
       const actionLabel = websiteActionModal.action === 'take_down' ? 'Taken Down' : 'Deleted';
+      const adminUser = getStoredUser();
+      const adminName = adminUser ? (adminUser.name || adminUser.username || 'Admin') : 'Admin';
       await addNotification(
         `Website ${actionLabel}`,
-        `${website.domainName} was ${actionLabel.toLowerCase()} by admin. Reason: ${reason}`,
+        `${website.domainName} was ${actionLabel.toLowerCase()} by ${adminName}. Reason: ${reason}`,
         websiteActionModal.action === 'take_down' ? 'warning' : 'error',
         {
           details: `Website: ${website.domainName}\nPublisher: ${website.owner || 'Unknown'}\nAction: ${websiteActionModal.action === 'take_down' ? 'Take Down Website' : 'Delete Website'}\nReason: ${reason}`,
@@ -622,9 +625,11 @@ function MonitoringPageContent() {
       setWorkingProductId(product.id);
       const res = await adminDeleteProduct(product.id, reason);
       if (!res.success) throw new Error(res.message || 'Failed to delete product');
+      const adminUser = getStoredUser();
+      const adminName = adminUser ? (adminUser.name || adminUser.username || 'Admin') : 'Admin';
       await addNotification(
         'Product Deleted',
-        `${product.name || 'Untitled Product'} was deleted by admin. Reason: ${reason}`,
+        `${product.name || 'Untitled Product'} was deleted by ${adminName}. Reason: ${reason}`,
         'error',
         {
           details: `Product: ${product.name || 'Untitled Product'}\nSKU: ${product.sku || 'N/A'}\nWebsite: ${product.subdomain || 'N/A'}\nReason: ${reason}`,

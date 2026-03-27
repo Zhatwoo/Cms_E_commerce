@@ -56,7 +56,7 @@ exports.getAnalytics = async (req, res) => {
 
     // Trend calculations
     const publishedWebsites = publishedList.length;
-    const activeUsers = userStats.byStatus?.active || 0;
+    const activeUsers = userStats.online || 0;
     const clientCount = userStats.byRole?.client || 0;
     const pendingWebsites = Math.max(0, totalProjects - publishedWebsites);
     const activeDomains = publishedWebsites;
