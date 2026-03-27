@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useId } from "react";
 import ReactDOM from "react-dom";
-import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video } from "lucide-react";
+import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video, Eye, EyeOff } from "lucide-react";
 
 type HSVA = { h: number; s: number; v: number; a: number };
 type RGBA = { r: number; g: number; b: number; a: number };
@@ -10,6 +10,8 @@ type PaintMode = "solid" | "gradient" | "pattern" | "image" | "video";
 type GradientType = "linear" | "radial";
 type PatternType = "dots" | "grid" | "diagonal";
 type GradientStop = { id: string; position: number; color: string; alpha: number };
+type SavedColorEntry = { id: string; hex: string; alpha: number; visible: boolean };
+type UsedColorEntry = { id: string; hex: string; alpha: number };
 
 // --- Utils ---
 
@@ -121,6 +123,74 @@ const rgbaCss = (hex: string, alphaPct: number) => {
     const rgba = hexToRgba(hex);
     const a = clamp(alphaPct, 0, 100) / 100;
     return `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, ${a})`;
+};
+
+const COLOR_TOKEN_REGEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b|rgba?\(([^)]+)\)/g;
+
+const parseRgbChannel = (raw: string): number | null => {
+    const v = raw.trim();
+    if (!v) return null;
+    if (v.endsWith('%')) {
+        const pct = Number(v.slice(0, -1));
+        if (!Number.isFinite(pct)) return null;
+        return clamp(Math.round((pct / 100) * 255), 0, 255);
+    }
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return clamp(Math.round(n), 0, 255);
+};
+
+const parseAlphaChannel = (raw: string | undefined): number => {
+    if (!raw) return 100;
+    const v = raw.trim();
+    if (!v) return 100;
+    if (v.endsWith('%')) {
+        const pct = Number(v.slice(0, -1));
+        if (!Number.isFinite(pct)) return 100;
+        return clamp(Math.round(pct), 0, 100);
+    }
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 100;
+    return clamp(Math.round(n * 100), 0, 100);
+};
+
+const tokenToColorEntry = (token: string): { hex: string; alpha: number } | null => {
+    const trimmed = token.trim();
+    if (!trimmed) return null;
+
+    const hex = normalizeHex(trimmed);
+    if (hex) {
+        const rgba = hexToRgba(hex);
+        return {
+            hex: rgbaToHex(rgba.r, rgba.g, rgba.b, 1).slice(0, 7).toUpperCase(),
+            alpha: clamp(Math.round(rgba.a * 100), 0, 100),
+        };
+    }
+
+    const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+    if (!rgbMatch) return null;
+
+    const parts = rgbMatch[1].split(',').map((part) => part.trim());
+    if (parts.length < 3) return null;
+    const r = parseRgbChannel(parts[0]);
+    const g = parseRgbChannel(parts[1]);
+    const b = parseRgbChannel(parts[2]);
+    if (r === null || g === null || b === null) return null;
+    const alpha = parseAlphaChannel(parts[3]);
+
+    return {
+        hex: rgbaToHex(r, g, b, 1).slice(0, 7).toUpperCase(),
+        alpha,
+    };
+};
+
+const extractColorEntriesFromCssValue = (cssValue: string): Array<{ hex: string; alpha: number }> => {
+    if (!cssValue) return [];
+    const matches = cssValue.match(COLOR_TOKEN_REGEX);
+    if (!matches?.length) return [];
+    return matches
+        .map((token) => tokenToColorEntry(token))
+        .filter((entry): entry is { hex: string; alpha: number } => Boolean(entry));
 };
 
 const buildGradientCss = (type: GradientType, angle: number, stops: GradientStop[]) => {
@@ -261,6 +331,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const [popoverWidth, setPopoverWidth] = useState(enableFillModes ? 280 : 240);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
+    const [hasManualPosition, setHasManualPosition] = useState(false);
     const dragStartRef = useRef<{ x: number; y: number } | null>(null);
     const coordsAtDragStartRef = useRef<{ top: number; left: number } | null>(null);
     const savedPositionKeyRef = useRef('colorPickerSavedPosition');
@@ -284,7 +355,116 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const [videoUrl, setVideoUrl] = useState('');
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
+    const savedColorsKeyRef = useRef('colorPickerSavedColors');
+    const [savedColors, setSavedColors] = useState<SavedColorEntry[]>([]);
+    const [selectedSavedColorId, setSelectedSavedColorId] = useState<string | null>(null);
+    const [usedColors, setUsedColors] = useState<UsedColorEntry[]>([]);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const raw = window.localStorage?.getItem(savedColorsKeyRef.current);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as SavedColorEntry[];
+            if (!Array.isArray(parsed)) return;
+            const normalized = parsed
+                .filter((entry) => entry && typeof entry.id === 'string' && typeof entry.hex === 'string')
+                .map((entry) => ({
+                    id: entry.id,
+                    hex: normalizeHex(entry.hex) ?? '#000000',
+                    alpha: clamp(Number(entry.alpha ?? 100), 0, 100),
+                    visible: entry.visible !== false,
+                }));
+            setSavedColors(normalized);
+        } catch {
+            // ignore invalid localStorage payload
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            window.localStorage?.setItem(savedColorsKeyRef.current, JSON.stringify(savedColors));
+        } catch {
+            // ignore storage errors
+        }
+    }, [savedColors]);
+
+    useEffect(() => {
+        if (!savedColors.length) {
+            setSelectedSavedColorId(null);
+            return;
+        }
+        if (!selectedSavedColorId || !savedColors.some((entry) => entry.id === selectedSavedColorId)) {
+            setSelectedSavedColorId(savedColors[0].id);
+        }
+    }, [savedColors, selectedSavedColorId]);
+
+    const selectedSavedColor = selectedSavedColorId
+        ? savedColors.find((entry) => entry.id === selectedSavedColorId) ?? null
+        : null;
     const gradientTrackRef = useRef<HTMLDivElement>(null);
+
+    const collectUsedColors = useCallback(() => {
+        if (typeof document === 'undefined') return;
+
+        const root = document.querySelector('[data-web-builder-root]') as HTMLElement | null;
+        const searchRoot = root ?? document.body;
+        const targets = searchRoot.querySelectorAll<HTMLElement>('[style]');
+        const map = new Map<string, UsedColorEntry>();
+
+        targets.forEach((el, index) => {
+            const styleText = el.getAttribute('style') ?? '';
+            const entries = extractColorEntriesFromCssValue(styleText);
+            entries.forEach((entry) => {
+                // Ignore fully transparent entries in the used list.
+                if (entry.alpha <= 0) return;
+                const key = `${entry.hex}-${entry.alpha}`;
+                if (!map.has(key)) {
+                    map.set(key, {
+                        id: `u${index}-${key}`,
+                        hex: entry.hex,
+                        alpha: entry.alpha,
+                    });
+                }
+            });
+        });
+
+        const currentEntries = extractColorEntriesFromCssValue(value);
+        currentEntries.forEach((entry) => {
+            if (entry.alpha <= 0) return;
+            const key = `${entry.hex}-${entry.alpha}`;
+            if (!map.has(key)) {
+                map.set(key, {
+                    id: `u-current-${key}`,
+                    hex: entry.hex,
+                    alpha: entry.alpha,
+                });
+            }
+        });
+
+        setUsedColors(Array.from(map.values()).slice(0, 24));
+    }, [value]);
+
+    useEffect(() => {
+        collectUsedColors();
+        if (typeof MutationObserver === 'undefined') return;
+
+        const root = document.querySelector('[data-web-builder-root]') as HTMLElement | null;
+        const observeRoot = root ?? document.body;
+        const observer = new MutationObserver(() => {
+            collectUsedColors();
+        });
+
+        observer.observe(observeRoot, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['style'],
+        });
+
+        return () => observer.disconnect();
+    }, [collectUsedColors]);
 
     useEffect(() => {
         if (!enableMediaFillModes && (paintMode === "image" || paintMode === "video")) {
@@ -309,6 +489,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                     const saved = JSON.parse(savedPosStr);
                     if (saved && typeof saved.top === 'number' && typeof saved.left === 'number') {
                         setCoords(saved);
+                        setHasManualPosition(true);
                         return;
                     }
                 } catch (e) {
@@ -319,10 +500,14 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 }
             }
 
+            // Keep a user-dragged position stable while popup stays open.
+            if (hasManualPosition) return;
+
             // Calculate default position (viewport-based)
             const rect = anchorRef.current.getBoundingClientRect();
             const viewportPadding = 8;
-            const desiredWidth = enableFillModes ? (paintMode === "gradient" ? 320 : 280) : 240;
+            // Keep width stable across mode switches to avoid popover jumping.
+            const desiredWidth = enableFillModes ? 320 : 240;
             const nextWidth = Math.min(desiredWidth, Math.max(220, window.innerWidth - viewportPadding * 2));
             const popHeight = popoverRef.current?.offsetHeight || 336;
 
@@ -348,7 +533,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             window.removeEventListener("resize", updatePosition);
             window.removeEventListener("scroll", updatePosition, true);
         };
-    }, [anchorRef, enableFillModes, paintMode, gradientStops.length]);
+    }, [anchorRef, enableFillModes, hasManualPosition]);
 
     const updateColor = (newHsva: Partial<HSVA>) => {
         const updated = { ...hsva, ...newHsva };
@@ -472,6 +657,32 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
         }
     };
 
+    const addCurrentColorToSaved = () => {
+        const rgb = hsvaToRgba(hsva.h, hsva.s, hsva.v, 1);
+        const alpha = clamp(Math.round(hsva.a * 100), 0, 100);
+        const hex = rgbaToHex(rgb.r, rgb.g, rgb.b, 1).slice(0, 7).toUpperCase();
+
+        setSavedColors((prev) => {
+            const duplicateIndex = prev.findIndex((entry) => entry.hex === hex && entry.alpha === alpha);
+            if (duplicateIndex >= 0) {
+                const next = [...prev];
+                const [existing] = next.splice(duplicateIndex, 1);
+                return [{ ...existing, visible: true }, ...next];
+            }
+            return [{ id: `c${Date.now()}`, hex, alpha, visible: true }, ...prev].slice(0, 16);
+        });
+    };
+
+    const applySavedColor = (entry: SavedColorEntry) => {
+        if (!entry.visible) return;
+        const rgb = hexToRgba(entry.hex);
+        const alpha = clamp(entry.alpha, 0, 100) / 100;
+        onChange(rgbaToHex(rgb.r, rgb.g, rgb.b, alpha));
+        if (enableFillModes && paintMode !== 'solid') {
+            setPaintMode('solid');
+        }
+    };
+
     // --- Drag Handlers ---
     const handleDragStart = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -494,6 +705,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                     left: coordsAtDragStartRef.current.left + dragOffset.x,
                 };
                 setCoords(newCoords);
+                setHasManualPosition(true);
                 // Save position to localStorage
                 if (typeof window !== 'undefined') {
                     try {
@@ -968,6 +1180,44 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         />
                     </div>
                 </div>
+            )}
+
+            {(!enableFillModes || paintMode === "solid") && (
+            <div className="flex flex-col gap-2 pt-1 border-t border-[var(--builder-border)]">
+                <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--builder-text-faint)]">Custom Colors</span>
+                </div>
+
+                <div className="max-h-28 overflow-y-auto pr-1">
+                    {usedColors.length === 0 && (
+                        <div className="text-[11px] text-[var(--builder-text-faint)]/80">No custom colors yet.</div>
+                    )}
+
+                    <div className="grid grid-cols-10 gap-1">
+                        {usedColors.map((entry) => {
+                            return (
+                                <button
+                                    key={entry.id}
+                                    type="button"
+                                    onClick={() => {
+                                        applySavedColor({ id: entry.id, hex: entry.hex, alpha: entry.alpha, visible: true });
+                                    }}
+                                    className="relative h-6 w-6 rounded-md border border-[var(--builder-border)] transition-colors hover:border-[#2f8cff]"
+                                    style={{
+                                        background: entry.alpha < 100
+                                            ? `${CHECKER_BG}, ${rgbaCss(entry.hex, entry.alpha)}`
+                                            : rgbaCss(entry.hex, entry.alpha),
+                                        backgroundSize: entry.alpha < 100 ? `${CHECKER_BG_SIZE}, auto` : undefined,
+                                        backgroundPosition: entry.alpha < 100 ? `${CHECKER_BG_POS}, center` : undefined,
+                                    }}
+                                    title={`${entry.hex} ${entry.alpha}%`}
+                                >
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
             )}
 
             {enableFillModes && enableMediaFillModes && paintMode === "image" && (
