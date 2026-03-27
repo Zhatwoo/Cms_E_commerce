@@ -200,11 +200,14 @@ export const TypographyGroup = ({
 
   const toggleDecoration = (dec: "underline" | "line-through") => {
     setProp((props) => {
-      const cur = String(props.textDecoration || "").split(/\s+/).filter(Boolean);
+      // Filter out "none" and other empty values to prevent CSS conflicts
+      const cur = String(props.textDecoration || "")
+        .split(/\s+/)
+        .filter((v) => v && v !== "none");
       const set = new Set(cur);
       if (set.has(dec)) set.delete(dec);
       else set.add(dec);
-      props.textDecoration = set.size ? Array.from(set).join(" ") : undefined;
+      props.textDecoration = set.size ? Array.from(set).join(" ") : "none";
     });
   };
 
