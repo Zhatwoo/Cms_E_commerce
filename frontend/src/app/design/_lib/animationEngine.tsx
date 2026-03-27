@@ -567,9 +567,25 @@ function useGsapScrollEffect(
       const mode = config.freeMove?.mode ?? "relative";
       const capturedOrigin = config.freeMove?.origin;
 
-      // Always use relative mode for smooth, accurate keyframes
-      // Keyframes are always relative to the captured origin (start position)
-      const origin = capturedOrigin ?? start ?? { x: 0, y: 0 };
+      if (Array.isArray(direct) && direct.length >= 2) {
+        const normalized = [...direct]
+          .filter((kf) =>
+            typeof kf?.t === "number" &&
+            Number.isFinite(kf.t) &&
+            typeof kf?.x === "number" &&
+            Number.isFinite(kf.x) &&
+            typeof kf?.y === "number" &&
+            Number.isFinite(kf.y)
+          )
+          .sort((a, b) => a.t - b.t)
+          .map((kf) => ({
+            at: Math.max(0, Math.min(1, kf.t)),
+            x: kf.x,
+            y: kf.y,
+          }));
+        if (normalized.length >= 2) return normalized;
+      }
+
       const points: Array<{ x: number; y: number }> = [];
       if (start) points.push({ x: start.x, y: start.y });
       if (Array.isArray(mids)) {
@@ -578,8 +594,10 @@ function useGsapScrollEffect(
       if (end) points.push({ x: end.x, y: end.y });
       if (points.length < 2) return [];
 
-      // Normalize all points relative to the origin (start)
-      const relPoints = points.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
+      const origin = capturedOrigin ?? (mode === "absolute" ? start : { x: 0, y: 0 }) ?? { x: 0, y: 0 };
+      const relPoints = mode === "relative"
+        ? points
+        : points.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
       const last = relPoints.length - 1;
       const frames = relPoints.map((p, idx) => ({
         at: last === 0 ? 0 : idx / last,
@@ -654,6 +672,36 @@ function useGsapScrollEffect(
           }, prev.at);
         }
       });
+
+      // Add more path samples for smoother free-move interpolation between keyframes.
+      if (keyframes.length >= 3) {
+        const sampledCount = Math.max(12, (keyframes.length - 1) * 6);
+        const sampled = Array.from({ length: sampledCount + 1 }, (_, i) => {
+          const at = i / sampledCount;
+          const point = sampleSpline(keyframes.map((k) => ({ x: k.x, y: k.y })), at);
+          return { at, x: point.x, y: point.y };
+        });
+
+        tl.clear();
+        sampled.forEach((kf, idx) => {
+          if (idx === 0) {
+            tl.set(el, { x: kf.x, y: kf.y, force3D: true });
+            return;
+          }
+          const prev = sampled[idx - 1];
+          tl.to(
+            el,
+            {
+              x: kf.x,
+              y: kf.y,
+              duration: Math.max(0.0001, kf.at - prev.at),
+              ease: "none",
+              force3D: true,
+            },
+            prev.at
+          );
+        });
+      }
 
       // Schedule a single debounced refresh rather than calling refresh immediately
       // per-component — prevents N simultaneous refreshes causing visual jumps.

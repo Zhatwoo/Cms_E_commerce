@@ -39,6 +39,7 @@ export const RatingSettings = () => {
     letterSpacing,
     textAlign,
     textTransform,
+    textDecoration,
     color,
     background,
     borderRadius,
@@ -94,6 +95,7 @@ export const RatingSettings = () => {
     letterSpacing: node.data.props.letterSpacing ?? 0,
     textAlign: node.data.props.textAlign ?? "left",
     textTransform: node.data.props.textTransform ?? "none",
+    textDecoration: node.data.props.textDecoration ?? "none",
     color: node.data.props.color ?? "#e2e8f0",
     background: node.data.props.background ?? "transparent",
     borderRadius: node.data.props.borderRadius ?? 8,
@@ -263,6 +265,7 @@ export const RatingSettings = () => {
             letterSpacing={letterSpacing}
             textAlign={textAlign}
             textTransform={textTransform}
+            textDecoration={textDecoration}
             color={color}
             setProp={typedSetProp}
           />

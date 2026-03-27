@@ -16,10 +16,18 @@ import React, {
 const SCROLL_THRESHOLD_HEADER = 8;
 /** Pixels of scroll after gate ends over which front layer "rises" and overlaps entirely. */
 const FRONT_LAYER_ENTRANCE_PX = 420;
+/** Single control for smoothing speed only (0..1). */
+const FRONT_LAYER_ANIMATION_SPEED = 0.14;
 
 function getViewportHeight() {
   if (typeof window === 'undefined') return 700;
   return window.innerHeight;
+}
+
+function smoothProgressStep(current: number, target: number, speed: number) {
+  const delta = target - current;
+  if (Math.abs(delta) < 0.001) return target;
+  return current + delta * speed;
 }
 
 // -----------------------------------------------------------------------------
@@ -243,11 +251,11 @@ export function LandingScrollRoot({ children, headerSlot }: LandingScrollRootPro
     let rafId = 0;
     const animate = () => {
       setAnimatedFrontLayerProgress((prev) => {
-        const delta = frontLayerTargetProgress - prev;
-        if (Math.abs(delta) < 0.001) {
-          return frontLayerTargetProgress;
-        }
-        return prev + delta * 0.14;
+        return smoothProgressStep(
+          prev,
+          frontLayerTargetProgress,
+          FRONT_LAYER_ANIMATION_SPEED
+        );
       });
       rafId = requestAnimationFrame(animate);
     };

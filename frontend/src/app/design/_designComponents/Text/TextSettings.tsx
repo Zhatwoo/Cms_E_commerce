@@ -11,7 +11,7 @@ import type { TextProps, SetProp } from "../../_types/components";
 export const TextSettings = () => {
   const {
     text,
-    fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color,
+    fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color, textDecoration,
     width, height,
     marginTop, marginBottom, marginLeft, marginRight,
     paddingTop, paddingBottom, paddingLeft, paddingRight,
@@ -32,6 +32,7 @@ export const TextSettings = () => {
     letterSpacing: node.data.props.letterSpacing,
     textAlign: node.data.props.textAlign,
     textTransform: node.data.props.textTransform,
+    textDecoration: node.data.props.textDecoration,
     color: node.data.props.color,
     width: node.data.props.width,
     height: node.data.props.height,
@@ -105,6 +106,7 @@ export const TextSettings = () => {
             textAlign={textAlign}
             textTransform={textTransform}
             color={color}
+            textDecoration={textDecoration}
             setProp={typedSetProp}
           />
         </div>

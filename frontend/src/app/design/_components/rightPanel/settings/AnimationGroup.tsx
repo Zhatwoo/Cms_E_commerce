@@ -214,6 +214,10 @@ function countMids(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
 
+function toFixedPoint(value: number): number {
+  return Math.round(value * 1000) / 1000;
+}
+
 function applyScrollPreviewIndicator(element: HTMLElement): () => void {
   const prevOutline = element.style.outline;
   const prevOutlineOffset = element.style.outlineOffset;
@@ -533,6 +537,71 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
       midCount: countMids(mids),
     };
   }, [animation.scrollEffect.freeMove?.start, animation.scrollEffect.freeMove?.end, animation.scrollEffect.freeMove?.mids]);
+
+  const captureFreeMovePoint = useCallback(
+    (point: "start" | "mid" | "end") => {
+      if (!firstId) return;
+
+      let element: HTMLElement | null = null;
+      try {
+        element = query.node(firstId).get()?.dom ?? null;
+      } catch {
+        element = null;
+      }
+      if (!element) return;
+
+      const absolute = getDomXY(element);
+      const current = animation.scrollEffect.freeMove;
+      const mode = current?.mode ?? "relative";
+      const originAbs = current?.origin ?? absolute;
+
+      const toStoredPoint = (abs: { x: number; y: number }) => {
+        if (mode === "absolute") {
+          return { x: toFixedPoint(abs.x), y: toFixedPoint(abs.y) };
+        }
+        return {
+          x: toFixedPoint(abs.x - originAbs.x),
+          y: toFixedPoint(abs.y - originAbs.y),
+        };
+      };
+
+      if (point === "start") {
+        const nextFreeMove = {
+          mode,
+          origin: { x: toFixedPoint(absolute.x), y: toFixedPoint(absolute.y) },
+          start: { x: 0, y: 0 },
+          mids: [] as Array<{ x: number; y: number }>,
+          end: undefined as { x: number; y: number } | undefined,
+        };
+        update("scrollEffect.freeMove", nextFreeMove);
+        return;
+      }
+
+      const start = current?.start;
+      if (!start) return;
+      const nextPoint = toStoredPoint(absolute);
+
+      if (point === "mid") {
+        const mids = Array.isArray(current?.mids) ? [...current.mids] : [];
+        mids.push(nextPoint);
+        update("scrollEffect.freeMove.mids", mids);
+        return;
+      }
+
+      update("scrollEffect.freeMove.end", nextPoint);
+    },
+    [animation.scrollEffect.freeMove, firstId, query, update]
+  );
+
+  const removeLastMidPoint = useCallback(() => {
+    const mids = animation.scrollEffect.freeMove?.mids;
+    if (!Array.isArray(mids) || mids.length === 0) return;
+    update("scrollEffect.freeMove.mids", mids.slice(0, -1));
+  }, [animation.scrollEffect.freeMove?.mids, update]);
+
+  const clearFreeMovePath = useCallback(() => {
+    update("scrollEffect.freeMove", undefined);
+  }, [update]);
 
   return (
     <div className="flex flex-col pb-4">
@@ -962,7 +1031,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                 <>
                   <div className="flex flex-col gap-1">
                     <div className="flex justify-between">
-                      <label className={labelClass}>Speed / Multiplier</label>
+                      <label className={labelClass}>Speed</label>
                       <span className={subLabelClass}>{animation.scrollEffect.speed}x</span>
                     </div>
                     <input
@@ -993,6 +1062,73 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                       <option value="horizontal">Horizontal</option>
                     </select>
                   </div>
+
+                  {animation.scrollEffect.type === "freeMove" && (
+                    <div className="rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2.5">
+                      <div className="mb-2 flex items-center justify-between">
+                        <label className={labelClass}>Free Move Keyframes</label>
+                        <span className={subLabelClass}>Mid Frames: {freeMoveStatus.midCount}</span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => captureFreeMovePoint("start")}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
+                        >
+                          Capture Start
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => captureFreeMovePoint("mid")}
+                          disabled={!freeMoveStatus.hasStart}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Add Mid
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => captureFreeMovePoint("end")}
+                          disabled={!freeMoveStatus.hasStart}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Capture End
+                        </button>
+                        <button
+                          type="button"
+                          onClick={removeLastMidPoint}
+                          disabled={freeMoveStatus.midCount === 0}
+                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Remove Last Mid
+                        </button>
+                      </div>
+
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className={subLabelClass}>
+                          {freeMoveStatus.hasStart ? "Start set" : "Start not set"} |{" "}
+                          {freeMoveStatus.hasEnd ? "End set" : "End not set"}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => previewOnCanvas("scrollEffect", "freeMove")}
+                            disabled={!freeMoveStatus.hasStart || !freeMoveStatus.hasEnd}
+                            className="rounded-md border border-[var(--builder-border)] px-2 py-1 text-[10px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Preview Movement
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearFreeMovePath}
+                            className="rounded-md border border-[var(--builder-border)] px-2 py-1 text-[10px] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
+                          >
+                            Clear Path
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between">
                     <label className={labelClass}>Smooth Scrub</label>

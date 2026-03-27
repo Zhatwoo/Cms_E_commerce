@@ -34,7 +34,7 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
     <span className="relative group inline-flex">
       {children}
       <span
-        className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-10"
+        className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2.5 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[70]"
         role="tooltip"
       >
         {label}
@@ -56,8 +56,8 @@ function isUserOnline(lastSeen?: string): boolean {
   if (!lastSeen) return false;
   const now = new Date();
   const ls = new Date(lastSeen);
-  // within last 5 minutes = Online
-  return (now.getTime() - ls.getTime()) < 5 * 60 * 1000;
+  // within last 3 minutes = Online (was 5)
+  return (now.getTime() - ls.getTime()) < 3 * 60 * 1000;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -177,32 +177,49 @@ export function UserManagement() {
   const [actionReason, setActionReason] = useState('');
 
   const selection = useGDriveSelection();
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const loadClients = useCallback(async () => {
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = 0;
+    }
+  }, [currentPage]);
+
+  const loadClients = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       setError(null);
       const res = await getClients();
       if (res.success && Array.isArray(res.users)) {
         setClients(res.users);
       } else {
-        setClients([]);
+        if (!silent) setClients([]);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
-      setClients([]);
+      if (!silent) {
+        setError(e instanceof Error ? e.message : 'Failed to load');
+        setClients([]);
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => { loadClients(); }, [loadClients]);
+
+  useEffect(() => {
+    // Auto-refresh user list every 20 seconds for real-time presence/status
+    const interval = setInterval(() => {
+      loadClients(true);
+    }, 20000);
+    return () => clearInterval(interval);
+  }, [loadClients]);
   
   useEffect(() => {
     // Listen for real-time updates from other admins
     const handleUpdate = () => {
       console.log('[UserManagement] Real-time notification received, refreshing list...');
-      loadClients();
+      loadClients(true);
     };
     window.addEventListener('notification:new_received', handleUpdate);
     return () => window.removeEventListener('notification:new_received', handleUpdate);
@@ -932,16 +949,16 @@ export function UserManagement() {
           </div>
         )}
 
-        <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
-          <table className="w-full min-w-[860px]">
+        <div ref={scrollRef} className="max-h-[62vh] overflow-x-auto overflow-y-auto custom-scrollbar">
+          <table className="w-full min-w-[900px] table-fixed border-collapse">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[17%]">Name</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[24%]">Email</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[18%]">Plan</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[15%]">Created</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[12%]">Status</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-center text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[14%]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -990,13 +1007,13 @@ export function UserManagement() {
                         if (!selection.isDragging) selection.handleRowMouseUp();
                       }}
                     >
-                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={client.displayName || ''}>
+                      <td className="px-4 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={client.displayName || ''}>
                         {client.displayName || '—'}
                       </td>
-                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={client.email}>
+                      <td className="px-4 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={client.email}>
                         {client.email}
                       </td>
-                      <td className="px-3 py-4 text-[0.95rem]">
+                      <td className="px-4 py-4 text-[0.95rem]">
                         <div className="relative inline-flex items-center gap-3">
                           <Tooltip label="Click to view storage usage and remaining space">
                             <button
@@ -1059,8 +1076,8 @@ export function UserManagement() {
                           {savingId === client.id && <span className="text-xs text-[#82788F]">Saving…</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
-                      <td className={`px-3 py-4 text-[1rem] font-semibold`}>
+                      <td className="px-4 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
+                      <td className={`px-4 py-4 text-[1rem] font-semibold`}>
                         <div className="flex items-center gap-1.5">
                           {active ? (
                             <>
@@ -1075,8 +1092,8 @@ export function UserManagement() {
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-center">
-                        <div className="inline-flex items-center gap-2 justify-center text-[#5A2AA8]">
+                      <td className="px-4 py-4 text-center">
+                        <div className="inline-flex items-center gap-2 justify-center text-[#5A2AA8] whitespace-nowrap flex-nowrap">
                           <Tooltip label="Client profile">
                             <button
                               type="button"
