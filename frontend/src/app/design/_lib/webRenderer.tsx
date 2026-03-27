@@ -477,6 +477,7 @@ const frameResponsiveStyles = (
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
+      }
 
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
@@ -2936,12 +2937,23 @@ function RenderNode({
       const normalizedVideoWidth = normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode);
       const normalizedVideoHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const isInsideTabs = Boolean(insideTabsContext || parentType === "Tabs" || parentType === "TabContent");
-      const resolvedVideoWidth = isInsideTabs
-        ? ((props.width as string) ?? "100%")
-        : (normalizedVideoWidth ?? (props.width as string) ?? "100%");
-      const resolvedVideoHeight = isInsideTabs
-        ? ((props.height as string) ?? "auto")
-        : (normalizedVideoHeight ?? (props.height as string) ?? "auto");
+      const isFlex = parentType === "Row" || parentType === "Column" || parentType === "Container" || parentType === "Section";
+      const autoFitInTabs = props._autoFitInTabs === true;
+      
+      const rawVideoWidth = 
+        (isInsideTabs && !autoFitInTabs)
+          ? (props.width as string)
+          : (normalizedVideoWidth ?? (props.width as string));
+      const rawVideoHeight =
+        (isInsideTabs && !autoFitInTabs)
+          ? (props.height as string)
+          : (normalizedVideoHeight ?? (props.height as string));
+      
+      const resolvedVideoWidth = 
+        isFlex ? "100%" 
+        : (isInsideTabs && autoFitInTabs ? "100%" : (rawVideoWidth ?? "100%"));
+      const resolvedVideoHeight = 
+        isInsideTabs && autoFitInTabs ? "auto" : (rawVideoHeight ?? "auto");
       const videoWidthPx = parsePixelValue(props.width);
       const videoHeightPx = parsePixelValue(props.height);
       const videoAspectRatio = videoWidthPx && videoHeightPx ? `${videoWidthPx} / ${videoHeightPx}` : "16 / 9";
@@ -2967,6 +2979,7 @@ function RenderNode({
               width: resolvedVideoWidth,
               height: resolvedVideoHeight,
               maxWidth: "100%",
+              minWidth: 0,
               aspectRatio: videoAspectRatio,
               borderRadius: px(props.borderRadius),
               padding: fluidSpace(props.padding),
@@ -3009,6 +3022,7 @@ function RenderNode({
             width: resolvedVideoWidth,
             height: resolvedVideoHeight,
             maxWidth: "100%",
+            minWidth: 0,
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: videoAspectRatio,
             ["--media-aspect-ratio" as any]: videoAspectRatio,

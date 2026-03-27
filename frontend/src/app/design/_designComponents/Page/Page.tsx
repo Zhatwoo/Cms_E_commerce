@@ -97,11 +97,11 @@ export const Page = ({
               align-items: stretch !important;
               justify-content: flex-start !important;
               width: 100% !important;
+              min-width: 0 !important;
               padding: 0 !important;
               margin: 0 !important;
               background-color: transparent !important;
             }
-            /* UNIVERSAL HAMMER: Force every child to be a full-width block */
             .is-mobile-view .frame-responsive-inner > *,
             .is-mobile-view [data-node-id],
             .is-mobile-view img,
@@ -110,21 +110,33 @@ export const Page = ({
             .is-mobile-view [style*="position:absolute"] {
               display: block !important;
               width: 100% !important;
-              min-width: 100% !important;
               max-width: 100% !important;
+              min-width: 0 !important;
               position: relative !important;
               left: 0 !important;
               right: 0 !important;
               top: 0 !important;
               bottom: 0 !important;
               transform: none !important;
-              margin: 10px 0 !important;
+              margin: 8px 0 !important;
               padding: 0 !important;
               float: none !important;
+            }
+            .is-mobile-view img,
+            .is-mobile-view video {
+              height: auto !important;
+              object-fit: contain !important;
+            }
+            .is-mobile-view button,
+            .is-mobile-view input,
+            .is-mobile-view textarea {
+              width: 100% !important;
+              min-width: 0 !important;
             }
             .is-mobile-view [data-layout="row"] {
               flex-direction: column !important;
               display: flex !important;
+              gap: 12px !important;
             }
           ` : ""}
           ${isTablet ? `
@@ -134,6 +146,7 @@ export const Page = ({
               flex-direction: column !important;
               align-items: stretch !important;
               width: 100% !important;
+              min-width: 0 !important;
             }
             .is-tablet-view .frame-responsive-inner > *,
             .is-tablet-view [data-node-id],
@@ -148,21 +161,37 @@ export const Page = ({
               left: 0 !important;
               top: 0 !important;
               transform: none !important;
-              margin: 10px 0 !important;
+              margin: 8px 0 !important;
+              padding: 0 !important;
+            }
+            .is-tablet-view img,
+            .is-tablet-view video {
+              height: auto !important;
+              object-fit: contain !important;
             }
             .is-tablet-view [data-layout="row"] {
               flex-wrap: wrap !important;
-              gap: 20px !important;
+              gap: 16px !important;
               display: flex !important;
               flex-direction: row !important;
               align-items: stretch !important;
               width: 100% !important;
             }
             .is-tablet-view [data-layout="row"] > * {
-              flex: 1 1 300px !important;
-              min-width: 300px !important;
+              flex: 1 1 min(45%, 380px) !important;
+              min-width: 320px !important;
               max-width: 100% !important;
               width: 100% !important;
+            }
+          ` : ""}
+          ${!isMobile && !isTablet ? `
+            [data-page-node] .frame-responsive-inner {
+              min-width: 0 !important;
+            }
+            [data-page-node] img,
+            [data-page-node] video {
+              max-width: 100% !important;
+              height: auto !important;
             }
           ` : ""}
         `
