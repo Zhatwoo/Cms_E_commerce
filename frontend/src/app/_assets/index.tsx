@@ -197,7 +197,6 @@ export const GROUPED_TEMPLATES = [
     items: [
       ProductCard,
       ProductDescriptionCard,
-      TeamMemberCard,
       ProductsOverview,
       ProductDescription,
       FeaturedProduct,
