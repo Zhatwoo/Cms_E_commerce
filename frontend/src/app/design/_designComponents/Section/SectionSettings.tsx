@@ -6,6 +6,7 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import type { SectionProps, SetProp } from "../../_types/components";
 
 export const SectionSettings = () => {
@@ -21,6 +22,7 @@ export const SectionSettings = () => {
     contentWidth, contentMaxWidth,
     boxShadow, opacity, overflow,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
+    rotation, flipHorizontal, flipVertical,
     actions: { setProp },
   } = useNode((node) => ({
     background: node.data.props.background,
@@ -66,6 +68,9 @@ export const SectionSettings = () => {
     bottom: node.data.props.bottom,
     left: node.data.props.left,
     editorVisibility: node.data.props.editorVisibility,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
   }));
 
   const typedSetProp = setProp as SetProp<SectionProps>;
@@ -79,6 +84,16 @@ export const SectionSettings = () => {
           alignItems={alignItems}
           justifyContent={justifyContent}
           gap={gap}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      {/* Transform section */}
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation ?? 0}
+          flipHorizontal={flipHorizontal ?? false}
+          flipVertical={flipVertical ?? false}
           setProp={typedSetProp}
         />
       </DesignSection>
