@@ -197,8 +197,7 @@ export const GROUPED_TEMPLATES = [
     items: [
       ProductCard,
       ProductDescriptionCard,
-      TeamMemberCard,
-      GridViewCard,
+      ProductsOverview,
       ProductDescription,
       FeaturedProduct,
       CategoriesCard,
@@ -206,7 +205,6 @@ export const GROUPED_TEMPLATES = [
       ProductDetailView,
       ProductDetailViewV2,
       ProductDetailViewV3,
-      ProductsOverview,
     ],
   },
   {
