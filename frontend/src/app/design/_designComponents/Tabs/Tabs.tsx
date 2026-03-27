@@ -196,7 +196,7 @@ export const Tabs = ({
       data-node-id={id}
       className={`tabs-component w-full flex flex-col ${customClassName}`}
       style={{
-        backgroundColor: background,
+        background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`

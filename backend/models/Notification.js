@@ -11,7 +11,7 @@ class Notification {
       read: false,
       createdAt: new Date().toISOString(),
       adminId: data.adminId || null,
-      adminName: data.adminName || 'Admin',
+      adminName: data.adminName || 'Administrator',
     };
     await docRef.set(notification);
     return notification;

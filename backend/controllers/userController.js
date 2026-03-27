@@ -114,7 +114,7 @@ exports.createUser = async (req, res) => {
         message: `Admin created user: ${name} (${email})`,
         type: 'info',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User creation notification failed:', e.message); }
@@ -182,7 +182,7 @@ exports.updateUser = async (req, res) => {
         message: `Admin updated profile for: ${updated.name || updated.email}`,
         type: 'info',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User update notification failed:', e.message); }
@@ -251,7 +251,7 @@ exports.deleteUser = async (req, res) => {
         message: `Admin removed user: ${user.name || user.email}`,
         type: 'error',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User deletion notification failed:', e.message); }

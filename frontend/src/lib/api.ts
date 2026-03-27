@@ -1607,6 +1607,7 @@ export type ClientRow = {
   storageLimitGb?: number;
   phone?: string;
   bio?: string;
+  lastSeen?: string;
 };
 
 export async function getClients(): Promise<{
@@ -1717,7 +1718,7 @@ export async function getSharedNotifications(): Promise<{ success: boolean; noti
   return apiFetch<{ success: boolean; notifications: any[] }>('/api/notifications');
 }
 
-export async function addSharedNotification(data: { title: string; message: string; type?: string }): Promise<{ success: boolean; notification: any }> {
+export async function addSharedNotification(data: { title: string; message: string; type?: string; [key: string]: any }): Promise<{ success: boolean; notification: any }> {
   return apiFetch<{ success: boolean; notification: any }>('/api/notifications', {
     method: 'POST',
     body: JSON.stringify(data),

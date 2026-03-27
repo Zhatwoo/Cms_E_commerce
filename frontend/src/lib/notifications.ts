@@ -3,7 +3,8 @@ import {
   addSharedNotification,
   markSharedNotificationRead,
   markAllSharedNotificationsRead,
-  deleteSharedNotification
+  deleteSharedNotification,
+  getStoredUser
 } from './api';
 
 function isMissingNotificationsRoute(error: unknown): boolean {
@@ -81,8 +82,10 @@ export async function addNotification(
   options?: { details?: string; metadata?: Record<string, string> }
 ) {
   try {
+    const admin = getStoredUser();
+    const adminName = admin ? (admin.name || admin.username || 'Admin') : 'Admin';
     // Try backend first
-    await addSharedNotification({ title, message, type, ...options });
+    await addSharedNotification({ title, message, type, adminName, ...options });
     await fetchSharedNotifications();
   } catch (e) {
     if (!isMissingNotificationsRoute(e)) {
