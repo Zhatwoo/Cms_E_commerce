@@ -26,6 +26,7 @@ function fromDoc(doc) {
     paymentMethods: d.payment_methods || [],
     createdAt: d.created_at?.toDate?.()?.toISOString?.() || d.created_at,
     updatedAt: d.updated_at?.toDate?.()?.toISOString?.() || d.updated_at,
+    lastSeen: d.last_seen?.toDate?.()?.toISOString?.() || d.last_seen || null,
   };
 }
 
@@ -36,7 +37,8 @@ function toFirestore(data) {
     username: 'username', website: 'website', status: 'status', role: 'role',
     isActive: 'is_active', subscriptionPlan: 'subscription_plan',
     suspensionReason: 'suspension_reason',
-    paymentMethods: 'payment_methods'
+    paymentMethods: 'payment_methods',
+    lastSeen: 'last_seen'
   };
   const out = {};
   for (const [appKey, dbKey] of Object.entries(map)) {
@@ -346,8 +348,12 @@ class User {
       else byPlan.free++;
     });
 
+    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
+    const onlineCount = all.filter(u => u.last_seen && new Date(u.last_seen) > threeMinsAgo).length;
+
     return {
       total: all.length,
+      online: onlineCount,
       byStatus: {
         active: all.filter(u => u.status === 'active').length,
         published: all.filter(u => u.status === 'Published').length,

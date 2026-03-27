@@ -41,7 +41,7 @@ const TEXT_TRANSFORM_OPTIONS = [
 
 const labelCls = "text-[10px] text-[var(--builder-text-muted)]";
 const selectShellCls = "relative flex items-center rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] transition-colors hover:border-[var(--builder-border-mid)]";
-const iconButtonBaseCls = "inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] transition-colors";
+const iconButtonBaseCls = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] transition-colors";
 
 const isBoldWeight = (weight: string) => {
   const parsed = Number.parseInt(weight, 10);
@@ -174,6 +174,7 @@ export const TypographyGroup = ({
   textAlign = "left",
   textTransform = "none",
   color = "#ffffff",
+  textDecoration, // <-- add this line
   setProp
 }: TypographyGroupProps) => {
   const italicActive = fontStyle === "italic";
@@ -192,6 +193,21 @@ export const TypographyGroup = ({
   // Always show alignment controls (fix for undefined variable)
   const showAlignmentControls = true;
 
+  // Helper to check and toggle text decorations (supports combined values like "underline line-through")
+  const hasDecoration = (dec: "underline" | "line-through") => {
+    return (String(textDecoration || "").split(/\s+/).filter(Boolean) as string[]).includes(dec);
+  };
+
+  const toggleDecoration = (dec: "underline" | "line-through") => {
+    setProp((props) => {
+      const cur = String(props.textDecoration || "").split(/\s+/).filter(Boolean);
+      const set = new Set(cur);
+      if (set.has(dec)) set.delete(dec);
+      else set.add(dec);
+      props.textDecoration = set.size ? Array.from(set).join(" ") : undefined;
+    });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
@@ -208,35 +224,14 @@ export const TypographyGroup = ({
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Weight</label>
-          <div className="flex items-center gap-1.5">
-            <StyledDropdown
-              value={fontWeight}
-              options={WEIGHT_OPTIONS}
-              onChange={(value) => setProp((props) => { props.fontWeight = value; })}
-              buttonClassName="w-full"
-              className="flex-1"
-            />
-            <button
-              type="button"
-              onClick={() => setProp((props) => { props.fontStyle = props.fontStyle === "italic" ? "normal" : "italic"; })}
-              className={`${iconButtonBaseCls} ${italicActive ? activeBtnCls : inactiveBtnCls}`}
-              title="Italic"
-              aria-pressed={italicActive}
-            >
-              <Italic size={14} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setProp((props) => { props.fontWeight = isBoldWeight(String(props.fontWeight ?? fontWeight)) ? "400" : "700"; })}
-              className={`${iconButtonBaseCls} ${boldActive ? activeBtnCls : inactiveBtnCls}`}
-              title="Bold"
-              aria-pressed={boldActive}
-            >
-              <Bold size={14} />
-            </button>
-          </div>
+          <StyledDropdown
+            value={fontWeight}
+            options={WEIGHT_OPTIONS}
+            onChange={(value) => setProp((props) => { props.fontWeight = value; })}
+            buttonClassName="w-full"
+            className="flex-1"
+          />
         </div>
-
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Size</label>
           <div className="rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)]">
@@ -272,7 +267,6 @@ export const TypographyGroup = ({
             )}
           </div>
         </div>
-
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Spacing</label>
           <div className="rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)]">
@@ -281,8 +275,9 @@ export const TypographyGroup = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-between rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-1.5">
-        <div className="flex gap-1">
+      {/* Alignment, transform, and style controls group */}
+      <div className="flex items-center justify-between rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-1">
+        <div className="flex gap-0.5">
           {showAlignmentControls
             ? alignmentOptions.map(({ val, icon: Icon }) => (
               <button
@@ -299,14 +294,80 @@ export const TypographyGroup = ({
             : null}
         </div>
 
-        <div className="mx-1 h-5 w-px bg-[var(--builder-border)]" />
+        {/* Divider for distinction */}
+        <div className="mx-1 h-5 w-px bg-[var(--builder-border-mid)]" />
+
+        {/* Style buttons: Bold, Italic, Underline, Strikethrough */}
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={() => setProp((props) => { props.fontWeight = isBoldWeight(String(props.fontWeight ?? fontWeight)) ? "400" : "700"; })}
+            className={`${iconButtonBaseCls} ${boldActive ? activeBtnCls : inactiveBtnCls}`}
+            title="Bold"
+            aria-pressed={boldActive}
+          >
+            <Bold size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setProp((props) => { props.fontStyle = props.fontStyle === "italic" ? "normal" : "italic"; })}
+            className={`${iconButtonBaseCls} ${italicActive ? activeBtnCls : inactiveBtnCls}`}
+            title="Italic"
+            aria-pressed={italicActive}
+          >
+            <Italic size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleDecoration("underline")}
+            className={`${iconButtonBaseCls} ${hasDecoration("underline") ? activeBtnCls : inactiveBtnCls}`}
+            title="Underline"
+            aria-pressed={hasDecoration("underline")}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 4v6a6 6 0 0 0 12 0V4"/><line x1="4" y1="20" x2="20" y2="20"/></svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleDecoration("line-through")}
+            className={`${iconButtonBaseCls} ${hasDecoration("line-through") ? activeBtnCls : inactiveBtnCls}`}
+            title="Strikethrough"
+            aria-pressed={hasDecoration("line-through")}
+          >
+           <svg className="h-3 w-3" viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet">
+              <text
+                x="12"
+                y="13"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontFamily="Inter, Arial, system-ui, sans-serif"
+                fontSize="30"
+                fontWeight="90"
+                fill="currentColor"
+              >
+                S
+              </text>
+              <line
+                x1="2"
+                y1="13"
+                x2="22"
+                y2="13"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
+        </div>
+
+        {/* Divider for distinction */}
+        <div className="mx-1 h-5 w-px bg-[var(--builder-border-mid)]" />
 
         <StyledDropdown
           value={textTransform === "none" ? "capitalize" : textTransform}
           options={TEXT_TRANSFORM_OPTIONS}
           onChange={(value) => setProp((props) => { props.textTransform = value; })}
           buttonClassName="min-w-[72px]"
-          align="right"
+          align="left"
         />
       </div>
 

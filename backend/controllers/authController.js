@@ -386,6 +386,9 @@ exports.login = async (req, res) => {
     const token = generateToken(uid);
     setAuthCookie(res, token);
 
+    // Update lastSeen immediately on login
+    await User.update(uid, { lastSeen: new Date().toISOString() }).catch(() => {});
+
     res.status(200).json({
       success: true,
       message: 'Login successful',

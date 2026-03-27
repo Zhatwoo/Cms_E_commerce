@@ -2,18 +2,19 @@
 
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useEditor } from "@craftjs/core";
-import { X, Smartphone, Move, Minus, ChevronDown } from "lucide-react";
+import { X, Smartphone, Move, Minus, ChevronDown, Edit2, Check } from "lucide-react";
 import { serializeCraftToClean } from "../_lib/serializer";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT } from "../_lib/viewportConstants";
 import type { BuilderDocument } from "../_types/schema";
+import { slugFromName } from "../_lib/slug";
+import { useDesignProject } from "../_context/DesignProjectContext";
 
 interface FloatingMobilePreviewProps {
   isOpen: boolean;
   onClose: () => void;
   activePageId?: string | null;
-  canvasWidth?: number;
-  canvasHeight?: number;
+  onRenamePage?: (pageId: string, newName: string) => void;
 }
 
 interface PageInfo {
@@ -56,11 +57,10 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   isOpen,
   onClose,
   activePageId,
-  canvasWidth,
-  canvasHeight,
+  onRenamePage,
 }) => {
   const panelRef = useRef<HTMLDivElement | null>(null);
-
+  const { actions } = useEditor();
   const { query, pages, selectedPageFromCanvas, nodes } = useEditor((state) => {
     const allNodes = state.nodes ?? {};
     const pageList: PageInfo[] = [];
@@ -106,6 +106,7 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
       nodes: allNodes,
     };
   });
+  const { permission } = useDesignProject();
 
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const positionRef = useRef({ x: 0, y: 0 });
@@ -118,6 +119,8 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   const [showPageDropdown, setShowPageDropdown] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>(DEFAULT_MOBILE_DEVICE.id);
   const [showDeviceDropdown, setShowDeviceDropdown] = useState(false);
+  const [isRenamingPage, setIsRenamingPage] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
   const lastGoodDocRef = useRef<BuilderDocument | null>(null);
 
@@ -188,19 +191,11 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
   }, [isOpen, previewPages, selectedPageId]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    if (!canvasWidth || canvasWidth <= 0) return;
-
-    const exactMatch = MOBILE_DEVICE_PRESETS.find(
-      (device) => device.width === canvasWidth && (!canvasHeight || device.height === canvasHeight),
-    );
-    const widthMatch = MOBILE_DEVICE_PRESETS.find((device) => device.width === canvasWidth);
-    const matched = exactMatch ?? widthMatch;
-    if (!matched) return;
-    if (matched.id === selectedDeviceId) return;
-
-    setSelectedDeviceId(matched.id);
-  }, [isOpen, canvasWidth, canvasHeight, selectedDeviceId]);
+    if (!isRenamingPage) {
+      const currentName = previewPages.find((page) => page.id === selectedPageId)?.name ?? "";
+      setRenameValue(currentName);
+    }
+  }, [isRenamingPage, previewPages, selectedPageId]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -289,12 +284,29 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
             ...page.props,
             pageSlug: safeSlug,
             width: targetWidth,
-            height: page.props?.height === "auto" ? targetHeight : (page.props?.height ?? targetHeight),
+            height: targetHeight,
           },
         };
       }),
     };
   }, [liveDoc, previewWidth, previewHeight]);
+
+  const commitPageRename = useCallback(() => {
+    if (!selectedPageId || permission === "viewer") {
+      setIsRenamingPage(false);
+      return;
+    }
+
+    const trimmedName = renameValue.trim() || "Page";
+    const slug = slugFromName(trimmedName);
+    actions.setProp(selectedPageId, (props: Record<string, unknown>) => {
+      props.pageName = trimmedName;
+      props.pageSlug = slug;
+    });
+    onRenamePage?.(selectedPageId, trimmedName);
+    setRenameValue(trimmedName);
+    setIsRenamingPage(false);
+  }, [actions, onRenamePage, permission, renameValue, selectedPageId]);
 
   if (!isOpen) return null;
 
@@ -359,21 +371,60 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
           <div className="px-3 py-2 border-b border-transparent">
             <div className="grid grid-cols-1 gap-2">
               <div className="relative">
-                <button
-                  onClick={() => previewPages.length > 1 && setShowPageDropdown((v) => !v)}
-                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${
-                    previewPages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
-                  }`}
-                >
-                  <span className="truncate">
-                    {previewPages.length === 0 ? "No pages found" : selectedPage?.name || "Select Page"}
-                  </span>
-                  {previewPages.length > 1 && (
-                    <ChevronDown
-                      className={`w-4 h-4 transition-transform ${showPageDropdown ? "rotate-180" : ""}`}
+                <div className="flex items-center gap-2">
+                  {isRenamingPage ? (
+                    <input
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={commitPageRename}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitPageRename();
+                        if (e.key === "Escape") {
+                          setRenameValue(selectedPage?.name ?? "");
+                          setIsRenamingPage(false);
+                        }
+                      }}
+                      autoFocus
+                      className="min-w-0 flex-1 px-3 py-2 rounded-lg bg-brand-medium-dark/50 text-sm text-brand-lighter outline-none border border-blue-400/20"
+                      placeholder="Page name"
                     />
+                  ) : (
+                    <button
+                      onClick={() => previewPages.length > 1 && setShowPageDropdown((v) => !v)}
+                      className={`min-w-0 flex-1 flex items-center justify-between px-3 py-2 rounded-lg bg-brand-medium-dark/50 transition-colors text-sm text-brand-lighter ${
+                        previewPages.length > 1 ? "hover:bg-brand-medium/30 cursor-pointer" : "cursor-default"
+                      }`}
+                    >
+                      <span className="truncate">
+                        {previewPages.length === 0 ? "No pages found" : selectedPage?.name || "Select Page"}
+                      </span>
+                      {previewPages.length > 1 && (
+                        <ChevronDown
+                          className={`w-4 h-4 transition-transform ${showPageDropdown ? "rotate-180" : ""}`}
+                        />
+                      )}
+                    </button>
                   )}
-                </button>
+                  {selectedPage && permission !== "viewer" && (
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        if (isRenamingPage) {
+                          commitPageRename();
+                          return;
+                        }
+                        setRenameValue(selectedPage.name);
+                        setIsRenamingPage(true);
+                        setShowPageDropdown(false);
+                      }}
+                      className="shrink-0 p-2 rounded-lg bg-brand-medium-dark/50 hover:bg-brand-medium/30 text-brand-lighter transition-colors"
+                      title={isRenamingPage ? "Save rename" : "Rename page"}
+                    >
+                      {isRenamingPage ? <Check className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
                 {showPageDropdown && previewPages.length > 1 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-brand-dark border border-transparent rounded-lg shadow-lg py-1 z-10 max-h-48 overflow-y-auto">
                     {previewPages.map((page) => (
@@ -487,9 +538,21 @@ export const FloatingMobilePreview: React.FC<FloatingMobilePreviewProps> = ({
                     key={selectedPageSlug || previewDoc.pages[0]?.slug || "mobile-preview"}
                     doc={previewDoc}
                     initialPageSlug={selectedPageSlug || previewDoc.pages[0]?.slug}
+                    onNavigate={(nextPageSlug) => {
+                      const nextPage = previewDoc.pages.find((page, index) => {
+                        const pageSlug =
+                          (typeof page.slug === "string" && page.slug.trim()) ||
+                          (typeof page.props?.pageSlug === "string" && page.props.pageSlug.trim()) ||
+                          `page-${index}`;
+                        return pageSlug === nextPageSlug;
+                      });
+                      if (nextPage?.id) {
+                        setSelectedPageId(nextPage.id);
+                        setShowPageDropdown(false);
+                      }
+                    }}
                     simulatedWidth={previewWidth}
                     mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                    renderAllNodes
                   />
                 </div>
               )}

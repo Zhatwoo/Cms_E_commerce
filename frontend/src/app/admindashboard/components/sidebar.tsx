@@ -41,14 +41,24 @@ const navActiveStyle: React.CSSProperties = {
     color: '#6b21d8',
 };
 
+const navLabelStyle: React.CSSProperties = {
+    display: 'inline-block',
+    transition: 'opacity 100ms, transform 150ms ease',
+    transformOrigin: 'left center',
+};
+
+const childLabelStyle: React.CSSProperties = {
+    display: 'inline-block',
+    transition: 'transform 150ms ease, padding-left 150ms ease',
+    transformOrigin: 'left center',
+};
+
 export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forcedActiveChildId, onNavigateStart }: AdminSidebarProps) {
     const [isHovered, setIsHovered] = useState(() => (!mobile && desktopSidebarExpandedMemory));
     const [openDropdowns, setOpenDropdowns] = useState<string[]>([]);
-    // NEW: tracks which nav item is currently hovered (for desktop hover dropdowns)
     const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
     const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    // NEW: per-item hover leave timers so dropdown doesn't flicker on slight mouse movement
     const itemLeaveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const pathname = usePathname();
     const router = useRouter();
@@ -90,14 +100,12 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             desktopSidebarExpandedMemory = false;
             setIsHovered(false);
             setOpenDropdowns([]);
-            // NEW: also clear the hovered item when sidebar collapses
             setHoveredItemId(null);
             collapseTimerRef.current = null;
             window.dispatchEvent(new Event('resize'));
         }, 180);
     };
 
-    // NEW: hover handlers for individual nav items (desktop dropdown)
     const handleNavItemMouseEnter = (id: string) => {
         if (itemLeaveTimers.current[id]) {
             clearTimeout(itemLeaveTimers.current[id]);
@@ -111,6 +119,30 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             setHoveredItemId((prev) => (prev === id ? null : prev));
             delete itemLeaveTimers.current[id];
         }, 120);
+    };
+
+    const handleLabelMouseEnter = (e: React.MouseEvent<HTMLSpanElement>) => {
+        e.currentTarget.style.transform = 'scale(1.09)';
+    };
+
+    const handleLabelMouseLeave = (e: React.MouseEvent<HTMLSpanElement>) => {
+        e.currentTarget.style.transform = 'scale(1)';
+    };
+
+    const handleChildMouseEnter = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        const label = e.currentTarget.querySelector<HTMLSpanElement>('.child-label');
+        if (label) {
+            label.style.transform = 'scale(1.07)';
+            label.style.paddingLeft = '4px';
+        }
+    };
+
+    const handleChildMouseLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+        const label = e.currentTarget.querySelector<HTMLSpanElement>('.child-label');
+        if (label) {
+            label.style.transform = 'scale(1)';
+            label.style.paddingLeft = '0px';
+        }
     };
 
     useEffect(() => () => {
@@ -204,7 +236,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                     transition={{ duration: 0.22 }}
                                                     className="overflow-hidden"
                                                 >
-                                                    <div className="ml-14 mt-1 flex flex-col gap-0.5">
+                                                    <div className="ml-16 mt-1 flex flex-col gap-0.5">
                                                         {(item.children ?? []).map((child) => {
                                                             const isChildActive = forcedActiveChildId ? child.id === forcedActiveChildId : isChildPathMatch(pathname, child.matchIncludes);
                                                             return (
@@ -276,21 +308,18 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     {ADMIN_NAV_ITEMS.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
-                        // NEW: dropdown is open when this item is being hovered (desktop)
                         const isOpen = hoveredItemId === item.id || (!!forcedActiveChildId && item.id === activeItem);
 
                         return (
                             <div
                                 key={item.id}
                                 className="w-full shrink-0"
-                                // NEW: attach hover handlers to the entire item wrapper (including children)
                                 onMouseEnter={() => hasChildren ? handleNavItemMouseEnter(item.id) : undefined}
                                 onMouseLeave={() => hasChildren ? handleNavItemMouseLeave(item.id) : undefined}
                             >
                                 {hasChildren ? (
                                     <button
                                         type="button"
-                                        // No click handler needed for desktop — hover controls it
                                         aria-label={item.label}
                                         suppressHydrationWarning
                                         className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
@@ -299,7 +328,12 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                         </span>
-                                        <span className={`ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
+                                        <span
+                                            className={`ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                                            style={{ color: '#4a1a8a', ...navLabelStyle }}
+                                            onMouseEnter={handleLabelMouseEnter}
+                                            onMouseLeave={handleLabelMouseLeave}
+                                        >
                                             {item.label}
                                         </span>
                                         <span className={`mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
@@ -323,7 +357,12 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
                                             <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
                                         </span>
-                                        <span className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
+                                        <span
+                                            className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+                                            style={{ color: '#4a1a8a', ...navLabelStyle }}
+                                            onMouseEnter={handleLabelMouseEnter}
+                                            onMouseLeave={handleLabelMouseLeave}
+                                        >
                                             {item.label}
                                         </span>
                                         {isActive && (
@@ -335,7 +374,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                     </Link>
                                 )}
 
-                                {/* NEW: hover-driven animated dropdown — no click required */}
+                                {/* Hover-driven animated dropdown */}
                                 <AnimatePresence>
                                     {hasChildren && isOpen && isHovered && (
                                         <motion.div
@@ -345,7 +384,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                             transition={{ duration: 0.18 }}
                                             className="overflow-hidden"
                                         >
-                                            <div className="mt-1 flex flex-col gap-0.5 pl-4">
+                                            <div className="mt-1 flex flex-col gap-0.5 pl-14">
                                                 {(item.children ?? []).map((child) => {
                                                     const isChildActive = forcedActiveChildId
                                                         ? child.id === forcedActiveChildId
@@ -355,10 +394,14 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                             key={child.id}
                                                             href={child.href}
                                                             onClick={handleNavigate}
+                                                            onMouseEnter={handleChildMouseEnter}
+                                                            onMouseLeave={handleChildMouseLeave}
                                                             className="flex items-center rounded-xl px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors"
                                                             style={{ color: '#4a1a8a', ...(isChildActive ? navActiveStyle : {}) }}
                                                         >
-                                                            {child.label}
+                                                            <span className="child-label" style={childLabelStyle}>
+                                                                {child.label}
+                                                            </span>
                                                         </Link>
                                                     );
                                                 })}
@@ -388,7 +431,9 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     <span
                         className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
                         aria-hidden={!isHovered}
-                        style={{ color: '#b13bff' }}
+                        style={{ color: '#b13bff', ...navLabelStyle }}
+                        onMouseEnter={handleLabelMouseEnter}
+                        onMouseLeave={handleLabelMouseLeave}
                     >
                         {isLoggingOut ? 'Logging out...' : 'Log out'}
                     </span>

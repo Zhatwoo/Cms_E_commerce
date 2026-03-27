@@ -32,6 +32,7 @@ export const BooleanField = ({
   name = "boolean-field",
   disabled = false,
   labelColor = "#000000",
+  color,
   width = "fit-content",
   height = "fit-content",
   paddingTop = 0,
@@ -47,6 +48,12 @@ export const BooleanField = ({
   fontSize = 14,
   fontFamily = "Outfit",
   fontWeight = "500",
+  fontStyle = "normal",
+  lineHeight = 1.2,
+  letterSpacing = 0,
+  textAlign = "left",
+  textTransform = "none",
+  textDecoration = "none",
   showLabels = true,
   position = "relative",
   top = "auto",
@@ -72,6 +79,7 @@ export const BooleanField = ({
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
+  const effectiveLabelColor = color ?? labelColor;
 
   // Resolve spacing
   const pt = paddingTop ?? 0;
@@ -202,11 +210,16 @@ export const BooleanField = ({
             {showLabels && (
               <span
                 style={{
-                  color: labelColor,
+                  color: effectiveLabelColor,
                   fontSize: fluidFSize,
                   fontFamily,
                   fontWeight,
-                  lineHeight: 1.2,
+                  fontStyle,
+                  lineHeight,
+                  letterSpacing,
+                  textAlign,
+                  textTransform,
+                  textDecoration,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "normal",

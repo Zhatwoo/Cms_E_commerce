@@ -63,6 +63,7 @@ export const Banner = ({
 	left = "auto",
 	zIndex = 0,
 	customClassName = "",
+	textDecoration = "none",
 	children,
 	}: BannerProps) => {
 	const {
@@ -134,7 +135,7 @@ export const Banner = ({
 			}}
 			className={customClassName}
 			style={{
-				backgroundColor: background,
+				background,
 				paddingLeft: fluidSpace(pl, 0),
 				paddingRight: fluidSpace(pr, 0),
 				paddingTop: fluidSpace(pt, 0),
@@ -188,6 +189,7 @@ export const Banner = ({
 						letterSpacing: resolvedLetterSpacing,
 						textAlign,
 						textTransform,
+						textDecoration,
 						color,
 						whiteSpace: "nowrap",
 						overflow: "hidden",
@@ -212,6 +214,7 @@ export const BannerDefaultProps: Partial<BannerProps> = {
 	letterSpacing: 0,
 	textAlign: "center",
 	textTransform: "none",
+	textDecoration: "none",
 	color: "#ffffff",
 	background: "#ef4444",
 	padding: 12,

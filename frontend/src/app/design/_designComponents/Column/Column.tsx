@@ -110,7 +110,7 @@ export const Column = ({
       className={`min-h-[40px] ${customClassName}`}
       style={{
         flex: width === "auto" ? "1 1 clamp(180px, 45%, 280px)" : undefined,
-        backgroundColor: background,
+        background,
         paddingLeft: fluidSpace(pl, 0),
         paddingRight: fluidSpace(pr, 0),
         paddingTop: fluidSpace(pt, 0),

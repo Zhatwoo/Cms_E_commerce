@@ -80,6 +80,7 @@ export const Text = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
+  textDecoration = "none",
 }: TextProps & { width?: string; height?: string }) => {
   const { id, connectors: { connect, drag }, actions, parentId } = useNode((node) => ({
     parentId: node.data.parent,
@@ -188,6 +189,7 @@ export const Text = ({
     letterSpacing: `${letterSpacing}px`,
     textAlign,
     textTransform: textTransform === "capitalize" ? "none" : textTransform,
+    textDecoration,
     color,
     position,
     zIndex,
@@ -199,11 +201,9 @@ export const Text = ({
     height: hasExplicitHeight ? height : "auto",
     maxWidth: "100%",
     minWidth: 0,
-    minWidth: 0,
     alignSelf: undefined,
     boxSizing: "border-box",
     minHeight: hasExplicitHeight ? undefined : "min-content",
-    wordBreak: "break-word",
     overflow: hasExplicitHeight ? "hidden" : "visible",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",
@@ -379,6 +379,7 @@ export const TextDefaultProps: Partial<TextProps & { width?: string; height?: st
   paddingLeft: 0,
   opacity: 1,
   boxShadow: "none",
+  textDecoration: "none",
   previewEditable: false,
 };
 

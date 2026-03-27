@@ -6,7 +6,7 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
 import { migratePublishedContent } from '@/app/design/_lib/contentMigration';
-import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
+import { PREVIEW_TABLET_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { apiFetch } from '@/lib/api';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
@@ -205,7 +205,7 @@ function PublicSiteContent() {
         <WebPreview
           doc={doc}
           pageIndex={0}
-          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
           enableFormInputs
           builderParityMode={false}
           storeContext={{ products, addToCart }}

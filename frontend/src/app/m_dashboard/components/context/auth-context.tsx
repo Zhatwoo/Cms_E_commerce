@@ -48,6 +48,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         fetchUser();
     }, []);
 
+    useEffect(() => {
+        if (!user) return;
+        
+        // Presence Heartbeat: silently keep lastSeen updated every 60s
+        const heartbeat = setInterval(() => {
+            getMe().catch(() => {});
+        }, 60000);
+        
+        return () => clearInterval(heartbeat);
+    }, [user]);
+
     return (
         <AuthContext.Provider value={{ user, loading, refreshUser: fetchUser, setUser }}>
             {children}
