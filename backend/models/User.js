@@ -348,8 +348,8 @@ class User {
       else byPlan.free++;
     });
 
-    const fiveMinsAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const onlineCount = all.filter(u => u.last_seen && new Date(u.last_seen) > fiveMinsAgo).length;
+    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
+    const onlineCount = all.filter(u => u.last_seen && new Date(u.last_seen) > threeMinsAgo).length;
 
     return {
       total: all.length,

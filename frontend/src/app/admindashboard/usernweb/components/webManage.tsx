@@ -37,7 +37,7 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
     <span className="relative group inline-flex">
       {children}
       <span
-        className="absolute left-1/2 -translate-x-1/2 bottom-full mb-1.5 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-10"
+        className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2.5 px-2 py-1 text-xs font-medium text-white bg-gray-900 rounded whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[70]"
         role="tooltip"
       >
         {label}
@@ -905,13 +905,13 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
 
         <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
           <table className="w-full min-w-[900px] table-fixed border-collapse">
-            <thead>
+            <thead className="sticky top-0 z-20 bg-[#F5F4FF]">
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="w-[27%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Domain</th>
-                <th className="w-[23%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Owner</th>
-                <th className="w-[18%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="w-[16%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="w-[14%] px-3 py-4 text-right text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="w-[28%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Domain</th>
+                <th className="w-[25%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Owner</th>
+                <th className="w-[15%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Status</th>
+                <th className="w-[18%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Plan</th>
+                <th className="w-[14%] px-4 py-4 text-center text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -948,10 +948,10 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                         if (!selection.isDragging) selection.handleRowMouseUp();
                       }}
                     >
-                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E]">{w.domainName}</td>
-                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium">{w.owner}</td>
-                      <td className="px-3 py-4 text-[1rem]"><span className={`font-semibold ${isActive ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>{isActive ? 'Active' : 'Inactive'}</span></td>
-                      <td className="px-3 py-4 text-[0.95rem]">
+                      <td className="px-4 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={w.domainName}>{w.domainName}</td>
+                      <td className="px-4 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={w.owner}>{w.owner}</td>
+                      <td className="px-4 py-4 text-[1rem]"><span className={`font-semibold ${isActive ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>{isActive ? 'Active' : 'Inactive'}</span></td>
+                      <td className="px-4 py-4 text-[0.95rem]">
                         <div className="relative inline-flex items-center gap-3 text-[#31247E]">
                           <Tooltip label="Click to view storage usage and remaining space">
                             <button
@@ -994,8 +994,8 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-right">
-                        <div className="inline-flex items-center gap-3 justify-end text-[#5A2AA8]">
+                      <td className="px-4 py-4 text-center">
+                        <div className="inline-flex items-center gap-3 justify-center text-[#5A2AA8]">
                           <Tooltip label="Edit website">
                             <button
                               type="button"
