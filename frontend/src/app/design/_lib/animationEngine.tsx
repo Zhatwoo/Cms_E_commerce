@@ -152,30 +152,44 @@ function isElementScrollable(el: HTMLElement | null): boolean {
   return el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
 }
 
-function resolveScrollRoots(
+export function findNearestScrollParent(el: HTMLElement | null): HTMLElement | null {
+  if (!el || typeof window === "undefined") return null;
+  let parent = el.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    const overflow = style.overflow + style.overflowY;
+    if (/(auto|scroll)/.test(overflow)) {
+      return parent;
+    }
+    if (parent === document.body || parent === document.documentElement) break;
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+export function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  // 1. Explicit preview scroll root — ALWAYS return it without checking scrollability.
-  //    Content may not be rendered yet at mount time, so isElementScrollable would fail
-  //    and fall back to window, which is blocked by overflow-x-hidden parent.
+  // 1. Explicit preview scroll root
   const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
   if (explicitPreviewRoot instanceof HTMLElement) {
     return { primary: explicitPreviewRoot, fallback: null };
   }
 
-  // 2. Builder canvas container — explicit attribute, prefer over DOM walk.
+  // 2. Builder canvas container
   const canvasContainer = el.closest('[data-canvas-container]');
   if (canvasContainer instanceof HTMLElement) {
     return { primary: canvasContainer, fallback: null };
   }
 
-  // 3. Top-level window (preview/live site without explicit scroll root) — use window.
+  // 3. Fallback for preview page: find the nearest scrolling parent
   if (view.parent === view) {
-    return { primary: null, fallback: null };
+    const nearest = findNearestScrollParent(el);
+    return { primary: nearest, fallback: null };
   }
 
-  // Inside an iframe (builder canvas in iframe mode), find the nearest scroll container.
+  // 4. Inside an iframe (builder canvas)
   const nearest = resolveNearestScrollContainer(el, view);
   const primary = nearest && isElementScrollable(nearest) ? nearest : null;
   return { primary, fallback: null };
@@ -596,6 +610,18 @@ function useGsapScrollEffect(
         ? Math.max(0, Math.min(2, config.intensity))
         : 1;
 
+    // Use a natural ease for all scroll effects for a clean, smooth feel
+    const naturalEase = config.scrub ? "none" : "power1.inOut";
+
+    // Detect if the element is already in the initial viewport to prevent sudden shifts
+    const rect = el.getBoundingClientRect();
+    const isAboveFold = rect.top < (view.innerHeight || 800);
+    
+    // Dynamic triggers: if the element is already visible, start at scroll 0.
+    // Otherwise, start when it enters the viewport.
+    const effectiveStart = config.start || (isAboveFold ? "top top" : "top bottom");
+    const effectiveEnd = config.end || "bottom top";
+
     if (config.type === "freeMove") {
       const keyframes = computeFreeMoveKeyframes();
       if (keyframes.length === 0) return;
@@ -603,11 +629,11 @@ function useGsapScrollEffect(
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: el,
-          scroller: scroller ?? undefined,
-          start: config.start,
-          end: config.end,
+          scroller: scroller || view || undefined,
+          start: effectiveStart,
+          end: effectiveEnd,
           scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
-          immediateRender: false,
+          immediateRender: true,
           invalidateOnRefresh: true,
         },
       });
@@ -653,17 +679,18 @@ function useGsapScrollEffect(
         }
       };
     } else {
-      // Use a natural ease for all scroll effects for a clean, smooth feel
-      const naturalEase = config.scrub ? "none" : "power1.inOut";
-      const tl = gsap.timeline({
+      // Reset any previous transforms to ensure we measure from the "steady" layout state
+      gsap.set(el, { clearProps: "transform,opacity,filter,clip-path" });
+      
+      const tlScroll = gsap.timeline({
         scrollTrigger: {
           trigger: el,
-          scroller: scroller ?? undefined,
-          start: config.start,
-          end: config.end,
+          scroller: scroller || view || undefined,
+          start: effectiveStart,
+          end: effectiveEnd,
           scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
-          immediateRender: false,
           invalidateOnRefresh: true,
+          immediateRender: true,
         },
         defaults: { ease: naturalEase },
       });
@@ -678,21 +705,24 @@ function useGsapScrollEffect(
         }
         return out;
       };
+      
       // If rotate effect, set transformOrigin to center for true rotation
       if (config.type === "rotate") {
         gsap.set(el, { transformOrigin: "50% 50%" });
       }
-      tl.fromTo(el, clampObj(from), {
+
+      tlScroll.fromTo(el, clampObj(from), {
         ...clampObj(to),
         // Use a natural ease for all effects
         ease: naturalEase,
         ...(config.type === "rotate" ? { transformOrigin: "50% 50%" } : {}),
       });
+
       // Schedule a single debounced refresh — prevents cascade of refreshes on mount.
       scheduleScrollTriggerRefresh();
 
       return () => {
-        tl.kill();
+        tlScroll.kill();
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
@@ -749,101 +779,110 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
 
   switch (config.type as ScrollEffectType) {
     case "parallax": {
-      // Parallax: always proportional to scroll, never overshoots
-      const maxDist = 150;
+      // Parallax: start from 0 (steady) and move towards p
+      // Subtle distance (100px max) feels more refined/optimized
+      const maxDist = 120;
       const p = speed * maxDist;
       if (isVertical) {
-        from.y = -Math.abs(p);
-        to.y = Math.abs(p);
+        from.y = 0;
+        to.y = p;
       } else {
-        from.x = -Math.abs(p);
-        to.x = Math.abs(p);
+        from.x = 0;
+        to.x = p;
       }
+      to.force3D = true;
       break;
     }
     case "fade":
-      // Fade: always 0→1 or 1→0
+      // Fade: always from steady (1) to transparent (0) or reverse depending on speed
       from.opacity = speed >= 0 ? 0 : 1;
       to.opacity = speed >= 0 ? 1 : 0;
+      to.force3D = true;
       break;
     case "scale": {
-      // Scale: always from 1 to 1+s or reverse
-      const s = Math.abs(speed) * 0.5;
+      // Scale: start from steady (1) to 1+s
+      const s = Math.abs(speed) * 0.4; // Slightly reduced multiplier
       from.scale = speed >= 0 ? 1 : 1 + s;
       to.scale = speed >= 0 ? 1 + s : 1;
+      to.force3D = true;
       break;
     }
     case "rotate": {
-      // Rotate: always -r to r
-      const r = Math.abs(speed) * 180;
-      from.rotation = -r;
+      // Rotate: start from steady (0) to r
+      const r = speed * 120; // Reduced from 180 for more control
+      from.rotation = 0;
       to.rotation = r;
+      to.force3D = true;
       break;
     }
     case "blur": {
-      // Blur: always from blur to clear
-      const b = Math.abs(speed) * 20;
-      from.filter = `blur(${b}px)`;
-      to.filter = "blur(0px)";
+      // Blur: start from steady (0px) to b or reverse
+      const b = Math.abs(speed) * 15; // Reduced from 20
+      from.filter = speed >= 0 ? "blur(0px)" : `blur(${b}px)`;
+      to.filter = speed >= 0 ? `blur(${b}px)` : "blur(0px)";
+      to.force3D = true;
       break;
     }
     case "horizontalMove": {
-      // Horizontal move: always -h to h
-      const h = Math.abs(speed) * 300;
-      from.x = -h;
+      // Horizontal move: start from steady (0) to h
+      const h = speed * 300; // Reduced from 400
+      from.x = 0;
       to.x = h;
+      to.force3D = true;
       break;
     }
     case "freeMove": {
-      // FreeMove fallback: always proportional to scroll, never overshoots
+      // FreeMove: already starts from steady (0,0)
       const start = config.freeMove?.start;
       const end = config.freeMove?.end;
       if (start && end) {
-        const dx = (end.x - start.x);
-        const dy = (end.y - start.y);
         from.x = 0;
         from.y = 0;
-        to.x = speed * dx;
-        to.y = speed * dy;
+        to.x = speed * (end.x - start.x);
+        to.y = speed * (end.y - start.y);
       }
       break;
     }
     case "skew": {
-      // Skew: always -sk to sk
-      const sk = Math.abs(speed) * 25;
+      // Skew: start from steady (0) to sk
+      const sk = speed * 20; // Reduced from 25
       if (isVertical) {
-        from.skewY = -sk;
+        from.skewY = 0;
         to.skewY = sk;
       } else {
-        from.skewX = -sk;
+        from.skewX = 0;
         to.skewX = sk;
       }
+      to.force3D = true;
       break;
     }
     case "reveal":
       // Reveal: always from clipped to revealed
       from.clipPath = speed >= 0 ? "inset(0% 100% 0% 0%)" : "inset(100% 0% 0% 0%)";
       to.clipPath = "inset(0% 0% 0% 0%)";
+      to.force3D = true;
       break;
     case "zoom": {
       // Zoom: always from 1 to 1+z
-      const zScale = Math.abs(speed) * 1.5;
-      const zDepth = speed * 200;
+      const zScale = Math.abs(speed) * 1.2; // Reduced from 1.5
+      const zDepth = speed * 150; // Reduced from 200
       from.scale = 1;
       from.z = -zDepth;
       to.scale = 1 + zScale;
       to.z = zDepth;
+      to.force3D = true;
       break;
     }
     case "tilt3d": {
       // Tilt3d: always -t to t
-      const t = Math.abs(speed) * 35;
+      const t = Math.abs(speed) * 30; // Reduced from 35
       from.rotationX = -t;
       from.rotationY = isVertical ? 0 : -t;
       from.transformPerspective = 1200;
       to.rotationX = t;
       to.rotationY = isVertical ? 0 : t;
       to.transformPerspective = 1200;
+      to.force3D = true;
       break;
     }
   }
@@ -879,7 +918,8 @@ export function AnimationWrapper({
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
   const ref = useRef<HTMLDivElement>(null);
-  const inViewRootRef = useRef<Element | null>(null);
+  const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
+  const [hasResolvedInViewRoot, setHasResolvedInViewRoot] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -887,11 +927,20 @@ export function AnimationWrapper({
 
     const view = el.ownerDocument?.defaultView ?? window;
     const { primary, fallback } = resolveScrollRoots(el, view);
-    inViewRootRef.current = primary ?? fallback;
+    const explicitPreviewRoot = el.ownerDocument?.querySelector(
+      '[data-preview-scroll-root="true"]'
+    ) as HTMLElement | null;
+
+    setInViewRoot(primary ?? fallback ?? explicitPreviewRoot);
+    setHasResolvedInViewRoot(true);
   }, []);
 
+  // Root may legitimately be null (window scrolling). We still want onScroll to work.
+  const rootReady = config.trigger.type !== "onScroll" || hasResolvedInViewRoot;
+
   const isInView = useInView(ref, {
-    root: inViewRootRef,
+    // Pass the actual Element (not a ref object) so IntersectionObserver uses it as root.
+    root: inViewRoot ?? undefined,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });
@@ -903,10 +952,10 @@ export function AnimationWrapper({
   useEffect(() => {
     if (config.trigger.type === "onLoad") {
       setHasTriggered(true);
-    } else if (config.trigger.type === "onScroll" && isInView) {
+    } else if (config.trigger.type === "onScroll" && rootReady && isInView) {
       setHasTriggered(true);
     }
-  }, [config.trigger.type, isInView]);
+  }, [config.trigger.type, isInView, rootReady]);
 
   useEffect(() => {
     const el = ref.current;
@@ -960,14 +1009,15 @@ export function AnimationWrapper({
 
   // Optimization: Don't use willChange for continuous animations (pulse, float, spin, etc.)
   // These cause excessive paint/layout thrashing, especially during zoom or previews.
-  // Only set willChange for entrance/exit animations which are one-time events.
-  const shouldUseWillChange = hasIn || hasOut;
+  // Only set willChange for entrance/exit transitions or active scroll effects.
+  const shouldUseWillChange = hasIn || hasOut || hasScroll;
 
   return (
     <MotionComponent
       ref={ref}
       className={className}
-      style={{ ...style, willChange: shouldUseWillChange ? "transform, opacity" : undefined }}
+      data-animated={hasAny ? "true" : undefined}
+      style={{ ...style, willChange: shouldUseWillChange ? "transform, opacity, filter" : undefined }}
       initial={combinedInitial as any}
       animate={combinedAnimate as any}
       exit={hasOut ? (outVariants.exit as any) : undefined}
