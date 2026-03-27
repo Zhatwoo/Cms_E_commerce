@@ -6,6 +6,8 @@ import { AppearanceGroup } from "../../_components/rightPanel/settings/Appearanc
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
+import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import type { TabsProps, SetProp, TabItem, TypographyProps } from "../../_types/components";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -28,8 +30,11 @@ export const TabsSettings = () => {
     borderColor, borderWidth, borderStyle, strokePlacement,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
+    fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration,
+    node, // <-- add this
     actions: { setProp }
   } = useNode(node => ({
+    node, // <-- and this
     tabs: node.data.props.tabs || [],
     activeTabId: node.data.props.activeTabId,
     tabHeaderBackgroundColor: node.data.props.tabHeaderBackgroundColor,
