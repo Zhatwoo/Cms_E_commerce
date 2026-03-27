@@ -1,15 +1,15 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
-import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { BooleanInput } from "../../_components/rightPanel/settings/inputs/BooleanInput";
 import { MultiSelectInput } from "../../_components/rightPanel/settings/inputs/MultiSelectInput";
-import type { BooleanFieldProps, SetProp } from "../../_types/components";
+import type { BooleanFieldProps, SetProp, TypographyProps } from "../../_types/components";
 
 function makeOptionId(): string {
   return `opt-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -22,11 +22,17 @@ export const BooleanFieldSettings = () => {
     disabled,
     showLabels,
     labelColor,
+    color,
     gap,
     itemGap,
     fontSize,
     fontFamily,
     fontWeight,
+    fontStyle,
+    lineHeight,
+    letterSpacing,
+    textAlign,
+    textTransform,
     options,
     width,
     height,
@@ -60,11 +66,17 @@ export const BooleanFieldSettings = () => {
     disabled: node.data.props.disabled ?? false,
     showLabels: node.data.props.showLabels ?? true,
     labelColor: node.data.props.labelColor ?? "#000000",
+    color: node.data.props.color ?? node.data.props.labelColor ?? "#000000",
     gap: node.data.props.gap ?? 10,
     itemGap: node.data.props.itemGap ?? 10,
     fontSize: node.data.props.fontSize ?? 14,
     fontFamily: node.data.props.fontFamily ?? "Outfit",
     fontWeight: node.data.props.fontWeight ?? "500",
+    fontStyle: (node.data.props as any).fontStyle ?? "normal",
+    lineHeight: (node.data.props as any).lineHeight ?? 1.2,
+    letterSpacing: (node.data.props as any).letterSpacing ?? 0,
+    textAlign: (node.data.props as any).textAlign ?? "left",
+    textTransform: (node.data.props as any).textTransform ?? "none",
     options: node.data.props.options,
     width: node.data.props.width ?? "fit-content",
     height: node.data.props.height ?? "fit-content",
@@ -94,6 +106,13 @@ export const BooleanFieldSettings = () => {
   }));
 
   const typedSetProp = setProp as SetProp<BooleanFieldProps>;
+  const typedSetTypographyProp = ((cb: (props: TypographyProps) => void) =>
+    typedSetProp((props) => {
+      cb(props as any);
+      if (typeof (props as any).color === "string") {
+        props.labelColor = (props as any).color;
+      }
+    })) as SetProp<TypographyProps>;
   const normalizedOptions: NonNullable<BooleanFieldProps["options"]> =
     Array.isArray(options) && options.length > 0
       ? options
@@ -106,80 +125,10 @@ export const BooleanFieldSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Typography">
-        <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Show Labels</label>
-              <BooleanInput
-                value={!!showLabels}
-                onChange={(val) => typedSetProp((props) => { props.showLabels = val; })}
-                variant="checkbox"
-                layout="inline"
-                className="py-1"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Label Color</label>
-              <ColorPicker
-                value={labelColor || "#000000"}
-                onChange={(val) => typedSetProp((props) => { props.labelColor = val; })}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
-              <NumericInput
-                value={fontSize ?? 14}
-                onChange={(val) => typedSetProp((props) => { props.fontSize = val; })}
-                min={8}
-                unit="px"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
-              <select
-                value={fontWeight ?? "500"}
-                onChange={(e) => typedSetProp((props) => { props.fontWeight = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-              >
-                <option value="400">Regular</option>
-                <option value="500">Medium</option>
-                <option value="600">Semibold</option>
-                <option value="700">Bold</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Font</label>
-            <select
-              value={fontFamily ?? "Outfit"}
-              onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-            >
-              {[
-                "Outfit",
-                "Roboto",
-                "Open Sans",
-                "Poppins",
-                "Ubuntu",
-                "Lato",
-                "Raleway",
-                "Montserrat",
-              ].map((font) => (
-                <option key={font} value={font}>{font}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </DesignSection>
-
+      {/* Boolean Field section on top */}
       <DesignSection title="Boolean Field">
         <div className="flex flex-col gap-3">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Type</label>
               <select
@@ -204,16 +153,34 @@ export const BooleanFieldSettings = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Disabled</label>
-              <BooleanInput
-                value={!!disabled}
-                onChange={(val) => typedSetProp((props) => { props.disabled = val; })}
-                variant="checkbox"
-                className="py-1"
-              />
+              <div className="bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md p-2">
+                <BooleanInput
+                  label="Show Labels"
+                  value={!!showLabels}
+                  onChange={(val) => typedSetProp((props) => { props.showLabels = val; })}
+                  variant="checkbox"
+                  layout="spread"
+                  className="w-full"
+                />
+              </div>
             </div>
+            <div className="flex flex-col gap-1">
+              <div className="bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md p-2">
+                <BooleanInput
+                  label="Disabled"
+                  value={!!disabled}
+                  onChange={(val) => typedSetProp((props) => { props.disabled = val; })}
+                  variant="checkbox"
+                  layout="spread"
+                  className="w-full"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Gap</label>
               <NumericInput
@@ -223,9 +190,6 @@ export const BooleanFieldSettings = () => {
                 unit="px"
               />
             </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
               <label className="text-[10px] text-[var(--builder-text)]">Item Gap</label>
               <NumericInput
@@ -235,20 +199,23 @@ export const BooleanFieldSettings = () => {
                 unit="px"
               />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]"> </label>
-              <button
-                type="button"
-                onClick={() => typedSetProp((props) => {
-                  const next = Array.isArray(props.options) ? [...props.options] : [...normalizedOptions];
-                  next.push({ id: makeOptionId(), label: `Option ${next.length + 1}`, checked: false });
-                  props.options = next;
-                })}
-                className="w-full bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] py-2 transition-colors"
-              >
-                Add option
-              </button>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <div className="hidden md:block text-[10px] text-[var(--builder-text)]" aria-hidden="true">
+              &nbsp;
             </div>
+            <button
+              type="button"
+              onClick={() => typedSetProp((props) => {
+                const next = Array.isArray(props.options) ? [...props.options] : [...normalizedOptions];
+                next.push({ id: makeOptionId(), label: `Option ${next.length + 1}`, checked: false });
+                props.options = next;
+              })}
+              className="w-full bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] py-2 transition-colors"
+            >
+              Add option
+            </button>
           </div>
 
           <div className="flex flex-col gap-2">
@@ -293,7 +260,7 @@ export const BooleanFieldSettings = () => {
                         const next = (Array.isArray(props.options) ? [...props.options] : [...normalizedOptions]).filter((o) => o.id !== opt.id);
                         props.options = next.length ? next : [{ id: makeOptionId(), label: "Option 1", checked: false }];
                       })}
-                      className="px-2 py-2 text-xs rounded-md bg-red-500/15 hover:bg-red-500/25 border border-red-500/20 text-red-200 transition-colors"
+                      className="px-2 py-2 text-xs rounded-md bg-red-500/10 hover:bg-red-500/15 border border-red-500/30 text-red-600 hover:text-red-700 transition-colors"
                       title="Remove option"
                     >
                       Remove
@@ -327,6 +294,7 @@ export const BooleanFieldSettings = () => {
         </div>
       </DesignSection>
 
+      {/* Transform */}
       <DesignSection title="Transform" defaultOpen={false}>
         <TransformGroup
           rotation={rotation}
@@ -336,6 +304,7 @@ export const BooleanFieldSettings = () => {
         />
       </DesignSection>
 
+      {/* Layout & Layer */}
       <DesignSection title="Layout & Layer" defaultOpen={false}>
         <PositionGroup
           position={position}
@@ -350,6 +319,7 @@ export const BooleanFieldSettings = () => {
         />
       </DesignSection>
 
+      {/* Size & Spacing */}
       <DesignSection title="Size & Spacing" defaultOpen={false}>
         <SizePositionGroup
           width={width}
@@ -366,6 +336,23 @@ export const BooleanFieldSettings = () => {
         />
       </DesignSection>
 
+      {/* Typography (if text) */}
+      <DesignSection title="Typography">
+        <TypographyGroup
+          fontFamily={fontFamily ?? "Outfit"}
+          fontWeight={fontWeight ?? "500"}
+          fontStyle={(fontStyle as any) ?? "normal"}
+          fontSize={fontSize ?? 14}
+          lineHeight={(lineHeight as any) ?? 1.2}
+          letterSpacing={(letterSpacing as any) ?? 0}
+          textAlign={(textAlign as any) ?? "left"}
+          textTransform={(textTransform as any) ?? "none"}
+          color={(color as any) ?? labelColor ?? "#000000"}
+          setProp={typedSetTypographyProp}
+        />
+      </DesignSection>
+
+      {/* Effects */}
       <DesignSection title="Effects" defaultOpen={false}>
         <EffectsGroup
           opacity={opacity}
