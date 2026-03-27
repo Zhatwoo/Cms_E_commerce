@@ -406,9 +406,18 @@ function MonitoringPageContent() {
 
   useEffect(() => {
     loadData();
+    
+    // Auto-refresh monitoring data every 30 seconds for real-time accuracy
+    const interval = setInterval(() => {
+      loadData(true);
+    }, 30000);
+
     const onNotifReceived = () => loadData(true);
     window.addEventListener('notification:new_received', onNotifReceived);
-    return () => window.removeEventListener('notification:new_received', onNotifReceived);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('notification:new_received', onNotifReceived);
+    };
   }, []);
 
   useEffect(() => {

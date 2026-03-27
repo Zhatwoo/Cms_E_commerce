@@ -187,11 +187,11 @@ export const DEFAULT_SCROLL_EFFECT: ScrollEffectConfig = {
   enabled: false,
   type: "none",
   speed: 0.5,
-  intensity: 1,
+  intensity: 0.2, // Snappier, more optimized feel (0.2s lag)
   direction: "vertical",
   scrub: true,
-  start: "top bottom",
-  end: "bottom top",
+  start: "",
+  end: "",
 };
 
 export const DEFAULT_TRIGGER: TriggerConfig = {

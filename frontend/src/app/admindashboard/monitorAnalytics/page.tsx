@@ -39,28 +39,38 @@ export default function MonitoringAnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    const loadAnalytics = useCallback(async () => {
-        setLoading(true);
+    const loadAnalytics = useCallback(async (silent = false) => {
+        if (!silent) setLoading(true);
         setError(null);
         try {
             const res = await getAnalytics(period);
             if (res.success && res.analytics) setAnalytics(res.analytics);
             else setAnalytics(null);
         } catch (e) {
-            setError(e instanceof Error ? e.message : 'Failed to load analytics');
-            setAnalytics(null);
+            if (!silent) {
+                setError(e instanceof Error ? e.message : 'Failed to load analytics');
+                setAnalytics(null);
+            }
         } finally {
-            setLoading(false);
+            if (!silent) setLoading(false);
         }
     }, [period]);
 
     useEffect(() => { loadAnalytics(); }, [loadAnalytics]);
 
     useEffect(() => {
+        // Auto-refresh analytics data every 30 seconds for real-time accuracy
+        const interval = setInterval(() => {
+            loadAnalytics(true);
+        }, 30000);
+        return () => clearInterval(interval);
+    }, [loadAnalytics]);
+
+    useEffect(() => {
         // Listen for real-time updates from other admins
         const handleUpdate = () => {
             console.log('[Analytics] Real-time notification received, refreshing data...');
-            loadAnalytics();
+            loadAnalytics(true);
         };
         window.addEventListener('notification:new_received', handleUpdate);
         return () => window.removeEventListener('notification:new_received', handleUpdate);

@@ -20,6 +20,7 @@ export const BannerSettings = () => {
     letterSpacing,
     textAlign,
     textTransform,
+    textDecoration,
     color,
     background,
     paddingLeft,
@@ -60,6 +61,7 @@ export const BannerSettings = () => {
     letterSpacing: node.data.props.letterSpacing,
     textAlign: node.data.props.textAlign,
     textTransform: node.data.props.textTransform,
+    textDecoration: node.data.props.textDecoration,
     color: node.data.props.color,
     background: node.data.props.background,
     paddingLeft: node.data.props.paddingLeft,
@@ -160,6 +162,7 @@ export const BannerSettings = () => {
             letterSpacing={letterSpacing}
             textAlign={textAlign}
             textTransform={textTransform}
+            textDecoration={textDecoration}
             color={color}
             setProp={typedSetProp as unknown as SetProp<TypographyProps>}
           />

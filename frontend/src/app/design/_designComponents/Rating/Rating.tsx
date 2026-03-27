@@ -45,6 +45,7 @@ export const Rating = ({
   letterSpacing = 0,
   textAlign = "left",
   textTransform = "none",
+  textDecoration = "none",
   color = "#e2e8f0",
   background = "transparent",
   borderRadius = 8,
@@ -213,6 +214,7 @@ export const Rating = ({
             lineHeight,
             letterSpacing: `${letterSpacing}px`,
             textTransform,
+            textDecoration,
             color,
           }}
         >
@@ -244,6 +246,7 @@ export const RatingDefaultProps: Partial<RatingProps> = {
   letterSpacing: 0,
   textAlign: "left",
   textTransform: "none",
+  textDecoration: "none",
   color: "#e2e8f0",
   background: "transparent",
   borderRadius: 8,

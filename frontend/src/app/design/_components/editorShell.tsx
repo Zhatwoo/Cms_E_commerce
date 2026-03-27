@@ -2786,6 +2786,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.TabContent = asComponent(CRAFT_RESOLVER.TabContent ?? TabContent);
     base.tabcontent = asComponent(CRAFT_RESOLVER.tabcontent ?? TabContent);
 
+    // Product components
+    const productCardComp = asComponent(CRAFT_RESOLVER.ProductCard ?? SAFE_CONTAINER);
+    base.ProductCard = productCardComp;
+    base.productcard = productCardComp;
+    base["Product Card"] = productCardComp;
+    const productSliderComp = asComponent(CRAFT_RESOLVER.ProductSlider ?? SAFE_CONTAINER);
+    base.ProductSlider = productSliderComp;
+    base.productslider = productSliderComp;
+    base["Product Slider"] = productSliderComp;
+
     // Force BooleanField aliases after all spreads so legacy snapshots always resolve.
     const booleanFieldComp = asComponent(BooleanField ?? CRAFT_RESOLVER.BooleanField);
     base.BooleanField = booleanFieldComp;

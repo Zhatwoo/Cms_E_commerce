@@ -61,6 +61,18 @@ export default function AdminDashboardLayout({
     };
   }, [pathname, router, searchParams]);
 
+  // Real-time presence heartbeat
+  useEffect(() => {
+    if (!isAuthorized) return;
+    
+    // Heartbeat to keep lastSeen updated in backend every 60s
+    const heartbeat = setInterval(() => {
+      getMe().catch(() => {});
+    }, 60000);
+    
+    return () => clearInterval(heartbeat);
+  }, [isAuthorized]);
+
   // Real-time notifications connection
   useEffect(() => {
     if (isAuthorized) {
