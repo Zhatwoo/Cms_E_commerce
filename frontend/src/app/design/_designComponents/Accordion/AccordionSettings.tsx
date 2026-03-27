@@ -1,11 +1,14 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
+import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
-import type { TypographyProps, SetProp, AccordionProps, AccordionItem } from "../../_types/components";
+import type { TypographyProps, SetProp, AccordionProps, AccordionItem, TransformProps, EffectsProps } from "../../_types/components";
 import { Plus, Trash2 } from "lucide-react";
 import { uploadMediaApi } from "@/lib/api";
 
@@ -47,6 +50,13 @@ export const AccordionSettings = () => {
     borderColor,
     borderWidth,
     iconColor,
+    rotation,
+    flipHorizontal,
+    flipVertical,
+    opacity,
+    boxShadow,
+    overflow,
+    cursor,
     node,
     fontFamily,
     actions: { setProp },
@@ -98,6 +108,13 @@ export const AccordionSettings = () => {
     borderColor: node.data.props.borderColor as string,
     borderWidth: node.data.props.borderWidth as number,
     iconColor: node.data.props.iconColor as string,
+    rotation: node.data.props.rotation as number,
+    flipHorizontal: node.data.props.flipHorizontal as boolean,
+    flipVertical: node.data.props.flipVertical as boolean,
+    opacity: node.data.props.opacity as number,
+    boxShadow: node.data.props.boxShadow as string,
+    overflow: node.data.props.overflow as string,
+    cursor: node.data.props.cursor as string,
     node,
   }));
 
@@ -375,6 +392,15 @@ export const AccordionSettings = () => {
         </div>
       </DesignSection>
 
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={setProp as any}
+        />
+      </DesignSection>
+
       <DesignSection title="Layout & Layer" defaultOpen={false}>
         <PositionGroup
           position={position}
@@ -389,47 +415,19 @@ export const AccordionSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Size & Spacing">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Width</label>
-            <select
-              value={width ?? "100%"}
-              onChange={(e) => setProp((p: AccordionProps) => { p.width = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-            >
-              <option value="100%">Full (100%)</option>
-              <option value="75%">75%</option>
-              <option value="50%">50%</option>
-              <option value="auto">Auto</option>
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Min Height</label>
-            <NumericInput value={minHeight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.minHeight = v; })} />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Top</label>
-              <NumericInput value={marginTop ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginTop = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Bottom</label>
-              <NumericInput value={marginBottom ?? 16} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginBottom = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Left</label>
-              <NumericInput value={marginLeft ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginLeft = v; })} />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Margin Right</label>
-              <NumericInput value={marginRight ?? 0} min={0} unit="px" onChange={(v) => setProp((p: AccordionProps) => { p.marginRight = v; })} />
-            </div>
-          </div>
-        </div>
+      <DesignSection title="Size & Spacing" defaultOpen={false}>
+        <SizePositionGroup
+          width={width}
+          minHeight={minHeight}
+          marginTop={marginTop}
+          marginRight={marginRight}
+          marginBottom={marginBottom}
+          marginLeft={marginLeft}
+          setProp={setProp as any}
+        />
       </DesignSection>
 
-      <DesignSection title="Appearance">
+      <DesignSection title="Appearance" defaultOpen={false}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Container Background</label>
@@ -464,7 +462,7 @@ export const AccordionSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Header Typography">
+      <DesignSection title="Header Typography" defaultOpen={false}>
         <TypographyGroup
           fontSize={headerFontSize}
           fontWeight={headerFontWeight}
@@ -504,7 +502,7 @@ export const AccordionSettings = () => {
         />
       </DesignSection>
 
-      <DesignSection title="Content Typography">
+      <DesignSection title="Content Typography" defaultOpen={false}>
         <TypographyGroup
           fontSize={contentFontSize}
           fontWeight={node.data.props.contentFontWeight}
@@ -541,6 +539,16 @@ export const AccordionSettings = () => {
             props.contentTextDecoration = fake.textDecoration;
             props.contentTextColor = fake.color;
           })}
+        />
+      </DesignSection>
+
+      <DesignSection title="Effects" defaultOpen={false}>
+        <EffectsGroup
+          opacity={opacity}
+          boxShadow={boxShadow}
+          overflow={overflow}
+          cursor={cursor}
+          setProp={setProp as any}
         />
       </DesignSection>
 

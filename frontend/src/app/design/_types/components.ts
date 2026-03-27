@@ -70,6 +70,10 @@ export interface SpacingProps {
 export interface SizeProps {
   width?: string;
   height?: string;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  minHeight?: string | number;
+  maxHeight?: string | number;
   /** Content size at scale 1; when set, children are scaled with parent resize */
   designWidth?: number;
   designHeight?: number;
@@ -371,7 +375,7 @@ export interface AccordionItem {
   mediaUrl?: string;
 }
 
-export interface AccordionProps extends PositionProps, TypographyProps {
+export interface AccordionProps extends PositionProps, TypographyProps, TransformProps, EffectsProps {
   items?: AccordionItem[];
   stylePreset?: "classic" | "wix";
   editorPreviewMode?: "normal" | "expand-all" | "collapse-all";
@@ -381,7 +385,7 @@ export interface AccordionProps extends PositionProps, TypographyProps {
   animationDurationMs?: number;
   // Container
   width?: string;
-  minHeight?: number;
+  minHeight?: number | string;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
