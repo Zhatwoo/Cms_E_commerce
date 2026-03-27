@@ -120,7 +120,7 @@ export const TabContent = ({
       data-tab-content-canvas="true"
       className="w-full min-h-[100px] relative transition-all duration-200"
       style={{
-        backgroundColor: background,
+        background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`

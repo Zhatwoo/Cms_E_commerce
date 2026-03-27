@@ -1565,6 +1565,7 @@ export type WebsiteManagementRow = {
   userId: string;
   domainName: string;
   thumbnail?: string;
+  industry?: string | null;
   owner: string;
   status: string;
   plan: string;
@@ -1592,7 +1593,6 @@ export async function getDomainsManagement(): Promise<{
   }>('/api/domains/admin/management');
 }
 
-/** Admin: list all clients from user/roles/client with subscription_plan. */
 export type ClientRow = {
   id: string;
   email: string;
@@ -1606,6 +1606,9 @@ export type ClientRow = {
   storageLimitBytes?: number;
   storageUsedGb?: number;
   storageLimitGb?: number;
+  phone?: string;
+  bio?: string;
+  lastSeen?: string;
 };
 
 export async function getClients(): Promise<{
@@ -1648,6 +1651,17 @@ export async function deleteClient(userId: string): Promise<{ success: boolean; 
   });
 }
 
+/** Admin: update a client's profile details (name, email, password, etc.). */
+export async function updateClientDetails(
+  userId: string,
+  data: { name?: string; email?: string; phone?: string; bio?: string; password?: string }
+): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
+  return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
+    `/api/users/${userId}`,
+    { method: 'PUT', body: JSON.stringify(data) }
+  );
+}
+
 /** Admin: set client domain status (published | suspended | flagged | draft). Uses same-origin proxy so cookies are sent. */
 export async function setClientDomainStatus(
   userId: string,
@@ -1659,6 +1673,26 @@ export async function setClientDomainStatus(
     {
       method: 'POST',
       body: JSON.stringify({ userId, domainId, status })
+    }
+  );
+}
+
+/** Admin: update a client's website subdomain by project/domain context. */
+export async function adminUpdateClientDomainSubdomain(
+  userId: string,
+  subdomain: string,
+  options?: { projectId?: string; domainId?: string }
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>(
+    '/api/domains/admin/update-subdomain',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        userId,
+        subdomain,
+        projectId: options?.projectId,
+        domainId: options?.domainId,
+      }),
     }
   );
 }
@@ -1705,7 +1739,7 @@ export async function getSharedNotifications(): Promise<{ success: boolean; noti
   return apiFetch<{ success: boolean; notifications: any[] }>('/api/notifications');
 }
 
-export async function addSharedNotification(data: { title: string; message: string; type?: string }): Promise<{ success: boolean; notification: any }> {
+export async function addSharedNotification(data: { title: string; message: string; type?: string; [key: string]: any }): Promise<{ success: boolean; notification: any }> {
   return apiFetch<{ success: boolean; notification: any }>('/api/notifications', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1714,6 +1748,10 @@ export async function addSharedNotification(data: { title: string; message: stri
 
 export async function markSharedNotificationRead(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'PUT' });
+}
+
+export async function markAllSharedNotificationsRead(): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>('/api/notifications/mark-all-read', { method: 'PUT' });
 }
 
 export async function deleteSharedNotification(id: string): Promise<{ success: boolean }> {

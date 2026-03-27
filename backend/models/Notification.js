@@ -11,7 +11,7 @@ class Notification {
       read: false,
       createdAt: new Date().toISOString(),
       adminId: data.adminId || null,
-      adminName: data.adminName || 'Admin',
+      adminName: data.adminName || 'Administrator',
     };
     await docRef.set(notification);
     return notification;
@@ -27,6 +27,21 @@ class Notification {
 
   static async markRead(id) {
     await db.collection('notifications').doc(id).update({ read: true });
+    return true;
+  }
+
+  static async markAllAsRead() {
+    const snapshot = await db.collection('notifications')
+      .where('read', '==', false)
+      .get();
+    
+    if (snapshot.empty) return true;
+
+    const batch = db.batch();
+    snapshot.docs.forEach(doc => {
+      batch.update(doc.ref, { read: true });
+    });
+    await batch.commit();
     return true;
   }
 

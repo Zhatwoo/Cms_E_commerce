@@ -166,6 +166,12 @@ export interface ContainerProps
   children?: ReactNode;
 }
 
+/** Section component props — major layout block with content width constraints. */
+export interface SectionProps extends ContainerProps {
+  contentWidth?: "full" | "constrained";
+  contentMaxWidth?: string;
+}
+
 /** Text component props — combines typography, spacing, and basic effects. */
 export interface TextProps extends SpacingProps, TypographyProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps {
   text: string;
@@ -342,6 +348,8 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   name?: string;
   disabled?: boolean;
   labelColor?: string;
+  /** TypographyGroup-compatible label color */
+  color?: string;
   /** Gap between control and label text */
   gap?: number;
   /** Gap between options (for groups) */
@@ -349,6 +357,11 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   fontSize?: number;
   fontFamily?: string;
   fontWeight?: string;
+  fontStyle?: "normal" | "italic";
+  lineHeight?: number | string;
+  letterSpacing?: number | string;
+  textAlign?: "left" | "center" | "right" | "justify";
+  textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   /** Hide/show option text labels in canvas */
   showLabels?: boolean;
   options?: Array<{

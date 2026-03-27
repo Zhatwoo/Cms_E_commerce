@@ -114,7 +114,7 @@ exports.createUser = async (req, res) => {
         message: `Admin created user: ${name} (${email})`,
         type: 'info',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User creation notification failed:', e.message); }
@@ -139,6 +139,7 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { name, email, role, status, phone, bio, avatar, isActive, subscriptionPlan } = req.body;
+    const nextPassword = typeof req.body.password === 'string' ? req.body.password.trim() : '';
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
@@ -158,6 +159,20 @@ exports.updateUser = async (req, res) => {
     if (isActive !== undefined) updates.isActive = isActive;
     if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
+    if (nextPassword && nextPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
+      });
+    }
+
+    const authUpdates = {};
+    if (email !== undefined) authUpdates.email = email.toLowerCase();
+    if (nextPassword) authUpdates.password = nextPassword;
+    if (Object.keys(authUpdates).length > 0) {
+      await auth.updateUser(req.params.id, authUpdates);
+    }
+
     const updated = await User.update(req.params.id, updates);
 
     // Real-time notification
@@ -167,7 +182,7 @@ exports.updateUser = async (req, res) => {
         message: `Admin updated profile for: ${updated.name || updated.email}`,
         type: 'info',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User update notification failed:', e.message); }
@@ -236,7 +251,7 @@ exports.deleteUser = async (req, res) => {
         message: `Admin removed user: ${user.name || user.email}`,
         type: 'error',
         adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+        adminName: req.user?.name || req.user?.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) { console.warn('User deletion notification failed:', e.message); }

@@ -2,11 +2,13 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react';
 import {
   getClients,
   updateClientPlan,
   updateClientStatus,
   deleteClient,
+  updateClientDetails,
   type ClientRow,
 } from '@/lib/api';
 import { useGDriveSelection } from './useGDriveSelection';
@@ -41,11 +43,6 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function websiteLabel(client: ClientRow): string {
-  const prefix = client.email?.split('@')[0]?.trim().toLowerCase();
-  return prefix ? `${prefix}.com` : 'example.com';
-}
-
 function isClientActive(client: ClientRow): boolean {
   const s = (client.status || '').toLowerCase();
   return s === 'published' || s === 'active' || client.isActive === true;
@@ -53,6 +50,14 @@ function isClientActive(client: ClientRow): boolean {
 
 function formatDate(value: string | undefined): string {
   return formatToPHTime(value);
+}
+
+function isUserOnline(lastSeen?: string): boolean {
+  if (!lastSeen) return false;
+  const now = new Date();
+  const ls = new Date(lastSeen);
+  // within last 5 minutes = Online
+  return (now.getTime() - ls.getTime()) < 5 * 60 * 1000;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -123,12 +128,22 @@ type ActionModalState = {
   action?: (reason: string) => Promise<void> | void;
 };
 
+type EditModalState = {
+  isOpen: boolean;
+  client: ClientRow | null;
+  name: string;
+  email: string;
+  phone: string;
+  bio: string;
+  password?: string;
+};
+
 export function UserManagement() {
   const searchParams = useSearchParams();
   const urlSearch = searchParams.get('search') || '';
   const focusedClientId = searchParams.get('clientId') || '';
   const PAGE_SIZE = 20;
-  type SortOption = 'recent' | 'az' | 'za';
+  type SortOption = 'recent' | 'oldest' | 'az' | 'za';
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -142,7 +157,6 @@ export function UserManagement() {
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [storageHintClientId, setStorageHintClientId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const sortMenuRef = useRef<HTMLDivElement | null>(null);
   const [actionModal, setActionModal] = useState<ActionModalState>({
     isOpen: false,
     title: '',
@@ -150,6 +164,16 @@ export function UserManagement() {
     confirmText: 'Confirm',
     confirmButtonClass: 'bg-[#6D28D9] hover:bg-[#5B21B6] text-white',
   });
+  const [editModal, setEditModal] = useState<EditModalState>({
+    isOpen: false,
+    client: null,
+    name: '',
+    email: '',
+    phone: '',
+    bio: '',
+    password: '',
+  });
+  const [showEditPassword, setShowEditPassword] = useState(false);
   const [actionReason, setActionReason] = useState('');
 
   const selection = useGDriveSelection();
@@ -189,6 +213,10 @@ export function UserManagement() {
     setCurrentPage(1);
   }, [urlSearch, focusedClientId]);
 
+  useEffect(() => {
+    if (!editModal.isOpen) setShowEditPassword(false);
+  }, [editModal.isOpen]);
+
   const filtered = useMemo(() => {
     return clients.filter((c) => {
       const matchFocusedClient = !focusedClientId || c.id === focusedClientId;
@@ -210,18 +238,13 @@ export function UserManagement() {
     const copy = [...filtered];
     if (sortOption === 'az') {
       copy.sort((a, b) => (a.displayName || a.email || '').localeCompare((b.displayName || b.email || ''), undefined, { sensitivity: 'base' }));
-      return copy;
-    }
-    if (sortOption === 'za') {
+    } else if (sortOption === 'za') {
       copy.sort((a, b) => (b.displayName || b.email || '').localeCompare((a.displayName || a.email || ''), undefined, { sensitivity: 'base' }));
-      return copy;
+    } else if (sortOption === 'recent') {
+      copy.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    } else if (sortOption === 'oldest') {
+      copy.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     }
-
-    copy.sort((a, b) => {
-      const aTime = new Date(a.createdAt || 0).getTime();
-      const bTime = new Date(b.createdAt || 0).getTime();
-      return bTime - aTime;
-    });
     return copy;
   }, [filtered, sortOption]);
 
@@ -239,17 +262,6 @@ export function UserManagement() {
     setCurrentPage(1);
   }, [search, planFilter, statusFilter, sortOption]);
 
-  useEffect(() => {
-    if (!sortMenuOpen) return;
-    const handleOutside = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (sortMenuRef.current && !sortMenuRef.current.contains(target)) {
-        setSortMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleOutside);
-    return () => document.removeEventListener('mousedown', handleOutside);
-  }, [sortMenuOpen]);
 
   const totalPages = Math.max(1, Math.ceil(sortedFiltered.length / PAGE_SIZE));
 
@@ -486,6 +498,66 @@ export function UserManagement() {
     });
   };
 
+  const handleEditClick = (client: ClientRow) => {
+    setShowEditPassword(false);
+    setEditModal({
+      isOpen: true,
+      client,
+      name: client.displayName || '',
+      email: client.email || '',
+      phone: client.phone || '',
+      bio: client.bio || '',
+      password: '',
+    });
+  };
+
+  const handleUpdateClientDetails = async () => {
+    if (!editModal.client) return;
+    const nextPassword = (editModal.password || '').trim();
+    if (nextPassword && nextPassword.length < 6) {
+      setToast('Password must be at least 6 characters.');
+      setTimeout(() => setToast(null), 3000);
+      return;
+    }
+
+    setActionLoadingId(editModal.client.id);
+    try {
+      const res = await updateClientDetails(editModal.client.id, {
+        name: editModal.name.trim(),
+        email: editModal.email.trim(),
+        phone: editModal.phone.trim(),
+        bio: editModal.bio.trim(),
+        password: nextPassword || undefined,
+      });
+      if (res.success) {
+        const updatedUser = res.user;
+        setClients((prev) =>
+          prev.map((c) => (editModal.client && c.id === editModal.client.id
+            ? {
+                ...c,
+                displayName: updatedUser?.displayName ?? editModal.name.trim(),
+                email: updatedUser?.email ?? editModal.email.trim(),
+                phone: updatedUser?.phone ?? editModal.phone.trim(),
+                bio: updatedUser?.bio ?? editModal.bio.trim(),
+              }
+            : c))
+        );
+        addNotification("User Profile Updated", `Successfully updated details for ${editModal.name || editModal.email}.`, 'success');
+        setToast('Client details updated.');
+        setEditModal((prev) => ({ ...prev, isOpen: false }));
+        setTimeout(() => setToast(null), 2500);
+      } else {
+        setToast(res.message || 'Update failed');
+        setTimeout(() => setToast(null), 3000);
+      }
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : 'Update failed');
+      setTimeout(() => setToast(null), 3000);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
   const handleDelete = async (id: string) => {
     setActionLoadingId(id);
     try {
@@ -582,7 +654,7 @@ export function UserManagement() {
       {/* Table */}
       <div className="bg-[#F5F4FF] border border-[rgba(177,59,255,0.29)] rounded-lg shadow overflow-hidden">
         <div className="px-6 py-6 border-b border-[rgba(177,59,255,0.18)]">
-          <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto_1fr] items-center gap-4">
+          <div className="grid grid-cols-1 xl:grid-cols-2 items-center gap-4">
             <div className="flex flex-wrap items-center gap-3 justify-start">
               <div className="relative">
                 <select
@@ -612,142 +684,56 @@ export function UserManagement() {
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9A62D8]"><ChevronDownIcon /></div>
               </div>
-              <div className="relative" ref={sortMenuRef}>
+              <div className="relative">
                 <button
                   type="button"
                   onClick={() => setSortMenuOpen((v) => !v)}
-                  className="h-10 w-10 inline-flex items-center justify-center rounded-[12px] border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF]"
+                  className="h-10 w-10 inline-flex items-center justify-center rounded-full border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF] transition-all"
                   aria-label="Sort users"
                   title="Sort"
                 >
                   <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 6h12M4 12h16M10 18h10" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                   </svg>
                 </button>
                 {sortMenuOpen && (
-                  <div className="absolute left-0 top-12 z-40 w-44 rounded-xl border border-[#E2C7FF] bg-white shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('recent'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'recent' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Recently
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('az'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'az' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Alphabetical A-Z
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { setSortOption('za'); setSortMenuOpen(false); }}
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm ${sortOption === 'za' ? 'bg-[#F3E8FF] text-[#6D28D9] font-semibold' : 'text-[#6F657E] hover:bg-[#F8F2FF]'}`}
-                    >
-                      Alphabetical Z-A
-                    </button>
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setSortMenuOpen(false)} />
+                    <div className="absolute left-0 top-12 z-40 w-48 rounded-2xl border border-[#E2C7FF] bg-white/95 backdrop-blur-md shadow-[0_10px_24px_rgba(177,59,255,0.2)] p-1.5 animate-in fade-in zoom-in duration-200">
+                      {(['recent', 'oldest', 'az', 'za'] as const).map((opt) => (
+                        <button
+                          key={opt}
+                          type="button"
+                          onClick={() => { setSortOption(opt); setSortMenuOpen(false); }}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors ${
+                            sortOption === opt ? 'bg-[#F3E8FF] text-[#6D28D9]' : 'text-[#6F657E] hover:bg-[#F8F2FF]'
+                          }`}
+                        >
+                          {opt === 'recent' && 'Recently Created'}
+                          {opt === 'oldest' && 'Oldest First'}
+                          {opt === 'az' && 'Alphabetical (A–Z)'}
+                          {opt === 'za' && 'Alphabetical (Z–A)'}
+                        </button>
+                      ))}
+                    </div>
+                  </>
                 )}
               </div>
-              <button
-                type="button"
-                onClick={toggleSortDirection}
-                className="h-10 w-10 inline-flex items-center justify-center rounded-[12px] border border-[#E2C7FF] bg-white text-[#A855F7] shadow-[0_2px_8px_rgba(177,59,255,0.12)] hover:bg-[#F8F2FF]"
-                aria-label={isAscending ? 'Switch to descending sort' : 'Switch to ascending sort'}
-                title={isAscending ? 'Ascending (A-Z)' : 'Descending (Z-A)'}
-              >
-                {isAscending ? (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 17V5m0 0L3.5 8.5M7 5l3.5 3.5M14 7h7M14 12h5M14 17h3" />
-                  </svg>
-                ) : (
-                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7v12m0 0L3.5 15.5M7 19l3.5-3.5M14 7h3M14 12h5M14 17h7" />
-                  </svg>
-                )}
-              </button>
             </div>
 
-            <div className="inline-flex items-center gap-1.5 justify-center">
-              <button
-                type="button"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1 || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="First page"
-              >
-                {'<<'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1 || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Previous page"
-              >
-                {'<'}
-              </button>
 
-              {pageItems.map((item, idx) =>
-                item === 'ellipsis' ? (
-                  <span key={`ellipsis-${idx}`} className="px-2 text-[#A48ABF] select-none">...</span>
-                ) : (
-                  <button
-                    key={item}
-                    type="button"
-                    onClick={() => setCurrentPage(item)}
-                    disabled={loading || filtered.length === 0}
-                    className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${currentPage === item
-                      ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
-                      : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
-                      } disabled:opacity-40 disabled:cursor-not-allowed`}
-                    aria-label={`Page ${item}`}
-                    aria-current={currentPage === item ? 'page' : undefined}
-                  >
-                    {item}
-                  </button>
-                )
-              )}
-
-              <button
-                type="button"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Next page"
-              >
-                {'>'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage === totalPages || loading || filtered.length === 0}
-                className="px-2 py-1.5 text-sm rounded-md border border-transparent text-[#B13BFF] hover:bg-[#F1E6FF] disabled:opacity-40 disabled:cursor-not-allowed"
-                aria-label="Last page"
-              >
-                {'>>'}
-              </button>
-            </div>
-
-            <div className="justify-self-end w-full max-w-[390px]">
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#FFCC00] text-[#5F3A84] shadow-[0_2px_8px_rgba(177,59,255,0.15)]"
-                  aria-label="Search users"
-                >
-                  <SearchIcon />
-                </button>
-                <div className="relative w-full">
-                  <input
-                    type="text"
-                    placeholder="Search name or email..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-12 w-full px-4 pr-11 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30"
-                  />
-                  {search && (
+            <div className="relative justify-self-end w-full max-w-[390px]">
+              <input
+                type="text"
+                placeholder="Search name or email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-14 pr-4 py-3 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF]"
+              />
+              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-[#FFCC00] text-[#5F3A84] flex items-center justify-center pointer-events-none shadow-sm">
+                <SearchIcon />
+              </div>
+              {search && (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
@@ -756,9 +742,7 @@ export function UserManagement() {
                     >
                       x
                     </button>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -851,14 +835,110 @@ export function UserManagement() {
           </div>
         )}
 
+        {/* Client Edit Modal */}
+        {editModal.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(200,185,245,0.45)] backdrop-blur-[3px]" role="dialog" aria-modal="true">
+            <div className="rounded-2xl shadow-2xl max-w-lg w-full mx-4 p-8 bg-white border border-[rgba(166,61,255,0.16)] flex flex-col gap-6" style={{ boxShadow: '0 25px 60px rgba(103,2,191,0.15)' }}>
+              <div>
+                <h3 className="text-2xl font-bold text-[#26155E] mb-1">Edit Client Profile</h3>
+                <p className="text-[#8E47D8]/70 text-sm">Update personal information and account security.</p>
+              </div>
+
+              <div className="flex flex-col gap-5 max-h-[60vh] overflow-y-auto px-1 pr-3 custom-scrollbar">
+                <div>
+                  <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Full Name</label>
+                  <input
+                    type="text"
+                    value={editModal.name}
+                    onChange={(e) => setEditModal({ ...editModal, name: e.target.value })}
+                    className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all"
+                    placeholder="Enter full name"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={editModal.email}
+                      onChange={(e) => setEditModal({ ...editModal, email: e.target.value })}
+                      className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all"
+                      placeholder="Enter email"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Phone Number</label>
+                    <input
+                      type="text"
+                      value={editModal.phone}
+                      onChange={(e) => setEditModal({ ...editModal, phone: e.target.value })}
+                      className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all"
+                      placeholder="Enter phone"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">Bio</label>
+                  <textarea
+                    value={editModal.bio}
+                    onChange={(e) => setEditModal({ ...editModal, bio: e.target.value })}
+                    rows={3}
+                    className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all resize-none"
+                    placeholder="Client biography..."
+                  />
+                </div>
+
+                <div className="border-t border-[#F0E5FF] pt-4">
+                  <label className="block text-xs font-bold text-[#462596] uppercase tracking-wider mb-2 ml-1">New Password (optional)</label>
+                  <div className="relative">
+                    <input
+                      type={showEditPassword ? 'text' : 'password'}
+                      value={editModal.password}
+                      onChange={(e) => setEditModal({ ...editModal, password: e.target.value })}
+                      className="w-full rounded-xl border border-[#D7B5FF] bg-[#F9F7FF] px-4 py-3 pr-12 text-sm text-[#26155E] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF] transition-all font-mono"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEditPassword((prev) => !prev)}
+                      aria-label={showEditPassword ? 'Hide password' : 'Show password'}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-[#8E47D8] hover:bg-[#EBDDFF] transition-colors"
+                    >
+                      {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[0.7rem] text-[#A48ABF] ml-1">Leave blank to keep current password. Minimum 6 characters.</p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 justify-end mt-4 pt-4 border-t border-[#F0E5FF]">
+                <button
+                  onClick={() => setEditModal({ ...editModal, isOpen: false })}
+                  className="px-6 py-2.5 text-[#6D28D9] bg-[#F3E8FF] rounded-xl hover:bg-[#EBDDFF] font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateClientDetails}
+                  disabled={actionLoadingId === editModal.client?.id}
+                  className="px-8 py-2.5 rounded-xl font-bold bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] text-white shadow-lg hover:shadow-[#B13BFF]/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {actionLoadingId === editModal.client?.id ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
-          <table className="w-full min-w-[920px]">
+          <table className="w-full min-w-[860px]">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
                 <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
                 <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
@@ -866,13 +946,27 @@ export function UserManagement() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
+                  const online = isUserOnline(client.lastSeen);
                   const busy = actionLoadingId === client.id;
                   const storage = getClientStorage(client);
-                  const statusLabel = active ? 'Active' : 'Inactive';
+                  
+                  const s = (client.status || '').toLowerCase();
+                  const isSuspended = s === 'suspended';
+                  const isRestricted = s === 'restricted';
+                  
+                  let statusLabel = active ? 'Active' : 'Inactive';
+                  if (active) {
+                    statusLabel = online ? 'Online' : 'Offline';
+                  } else if (isSuspended) {
+                    statusLabel = 'Suspended';
+                  } else if (isRestricted) {
+                    statusLabel = 'Restricted';
+                  }
+
                   const isSelected = selection.selectedIds.has(client.id);
                   return (
                     <tr
@@ -896,8 +990,12 @@ export function UserManagement() {
                         if (!selection.isDragging) selection.handleRowMouseUp();
                       }}
                     >
-                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E]">{client.displayName || '—'}</td>
-                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium">{client.email}</td>
+                      <td className="px-3 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={client.displayName || ''}>
+                        {client.displayName || '—'}
+                      </td>
+                      <td className="px-3 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={client.email}>
+                        {client.email}
+                      </td>
                       <td className="px-3 py-4 text-[0.95rem]">
                         <div className="relative inline-flex items-center gap-3">
                           <Tooltip label="Click to view storage usage and remaining space">
@@ -961,17 +1059,31 @@ export function UserManagement() {
                           {savingId === client.id && <span className="text-xs text-[#82788F]">Saving…</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{websiteLabel(client)}</td>
                       <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
-                      <td className={`px-3 py-4 text-[1rem] font-semibold ${active ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>
-                        {statusLabel}
+                      <td className={`px-3 py-4 text-[1rem] font-semibold`}>
+                        <div className="flex items-center gap-1.5">
+                          {active ? (
+                            <>
+                              <div className={`h-2 w-2 rounded-full ${online ? 'bg-[#00C438] shadow-[0_0_8px_rgba(0,196,56,0.6)]' : 'bg-[#B2AEBF]'}`} />
+                              <span className={online ? 'text-[#00C438]' : 'text-[#6F657E]'}>{statusLabel}</span>
+                            </>
+                          ) : (
+                            <>
+                              <div className={`h-2 w-2 rounded-full ${isSuspended ? 'bg-[#FF0000]' : 'bg-[#FFCC00]'}`} />
+                              <span className={isSuspended ? 'text-[#FF0000]' : 'text-[#A08100]'}>{statusLabel}</span>
+                            </>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-4 text-center">
-                        <div className="inline-flex items-center gap-2 flex-wrap justify-center text-[#5A2AA8]">
+                        <div className="inline-flex items-center gap-2 justify-center text-[#5A2AA8]">
                           <Tooltip label="Client profile">
                             <button
                               type="button"
-                              onClick={(e) => e.stopPropagation()}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditClick(client);
+                              }}
                               className="p-1 hover:text-[#3D1C87] transition-colors"
                               aria-label="Client profile"
                             >
@@ -1014,7 +1126,7 @@ export function UserManagement() {
                   );
                 })
               ) : (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
               )}
             </tbody>
           </table>

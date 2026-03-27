@@ -737,16 +737,18 @@ export default function ProductsPage() {
                   <button
                     type="button"
                     onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                    className="h-[48px] w-[48px] cursor-pointer rounded-2xl border flex items-center justify-center transition-all duration-300 hover:opacity-80"
+                    className={`h-[48px] w-[48px] cursor-pointer rounded-2xl border flex items-center justify-center transition-all duration-300 ${showStatusFilterMenu ? 'shadow-md scale-105' : 'hover:scale-105'} ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
                     style={{ 
-                      backgroundColor: colors.bg.card, 
-                      borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
-                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
-                      color: theme === 'dark' ? '#FFCE00' : '#803BED'
+                      backgroundColor: showStatusFilterMenu && theme === 'light' ? '#14034A' : (theme === 'light' ? undefined : colors.bg.card),
+                      borderColor: theme === 'light' ? undefined : '#1F1F51',
+                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : undefined,
+                      color: showStatusFilterMenu && theme === 'light' ? '#FFFFFF' : (theme === 'light' ? '#14034A' : '#FFCE00')
                     }}
                     title="Filter products"
                   >
-                    <img src="/icons/products/Sort%20Amount%20Up.png" alt="Filter" className="h-5 w-5" />
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </button>
                   {showStatusFilterMenu && (
                     <div
@@ -783,24 +785,21 @@ export default function ProductsPage() {
                 <button
                   type="button"
                   onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  className="h-12 w-12 rounded-2xl border flex items-center justify-center transition-all duration-300 hover:opacity-80 cursor-pointer"
+                  className={`h-12 w-12 rounded-2xl border inline-flex items-center justify-center transition-all duration-300 ${viewMode === 'list' ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
                   style={{ 
-                    backgroundColor: colors.bg.card, 
-                    borderColor: theme === 'dark' ? '#1F1F51' : colors.border.default,
-                    boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : '0 4px 10px rgba(0,0,0,0.03)',
-                    color: theme === 'dark' ? '#FFCE00' : '#803BED'
+                    borderColor: viewMode === 'list' ? 'transparent' : colors.border.faint, 
+                    backgroundColor: viewMode === 'list' 
+                      ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
+                      : (theme === 'light' ? 'rgba(255,255,255,0.72)' : colors.bg.card), 
+                    color: viewMode === 'list' ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary),
+                    boxShadow: theme === 'dark' && viewMode !== 'list' ? '0 0 12px rgba(31,31,81,0.4)' : undefined,
                   }}
                   title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
                 >
                   {viewMode === 'tile' ? (
-                    <img src="/icons/products/Bulleted%20List.png" alt="List view" className="h-5 w-5" />
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
                   ) : (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <rect x="4" y="4" width="6" height="6" rx="1" />
-                      <rect x="14" y="4" width="6" height="6" rx="1" />
-                      <rect x="4" y="14" width="6" height="6" rx="1" />
-                      <rect x="14" y="14" width="6" height="6" rx="1" />
-                    </svg>
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
                   )}
                 </button>
               </div>

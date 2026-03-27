@@ -18,7 +18,8 @@ exports.addNotification = async (req, res) => {
       title,
       message,
       type: type || 'info', 
-      adminId: req.user?.id || 'admin'
+      adminId: req.user?.id || 'admin',
+      adminName: req.user?.name || req.user?.email || 'Administrator'
     });
 
     const io = req.app.get('io');
@@ -45,6 +46,22 @@ exports.markAsRead = async (req, res) => {
     }
 
     res.status(200).json({ success: true, message: 'Notification marked as read' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/** Admin: mark all notifications as read. */
+exports.markAllAsRead = async (req, res) => {
+  try {
+    await Notification.markAllAsRead();
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('notification:all_read');
+    }
+
+    res.status(200).json({ success: true, message: 'All notifications marked as read' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

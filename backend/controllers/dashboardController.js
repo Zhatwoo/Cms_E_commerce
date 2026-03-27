@@ -56,12 +56,25 @@ exports.getAnalytics = async (req, res) => {
 
     // Trend calculations
     const publishedWebsites = publishedList.length;
-    const activeUsers = userStats.byStatus?.active || 0;
+    const activeUsers = userStats.online || 0;
     const clientCount = userStats.byRole?.client || 0;
     const pendingWebsites = Math.max(0, totalProjects - publishedWebsites);
     const activeDomains = publishedWebsites;
     const draftSites = pendingWebsites;
     const avgSitesPerUser = clientCount > 0 ? (publishedWebsites / clientCount).toFixed(1) : '0';
+
+    // Final trends: convert from 'new per bucket' to 'total at end of bucket'
+    const cumulative = (trendArr, currentTotal) => {
+      if (!trendArr || trendArr.length === 0) return new Array(7).fill(currentTotal || 0);
+      const result = [...trendArr];
+      // Replace last bucket with current total to ensure accuracy
+      result[result.length - 1] = currentTotal || 0;
+      // Work backwards to fill historical buckets
+      for (let i = result.length - 2; i >= 0; i--) {
+        result[i] = Math.max(0, result[i + 1] - (trendArr[i + 1] || 0));
+      }
+      return result;
+    };
 
     const responseData = {
       success: true,
@@ -74,10 +87,10 @@ exports.getAnalytics = async (req, res) => {
           activeDomains: activeDomains || 0
         },
         trends: {
-          users: signupsOverTime.signups && signupsOverTime.signups.some(v => v > 0) ? signupsOverTime.signups : [2, 5, 3, 8, 4, 6, activeUsers || 10],
-          websites: domainsTrend.data && domainsTrend.data.some(v => v > 0) ? domainsTrend.data : [1, 2, 4, 3, 5, 8, publishedWebsites || 12],
-          domains: domainsTrend.data && domainsTrend.data.some(v => v > 0) ? domainsTrend.data : [0, 4, 2, 6, 8, 4, activeDomains || 5],
-          pending: [1, 3, 2, 5, 4, 7, pendingWebsites || 3]
+          users: cumulative(signupsOverTime.signups, activeUsers),
+          websites: cumulative(domainsTrend.data, publishedWebsites),
+          domains: cumulative(domainsTrend.data, activeDomains),
+          pending: new Array(7).fill(pendingWebsites || 0)
         },
         subscriptionDistribution: userStats.byPlan || { free: 0, basic: 0, pro: 0 },
         signupsOverTime: {

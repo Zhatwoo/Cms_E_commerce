@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNode, useEditor, Element } from "@craftjs/core";
 import { TabsSettings } from "./TabsSettings";
 import { TabContent } from "./TabContent";
 import type { TabsProps, TabItem } from "../../_types/components";
+
+const genId = () => Math.random().toString(36).substring(2, 9);
 
 function parsePx(value: string | undefined): number | null {
   if (value == null) return null;
@@ -96,6 +98,23 @@ export const Tabs = ({
     enabled: state.options.enabled
   }));
 
+  // On first mount, regenerate any default/duplicate tab IDs so that placing
+  // the same block multiple times doesn't produce duplicate CraftJS node keys.
+  const idsMigratedRef = useRef(false);
+  useEffect(() => {
+    if (idsMigratedRef.current) return;
+    idsMigratedRef.current = true;
+    // Only regenerate if tabs still carry the static default ID
+    if (tabs.length === 1 && tabs[0].id === "tab-1") {
+      const freshId = `tab-${genId()}`;
+      setProp((props: any) => {
+        props.tabs = [{ id: freshId, title: tabs[0].title ?? "Tab 1", content: `tab-content-${freshId}` }];
+        props.activeTabId = freshId;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Handle local state vs builder props for active tab functionality
   // In preview mode, we need local state because setProp won't trigger re-renders or updates.
   const [localActiveTabId, setLocalActiveTabId] = useState(activeTabId);
@@ -177,7 +196,7 @@ export const Tabs = ({
       data-node-id={id}
       className={`tabs-component w-full flex flex-col ${customClassName}`}
       style={{
-        backgroundColor: background,
+        background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`

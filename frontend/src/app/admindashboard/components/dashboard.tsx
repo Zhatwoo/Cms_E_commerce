@@ -16,6 +16,7 @@ import {
 } from '@/lib/config/adminDashboardMocks';
 import { getNotifications, type NotificationItem } from '@/lib/notifications';
 import { formatToPHTime, formatToPHTimeShort } from '@/lib/dateUtils';
+import { useAdminLoading } from './LoadingProvider';
 
 // ─── DashboardPanel ──────────────────────────────────────────────────────────
 
@@ -24,10 +25,10 @@ function DashboardPanel({ children, className = '' }: { children: React.ReactNod
         <section
             className={`rounded-[28px] ${className}`.trim()}
             style={{
-                background: 'rgba(255,255,255,0.82)',
-                border: '1px solid rgba(166,61,255,0.13)',
-                boxShadow: '0 4px 24px rgba(103,2,191,0.08), inset 0 1px 0 rgba(255,255,255,0.9)',
-                backdropFilter: 'blur(14px)',
+                background: 'rgba(255,255,255,0.88)',
+                border: '1px solid rgba(166,61,255,0.16)',
+                boxShadow: '0 20px 50px rgba(103,2,191,0.12), 0 4px 12px rgba(103,2,191,0.04)',
+                backdropFilter: 'blur(20px)',
             }}
         >
             {children}
@@ -42,22 +43,37 @@ type ChartSeriesItem = { label: string; color: string; points: readonly number[]
 const CW = 240, CH = 110, LP = 28, RP = 10, TP = 12, BP = 26;
 const CHART_TEXT_COLOR = 'rgba(74, 26, 138, 0.5)';
 
-function toPoints(points: readonly number[]) {
+function toPoints(points: readonly number[], maxValue: number) {
+    if (points.length === 0) return '';
     return points
         .map((p, i) => {
             const x = LP + i * ((CW - LP - RP) / Math.max(points.length - 1, 1));
-            const y = TP + ((100 - p) / 100) * (CH - TP - BP);
+            const y = TP + ((maxValue - p) / maxValue) * (CH - TP - BP);
             return `${x},${y}`;
         })
         .join(' ');
 }
 
 function DashboardLineChart({ series }: { series: readonly ChartSeriesItem[] }) {
+    const dataMax = Math.max(...series.flatMap((s) => s.points), 1);
+    // Round up the max to the next nice increment (e.g. 5, 10, 50, 100)
+    const getNiceMax = (m: number) => {
+        if (m <= 5) return 5;
+        if (m <= 10) return 10;
+        if (m <= 25) return 25;
+        if (m <= 50) return 50;
+        if (m <= 100) return 100;
+        return Math.ceil(m / 50) * 50;
+    };
+    const roundedMax = getNiceMax(dataMax);
+    const intervals = [0, 0.2, 0.4, 0.6, 0.8, 1].map((v) => Math.round(v * roundedMax));
+
     return (
         <div className="mt-4">
             <svg viewBox={`0 0 ${CW} ${CH}`} className="h-[7.2rem] w-full">
-                {[0, 20, 40, 60, 80, 100].map((v) => {
-                    const y = TP + ((100 - v) / 100) * (CH - TP - BP);
+                {/* Horizontal reference lines */}
+                {intervals.map((v) => {
+                    const y = TP + ((roundedMax - v) / roundedMax) * (CH - TP - BP);
                     return (
                         <g key={v}>
                             <line x1={LP} y1={y} x2={CW - RP} y2={y} stroke="rgba(103,2,191,0.08)" strokeWidth="1" />
@@ -65,19 +81,25 @@ function DashboardLineChart({ series }: { series: readonly ChartSeriesItem[] }) 
                         </g>
                     );
                 })}
-                <line x1={LP} y1={CH - BP} x2={CW - RP} y2={CH - BP} stroke="rgba(103,2,191,0.08)" strokeWidth="1" />
+
+                {/* Vertical guides at start and end points (Half-lines) */}
+                <line x1={LP} y1={TP} x2={LP} y2={CH - BP} stroke="rgba(103,2,191,0.18)" strokeWidth="1" strokeDasharray="3,3" />
+                <line x1={CW - RP} y1={TP} x2={CW - RP} y2={CH - BP} stroke="rgba(103,2,191,0.18)" strokeWidth="1" strokeDasharray="3,3" />
+
+                <line x1={LP} y1={CH - BP} x2={CW - RP} y2={CH - BP} stroke="rgba(103,2,191,0.18)" strokeWidth="1" />
+                
                 {series.map((item) => (
                     <g key={item.label}>
-                        <polyline fill="none" stroke={item.color} strokeWidth="1.8" points={toPoints(item.points)} />
+                        <polyline fill="none" stroke={item.color} strokeWidth="1.8" points={toPoints(item.points, roundedMax)} />
                         {item.points.map((p, i) => {
                             const x = LP + i * ((CW - LP - RP) / Math.max(item.points.length - 1, 1));
-                            const y = TP + ((100 - p) / 100) * (CH - TP - BP);
-                            return <circle key={`${item.label}-${i}`} cx={x} cy={y} r="2.4" fill="#FFFFFF" stroke={item.color} strokeWidth="1" />;
+                            const y = TP + ((roundedMax - p) / roundedMax) * (CH - TP - BP);
+                            return <circle key={`${item.label}-${i}`} cx={x} cy={y} r="2.8" fill="#FFFFFF" stroke={item.color} strokeWidth="2" />;
                         })}
                     </g>
                 ))}
-                <text x={82} y={CH - 9} fontSize="8" fill={CHART_TEXT_COLOR}>Historical</text>
-                <text x={165} y={CH - 9} fontSize="8" fill={CHART_TEXT_COLOR}>Current</text>
+                <text x={LP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="start">7 DAYS AGO</text>
+                <text x={CW - RP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="end">TODAY</text>
             </svg>
             <div className="mt-1 flex items-center justify-center gap-4 text-[10px]" style={{ color: '#a090c8' }}>
                 {series.map((item) => (
@@ -161,6 +183,7 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
 // ─── DashboardNotificationsPanel ─────────────────────────────────────────────
 
 function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
+    const { startLoading } = useAdminLoading();
     return (
         <motion.div
             initial={{ opacity: 0, x: 18 }}
@@ -172,6 +195,7 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
                     <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Notifications</h2>
                     <Link
                         href="/admindashboard/notifications"
+                        onClick={() => startLoading()}
                         className="text-xs font-semibold transition-opacity hover:opacity-70"
                         style={{ color: '#a090c8' }}
                     >
@@ -213,11 +237,16 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
 // ─── AdminDashboard ───────────────────────────────────────────────────────────
 
 export function AdminDashboard() {
-    const [displayName, setDisplayName] = useState(() => {
+    const { startLoading } = useAdminLoading();
+    const [displayName, setDisplayName] = useState('Admin');
+
+    useEffect(() => {
         const stored = getStoredUser();
-        const baseName = (stored as any)?.username || stored?.name || stored?.email || 'Admin';
-        return String(baseName).includes("John Lloyd") ? "kurohara" : String(baseName).trim();
-    });
+        if (stored) {
+            const baseName = (stored as any)?.username || stored?.name || stored?.email || 'Admin';
+            setDisplayName(String(baseName).includes("John Lloyd") ? "kurohara" : String(baseName).trim());
+        }
+    }, []);
 
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [stats, setStats] = useState({
@@ -265,10 +294,10 @@ export function AdminDashboard() {
                     activeDomains: dCount,
                     pendingWebsites: pCount,
                     trends: {
-                        users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : generateFallback(uCount, 2),
-                        websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : generateFallback(wCount, 1),
-                        domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : generateFallback(dCount, 1),
-                        pending: (t.pending && t.pending.some((v: any) => v > 0)) ? t.pending : generateFallback(pCount, 0.5),
+                        users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : new Array(7).fill(uCount),
+                        websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : new Array(7).fill(wCount),
+                        domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : new Array(7).fill(dCount),
+                        pending: new Array(7).fill(pCount),
                     }
                 });
             }
@@ -331,7 +360,7 @@ export function AdminDashboard() {
 
     return (
         <main className="flex-1 overflow-y-auto">
-            <div className="w-full px-4 pb-8 pt-4 sm:px-6 lg:px-6 lg:pb-10 lg:pt-6">
+            <div className="w-full px-4 pb-24 pt-4 sm:px-6 lg:px-6 lg:pb-32 lg:pt-6">
                 <div className="flex flex-col gap-2">
                     <motion.h1
                         className="text-[2.65rem] font-extrabold leading-none tracking-[-0.05em] sm:text-[3.65rem]"
@@ -367,22 +396,16 @@ export function AdminDashboard() {
                         { title: 'PUBLISHED WEBSITES', value: stats.publishedWebsites, trend: stats.trends.websites },
                         { title: 'ACTIVE DOMAINS', value: stats.activeDomains, trend: stats.trends.domains },
                         { title: 'PENDING WEBSITES', value: stats.pendingWebsites, trend: stats.trends.pending },
-                    ].map((metric, index) => {
-                        // Normalize raw trend counts (e.g. 0-5) to 0-100 scale for the chart
-                        const max = Math.max(...metric.trend, 1);
-                        const points = metric.trend.map(p => (p / max) * 100);
-                        
-                        return (
-                            <DashboardStatCard
-                                key={metric.title}
-                                title={metric.title}
-                                value={String(metric.value)}
-                                liveLabel="Live"
-                                series={[{ label: 'Platform Growth', color: '#B13BFF', points }]}
-                                index={index}
-                            />
-                        );
-                    })}
+                    ].map((metric, index) => (
+                        <DashboardStatCard
+                            key={metric.title}
+                            title={metric.title}
+                            value={String(metric.value)}
+                            liveLabel="Live"
+                            series={[{ label: 'Platform Growth', color: '#B13BFF', points: metric.trend }]}
+                            index={index}
+                        />
+                    ))}
                 </div>
 
                 <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(19rem,1fr)]">

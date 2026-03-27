@@ -1,3 +1,36 @@
+/* Responsive: Mobile Preview Panel & Device Frame */
+@media (max-width: 600px) {
+  [data-mobile-preview-panel] {
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border-radius: 12px !important;
+    padding: 0 !important;
+  }
+  [data-mobile-preview-panel] .flex.items-center.justify-between {
+    font-size: clamp(12px, 4vw, 16px) !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  [data-mobile-preview-panel] button, [data-mobile-preview-panel] select {
+    font-size: clamp(12px, 4vw, 16px) !important;
+    min-width: 0 !important;
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  [data-mobile-preview-panel] .rounded-[44px] {
+    max-width: 100vw !important;
+    min-width: 0 !important;
+    border-radius: 18px !important;
+  }
+  [data-mobile-preview-panel] .rounded-full {
+    min-width: 0 !important;
+    min-height: 0 !important;
+  }
+}
 /* Responsive Container Query Styles for CMS Canvas */
 
 .frame-responsive-inner.frame-fluid:not(.builder-parity-narrow) {

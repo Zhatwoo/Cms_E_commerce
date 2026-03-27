@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, logout, setStoredUser } from '@/lib/api';
 
+import { LoadingProvider } from './components/LoadingProvider';
+
 function isAdminRole(role?: string): boolean {
   const normalized = (role || '').toLowerCase();
   return normalized === 'admin' || normalized === 'super_admin';
@@ -75,13 +77,10 @@ export default function AdminDashboardLayout({
     }
   }, [isAuthorized]);
 
-  if (isChecking || !isAuthorized) {
-    return (
-      <div className="admin-dashboard-shell flex min-h-screen items-center justify-center">
-        <p className="admin-dashboard-soft-text text-sm">Checking admin access...</p>
-      </div>
-    );
-  }
 
-  return <>{children}</>;
-}
+  return (
+    <LoadingProvider forceLoading={isChecking}>
+      {isAuthorized ? children : null}
+    </LoadingProvider>
+  );
+}
