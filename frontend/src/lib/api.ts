@@ -1565,6 +1565,7 @@ export type WebsiteManagementRow = {
   userId: string;
   domainName: string;
   thumbnail?: string;
+  industry?: string | null;
   owner: string;
   status: string;
   plan: string;
@@ -1672,6 +1673,26 @@ export async function setClientDomainStatus(
     {
       method: 'POST',
       body: JSON.stringify({ userId, domainId, status })
+    }
+  );
+}
+
+/** Admin: update a client's website subdomain by project/domain context. */
+export async function adminUpdateClientDomainSubdomain(
+  userId: string,
+  subdomain: string,
+  options?: { projectId?: string; domainId?: string }
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>(
+    '/api/domains/admin/update-subdomain',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        userId,
+        subdomain,
+        projectId: options?.projectId,
+        domainId: options?.domainId,
+      }),
     }
   );
 }

@@ -43,11 +43,6 @@ function Tooltip({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function websiteLabel(client: ClientRow): string {
-  const prefix = client.email?.split('@')[0]?.trim().toLowerCase();
-  return prefix ? `${prefix}.com` : 'example.com';
-}
-
 function isClientActive(client: ClientRow): boolean {
   const s = (client.status || '').toLowerCase();
   return s === 'published' || s === 'active' || client.isActive === true;
@@ -938,21 +933,20 @@ export function UserManagement() {
         )}
 
         <div className="max-h-[62vh] overflow-x-auto overflow-y-auto">
-          <table className="w-full min-w-[920px] table-fixed">
+          <table className="w-full min-w-[860px]">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="w-[15%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
-                <th className="w-[23%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
-                <th className="w-[16%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
-                <th className="w-[13%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Websites</th>
-                <th className="w-[13%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
-                <th className="w-[8%] px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
-                <th className="w-[12%] px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
+                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Name</th>
+                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Email</th>
+                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Plan</th>
+                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Created</th>
+                <th className="px-3 py-4 text-left text-[1.2rem] font-semibold text-[#462596]">Status</th>
+                <th className="px-3 py-4 text-center text-[1.2rem] font-semibold text-[#462596]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
@@ -1065,9 +1059,6 @@ export function UserManagement() {
                           {savingId === client.id && <span className="text-xs text-[#82788F]">Saving…</span>}
                         </div>
                       </td>
-                      <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold truncate" title={websiteLabel(client)}>
-                        {websiteLabel(client)}
-                      </td>
                       <td className="px-3 py-4 text-[0.95rem] text-[#AFA9BE] font-semibold">{formatDate(client.createdAt)}</td>
                       <td className={`px-3 py-4 text-[1rem] font-semibold`}>
                         <div className="flex items-center gap-1.5">
@@ -1135,7 +1126,7 @@ export function UserManagement() {
                   );
                 })
               ) : (
-                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">No clients found.</td></tr>
               )}
             </tbody>
           </table>
