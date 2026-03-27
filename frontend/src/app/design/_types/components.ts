@@ -156,6 +156,7 @@ export interface TypographyProps {
   textAlign?: "left" | "center" | "right" | "justify";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   color?: string;
+  textDecoration?: string;
 }
 
 // ─── Component Prop Interfaces ───────────────────────────────────────────────
@@ -362,6 +363,7 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   letterSpacing?: number | string;
   textAlign?: "left" | "center" | "right" | "justify";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  textDecoration?: string;
   /** Hide/show option text labels in canvas */
   showLabels?: boolean;
   options?: Array<{
