@@ -36,6 +36,19 @@ const ProductSliderPreviewStub = () => (
     <span style={{ fontSize: 12, color: "#9ca3af" }}>Product Slider</span>
   </div>
 );
+const ProductDescriptionCardPreviewStub = () => (
+  <div style={{ width: 360, background: "#ffffff", borderRadius: 12, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+    <div style={{ height: 160, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+    </div>
+    <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ height: 16, background: "#e5e7eb", borderRadius: 3, width: "70%" }} />
+      <div style={{ height: 10, background: "#f3f4f6", borderRadius: 3 }} />
+      <div style={{ height: 10, background: "#f3f4f6", borderRadius: 3, width: "85%" }} />
+      <div style={{ height: 20, background: "#e5e7eb", borderRadius: 3, width: "35%", marginTop: 4 }} />
+    </div>
+  </div>
+);
 
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
@@ -190,6 +203,9 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   ProductSlider: ProductSliderPreviewStub,
   productslider: ProductSliderPreviewStub,
   "Product Slider": ProductSliderPreviewStub,
+  ProductDescriptionCard: ProductDescriptionCardPreviewStub,
+  productdescriptioncard: ProductDescriptionCardPreviewStub,
+  "Product Description Card": ProductDescriptionCardPreviewStub,
 });
 
 export const AssetLivePreview = ({
