@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
+import { getMe, updateProfile } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
 
 const normalizePhoneNumber = (value: string) => {
 	const digitsOnly = value.replace(/\D/g, "");
@@ -26,14 +28,32 @@ const normalizePhoneNumber = (value: string) => {
 };
 
 export default function RecoveryPage() {
-	const initialRecovery = {
-		email: "recovery@cmd.com",
-		phoneNumber: "+639171234567",
-	};
+	const [recovery, setRecovery] = useState({
+		email: "",
+		phoneNumber: "",
+	});
+	const [savedRecovery, setSavedRecovery] = useState({
+		email: "",
+		phoneNumber: "",
+	});
+	const [saving, setSaving] = useState(false);
 
-	const [recovery, setRecovery] = useState(initialRecovery);
-	const [savedRecovery, setSavedRecovery] = useState(initialRecovery);
-	const [lastUpdatedRecovery, setLastUpdatedRecovery] = useState("2 days ago");
+	useEffect(() => {
+		const fetchUser = async () => {
+			const res = await getMe();
+			if (res.success && res.user) {
+				const initial = {
+					email: res.user.email || "",
+					phoneNumber: res.user.phone || "+63",
+				};
+				setRecovery(initial);
+				setSavedRecovery(initial);
+			}
+		};
+		fetchUser();
+	}, []);
+
+	const [lastUpdatedRecovery, setLastUpdatedRecovery] = useState("Checking...");
 	const [showRecoverySaveConfirmation, setShowRecoverySaveConfirmation] = useState(false);
 	const [recoveryPhoneError, setRecoveryPhoneError] = useState("");
 
@@ -80,67 +100,69 @@ export default function RecoveryPage() {
 								</div>
 							</div>
 
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<label htmlFor="recoveryEmail" className="block text-xs font-medium text-[#A78BFA]">Recovery email</label>
-									<input
-										id="recoveryEmail"
-										type="email"
-										value={recovery.email}
-										readOnly
-										className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/70 px-4 text-sm text-[#8A86A4] outline-none"
-									/>
-								</div>
-								<div className="space-y-2">
-									<label htmlFor="recoveryPhone" className="block text-xs font-medium text-[#A78BFA]">Recovery phone number</label>
-									<input
-										id="recoveryPhone"
-										type="tel"
-										value={recovery.phoneNumber}
-									onChange={(event) => {
-										const normalized = normalizePhoneNumber(event.target.value);
-										setRecovery((prev) => ({
-											...prev,
-											phoneNumber: normalized,
-										}));
-										const error = validatePhoneNumber(normalized);
-										setRecoveryPhoneError(error);
-									}}
-									onBlur={() => {
-										const error = validatePhoneNumber(recovery.phoneNumber);
-										setRecoveryPhoneError(error);
-									}}
-									className={`admin-dashboard-panel-soft h-11 w-full rounded-2xl border px-4 text-sm outline-none ${
-										recoveryPhoneError
-											? "border-red-400 bg-red-50 text-red-700"
-											: "border-[rgba(177,59,255,0.22)] bg-white/80 text-[#471396]"
-									}`}
-								/>
-								{recoveryPhoneError && (
-									<p className="mt-1 text-xs text-red-600">{recoveryPhoneError}</p>
-								)}
-								</div>
-								<div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
-									<div className="text-xs text-[#8A86A4]">Last updated {lastUpdatedRecovery}</div>
-									<button
-										onClick={() => setShowRecoverySaveConfirmation(true)}
-									disabled={!hasRecoveryChanges || !!recoveryPhoneError}
-									className={`rounded-xl px-8 py-3 text-sm font-semibold shadow transition-colors ${
-										hasRecoveryChanges && !recoveryPhoneError
-												? "bg-[#FFCC00] text-[#232323] hover:opacity-90"
-												: "bg-gray-200 text-gray-500 cursor-not-allowed"
-										}`}
-									>
-										Save Changes
-									</button>
-								</div>
-								<div className="admin-dashboard-inset-panel md:col-span-2 flex flex-col gap-3 rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-white/40 p-6 md:flex-row md:items-center md:justify-between">
-									<div>
-										<div className="text-lg font-semibold text-[#471396]">Reset account access</div>
-										<p className="text-sm text-[#8A86A4]">Emergency reset for locked-out scenarios.</p>
+							<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+								<div className="space-y-6">
+									<div className="space-y-4">
+										<div className="space-y-2">
+											<label htmlFor="recoveryEmail" className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">RECOVERY EMAIL</label>
+											<input
+												id="recoveryEmail"
+												type="email"
+												value={recovery.email}
+												readOnly
+												className="w-full rounded-xl bg-transparent py-3 text-sm font-semibold text-[#7a6aa0] outline-none cursor-default"
+											/>
+										</div>
+										<div className="space-y-2">
+											<label htmlFor="recoveryPhone" className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">RECOVERY PHONE NUMBER</label>
+											<input
+												id="recoveryPhone"
+												type="tel"
+												value={recovery.phoneNumber}
+												onChange={(event) => {
+													const normalized = normalizePhoneNumber(event.target.value);
+													setRecovery((prev) => ({
+														...prev,
+														phoneNumber: normalized,
+													}));
+													const error = validatePhoneNumber(normalized);
+													setRecoveryPhoneError(error);
+												}}
+												className={`w-full rounded-xl border px-4 py-3 text-sm font-medium outline-none transition-all focus:ring-2 ${
+													recoveryPhoneError
+														? "border-red-200 bg-red-50/50 text-red-700 focus:ring-red-100"
+														: "border-[rgba(166,61,255,0.16)] bg-[#F9FAFB] text-[#374151] focus:ring-[#4a1a8a]/10"
+												}`}
+											/>
+											{recoveryPhoneError && (
+												<p className="text-[10px] font-bold text-red-500 uppercase tracking-tight">{recoveryPhoneError}</p>
+											)}
+										</div>
 									</div>
-									<button className="rounded-xl bg-[#FF4343] px-8 py-3 text-sm font-semibold text-white hover:opacity-90">
-										Reset access
+
+									<div className="flex flex-wrap items-center justify-between border-t border-[#F3F4F6] pt-6 gap-3">
+										<div className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">LAST UPDATED: {lastUpdatedRecovery}</div>
+										<button
+											onClick={() => setShowRecoverySaveConfirmation(true)}
+											disabled={!hasRecoveryChanges || !!recoveryPhoneError}
+											className={`rounded-xl px-8 py-2.5 text-sm font-semibold shadow-sm transition-all ${
+												hasRecoveryChanges && !recoveryPhoneError
+													? "bg-[#4a1a8a] text-white hover:opacity-90 active:scale-95"
+													: "bg-gray-100 text-gray-400 cursor-not-allowed"
+											}`}
+										>
+											Save Changes
+										</button>
+									</div>
+								</div>
+
+								<div className="admin-dashboard-inset-panel flex flex-col justify-between rounded-[28px] border border-[rgba(239,68,68,0.12)] bg-red-50/20 p-8 shadow-sm">
+									<div>
+										<h3 className="text-lg font-bold text-red-700 mb-2">Internal Account Reset</h3>
+										<p className="text-sm text-red-600/70 mb-6 font-medium">Use this as a last resort if all other access methods fail. This will reset all security tokens.</p>
+									</div>
+									<button className="w-full rounded-xl bg-red-600 py-3 text-sm font-semibold text-white shadow-sm transition-all hover:bg-red-700 active:scale-95">
+										Initiate System Reset
 									</button>
 								</div>
 							</div>
@@ -176,14 +198,28 @@ export default function RecoveryPage() {
 								</button>
 								<button
 									type="button"
-									onClick={() => {
-										setSavedRecovery(recovery);
-										setLastUpdatedRecovery("Just now");
-										setShowRecoverySaveConfirmation(false);
+									disabled={saving}
+									onClick={async () => {
+										setSaving(true);
+										try {
+											const res = await updateProfile({ phone: recovery.phoneNumber });
+											if (res.success) {
+												setSavedRecovery(recovery);
+												setLastUpdatedRecovery("Just now");
+												setShowRecoverySaveConfirmation(false);
+												addNotification("Recovery Updated", "Your recovery phone number has been saved.", "success");
+											} else {
+												throw new Error(res.message || "Failed to save");
+											}
+										} catch (err) {
+											addNotification("Save Failed", err instanceof Error ? err.message : "Could not update recovery phone", "error");
+										} finally {
+											setSaving(false);
+										}
 									}}
-									className="rounded-xl bg-[#FFCC00] px-4 py-2 text-sm font-semibold text-[#232323] hover:opacity-90"
+									className={`rounded-xl bg-[#FFCC00] px-4 py-2 text-sm font-semibold text-[#232323] hover:opacity-90 ${saving ? "opacity-50 cursor-wait" : ""}`}
 								>
-									Confirm
+									{saving ? "Saving..." : "Confirm"}
 								</button>
 							</div>
 						</motion.div>

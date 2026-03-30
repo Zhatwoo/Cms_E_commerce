@@ -910,17 +910,19 @@ function MonitoringPageContent() {
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.06 }}
                 className="mb-6 flex flex-wrap items-center gap-3">
 
-                <button type="button" suppressHydrationWarning
-                  className="h-11 w-11 rounded-full flex items-center justify-center shadow-sm transition hover:brightness-95"
-                  style={{ background: '#FFCC00', color: '#1a1035' }} aria-label="Search">
-                  <SearchIcon className="h-5 w-5" strokeWidth={2.3} />
-                </button>
-
-                <input type="text" placeholder="Search name or domain…" value={search}
-                  onChange={(e) => setSearch(e.target.value)} suppressHydrationWarning
-                  className="h-11 rounded-2xl px-4 text-sm font-medium outline-none w-full max-w-[280px]"
-                  style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#2d1a50', boxShadow: '0 1px 4px rgba(103,2,191,0.05)' }}
-                />
+                <div className="relative w-full max-w-[280px]">
+                  <input type="text" placeholder="Search name or domain…" value={search}
+                    onChange={(e) => setSearch(e.target.value)} suppressHydrationWarning
+                    className="h-11 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
+                    style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#2d1a50', boxShadow: '0 1px 4px rgba(103,2,191,0.05)' }}
+                  />
+                  <div className="absolute left-1 top-1/2 -translate-y-1/2">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full shadow-sm"
+                      style={{ background: '#FFCC00', color: '#1a1035' }}>
+                      <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
+                    </div>
+                  </div>
+                </div>
 
                 <div className="relative">
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
@@ -1002,12 +1004,20 @@ function MonitoringPageContent() {
                 </div>
 
                 {/* Tab switcher */}
-                <div className="ml-auto flex gap-1 rounded-xl p-1" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
+                <div className="ml-auto flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
                   {(['websites', 'products'] as const).map((t) => (
                     <button key={t} onClick={() => handleTabChange(t)} suppressHydrationWarning
-                      className="px-6 py-2 text-sm font-semibold rounded-lg transition-colors capitalize"
-                      style={activeTab === t ? { background: '#FFCC00', color: '#1a1035' } : { color: '#7a6aa0' }}>
-                      {t}
+                      className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 capitalize ${
+                        activeTab === t ? 'text-[#1a1035]' : 'text-[#7a6aa0] hover:text-[#1a1035]'
+                      }`}>
+                      {activeTab === t && (
+                        <motion.div
+                          layoutId="monitoringTabBackground"
+                          className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        />
+                      )}
+                      <span className="relative z-10">{t}</span>
                     </button>
                   ))}
                 </div>

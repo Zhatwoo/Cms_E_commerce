@@ -14,8 +14,8 @@ const ChevronRightIcon = () => (
     </svg>
 );
 
-const SearchIcon = () => (
-    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const SearchIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-4.35-4.35m1.35-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
 );
@@ -225,7 +225,7 @@ function ModerationComplianceBoard() {
 
                 {/* Tabs + search */}
                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex gap-1 rounded-xl p-1" style={{ border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.7)' }}>
+                    <div className="flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.7)' }}>
                         {(['reports', 'records'] as const).map((t) => (
                             <button
                                 key={t}
@@ -234,26 +234,37 @@ function ModerationComplianceBoard() {
                                     startLoading();
                                     setTab(t);
                                 }}
-                                className="min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors"
-                                style={tab === t ? { background: '#FFCC00', color: '#471396' } : { color: '#66607E' }}
+                                className={`relative min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                                    tab === t ? 'text-[#471396]' : 'text-[#66607E] hover:text-[#471396]'
+                                }`}
                             >
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                                {tab === t && (
+                                    <motion.div
+                                        layoutId="moderationTabBackground"
+                                        className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                    />
+                                )}
+                                <span className="relative z-10">{t.charAt(0).toUpperCase() + t.slice(1)}</span>
                             </button>
                         ))}
                     </div>
 
-                    <button type="button" className="inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: '#FFCC00', color: '#471396' }} aria-label="Search">
-                        <SearchIcon />
-                    </button>
-
-                    <input
-                        aria-label="Search websites"
-                        placeholder="Search websites"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-12 min-w-[17rem] flex-1 rounded-2xl px-4 text-sm font-medium outline-none"
-                        style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
-                    />
+                    <div className="relative flex-1 min-w-[17rem]">
+                        <input
+                            aria-label="Search websites"
+                            placeholder="Search websites"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-12 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
+                            style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
+                        />
+                        <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
+                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm">
+                                <SearchIcon className="h-5 w-5" />
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Main table */}

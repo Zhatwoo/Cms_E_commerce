@@ -25,9 +25,14 @@ function ConfirmContent() {
           setStoredUser(res.user);
           setStatus('success');
           setMessage(res.message || 'Email confirmed! Redirecting...');
-          // Redirect to dashboard after 1.5 seconds
+          // Redirect based on role
+          const role = (res.user?.role || '').toLowerCase();
           setTimeout(() => {
-            router.push('/design');
+            if (role === 'admin' || role === 'super_admin') {
+              router.push('/admindashboard');
+            } else {
+              router.push('/m_dashboard');
+            }
             router.refresh();
           }, 1500);
         } else {
