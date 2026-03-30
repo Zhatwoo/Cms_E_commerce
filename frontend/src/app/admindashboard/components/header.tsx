@@ -710,20 +710,17 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                         )}
                                     </div>
                                     <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-2.5 flex items-center justify-center gap-2">
-                                        <button
+                                        <motion.button
+                                            whileTap={{ scale: 0.94 }}
                                             className="text-xs font-bold text-[#4a1a8a] transition-all hover:text-[#B13BFF] hover:translate-x-0.5 flex items-center gap-1"
                                             onClick={() => {
                                                 setShowMessages(false);
-                                                setActiveToast({
-                                                    id: `msg-hub-${Date.now()}`,
-                                                    title: "Chat system",
-                                                    message: "The full messaging panel is being initialized.",
-                                                    type: "info"
-                                                });
+                                                startLoading();
+                                                router.push('/admindashboard/messages');
                                             }}
                                         >
                                             Open Message Hub <ExternalLink className="h-3.5 w-3.5" />
-                                        </button>
+                                        </motion.button>
                                     </div>
                                 </motion.div>
                             )}
