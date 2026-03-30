@@ -52,6 +52,8 @@ const userToResponse = (user, firebaseUser = null) => {
     lastSeen: user.lastSeen || null,
     paymentMethods: user.paymentMethods || [],
     emailVerified,
+    phone: user.phone || '',
+    notificationPreferences: user.notificationPreferences || { securityAlerts: true, sessionNotifications: true, accountUpdates: true },
     lastPasswordChange: firebaseUser?.metadata?.lastPasswordUpdatedAt ? new Date(firebaseUser.metadata.lastPasswordUpdatedAt).toISOString() : user.createdAt
   };
 };
