@@ -30,6 +30,7 @@ if (!admin.apps.length) {
 
 const auth = admin.auth();
 const db = admin.firestore();
+db.settings({ ignoreUndefinedProperties: true });
 
 function getRealtimeDb() {
   if (!databaseURL) return null;
