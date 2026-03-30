@@ -18,7 +18,11 @@ import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
 import { getLimits } from '@/lib/subscriptionLimits';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { DraftPreviewThumbnail } from '@/app/m_dashboard/components/projects/DraftPreviewThumbnail';
+import { ProjectCardContainer } from '@/app/m_dashboard/container/ProjectCardContainer';
 import { useTheme } from '@/app/m_dashboard/components/context/theme-context';
+import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
+import { NewProjectButton } from '@/app/m_dashboard/components/buttons/NewProjectButton';
+import { PopMenuOption } from '@/app/m_dashboard/components/buttons/PopMenuButton';
 
 function formatEdited(dateStr?: string) {
   if (!dateStr) return 'Edited recently';
@@ -35,6 +39,12 @@ interface Props {
   asPage?: boolean;
 }
 type View = 'select' | 'create';
+type ProjectTabId = 'active' | 'trash';
+
+const PROJECT_TABS: readonly TabBarItem<ProjectTabId>[] = [
+  { id: 'active', label: 'ACTIVE' },
+  { id: 'trash', label: 'TRASH' },
+];
 
 export function ProjectSelectorModal({ asPage = false }: Props) {
   const router = useRouter();
@@ -352,42 +362,15 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
               <div className={`w-full ${asPage ? 'mt-8 space-y-8' : 'mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3'}`}>
                 {asPage ? (
                   <>
-                    <div className="flex items-center justify-center gap-3 flex-wrap">
-                      {/* Active / Trash tab switcher: matches dashboard hero tab gradient active state. */}
-                      <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
-                        {([
-                          { id: 'active', label: 'ACTIVE' },
-                          { id: 'trash', label: 'TRASH' }
-                        ] as const).map((tab) => (
-                          <button
-                            key={tab.id}
-                            type="button"
-                            onClick={() => setProjectTab(tab.id)}
-                            className={`
-                              cursor-pointer relative pb-1 transition-all duration-300
-                              ${projectTab === tab.id
-                                ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]')
-                                : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
-                              }
-                              hover:opacity-70
-                            `}
-                          >
-                            {tab.label}
-                            {projectTab === tab.id && (
-                              <motion.span
-                                layoutId="project-selector-tab-underline"
-                                className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
-                                style={{
-                                  background: theme === 'dark'
-                                    ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                                    : 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
-                                }}
-                                transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-                              />
-                            )}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="flex items-center justify-center">
+                      {/* Page variant: use custom TabBar component */}
+                      <TabBar<ProjectTabId>
+                        tabs={PROJECT_TABS}
+                        activeTab={projectTab}
+                        onTabChange={setProjectTab}
+                        theme={theme as 'light' | 'dark'}
+                        underlineLayoutId="project-selector-tab-underline"
+                      />
                     </div>
 
                     <div
@@ -425,41 +408,15 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                   </>
                 ) : (
                   <>
-                    {/* Modal: compact Active / Trash tab switcher */}
-                    <div className="inline-flex items-center gap-6 text-[11px] uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
-                      {([
-                        { id: 'active', label: 'ACTIVE' },
-                        { id: 'trash', label: 'TRASH' }
-                      ] as const).map((tab) => (
-                        <button
-                          key={tab.id}
-                          type="button"
-                          onClick={() => setProjectTab(tab.id)}
-                          className={`
-                            cursor-pointer relative pb-1 transition-all duration-300
-                            ${projectTab === tab.id
-                              ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]')
-                              : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
-                            }
-                            hover:opacity-70
-                          `}
-                        >
-                          {tab.label}
-                          {projectTab === tab.id && (
-                            <motion.span
-                              layoutId="project-selector-tab-underline"
-                              className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
-                              style={{
-                                background: theme === 'dark'
-                                  ? 'linear-gradient(90deg, #B13BFF 0%, #B36760 50%, #FFCC00 100%)'
-                                  : 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)'
-                              }}
-                              transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-                            />
-                          )}
-                        </button>
-                      ))}
-                    </div>
+                    {/* Modal: use custom TabBar component */}
+                    <TabBar<ProjectTabId>
+                      tabs={PROJECT_TABS}
+                      activeTab={projectTab}
+                      onTabChange={setProjectTab}
+                      theme={theme as 'light' | 'dark'}
+                      className="text-[11px]"
+                      underlineLayoutId="project-selector-tab-underline-modal"
+                    />
                     {/* Modal: compact search bar and view mode toggle */}
                     <div className="flex items-center gap-3">
                       <div className="relative">
@@ -535,113 +492,136 @@ export function ProjectSelectorModal({ asPage = false }: Props) {
                     // Unified renderer for active/trash collections; source list switches by tab.
                     <div className={`grid ${asPage ? 'gap-4 sm:gap-5' : 'gap-4'} ${viewMode === 'grid' ? (asPage ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3') : 'grid-cols-1'}`}>
                       {asPage && projectTab === 'active' && (
-                        <button
-                          type="button"
-                          onClick={() => setView('create')}
-                          className={`
-                            group relative flex flex-col overflow-hidden
-                            w-full rounded-[32px] border transition-all duration-500 hover:-translate-y-1
-                            ${theme === 'dark'
-                              ? 'bg-[#15093E] border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]'
-                              : 'admin-dashboard-panel border-0'}
-                          `}
-                        >
-                          <div className={`absolute top-6 right-6 transition-opacity duration-500 group-hover:opacity-100 opacity-20 z-10 ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}`}>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 0V14M0 7H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg>
-                          </div>
-                          <div className="w-full aspect-video flex items-center justify-center relative">
-                            <div className={`h-18 w-18 rounded-[24px] flex items-center justify-center transition-all duration-500 shadow-lg group-hover:scale-110 ${theme === 'dark' ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)]'}`}>
-                              <svg className="w-9 h-9" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" /></svg>
-                            </div>
-                          </div>
-                          <div className="p-6 flex flex-col items-center gap-1">
-                            <span className={`text-xl font-black tracking-tight ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>New Project</span>
-                            <span className={`h-1 w-8 rounded-full transition-all duration-500 scale-x-0 group-hover:scale-x-100 ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
-                            {/* Spacer to simulate the metadata line in project cards for perfect height matching */}
-                            <div className="h-5" /> 
-                          </div>
-                        </button>
+                        <NewProjectButton
+                          theme={theme}
+                          onCreateProject={() => setView('create')}
+                        />
                       )}
                       {(projectTab === 'active' ? filteredProjects : filteredTrashedProjects).map((project) => {
                         const daysLeft = Number.isFinite(project.daysLeft) ? Number(project.daysLeft) : null;
-                        return (
-                          <div key={project.id} className={`group relative border overflow-hidden ${asPage ? `rounded-[32px] ${theme === 'dark' ? 'bg-[#15093E] border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)] hover:border-[#FFCE00]/50' : 'admin-dashboard-panel border-0 hover:shadow-[0_20px_40px_rgba(123,78,192,0.2)]'} hover:-translate-y-1` : 'rounded-2xl border-[#2A2A60] bg-[#141140] hover:bg-[#1A1750] hover:border-[#6B72D8]'} transition-all ${activeMenuProjectId === project.id ? 'z-40' : 'z-0'} 
-                            ${editingProjectId === project.id ? 'flex flex-col h-auto p-0 overflow-visible' : (viewMode === 'list' ? 'flex flex-row items-center h-[96px] p-0' : 'flex flex-col h-full p-0')}`}>
-                            {/* Three-dot context menu (⋮): mirrors dashboard card action menu and keeps trash cards compact. */}
-                            {editingProjectId !== project.id && (projectTab === 'trash' || !project.isShared) && (
-                              <div className="absolute top-3 right-3 z-50" onClick={(e) => e.stopPropagation()}>
-                                {/* Three-dot button (⋮): toggles the dropdown */}
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setActiveMenuProjectId((prev) => (prev === project.id ? null : project.id)); }}
-                                  aria-label="Open project actions"
-                                  title="Open project actions"
-                                  className={asPage
-                                    ? `cursor-pointer h-8 w-8 rounded-full flex items-center justify-center transition-all backdrop-blur-md ${theme === 'dark' ? 'bg-black/20 text-white/40 hover:text-white' : 'bg-[#8B5CF6]/10 text-[#8B5CF6] hover:bg-[#8B5CF6] hover:text-white'}`
-                                    : 'h-8 w-8 rounded-md bg-[#0E0D3D]/80 backdrop-blur-md text-[#8A8FC4] border border-[#2A2A60] hover:text-[#FFCE00] hover:border-[#6B72D8] transition-colors flex items-center justify-center'}
-                                >
-                                  <svg className={asPage ? 'w-5 h-5' : 'w-4 h-4'} viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="12" cy="18" r="1.8" /></svg>
-                                </button>
-                                {activeMenuProjectId === project.id && (
-                                  <div className={asPage ? `absolute right-0 mt-2 w-44 rounded-2xl border p-1 shadow-xl animate-in fade-in zoom-in duration-200 z-50 ${theme === 'dark' ? 'bg-[#15093E] border-[#272261] text-white' : 'bg-white border-[#8B5CF6]/20 text-slate-700'}` : 'absolute right-0 mt-2 w-40 rounded-xl border border-[#2A2A60] bg-[#0F0D38] py-1 shadow-2xl z-50'}>
-                                    {projectTab === 'active' ? (
-                                      <>
-                                        {/* Dropdown item: edit project name and subdomain */}
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); startEditProject(project); }} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors' : 'w-full px-4 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5'}><svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 4.5l3.75 3.75" /></svg> Edit Details</button>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleMoveToTrash(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm !text-[#BE123C] bg-[#FFF1F2] border border-[#FDA4AF] font-semibold flex items-center gap-2 hover:bg-[#FFE4E6] transition-colors disabled:!text-[#BE123C] disabled:bg-[#FFF1F2] disabled:border-[#FDA4AF] disabled:opacity-100' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-80 disabled:text-red-300'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}<span className="truncate !text-[#BE123C]">Move to trash</span>
-                                        </button>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handleRestoreProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm flex items-center gap-2 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors disabled:opacity-50' : 'w-full px-4 py-2 text-left text-sm text-white flex items-center gap-2 hover:bg-white/5 disabled:opacity-50'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>} Restore
-                                        </button>
-                                        <button type="button" onClick={(e) => { e.stopPropagation(); handlePermanentDeleteProject(project); }} disabled={actioningProjectId === project.id} className={asPage ? 'w-full px-3 py-2 rounded-xl text-left text-sm !text-[#BE123C] bg-[#FFF1F2] border border-[#FDA4AF] font-semibold flex items-center gap-2 hover:bg-[#FFE4E6] transition-colors disabled:!text-[#BE123C] disabled:bg-[#FFF1F2] disabled:border-[#FDA4AF] disabled:opacity-100' : 'w-full px-4 py-2 text-left text-sm text-red-400 flex items-center gap-2 hover:bg-red-500/10 disabled:opacity-80 disabled:text-red-300'}>
-                                          {actioningProjectId === project.id ? <svg className="w-4 h-4 animate-spin shrink-0" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V1C6.477 1 2 5.477 2 11h2z" /></svg> : <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>}<span className="truncate !text-[#BE123C]">Delete Permanently</span>
-                                        </button>
-                                      </>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                        
+                        // Build context-aware menu options based on active vs trash tab
+                        const buildMenuOptions = (proj: Project): PopMenuOption[] => {
+                          if (projectTab === 'active') {
+                            return [
+                              {
+                                key: 'edit',
+                                label: 'Edit Details',
+                                onSelect: () => startEditProject(proj),
+                                icon: (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a1.875 1.875 0 1 1 2.652 2.652L8.25 17.403 4.5 18.75l1.347-3.75L16.862 3.487Z" />
+                                  </svg>
+                                ),
+                              },
+                              {
+                                key: 'delete',
+                                label: 'Move to trash',
+                                onSelect: () => handleMoveToTrash(proj),
+                                className: 'text-red-500',
+                                icon: (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                ),
+                              },
+                            ];
+                          } else {
+                            // Trash tab menu options
+                            return [
+                              {
+                                key: 'restore',
+                                label: 'Restore',
+                                onSelect: () => handleRestoreProject(proj),
+                                icon: (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
+                                ),
+                              },
+                              {
+                                key: 'delete_permanent',
+                                label: 'Delete Permanently',
+                                onSelect: () => handlePermanentDeleteProject(proj),
+                                className: 'text-red-500',
+                                icon: (
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                ),
+                              },
+                            ];
+                          }
+                        };
 
-                            {/* Card content: inline edit form when editing a project, otherwise the standard project card */}
-                            {editingProjectId === project.id ? (
-                              <div className="w-full space-y-4 p-5 animate-in fade-in slide-in-from-top-2 duration-200">
+                        // Show inline edit form when editing this project
+                        if (editingProjectId === project.id) {
+                          return (
+                            <div key={project.id} className={`${asPage ? `rounded-[32px] ${theme === 'dark' ? 'bg-[#15093E] border border-[#272261]' : 'admin-dashboard-panel border-0'}` : 'rounded-2xl border border-[#2A2A60] bg-[#141140]'} p-5 animate-in fade-in slide-in-from-top-2 duration-200`}>
+                              <div className="space-y-4">
                                 {/* Text fields for renaming the project and updating the subdomain */}
                                 <div className="space-y-3">
-                                  <div><label className="block text-xs font-medium text-[#8A8FC4] mb-1.5">Project Name</label><input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="w-full px-4 py-2.5 rounded-lg border border-[#2A2A60] bg-[#0A0826] text-white text-sm focus:outline-none focus:border-[#6B72D8] transition-colors" placeholder="Untitled Project" autoFocus /></div>
-                                  <div><label className="block text-xs font-medium text-[#8A8FC4] mb-1.5">Subdomain</label><input type="text" value={editSubdomain} onChange={(e) => setEditSubdomain(e.target.value)} className="w-full px-4 py-2.5 rounded-lg border border-[#2A2A60] bg-[#0A0826] text-white text-sm focus:outline-none focus:border-[#6B72D8] transition-colors" placeholder="mystore" /><p className="text-[10px] text-[#6B6FA0] mt-1.5">Letters, numbers, and hyphens only.</p></div>
-                                </div>
-                                {editError && <p className="text-xs text-red-400">{editError}</p>}
-                                <div className="flex justify-end gap-2 pt-2 border-t border-[#2A2A60]/50"><button type="button" onClick={cancelEditProject} disabled={savingEdit} className="px-4 py-2 rounded-lg text-xs font-medium text-[#8A8FC4] hover:text-white hover:bg-white/5 disabled:opacity-50 transition-colors">Cancel</button><button type="button" onClick={() => handleSaveProjectEdit(project)} disabled={savingEdit} className="px-4 py-2 rounded-lg text-xs font-medium text-[#121241] bg-[#FFCE00] hover:bg-[#FFD740] disabled:opacity-50 transition-all shadow-md active:scale-95">{savingEdit ? 'Saving…' : 'Save Changes'}</button></div>
-                              </div>
-                            ) : (
-                              <div role="button" tabIndex={0} onClick={() => projectTab === 'active' && openProject(project.id)} className={`${projectTab === 'trash' ? 'cursor-default' : 'cursor-pointer'} ${viewMode === 'list' ? 'flex flex-row items-center w-full h-full' : 'w-full text-left flex flex-col h-full'}`}>
-                                <div className={`${viewMode === 'list' ? 'w-40 h-full border-r border-[#2A2A60] shrink-0' : `${asPage ? 'w-full aspect-video' : 'w-full aspect-[16/10] border-b border-[#2A2A60]'}`} overflow-hidden ${asPage ? (theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white') : 'bg-[#0A0826]'} ${projectTab === 'trash' ? 'grayscale opacity-75' : ''}`}>
-                                  {/* Project thumbnail: live draft preview — always shows current content */}
-                                  <DraftPreviewThumbnail projectId={project.id} borderColor="transparent" bgColor={asPage ? (theme === 'dark' ? '#0A0A26' : '#ffffff') : '#0A0826'} className={`w-full h-full !aspect-auto !rounded-none object-cover ${projectTab !== 'trash' && 'transition-transform duration-700 group-hover:scale-105'}`} />
-                                </div>
-                                <div className={`${viewMode === 'list' ? 'px-6 py-4 flex-1 flex flex-row items-center justify-between min-w-0' : `${asPage ? 'p-6' : 'px-5 py-4'} flex flex-col flex-1`}`}>
-                                  {/* Project info: title, status badge (Published/Draft/Shared), and metadata */}
-                                  <div className={`${viewMode === 'list' ? 'flex-1 min-w-0 pr-4' : 'w-full'}`}>
-                                    {/* Project title and status badges (Published / Draft / Shared with me) */}
-                                    <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                                      <p className={`text-[17px] font-bold leading-tight truncate transition-colors ${asPage ? (theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]') : 'text-white group-hover:text-[#FFCE00]'}`}>{project.title || 'Untitled Project'}</p>
-                                      {(project.status === 'published' || project.status === 'live') ? <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-green-500/15 text-green-400 border border-green-500/20">Published</span> : <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-[#3A3A7A]/30 text-[#8A8FC4] border border-[#3A3A7A]/40">Draft</span>}
-                                      {project.isShared && <span className="flex-shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-500/15 text-blue-400 border border-blue-500/20">Shared with me</span>}
-                                    </div>
-                                    {/* Subtitle: owner name (shared), days-until-deletion (trash), or last edit time (active) */}
-                                    <p className={`text-[13px] truncate ${asPage ? (theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70') : 'text-[#6B6FA0]'}`}>
-                                      {project.isShared ? `by ${project.ownerName || 'Unknown'}` : (projectTab === 'trash' ? (daysLeft == null ? 'Unavailable' : `${daysLeft} days until permanent deletion`) : formatEdited(project.updatedAt ?? project.createdAt))}
-                                    </p>
+                                  <div>
+                                    <label className="block text-xs font-medium text-[#8A8FC4] mb-1.5">Project Name</label>
+                                    <input 
+                                      type="text" 
+                                      value={editTitle} 
+                                      onChange={(e) => setEditTitle(e.target.value)} 
+                                      className="w-full px-4 py-2.5 rounded-lg border border-[#2A2A60] bg-[#0A0826] text-white text-sm focus:outline-none focus:border-[#6B72D8] transition-colors" 
+                                      placeholder="Untitled Project" 
+                                      autoFocus 
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-medium text-[#8A8FC4] mb-1.5">Subdomain</label>
+                                    <input 
+                                      type="text" 
+                                      value={editSubdomain} 
+                                      onChange={(e) => setEditSubdomain(e.target.value)} 
+                                      className="w-full px-4 py-2.5 rounded-lg border border-[#2A2A60] bg-[#0A0826] text-white text-sm focus:outline-none focus:border-[#6B72D8] transition-colors" 
+                                      placeholder="mystore" 
+                                    />
+                                    <p className="text-[10px] text-[#6B6FA0] mt-1.5">Letters, numbers, and hyphens only.</p>
                                   </div>
                                 </div>
+                                {editError && <p className="text-xs text-red-400">{editError}</p>}
+                                <div className="flex justify-end gap-2 pt-2 border-t border-[#2A2A60]/50">
+                                  <button 
+                                    type="button" 
+                                    onClick={cancelEditProject} 
+                                    disabled={savingEdit} 
+                                    className="px-4 py-2 rounded-lg text-xs font-medium text-[#8A8FC4] hover:text-white hover:bg-white/5 disabled:opacity-50 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button 
+                                    type="button" 
+                                    onClick={() => handleSaveProjectEdit(project)} 
+                                    disabled={savingEdit} 
+                                    className="px-4 py-2 rounded-lg text-xs font-medium text-[#121241] bg-[#FFCE00] hover:bg-[#FFD740] disabled:opacity-50 transition-all shadow-md active:scale-95"
+                                  >
+                                    {savingEdit ? 'Saving…' : 'Save Changes'}
+                                  </button>
+                                </div>
                               </div>
-                            )}
-                          </div>
+                            </div>
+                          );
+                        }
+
+                        // Use ProjectCardContainer for display mode
+                        return (
+                          <ProjectCardContainer
+                            key={project.id}
+                            theme={asPage ? theme : 'dark'}
+                            project={project}
+                            isMenuOpen={activeMenuProjectId === project.id}
+                            onOpenDesign={() => projectTab === 'active' && openProject(project.id)}
+                            onToggleMenu={(projectId) => setActiveMenuProjectId((prev) => (prev === projectId ? null : projectId))}
+                            onEditProject={startEditProject}
+                            onDeleteProject={handleMoveToTrash}
+                            menuOptionsBuilder={buildMenuOptions}
+                            formatEditedDate={(dateStr) => projectTab === 'trash' && daysLeft != null ? `${daysLeft} days until permanent deletion` : formatEdited(dateStr)}
+                          />
                         );
                       })}
                     </div>
