@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
-import { getMessages, sendMessage, markMessageRead, type ApiMessage, getMe } from '@/lib/api';
+import { getConversations, getConversationMessages, sendDirectMessage, getAdmins, getMe, type Conversation, type ChatMessage, type AdminUser } from '@/lib/api';
 import { addNotification } from '@/lib/notifications';
 import { format } from 'date-fns';
 
@@ -15,14 +15,8 @@ const SearchIcon = () => (
     </svg>
 );
 
-const FilterIcon = () => (
-    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4.5h18M6.75 9.5h10.5M10.5 14.5h3M12 19.5h0" />
-    </svg>
-);
-
 const SendIcon = () => (
-    <svg className="h-5 w-5 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
     </svg>
 );
@@ -30,6 +24,18 @@ const SendIcon = () => (
 const RefreshIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+);
+
+const BackIcon = () => (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+    </svg>
+);
+
+const PlusIcon = () => (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
     </svg>
 );
 
@@ -42,13 +48,13 @@ const glassPanel = {
     boxShadow: '0 8px 40px rgba(103, 2, 191, 0.07)',
 };
 
-const messageBubbleAdmin = {
+const messageBubbleOwn = {
     background: 'linear-gradient(135deg, #B13BFF 0%, #7B1DE8 100%)',
     color: 'white',
     boxShadow: '0 4px 12px rgba(123, 29, 232, 0.2)',
 };
 
-const messageBubbleClient = {
+const messageBubbleOther = {
     background: 'rgba(240, 235, 255, 0.85)',
     border: '1px solid rgba(177, 59, 255, 0.12)',
     color: '#3B1278',
@@ -56,79 +62,258 @@ const messageBubbleClient = {
 
 /* ── Components ─────────────────────────────────────────────────── */
 
-export default function MessageHubPage() {
+export default function ChatPage() {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [activeType, setActiveType] = useState<'all' | 'support' | 'internal' | 'request'>('all');
-    const [messages, setMessages] = useState<ApiMessage[]>([]);
-    const [selectedMessage, setSelectedMessage] = useState<ApiMessage | null>(null);
-    const [replyText, setReplyText] = useState('');
+    const [currentUser, setCurrentUser] = useState<any>(null);
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
+    const [messageText, setMessageText] = useState('');
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
-    const [currentUser, setCurrentUser] = useState<any>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [showNewChatModal, setShowNewChatModal] = useState(false);
+    const [adminList, setAdminList] = useState<AdminUser[]>([]);
+    const [adminSearchQuery, setAdminSearchQuery] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const fetchMessages = useCallback(async (silent = false) => {
+    const sortedMessages = useMemo(() => {
+        const toMs = (value?: string) => {
+            const ms = new Date(value || '').getTime();
+            return Number.isFinite(ms) ? ms : 0;
+        };
+
+        return [...(messages || [])].sort((a, b) => toMs(a.createdAt) - toMs(b.createdAt));
+    }, [messages]);
+
+    const resolvedOtherAvatar = useMemo(() => {
+        if (!selectedConversation) return null;
+
+        const fromSelected = selectedConversation.otherUserAvatar || null;
+        if (fromSelected) return fromSelected;
+
+        const fromConversations = conversations.find(
+            c => c.otherUserId === selectedConversation.otherUserId && c.otherUserAvatar
+        )?.otherUserAvatar || null;
+        if (fromConversations) return fromConversations;
+
+        const fromAdmins = adminList.find(
+            a => a.id === selectedConversation.otherUserId && a.avatar
+        )?.avatar || null;
+
+        return fromAdmins;
+    }, [selectedConversation, conversations, adminList]);
+
+    const getMinuteKey = (value?: string) => {
+        const date = new Date(value || '');
+        if (Number.isNaN(date.getTime())) return '';
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        const hh = String(date.getHours()).padStart(2, '0');
+        const mm = String(date.getMinutes()).padStart(2, '0');
+        return `${y}-${m}-${d} ${hh}:${mm}`;
+    };
+
+    // Scroll to bottom when messages change
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [sortedMessages, selectedConversation?.conversationId]);
+
+    // Load current user
+    useEffect(() => {
+        getMe().then(res => {
+            if (res.user) {
+                setCurrentUser(res.user);
+            }
+        });
+    }, []);
+
+    // Load conversations
+    const fetchConversations = useCallback(async (silent = false) => {
         if (!silent) setLoading(true);
         try {
-            const filter = activeType === 'all' ? {} : { type: activeType };
-            const res = await getMessages(filter);
+            const res = await getConversations();
+            if (res.success) {
+                setConversations(res.data || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch conversations:', error);
+        } finally {
+            if (!silent) setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchConversations();
+    }, [fetchConversations]);
+
+    // Auto-select first conversation if none is selected
+    useEffect(() => {
+        if (!selectedConversation && conversations.length > 0) {
+            setSelectedConversation(conversations[0]);
+        }
+    }, [conversations, selectedConversation]);
+
+    // Load messages for selected conversation
+    const fetchMessages = useCallback(async (conversation: Conversation) => {
+        try {
+            const res = await getConversationMessages(conversation.otherUserId);
             if (res.success) {
                 setMessages(res.data || []);
             }
         } catch (error) {
             console.error('Failed to fetch messages:', error);
-        } finally {
-            if (!silent) setLoading(false);
         }
-    }, [activeType]);
+    }, []);
 
     useEffect(() => {
-        fetchMessages();
-        getMe().then(res => res.user && setCurrentUser(res.user));
-    }, [fetchMessages]);
+        if (selectedConversation) {
+            fetchMessages(selectedConversation);
+        }
+    }, [selectedConversation, fetchMessages]);
 
-    // Polling for new messages every 15s
+    // Polling for new conversations every 3s for faster chat list updates
     useEffect(() => {
-        const interval = setInterval(() => fetchMessages(true), 15000);
+        const interval = setInterval(() => fetchConversations(true), 3000);
         return () => clearInterval(interval);
-    }, [fetchMessages]);
+    }, [fetchConversations]);
 
-    const filteredMessages = useMemo(() => {
-        return (messages || []).filter(m => 
-            m.senderName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            m.message.toLowerCase().includes(searchQuery.toLowerCase())
-        );
-    }, [messages, searchQuery]);
+    // Polling for new messages every 2s when conversation is open
+    useEffect(() => {
+        if (!selectedConversation) return;
+        const interval = setInterval(() => {
+            fetchMessages(selectedConversation);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, [selectedConversation, fetchMessages]);
 
-    const handleSendMessage = async () => {
-        if (!replyText.trim()) return;
-        setSending(true);
+    // Load admins when modal opens
+    const openNewChat = async () => {
+        setShowNewChatModal(true);
         try {
-            const res = await sendMessage({
-                message: replyText,
-                type: activeType === 'all' ? 'internal' : activeType,
-                senderName: currentUser?.name || 'Administrator',
-                websiteId: selectedMessage?.websiteId || undefined
-            });
+            const res = await getAdmins();
+            console.log('getAdmins response:', res);
             if (res.success) {
-                setReplyText('');
-                fetchMessages(true);
-                addNotification("Message Sent", "Message successfully broadcasted.", "success");
+                console.log('Admin list loaded:', res.data);
+                setAdminList(res.data || []);
+            } else {
+                console.error('getAdmins returned success=false', res);
+                addNotification('Error', 'Failed to load admin list', 'error');
             }
         } catch (error) {
-            addNotification("Error", "Message delivery failed.", "error");
+            console.error('Failed to load admins:', error);
+            addNotification('Error', `Failed to load admins: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+        }
+    };
+
+    // Filter admins
+    const filteredAdmins = useMemo(() => {
+        return (adminList || []).filter(a => {
+            const name = (a.name || '').toLowerCase();
+            const username = (a.username || '').toLowerCase();
+            const email = (a.email || '').toLowerCase();
+            const query = adminSearchQuery.toLowerCase();
+            return name.includes(query) || username.includes(query) || email.includes(query);
+        });
+    }, [adminList, adminSearchQuery]);
+
+    // Send message
+    const handleSendMessage = async () => {
+        if (!messageText.trim() || !selectedConversation) return;
+        setSending(true);
+        const messageContent = messageText;
+        const recipientId = selectedConversation.otherUserId;
+        setMessageText('');
+        
+        try {
+            // Optimistic update - add message immediately
+            const optimisticMessage: ChatMessage = {
+                id: `temp-${Date.now()}`,
+                senderId: currentUser?.id || 'unknown',
+                senderName: currentUser?.displayName || currentUser?.email || 'You',
+                senderAvatar: currentUser?.avatar || null,
+                recipientId,
+                conversationId: selectedConversation.conversationId,
+                message: messageContent,
+                type: 'direct',
+                status: 'sending',
+                createdAt: new Date().toISOString()
+            };
+            
+            // Show message immediately
+            setMessages(prev => [...prev, optimisticMessage]);
+            
+            const res = await sendDirectMessage(recipientId, messageContent);
+            if (res.success) {
+                // Fetch conversations to get the updated conversation list
+                const conversationsRes = await getConversations();
+                if (conversationsRes.success) {
+                    const updatedConversations = conversationsRes.data || [];
+                    setConversations(updatedConversations);
+                    
+                    // Find and select the updated conversation
+                    const updatedConversation = updatedConversations.find(c => c.otherUserId === recipientId);
+                    if (updatedConversation) {
+                        setSelectedConversation(updatedConversation);
+                        // Fetch messages for the conversation
+                        const messagesRes = await getConversationMessages(recipientId);
+                        if (messagesRes.success) {
+                            setMessages(messagesRes.data || []);
+                        }
+                    }
+                }
+                // No success toast: keep chat sending silent like messenger apps.
+            } else {
+                // Remove optimistic message on failure
+                setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+                addNotification('Error', 'Failed to send message', 'error');
+            }
+        } catch (error) {
+            // Remove optimistic message on failure
+            setMessages(prev => prev.filter(m => m.id !== `temp-${Date.now()}`));
+            addNotification('Error', 'Failed to send message', 'error');
         } finally {
             setSending(false);
         }
     };
 
-    const handleSelectMessage = async (msg: ApiMessage) => {
-        setSelectedMessage(msg);
-        if (msg.status === 'unread') {
-            await markMessageRead(msg.id);
-            setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, status: 'read' as const } : m));
+    // Select admin and create/open conversation
+    const handleSelectAdmin = (admin: AdminUser) => {
+        const existingConversation = conversations.find(c => c.otherUserId === admin.id);
+        if (existingConversation) {
+            setSelectedConversation(existingConversation);
+        } else {
+            // Create new conversation with sorted ID matching backend format
+            const ids = [currentUser?.id, admin.id].sort();
+            const conversationId = `${ids[0]}__${ids[1]}`;
+            const newConversation: Conversation = {
+                conversationId,
+                otherUserId: admin.id,
+                otherUserName: admin.name,
+                otherUserAvatar: admin.avatar,
+                lastMessage: 'No messages yet',
+                lastMessageTime: new Date().toISOString(),
+                unreadCount: 0
+            };
+            setSelectedConversation(newConversation);
         }
+        setShowNewChatModal(false);
     };
+
+    // Filter conversations by search
+    const filteredConversations = useMemo(() => {
+        return (conversations || []).filter(c =>
+            (c.otherUserName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.otherUserId || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.otherUserUsername || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+            (c.otherUserEmail || '').toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [conversations, searchQuery]);
 
     return (
         <div className="admin-dashboard-shell flex h-screen w-full overflow-hidden bg-[#FBF9FF] text-[#471396]">
@@ -142,288 +327,341 @@ export default function MessageHubPage() {
                 )}
             </AnimatePresence>
 
-            <div className="flex min-h-0 flex-1 flex-col min-w-0">
+            <div className="flex min-h-0 flex-1 flex-col">
                 <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
                 
-                <main className="flex-1 flex overflow-hidden p-6 lg:p-8">
-                    <div className="flex h-full w-full gap-6 overflow-hidden">
-                        
-                        {/* 1. Filter Sidebar */}
-                        <motion.div 
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="hidden lg:flex w-72 flex-col gap-6"
-                        >
-                            <div className="p-4 rounded-[32px]" style={glassPanel}>
-                                <h2 className="text-xl font-bold mb-4 px-3 py-2 text-[#7B1DE8]">Messaging Hub</h2>
-                                <div className="space-y-1.5 px-1">
-                                    {[
-                                        { id: 'all', label: 'All Feed', icon: '📩' },
-                                        { id: 'support', label: 'Client Inquiries', icon: '🎧' },
-                                        { id: 'internal', label: 'Admin Chat', icon: '👥' },
-                                        { id: 'request', label: 'Requests', icon: '⚡' },
-                                    ].map((type) => (
+                <main className="flex-1 flex overflow-hidden p-4 lg:p-6">
+                    {/* Conversations List */}
+                    <motion.div 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className={`flex flex-col rounded-[24px] overflow-hidden w-full lg:w-80 lg:mb-0 mb-4 ${selectedConversation ? 'hidden lg:flex' : 'flex'}`}
+                        style={glassPanel}
+                    >
+                        <div className="p-4 border-b border-purple-100/50">
+                            <div className="flex items-center justify-between gap-2 mb-4">
+                                <h2 className="text-lg font-bold text-[#7B1DE8]">Conversations</h2>
+                                <motion.button
+                                    whileTap={{ scale: 0.92 }}
+                                    onClick={openNewChat}
+                                    className="p-2 rounded-xl bg-[#B13BFF] text-white hover:bg-purple-700 transition-colors"
+                                    title="Start new conversation"
+                                >
+                                    <PlusIcon />
+                                </motion.button>
+                            </div>
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    placeholder="Search conversations..." 
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-9 pr-3 py-2.5 bg-purple-50/40 rounded-lg text-sm font-medium placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/20 transition-shadow"
+                                />
+                                <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B13BFF]/60">
+                                    <SearchIcon />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto scrollbar-hide">
+                            {loading ? (
+                                <div className="h-full flex items-center justify-center">
+                                    <div className="w-10 h-10 border-4 border-[#B13BFF]/20 border-t-[#B13BFF] rounded-full animate-spin" />
+                                </div>
+                            ) : filteredConversations.length === 0 ? (
+                                <div className="h-full flex items-center justify-center flex-col p-6 text-center">
+                                    <div className="text-4xl mb-2 opacity-40">💬</div>
+                                    <p className="text-sm font-semibold text-[#8A66C0]">No conversations yet</p>
+                                    <p className="text-xs text-[#B13BFF]/60 mt-1">Start chatting with admins</p>
+                                </div>
+                            ) : (
+                                <div className="p-2 space-y-1">
+                                    {filteredConversations.map((conversation) => (
                                         <motion.button
-                                            key={type.id}
-                                            whileTap={{ scale: 0.94 }}
-                                            onClick={() => setActiveType(type.id as any)}
-                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold transition-all ${
-                                                activeType === type.id 
-                                                    ? 'bg-[#B13BFF] text-white shadow-lg shadow-purple-200/50' 
-                                                    : 'hover:bg-purple-50 text-[#6F4796]/80 hover:text-[#471396]'
+                                            key={conversation.conversationId}
+                                            whileTap={{ scale: 0.98 }}
+                                            onClick={() => setSelectedConversation(conversation)}
+                                            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all ${
+                                                selectedConversation?.conversationId === conversation.conversationId
+                                                    ? 'bg-[#B13BFF]/10 border border-[#B13BFF]/30'
+                                                    : 'hover:bg-purple-50 border border-transparent'
                                             }`}
                                         >
-                                            <span className="text-lg">{type.icon}</span>
-                                            <span className="text-sm">{type.label}</span>
+                                            <div className="relative">
+                                                {conversation.otherUserAvatar ? (
+                                                    <img src={conversation.otherUserAvatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                                                ) : (
+                                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center text-sm font-bold text-[#B13BFF]">
+                                                        {(conversation.otherUserName || '?').charAt(0)}
+                                                    </div>
+                                                )}
+                                                {conversation.unreadCount > 0 && (
+                                                    <div className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                                                        {conversation.unreadCount}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 text-left">
+                                                <p className="text-sm font-bold text-[#471396] truncate">{conversation.otherUserName || 'Unknown'}</p>
+                                                <p className="text-xs text-[#8A66C0] truncate">{conversation.lastMessage}</p>
+                                            </div>
+                                            <span className="text-xs text-[#B13BFF]/60 flex-shrink-0">
+                                                {format(new Date(conversation.lastMessageTime), 'h:mm a')}
+                                            </span>
                                         </motion.button>
                                     ))}
                                 </div>
-                            </div>
+                            )}
+                        </div>
+                    </motion.div>
 
-                            <div className="p-4 rounded-[32px]" style={glassPanel}>
-                                <h3 className="text-[10px] font-black uppercase tracking-widest text-[#B13BFF] mb-3 px-3">Quick Actions</h3>
-                                <div className="space-y-1 px-1">
-                                    <motion.button whileTap={{ scale: 0.94 }} className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold hover:bg-purple-50 text-[#6F4796]/80 transition-all">
-                                        <span className="grayscale opacity-70">⚙️</span>
-                                        <span className="text-sm">Notification Filters</span>
-                                    </motion.button>
-                                    <motion.button whileTap={{ scale: 0.94 }} className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-bold hover:bg-red-50 text-red-400 transition-all">
-                                        <span className="grayscale opacity-70">🗑️</span>
-                                        <span className="text-sm">Clear Archive</span>
+                    {/* Chat Window */}
+                    <AnimatePresence mode="wait">
+                        {selectedConversation ? (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="flex flex-1 flex-col rounded-[24px] overflow-hidden"
+                                style={glassPanel}
+                            >
+                                {/* Chat Header */}
+                                <div className="p-4 border-b border-purple-100/50 flex items-center justify-between gap-4">
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                        <motion.button
+                                            whileTap={{ scale: 0.92 }}
+                                            onClick={() => setSelectedConversation(null)}
+                                            className="lg:hidden p-2 rounded-lg hover:bg-purple-50 transition-colors"
+                                        >
+                                            <BackIcon />
+                                        </motion.button>
+                                        {resolvedOtherAvatar ? (
+                                            <img src={resolvedOtherAvatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                                        ) : (
+                                            <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center font-bold text-[#B13BFF]">
+                                                {(selectedConversation.otherUserName || '?').charAt(0)}
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-bold text-[#471396] truncate">{selectedConversation.otherUserName || 'Unknown'}</p>
+                                            <p className="text-xs text-[#8A66C0]">online</p>
+                                        </div>
+                                    </div>
+                                    <motion.button
+                                        whileTap={{ scale: 0.92 }}
+                                        onClick={() => fetchMessages(selectedConversation)}
+                                        className="p-2 rounded-lg text-[#B13BFF] hover:bg-purple-50 transition-colors"
+                                    >
+                                        <RefreshIcon />
                                     </motion.button>
                                 </div>
-                            </div>
-                        </motion.div>
 
-                        {/* 2. Conversations List */}
-                        <motion.div 
-                            initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.08 }}
-                            className="flex flex-1 flex-col rounded-[32px] overflow-hidden" 
+                                {/* Messages */}
+                                <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
+                                    {sortedMessages.length === 0 ? (
+                                        <div className="h-full flex items-center justify-center">
+                                            <p className="text-sm text-[#8A66C0]">No messages yet. Start the conversation!</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {sortedMessages.map((msg, index) => {
+                                                const prev = sortedMessages[index - 1];
+                                                const next = sortedMessages[index + 1];
+                                                const isOwn = msg.senderId === currentUser?.id;
+                                                const sameAsPrev =
+                                                    !!prev &&
+                                                    prev.senderId === msg.senderId &&
+                                                    getMinuteKey(prev.createdAt) === getMinuteKey(msg.createdAt);
+                                                const sameAsNext =
+                                                    !!next &&
+                                                    next.senderId === msg.senderId &&
+                                                    getMinuteKey(next.createdAt) === getMinuteKey(msg.createdAt);
+
+                                                const incomingAvatar =
+                                                    msg.senderAvatar ||
+                                                    (msg.senderId === selectedConversation?.otherUserId
+                                                        ? resolvedOtherAvatar
+                                                        : null);
+
+                                                return (
+                                                    <motion.div
+                                                        key={msg.id}
+                                                        initial={{ opacity: 0, y: 10 }}
+                                                        animate={{ opacity: 1, y: 0 }}
+                                                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'} ${sameAsPrev ? 'mt-1' : 'mt-3'}`}
+                                                    >
+                                                        {!isOwn && (
+                                                            <div className="mr-2 mt-1 flex-shrink-0 w-8 h-8">
+                                                                {!sameAsNext ? (
+                                                                    incomingAvatar ? (
+                                                                        <img src={incomingAvatar} alt="" className="h-8 w-8 rounded-full object-cover" />
+                                                                    ) : (
+                                                                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center text-xs font-bold text-[#B13BFF]">
+                                                                            {(msg.senderName || selectedConversation?.otherUserName || '?').charAt(0)}
+                                                                        </div>
+                                                                    )
+                                                                ) : null}
+                                                            </div>
+                                                        )}
+                                                        <div
+                                                            className="px-4 py-2.5 rounded-2xl max-w-xs break-words"
+                                                            style={isOwn ? messageBubbleOwn : messageBubbleOther}
+                                                        >
+                                                            <p className="text-sm font-medium leading-relaxed">{msg.message}</p>
+                                                            {!sameAsNext && (
+                                                                <p className={`text-xs mt-1.5 ${isOwn ? 'text-purple-100' : 'text-[#B13BFF]/60'}`}>
+                                                                    {format(new Date(msg.createdAt), 'h:mm a')}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </motion.div>
+                                                );
+                                            })}
+                                            <div ref={messagesEndRef} />
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Message Input */}
+                                <div className="p-4 border-t border-purple-100/50">
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="text"
+                                            placeholder="Type a message..."
+                                            value={messageText}
+                                            onChange={(e) => setMessageText(e.target.value)}
+                                            onKeyPress={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleSendMessage();
+                                                }
+                                            }}
+                                            disabled={sending}
+                                            className="flex-1 px-4 py-3 bg-purple-50/40 rounded-2xl text-sm font-medium placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/20 disabled:opacity-50 transition-shadow"
+                                        />
+                                        <motion.button
+                                            whileTap={{ scale: 0.92 }}
+                                            onClick={handleSendMessage}
+                                            disabled={sending || !messageText.trim()}
+                                            className="p-3 rounded-2xl bg-[#B13BFF] text-white hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                        >
+                                            {sending ? (
+                                                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <SendIcon />
+                                            )}
+                                        </motion.button>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ) : (
+                            <motion.div
+                                initial={{ opacity: 0, x: 20 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: 20 }}
+                                className="hidden lg:flex flex-1 rounded-[24px] items-center justify-center flex-col gap-4"
+                                style={glassPanel}
+                            >
+                                <div className="text-6xl opacity-20">💬</div>
+                                <h3 className="text-2xl font-bold text-[#471396]">Select a Conversation</h3>
+                                <p className="text-[#8A66C0] max-w-xs text-center">Choose a conversation to start chatting with other admins</p>
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={openNewChat}
+                                    className="mt-4 px-6 py-3 rounded-2xl bg-[#B13BFF] text-white font-bold hover:bg-purple-700 transition-colors flex items-center gap-2"
+                                >
+                                    <PlusIcon />
+                                    Start New Chat
+                                </motion.button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </main>
+            </div>
+
+            {/* Start New Chat Modal */}
+            <AnimatePresence>
+                {showNewChatModal && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={() => setShowNewChatModal(false)}
+                        className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.95, opacity: 0 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="w-full max-w-md rounded-[32px] overflow-hidden"
                             style={glassPanel}
                         >
-                            <div className="p-6 border-b border-purple-100/50 flex items-center justify-between gap-4">
-                                <div className="relative flex-1">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Filter by sender or content..." 
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-11 pr-4 py-3 bg-purple-50/40 rounded-2xl text-sm font-semibold placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/10 transition-shadow"
+                            <div className="p-6 border-b border-purple-100/50">
+                                <h2 className="text-xl font-bold text-[#7B1DE8]">Start a Conversation</h2>
+                                <p className="text-sm text-[#8A66C0] mt-1">Select an admin to chat with</p>
+                            </div>
+
+                            <div className="p-4 border-b border-purple-100/50">
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        placeholder="Search admins..."
+                                        value={adminSearchQuery}
+                                        onChange={(e) => setAdminSearchQuery(e.target.value)}
+                                        className="w-full pl-9 pr-4 py-2.5 bg-purple-50/40 rounded-lg text-sm font-medium placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/20 transition-shadow"
                                     />
-                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#B13BFF]/60">
+                                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B13BFF]/60">
                                         <SearchIcon />
                                     </div>
                                 </div>
-                                <motion.button 
-                                    whileTap={{ scale: 0.92 }}
-                                    onClick={() => fetchMessages()}
-                                    className="p-3 rounded-2xl bg-purple-100/40 text-[#B13BFF] hover:bg-purple-100/60 transition-colors"
-                                >
-                                    <RefreshIcon />
-                                </motion.button>
                             </div>
 
-                            <div className="flex-1 overflow-y-auto p-3 scrollbar-hide">
-                                {loading ? (
-                                    <div className="h-full flex items-center justify-center flex-col gap-4">
-                                        <div className="w-12 h-12 border-[5px] border-[#B13BFF]/10 border-t-[#B13BFF] rounded-full animate-spin" />
-                                        <span className="text-xs font-black uppercase tracking-[0.2em] text-[#B13BFF] animate-pulse">Syncing Cloud</span>
-                                    </div>
-                                ) : filteredMessages.length === 0 ? (
-                                    <div className="h-full flex items-center justify-center flex-col gap-3 p-12 text-center">
-                                        <div className="text-5xl mb-2 grayscale opacity-40">📬</div>
-                                        <h3 className="text-lg font-black text-[#471396]/80 tracking-tight">Zero Conversations</h3>
-                                        <p className="text-sm font-semibold text-[#8A66C0] max-w-[260px]">The hub is currently empty. Incoming inquiries will appear here automatically.</p>
+                            <div className="max-h-96 overflow-y-auto scrollbar-hide">
+                                {filteredAdmins.length === 0 ? (
+                                    <div className="p-12 text-center">
+                                        <p className="text-sm text-[#8A66C0]">No admins found</p>
                                     </div>
                                 ) : (
-                                    <div className="space-y-1.5">
-                                        {filteredMessages.map((msg) => (
+                                    <div className="divide-y divide-purple-100/30">
+                                        {filteredAdmins.map((admin) => (
                                             <motion.button
-                                                key={msg.id}
+                                                key={admin.id}
                                                 whileTap={{ scale: 0.98 }}
-                                                onClick={() => handleSelectMessage(msg)}
-                                                className={`w-full flex items-start gap-4 p-4 rounded-[24px] transition-all ${
-                                                    selectedMessage?.id === msg.id 
-                                                        ? 'bg-white shadow-lg shadow-purple-200/20 border border-purple-100/80' 
-                                                        : 'hover:bg-white/40 border border-transparent'
-                                                }`}
+                                                onClick={() => handleSelectAdmin(admin)}
+                                                className="w-full flex items-center gap-3 p-4 hover:bg-purple-50/40 transition-colors"
                                             >
-                                                <div className="relative shrink-0">
-                                                    {msg.senderAvatar ? (
-                                                        <img src={msg.senderAvatar} alt="" className="h-13 w-13 rounded-2xl object-cover shadow-sm border-2 border-white" />
-                                                    ) : (
-                                                        <div className="h-13 w-13 rounded-2xl bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center text-[#B13BFF] shadow-inner font-black text-xl border-2 border-white">
-                                                            {msg.senderName.charAt(0)}
-                                                        </div>
-                                                    )}
-                                                    {msg.status === 'unread' && (
-                                                        <div className="absolute -top-1 -right-1 h-4 w-4 bg-[#FFCC00] border-[3px] border-white rounded-full shadow-sm" />
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0 text-left">
-                                                    <div className="flex items-center justify-between gap-2 mb-1">
-                                                        <h4 className={`text-[15px] font-black truncate tracking-tight ${msg.status === 'unread' ? 'text-[#471396]' : 'text-[#8A66C0]'}`}>
-                                                            {msg.senderName}
-                                                        </h4>
-                                                        <span className="text-[10px] font-black text-[#B13BFF]/60 uppercase tracking-tighter">
-                                                            {format(new Date(msg.createdAt), 'h:mm a')}
-                                                        </span>
+                                                {admin.avatar ? (
+                                                    <img src={admin.avatar} alt="" className="h-10 w-10 rounded-full object-cover" />
+                                                ) : (
+                                                    <div className="h-10 w-10 rounded-full bg-gradient-to-br from-purple-100 to-purple-50 flex items-center justify-center font-bold text-[#B13BFF]">
+                                                        {(admin.name || '?').charAt(0)}
                                                     </div>
-                                                    <p className={`text-xs line-clamp-2 leading-relaxed ${msg.status === 'unread' ? 'font-bold text-[#6F4796]' : 'text-[#8A66C0]'}`}>
-                                                        {msg.message}
-                                                    </p>
-                                                    <div className="mt-3 flex items-center gap-2">
-                                                        <span className={`px-2.5 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-widest ${
-                                                            msg.type === 'support' ? 'bg-green-100 text-green-600' :
-                                                            msg.type === 'internal' ? 'bg-blue-100 text-blue-600' :
-                                                            'bg-orange-100 text-orange-600'
-                                                        }`}>
-                                                            {msg.type}
-                                                        </span>
-                                                        {msg.websiteId && (
-                                                            <span className="px-2 py-0.5 rounded-lg bg-purple-50 text-[9px] font-black text-[#B13BFF]/70 truncate max-w-[120px]">
-                                                                ID: {msg.websiteId.slice(-8)}
-                                                            </span>
-                                                        )}
-                                                    </div>
+                                                )}
+                                                <div className="flex-1 text-left min-w-0">
+                                                    <p className="font-bold text-[#471396] truncate">{admin.name || 'Unknown'}</p>
+                                                    <p className="text-xs text-[#8A66C0] truncate">{admin.username || admin.email || 'no-email'}</p>
                                                 </div>
                                             </motion.button>
                                         ))}
                                     </div>
                                 )}
                             </div>
+
+                            <div className="p-4 border-t border-purple-100/50">
+                                <motion.button
+                                    whileTap={{ scale: 0.95 }}
+                                    onClick={() => setShowNewChatModal(false)}
+                                    className="w-full px-4 py-2.5 rounded-lg bg-purple-100/20 text-[#B13BFF] font-bold hover:bg-purple-100/40 transition-colors"
+                                >
+                                    Cancel
+                                </motion.button>
+                            </div>
                         </motion.div>
-
-                        {/* 3. Message Display */}
-                        <motion.div 
-                            initial={{ opacity: 0, x: 25 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: 0.15 }}
-                            className="hidden lg:flex w-[520px] flex-col rounded-[32px] overflow-hidden" 
-                            style={glassPanel}
-                        >
-                            {selectedMessage ? (
-                                <AnimatePresence mode="wait">
-                                    <motion.div 
-                                        key={selectedMessage.id}
-                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                        className="flex flex-col h-full"
-                                    >
-                                        {/* Header */}
-                                        <div className="p-7 border-b border-purple-100/50 bg-white/40">
-                                            <div className="flex items-center gap-5 mb-5">
-                                                {selectedMessage.senderAvatar ? (
-                                                    <img src={selectedMessage.senderAvatar} alt="" className="h-16 w-16 rounded-[22px] object-cover shadow-xl border-2 border-white" />
-                                                ) : (
-                                                    <div className="h-16 w-16 rounded-[22px] bg-gradient-to-br from-[#B13BFF] to-[#7B1DE8] flex items-center justify-center text-white shadow-xl font-black text-2xl border-2 border-white">
-                                                        {selectedMessage.senderName.charAt(0)}
-                                                    </div>
-                                                )}
-                                                <div className="min-w-0">
-                                                    <h3 className="text-xl font-black tracking-tight mb-1">{selectedMessage.senderName}</h3>
-                                                    <div className="flex items-center gap-2.5">
-                                                        <div className="h-2.5 w-2.5 rounded-full bg-green-500 shadow-sm shadow-green-200 animate-pulse" />
-                                                        <span className="text-[10px] font-black uppercase tracking-[0.15em] text-[#B13BFF]">Authorized Session</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="p-4 rounded-2xl bg-white/60 border border-purple-100 items-start flex flex-col justify-center">
-                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#B13BFF] mb-1">Inquiry Type</p>
-                                                    <p className="text-xs font-black truncate">{selectedMessage.type === 'internal' ? 'Internal Discussion' : 'Priority Client Hub'}</p>
-                                                </div>
-                                                <div className="p-4 rounded-2xl bg-white/60 border border-purple-100 items-start flex flex-col justify-center">
-                                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-[#B13BFF] mb-1">Receipt Date</p>
-                                                    <p className="text-xs font-black truncate">{format(new Date(selectedMessage.createdAt), 'MMM dd, HH:mm')}</p>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Viewport */}
-                                        <div className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide">
-                                            <div className="flex flex-col gap-6">
-                                                {/* Incoming */}
-                                                <div className="flex items-start gap-4 max-w-[92%]">
-                                                    <div className="h-10 w-10 shrink-0 rounded-xl bg-purple-100/60 flex items-center justify-center text-[#B13BFF] text-sm font-black border border-purple-200/50 shadow-inner">
-                                                        {selectedMessage.senderName.charAt(0)}
-                                                    </div>
-                                                    <div className="p-5 rounded-[28px] rounded-tl-none text-sm font-bold leading-relaxed shadow-sm" style={messageBubbleClient}>
-                                                        {selectedMessage.message}
-                                                        <div className="mt-3 text-[9px] font-black uppercase tracking-widest opacity-40">
-                                                            {format(new Date(selectedMessage.createdAt), 'EEEE, h:mm a')}
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="flex flex-col items-center py-6">
-                                                    <div className="w-full h-px bg-gradient-to-r from-transparent via-purple-100/60 to-transparent" />
-                                                    <span className="text-[9px] font-black text-[#B13BFF]/30 uppercase tracking-[0.4em] -mt-2 bg-[#FBF9FF] px-6">Timeline Anchor</span>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Input */}
-                                        <div className="p-7 bg-white/60 border-t border-purple-100/50">
-                                            <div className="relative group">
-                                                <textarea 
-                                                    rows={4}
-                                                    placeholder={`Write a premium reply to ${selectedMessage.senderName.split(' ')[0]}...`}
-                                                    value={replyText}
-                                                    onChange={(e) => setReplyText(e.target.value)}
-                                                    className="w-full p-5 pb-14 bg-white rounded-[24px] text-sm font-bold border border-purple-100/60 focus:outline-none focus:border-[#B13BFF]/40 focus:ring-8 focus:ring-[#B13BFF]/5 transition-all resize-none shadow-inner"
-                                                />
-                                                <div className="absolute bottom-4 right-4 flex items-center gap-3">
-                                                    <motion.button 
-                                                        whileTap={{ scale: 0.94 }}
-                                                        onClick={handleSendMessage}
-                                                        disabled={sending || !replyText.trim()}
-                                                        className={`flex items-center gap-2.5 px-6 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                                                            !replyText.trim() 
-                                                                ? 'bg-purple-50 text-purple-200' 
-                                                                : 'bg-gradient-to-r from-[#B13BFF] to-[#7B1DE8] text-white shadow-xl shadow-purple-300/40 hover:translate-y-[-2px]'
-                                                        }`}
-                                                    >
-                                                        {sending ? (
-                                                            <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                                                        ) : (
-                                                            <>
-                                                                <span>Broadcast Reply</span>
-                                                                <SendIcon />
-                                                            </>
-                                                        )}
-                                                    </motion.button>
-                                                </div>
-                                                <div className="absolute bottom-4 left-5 flex gap-1.5 grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all">
-                                                    <button className="p-2 rounded-xl text-[#B13BFF] hover:bg-purple-50 transition-colors" title="Attach Evidence">📎</button>
-                                                    <button className="p-2 rounded-xl text-[#B13BFF] hover:bg-purple-50 transition-colors" title="Canned Responses">📋</button>
-                                                    <button className="p-2 rounded-xl text-[#B13BFF] hover:bg-purple-50 transition-colors" title="AI Tone Polish">🧠</button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </AnimatePresence>
-                            ) : (
-                                <div className="h-full flex items-center justify-center flex-col gap-6 p-12 text-center">
-                                    <div className="w-40 h-40 rounded-[40px] bg-gradient-to-br from-[#F5F1FF] to-[#FAF8FF] flex items-center justify-center text-7xl shadow-inner border border-purple-100/40 animate-pulse">
-                                        🗯️
-                                    </div>
-                                    <div>
-                                        <h3 className="text-2xl font-black mb-3 text-[#471396]">Select Active Feed</h3>
-                                        <p className="text-sm font-semibold text-[#8A66C0] max-w-[280px] mx-auto leading-relaxed italic">Click on a conversation to load the encrypted dialogue channel.</p>
-                                    </div>
-                                    <div className="flex flex-wrap justify-center gap-3">
-                                        <span className="px-4 py-1.5 bg-purple-100/20 rounded-xl text-[9px] font-black text-[#B13BFF] uppercase tracking-[0.2em] border border-purple-100/30">E2E Sync</span>
-                                        <span className="px-4 py-1.5 bg-purple-100/20 rounded-xl text-[9px] font-black text-[#B13BFF] uppercase tracking-[0.2em] border border-purple-100/30">High Priority</span>
-                                        <span className="px-4 py-1.5 bg-purple-100/20 rounded-xl text-[9px] font-black text-[#B13BFF] uppercase tracking-[0.2em] border border-purple-100/30">Audit Logged</span>
-                                    </div>
-                                </div>
-                            )}
-                        </motion.div>
-                    </div>
-                </main>
-            </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

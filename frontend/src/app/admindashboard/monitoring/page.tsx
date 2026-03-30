@@ -1093,11 +1093,12 @@ function MonitoringPageContent() {
               {/* Product details modal */}
               <AnimatePresence>
                 {selectedProduct && (
-                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={overlayStyle}>
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={overlayStyle} onClick={() => setSelectedProduct(null)}>
                     <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                       exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.2 }}
-                      className="w-full max-w-2xl rounded-[24px] p-6"
-                      style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}>
+                      className="w-full max-w-2xl rounded-[24px] p-6 pointer-events-auto"
+                      style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}
+                      onClick={(e) => e.stopPropagation()}>
                       <div className="mb-5 flex items-center justify-between">
                         <h3 className="text-xl font-bold" style={{ color: '#4a1a8a' }}>Product Details</h3>
                         <motion.button 
