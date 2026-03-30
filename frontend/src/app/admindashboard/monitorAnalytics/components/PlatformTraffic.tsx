@@ -115,7 +115,7 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                         <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Platform Traffic</h2>
                         <p className="admin-dashboard-soft-text mt-1 text-sm">New client signups overtime</p>
                     </div>
-                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1" suppressHydrationWarning>
+                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1 relative" suppressHydrationWarning>
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -125,14 +125,19 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                                 key={p.id}
                                 onClick={() => onPeriodChange(p.id)}
                                 disabled={loading}
-                                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                                    period === p.id
-                                        ? 'admin-dashboard-yellow-fill admin-dashboard-purple shadow-sm'
-                                        : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
+                                className={`relative z-10 rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-200 ${
+                                    period === p.id ? 'admin-dashboard-purple' : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
                                 } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
-                                {p.label}
+                                {period === p.id && (
+                                    <motion.div
+                                        layoutId="periodTabBackground"
+                                        className="absolute inset-0 rounded-lg admin-dashboard-yellow-fill shadow-sm"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                )}
+                                <span className="relative z-10">{p.label}</span>
                             </button>
                         ))}
                     </div>
