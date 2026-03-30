@@ -10,7 +10,8 @@ const {
   updateUserRole,
   updateUserStatus,
   updateSubscriptionPlan,
-  getUserStats
+  getUserStats,
+  getAdmins
 } = require('../controllers/userController');
 const { protect, admin } = require('../middleware/auth');
 
@@ -20,6 +21,9 @@ router.use(admin);
 
 // Statistics route
 router.get('/stats', getUserStats);
+
+// Get all admins for chat
+router.get('/admins/list', getAdmins);
 
 // CRUD routes
 router.route('/')

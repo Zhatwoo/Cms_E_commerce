@@ -1831,5 +1831,91 @@ export async function markMessageRead(id: string): Promise<{ success: boolean }>
   }
 }
 
+/* ── Chat/Conversation API ────────────────────────────────────── */
+
+export type Conversation = {
+  conversationId: string;
+  otherUserId: string;
+  otherUserName: string;
+  otherUserAvatar: string | null;
+  otherUserUsername?: string;
+  otherUserEmail?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  recipientId: string | null;
+  conversationId: string | null;
+  message: string;
+  type: string;
+  status: string;
+  createdAt: string;
+};
+
+export type AdminUser = {
+  id: string;
+  name: string;
+  username?: string;
+  email: string;
+  avatar: string | null;
+};
+
+export async function getConversations(): Promise<{ success: boolean; data: Conversation[] }> {
+  try {
+    return await authFetch(`/api/messages/conversations/list`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function getConversationMessages(
+  otherUserId: string,
+  limit?: number
+): Promise<{ success: boolean; data: ChatMessage[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    const qs = params.toString();
+    return await authFetch(`/api/messages/conversations/${encodeURIComponent(otherUserId)}${qs ? '?' + qs : ''}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function sendDirectMessage(
+  recipientId: string,
+  message: string
+): Promise<{ success: boolean; data?: ChatMessage }> {
+  try {
+    return await authFetch(`/api/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        recipientId,
+        message,
+        type: 'direct'
+      })
+    });
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function getAdmins(search?: string): Promise<{ success: boolean; data: AdminUser[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    const qs = params.toString();
+    return await authFetch(`/api/users/admins/list${qs ? '?' + qs : ''}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
 
 const api = { getMe, updateProfile }; export default api;
