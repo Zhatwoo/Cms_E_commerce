@@ -56,15 +56,18 @@ const DismissModal: React.FC<DismissModalProps> = ({ isOpen, onClose, onConfirm,
                             Are you sure you want to dismiss this report for {site}? The report will be archived and no action will be taken.
                         </p>
                         <div className="flex items-center justify-end gap-6">
-                            <button type="button" onClick={onClose} className="text-base font-semibold" style={{ color: '#9A99AF' }}>Cancel</button>
-                            <button
+                            <motion.button 
+                                whileTap={{ scale: 0.96 }}
+                                type="button" onClick={onClose} className="text-base font-semibold" style={{ color: '#9A99AF' }}>Cancel</motion.button>
+                            <motion.button
+                                whileTap={{ scale: 0.94 }}
                                 type="button"
                                 onClick={() => { onConfirm(); onClose(); }}
-                                className="rounded-2xl px-10 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                                className="rounded-2xl px-10 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90 flex items-center justify-center"
                                 style={{ background: '#FF4343' }}
                             >
                                 Dismiss
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
                 </motion.div>
@@ -133,14 +136,15 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, data }) =>
                     </div>
                     <div className="px-8 pb-8">
                         <div className="flex justify-center">
-                            <button
+                            <motion.button
+                                whileTap={{ scale: 0.94 }}
                                 type="button"
                                 onClick={onClose}
-                                className="rounded-2xl px-10 py-3 text-base font-semibold transition-opacity hover:opacity-90"
+                                className="rounded-2xl px-10 py-3 text-base font-semibold transition-opacity hover:opacity-90 flex items-center justify-center"
                                 style={{ background: '#FFCC00', color: '#1F1F1F' }}
                             >
                                 Close
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
                 </motion.div>
@@ -227,8 +231,9 @@ function ModerationComplianceBoard() {
                 <div className="flex flex-wrap items-center gap-3">
                     <div className="flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.7)' }}>
                         {(['reports', 'records'] as const).map((t) => (
-                            <button
+                            <motion.button
                                 key={t}
+                                whileTap={{ scale: 0.94 }}
                                 onClick={() => {
                                     if (t === tab) return;
                                     startLoading();
@@ -246,7 +251,7 @@ function ModerationComplianceBoard() {
                                     />
                                 )}
                                 <span className="relative z-10">{t.charAt(0).toUpperCase() + t.slice(1)}</span>
-                            </button>
+                            </motion.button>
                         ))}
                     </div>
 
@@ -260,9 +265,12 @@ function ModerationComplianceBoard() {
                             style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
                         />
                         <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm">
+                            <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm">
                                 <SearchIcon className="h-5 w-5" />
-                            </div>
+                            </motion.div>
                         </div>
                     </div>
                 </div>
@@ -292,8 +300,12 @@ function ModerationComplianceBoard() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-5">
-                                            <button type="button" onClick={() => handleView('example-site.com')} className="text-lg font-medium" style={{ color: '#471396' }}>View</button>
-                                            <button type="button" onClick={() => { setCurrentSite('example-site.com'); setShowDismissModal(true); }} className="rounded-xl px-6 py-2.5 text-base font-semibold text-white" style={{ background: '#FF4343' }}>Dismiss</button>
+                                            <motion.button 
+                                                whileTap={{ scale: 0.94 }}
+                                                type="button" onClick={() => handleView('example-site.com')} className="text-lg font-medium transition hover:translate-x-0.5" style={{ color: '#471396' }}>View</motion.button>
+                                            <motion.button 
+                                                whileTap={{ scale: 0.94 }}
+                                                type="button" onClick={() => { setCurrentSite('example-site.com'); setShowDismissModal(true); }} className="rounded-xl px-6 py-2.5 text-base font-semibold text-white transition hover:brightness-95 flex items-center justify-center" style={{ background: '#FF4343' }}>Dismiss</motion.button>
                                         </div>
                                     </div>
                                 </motion.div>
