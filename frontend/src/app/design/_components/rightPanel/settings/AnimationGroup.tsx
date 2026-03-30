@@ -210,12 +210,40 @@ function getDomXY(el: HTMLElement): { x: number; y: number } {
   return { x: rect.left + view.scrollX, y: rect.top + view.scrollY };
 }
 
+function getEffectiveZoom(el: HTMLElement | null): number {
+  if (!el) return 1;
+  let zoom = 1;
+  let current: HTMLElement | null = el;
+  while (current) {
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
+    const parsed = parseFloat(zoomText);
+    if (Number.isFinite(parsed) && parsed > 0) zoom *= parsed;
+    current = current.parentElement;
+  }
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+  const transformScale =
+    Number.isFinite(scaleX) && Number.isFinite(scaleY) ? (scaleX + scaleY) / 2 : 1;
+  const effective = zoom * transformScale;
+  return effective > 0.01 ? effective : 1;
+}
+
 function countMids(value: unknown): number {
   return Array.isArray(value) ? value.length : 0;
 }
 
 function toFixedPoint(value: number): number {
   return Math.round(value * 1000) / 1000;
+}
+
+function getScrollPreviewDuration(speed: unknown): number {
+  if (typeof speed !== "number" || !Number.isFinite(speed)) return 0.8;
+  const magnitude = Math.max(0.15, Math.min(2, Math.abs(speed)));
+  // Higher speed => shorter preview duration (faster movement)
+  return Math.max(0.25, Math.min(1.6, 0.9 / magnitude));
 }
 
 function applyScrollPreviewIndicator(element: HTMLElement): () => void {
@@ -372,12 +400,23 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           const rect = element.getBoundingClientRect();
           const pageLeft = rect.left + view.scrollX;
           const pageTop = rect.top + view.scrollY;
-          const baseX = Number(gsap.getProperty(element, "x")) || 0;
-          const baseY = Number(gsap.getProperty(element, "y")) || 0;
+          const mode = scrollConfig.freeMove?.mode ?? "relative";
+          const normalized = scrollConfig.freeMove?.normalized === true;
+          const effectiveZoom = getEffectiveZoom(element);
+          const scale = normalized ? 1 : 1 / effectiveZoom;
+          const origin = scrollConfig.freeMove?.origin ?? start;
+          const baseToStartX = ((origin?.x ?? pageLeft) - pageLeft) / effectiveZoom;
+          const baseToStartY = ((origin?.y ?? pageTop) - pageTop) / effectiveZoom;
           const toOffset = (p: { x: number; y: number }) => ({
             // FreeMove should be exact regardless of Speed/Intensity.
-            x: baseX + ((scrollConfig.freeMove?.mode ?? "absolute") === "relative" ? p.x : (p.x - pageLeft)),
-            y: baseY + ((scrollConfig.freeMove?.mode ?? "absolute") === "relative" ? p.y : (p.y - pageTop)),
+            x:
+              mode === "relative"
+                ? baseToStartX + (p.x * scale)
+                : (p.x - (origin?.x ?? pageLeft)) * scale,
+            y:
+              mode === "relative"
+                ? baseToStartY + (p.y * scale)
+                : (p.y - (origin?.y ?? pageTop)) * scale,
           });
 
           const offsets = points.map(toOffset);
@@ -385,7 +424,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           to = offsets[offsets.length - 1] ?? {};
 
           // Simulated smooth preview (Start -> ... -> End -> Back to Start)
-          const baseDuration = 0.8;
+          const baseDuration = getScrollPreviewDuration(scrollConfig.speed);
           const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
 
           const restoreIndicator = applyScrollPreviewIndicator(element);
@@ -394,7 +433,13 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           const timeline = gsap.timeline({
             defaults: { ease: simulatedEase },
             onComplete: () => {
-              gsap.set(element, { clearProps: "transform,opacity,filter,clip-path" });
+              // Keep FreeMove parked at captured Start after preview ends.
+              gsap.set(element, {
+                x: go[0]?.x ?? 0,
+                y: go[0]?.y ?? 0,
+                force3D: true,
+                clearProps: "opacity,filter,clip-path",
+              });
               if (restoreScrollIndicatorRef.current) {
                 restoreScrollIndicatorRef.current();
                 restoreScrollIndicatorRef.current = null;
@@ -406,20 +451,21 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
             },
           });
 
-          // Sample along path for a smoother preview (more points = smoother).
-          const samples = Math.max(12, points.length * 6);
+          // Build preview samples per segment so each keyframe point is hit exactly.
+          const segmentSamples = 8;
           const go: Array<{ x: number; y: number }> = [];
-          for (let i = 0; i <= samples; i++) {
-            const alpha = i / samples;
-            const seg = alpha * (offsets.length - 1);
-            const idx = Math.floor(seg);
-            const localT = seg - idx;
-            const p1 = offsets[Math.min(offsets.length - 1, idx)];
-            const p2 = offsets[Math.min(offsets.length - 1, idx + 1)];
-            go.push({
-              x: (p1?.x as number ?? 0) + ((p2?.x as number ?? 0) - (p1?.x as number ?? 0)) * localT,
-              y: (p1?.y as number ?? 0) + ((p2?.y as number ?? 0) - (p1?.y as number ?? 0)) * localT,
-            });
+          for (let segIdx = 0; segIdx < offsets.length - 1; segIdx++) {
+            const p1 = offsets[segIdx];
+            const p2 = offsets[segIdx + 1];
+            if (!p1 || !p2) continue;
+            for (let s = 0; s <= segmentSamples; s++) {
+              if (segIdx > 0 && s === 0) continue; // avoid duplicate point at joints
+              const localT = s / segmentSamples;
+              go.push({
+                x: (p1.x as number) + ((p2.x as number) - (p1.x as number)) * localT,
+                y: (p1.y as number) + ((p2.y as number) - (p1.y as number)) * localT,
+              });
+            }
           }
 
           timeline.set(element, { x: go[0]?.x ?? 0, y: go[0]?.y ?? 0, force3D: true }, 0);
@@ -435,7 +481,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           from = range.from;
           to = range.to;
         }
-        const baseDuration = 0.8;
+        const baseDuration = getScrollPreviewDuration(scrollConfig.speed);
         const simulatedEase = current.scrollEffect.scrub ? "none" : "power1.inOut";
 
         const restoreIndicator = applyScrollPreviewIndicator(element);
@@ -552,22 +598,27 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
 
       const absolute = getDomXY(element);
       const current = animation.scrollEffect.freeMove;
-      const mode = current?.mode ?? "relative";
+      const mode = "relative";
+      const effectiveZoom = getEffectiveZoom(element);
       const originAbs = current?.origin ?? absolute;
 
       const toStoredPoint = (abs: { x: number; y: number }) => {
         if (mode === "absolute") {
-          return { x: toFixedPoint(abs.x), y: toFixedPoint(abs.y) };
+          return {
+            x: toFixedPoint(abs.x / effectiveZoom),
+            y: toFixedPoint(abs.y / effectiveZoom),
+          };
         }
         return {
-          x: toFixedPoint(abs.x - originAbs.x),
-          y: toFixedPoint(abs.y - originAbs.y),
+          x: toFixedPoint((abs.x - originAbs.x) / effectiveZoom),
+          y: toFixedPoint((abs.y - originAbs.y) / effectiveZoom),
         };
       };
 
       if (point === "start") {
         const nextFreeMove = {
           mode,
+          normalized: true,
           origin: { x: toFixedPoint(absolute.x), y: toFixedPoint(absolute.y) },
           start: { x: 0, y: 0 },
           mids: [] as Array<{ x: number; y: number }>,
@@ -589,6 +640,11 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
       }
 
       update("scrollEffect.freeMove.end", nextPoint);
+
+      const startAbs = current?.origin ?? originAbs;
+      const dx = toFixedPoint((startAbs.x - absolute.x) / effectiveZoom);
+      const dy = toFixedPoint((startAbs.y - absolute.y) / effectiveZoom);
+      gsap.set(element, { x: dx, y: dy, force3D: true });
     },
     [animation.scrollEffect.freeMove, firstId, query, update]
   );

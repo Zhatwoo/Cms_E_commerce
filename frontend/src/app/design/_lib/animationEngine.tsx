@@ -195,6 +195,32 @@ export function resolveScrollRoots(
   return { primary, fallback: null };
 }
 
+function getEffectiveZoom(el: HTMLElement | null): number {
+  if (!el) return 1;
+  let zoom = 1;
+  let current: HTMLElement | null = el;
+  while (current) {
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
+    const parsed = parseFloat(zoomText);
+    if (Number.isFinite(parsed) && parsed > 0) zoom *= parsed;
+    current = current.parentElement;
+  }
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+  const transformScale =
+    Number.isFinite(scaleX) && Number.isFinite(scaleY) ? (scaleX + scaleY) / 2 : 1;
+  const effective = zoom * transformScale;
+  return effective > 0.01 ? effective : 1;
+}
+
+function getScrollSpeedMagnitude(speed: unknown): number {
+  if (typeof speed !== "number" || !Number.isFinite(speed)) return 1;
+  return Math.max(0.15, Math.min(2, Math.abs(speed)));
+}
+
 // ─── Easing Map (Framer Motion) ──────────────────────────────────────────────
 
 function mapEasing(easing: EasingType): number[] | string {
@@ -566,6 +592,8 @@ function useGsapScrollEffect(
       const end = config.freeMove?.end;
       const mode = config.freeMove?.mode ?? "relative";
       const capturedOrigin = config.freeMove?.origin;
+      const normalized = config.freeMove?.normalized === true;
+      const legacyScaleCompensation = normalized ? 1 : (1 / getEffectiveZoom(el));
 
       if (Array.isArray(direct) && direct.length >= 2) {
         const normalized = [...direct]
@@ -580,8 +608,8 @@ function useGsapScrollEffect(
           .sort((a, b) => a.t - b.t)
           .map((kf) => ({
             at: Math.max(0, Math.min(1, kf.t)),
-            x: kf.x,
-            y: kf.y,
+            x: kf.x * legacyScaleCompensation,
+            y: kf.y * legacyScaleCompensation,
           }));
         if (normalized.length >= 2) return normalized;
       }
@@ -601,8 +629,8 @@ function useGsapScrollEffect(
       const last = relPoints.length - 1;
       const frames = relPoints.map((p, idx) => ({
         at: last === 0 ? 0 : idx / last,
-        x: p.x,
-        y: p.y,
+        x: p.x * legacyScaleCompensation,
+        y: p.y * legacyScaleCompensation,
       }));
 
       // Ensure we have distinct progress points
@@ -638,11 +666,17 @@ function useGsapScrollEffect(
     // Dynamic triggers: if the element is already visible, start at scroll 0.
     // Otherwise, start when it enters the viewport.
     const effectiveStart = config.start || (isAboveFold ? "top top" : "top bottom");
-    const effectiveEnd = config.end || "bottom top";
+    const speedMagnitude = getScrollSpeedMagnitude(config.speed);
+    // Default range responds to speed so perceived movement speed changes with slider.
+    // Higher speed => shorter scroll distance needed.
+    const dynamicDistancePx = Math.round(900 / speedMagnitude);
+    const effectiveEnd = config.end || `+=${dynamicDistancePx}`;
 
     if (config.type === "freeMove") {
       const keyframes = computeFreeMoveKeyframes();
       if (keyframes.length === 0) return;
+      const firstKeyframe = keyframes[0];
+      const lastKeyframe = keyframes[keyframes.length - 1];
 
       const tl = gsap.timeline({
         scrollTrigger: {
@@ -650,9 +684,18 @@ function useGsapScrollEffect(
           scroller: scroller || view || undefined,
           start: effectiveStart,
           end: effectiveEnd,
-          scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
+          // FreeMove should stay exact to keyframe distances; avoid lag multipliers.
+          scrub: config.scrub ? true : false,
           immediateRender: true,
           invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            // Guarantee exact endpoints when user reaches start/end of scroll range.
+            if (self.progress >= 0.999 && lastKeyframe) {
+              gsap.set(el, { x: lastKeyframe.x, y: lastKeyframe.y, force3D: true });
+            } else if (self.progress <= 0.001 && firstKeyframe) {
+              gsap.set(el, { x: firstKeyframe.x, y: firstKeyframe.y, force3D: true });
+            }
+          },
         },
       });
 
@@ -672,36 +715,6 @@ function useGsapScrollEffect(
           }, prev.at);
         }
       });
-
-      // Add more path samples for smoother free-move interpolation between keyframes.
-      if (keyframes.length >= 3) {
-        const sampledCount = Math.max(12, (keyframes.length - 1) * 6);
-        const sampled = Array.from({ length: sampledCount + 1 }, (_, i) => {
-          const at = i / sampledCount;
-          const point = sampleSpline(keyframes.map((k) => ({ x: k.x, y: k.y })), at);
-          return { at, x: point.x, y: point.y };
-        });
-
-        tl.clear();
-        sampled.forEach((kf, idx) => {
-          if (idx === 0) {
-            tl.set(el, { x: kf.x, y: kf.y, force3D: true });
-            return;
-          }
-          const prev = sampled[idx - 1];
-          tl.to(
-            el,
-            {
-              x: kf.x,
-              y: kf.y,
-              duration: Math.max(0.0001, kf.at - prev.at),
-              ease: "none",
-              force3D: true,
-            },
-            prev.at
-          );
-        });
-      }
 
       // Schedule a single debounced refresh rather than calling refresh immediately
       // per-component — prevents N simultaneous refreshes causing visual jumps.

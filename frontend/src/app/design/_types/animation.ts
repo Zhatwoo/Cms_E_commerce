@@ -125,6 +125,8 @@ export interface ScrollEffectConfig {
      * - absolute: points are stored as page coordinates.
      */
     mode?: "relative" | "absolute";
+    /** True when points are already normalized to unscaled canvas units. */
+    normalized?: boolean;
     /**
      * Captured start position in page coords (used as reference when mode="relative").
      * Note: runtime uses the element's current layout as the base, so this is only a capture-time reference.
