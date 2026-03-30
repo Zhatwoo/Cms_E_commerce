@@ -682,17 +682,19 @@ function PreviewContent() {
     return () => { cancelled = true; };
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  // Re-fetch published content when tab becomes visible
+  // Optional sync with published site when tab becomes visible — do NOT replace draft/session preview.
   useEffect(() => {
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible" && project?.subdomain) {
-        loadPublishedContent(project.subdomain).then((published) => {
-          if (published) {
-            clearSnapshotCache(projectId);
-            setRawJson(published);
-          }
-        });
-      }
+      if (document.visibilityState !== "visible" || !project?.subdomain) return;
+      // User is previewing local/editor snapshot — refetching published overwrites JSON and causes layout jumps.
+      const local = readLatestSnapshot(projectId);
+      if (local) return;
+      loadPublishedContent(project.subdomain).then((published) => {
+        if (published) {
+          clearSnapshotCache(projectId);
+          setRawJson(published);
+        }
+      });
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);

@@ -423,7 +423,10 @@ function useContainerWidth(defaultWidth = 1200): {
     if (!el) return;
 
     const updateWidth = () => {
-      setWidth(el.clientWidth || defaultWidth);
+      const w = el.clientWidth;
+      // Tab in background / layout not ready often reports 0 — keep last width to avoid scale/width jumps.
+      if (!Number.isFinite(w) || w <= 0) return;
+      setWidth(w);
     };
 
     updateWidth();
@@ -433,7 +436,9 @@ function useContainerWidth(defaultWidth = 1200): {
       return () => window.removeEventListener("resize", updateWidth);
     }
 
-    const observer = new ResizeObserver(updateWidth);
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(updateWidth);
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, [defaultWidth]);

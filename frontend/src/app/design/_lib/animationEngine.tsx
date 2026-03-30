@@ -818,6 +818,7 @@ function useGsapScrollEffect(
     config.freeMove?.mids,
     config.freeMove?.keyframes,
     config.freeMove?.mode,
+    config.freeMove?.normalized,
     config.intensity,
   ]);
 }
@@ -978,12 +979,14 @@ export function AnimationWrapper({
   const hasScroll = config.scrollEffect.enabled && config.scrollEffect.type !== "none";
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
-  const ref = useRef<HTMLDivElement>(null);
+  /** Outer: Framer Motion (entrance / during). Inner: GSAP ScrollTrigger only — avoids Motion overwriting x/y/transform every frame. */
+  const outerRef = useRef<HTMLDivElement>(null);
+  const scrollInnerRef = useRef<HTMLDivElement>(null);
   const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
   const [hasResolvedInViewRoot, setHasResolvedInViewRoot] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
+    const el = outerRef.current;
     if (!el) return;
 
     const view = el.ownerDocument?.defaultView ?? window;
@@ -999,7 +1002,7 @@ export function AnimationWrapper({
   // Root may legitimately be null (window scrolling). We still want onScroll to work.
   const rootReady = config.trigger.type !== "onScroll" || hasResolvedInViewRoot;
 
-  const isInView = useInView(ref, {
+  const isInView = useInView(outerRef, {
     // Pass the actual Element (not a ref object) so IntersectionObserver uses it as root.
     root: inViewRoot ?? undefined,
     once: config.trigger.once,
@@ -1019,12 +1022,14 @@ export function AnimationWrapper({
   }, [config.trigger.type, isInView, rootReady]);
 
   useEffect(() => {
-    const el = ref.current;
+    const el = outerRef.current;
     if (!el) return;
-    if (el.ownerDocument !== document) {
+    // Iframe (editor canvas): only auto-fire for non–scroll-into-view triggers.
+    // If we always setHasTriggered for onScroll, entrance runs on load and fights GSAP.
+    if (el.ownerDocument !== document && config.trigger.type !== "onScroll") {
       setHasTriggered(true);
     }
-  }, []);
+  }, [config.trigger.type]);
 
   const shouldAnimate =
     config.trigger.type === "onLoad"
@@ -1037,7 +1042,7 @@ export function AnimationWrapper({
             ? isClicked
             : false;
 
-  useGsapScrollEffect(ref, config.scrollEffect);
+  useGsapScrollEffect(hasScroll ? scrollInnerRef : outerRef, config.scrollEffect);
 
   if (!hasAny) {
     return <>{children}</>;
@@ -1075,7 +1080,7 @@ export function AnimationWrapper({
 
   return (
     <MotionComponent
-      ref={ref}
+      ref={outerRef}
       className={className}
       data-animated={hasAny ? "true" : undefined}
       style={{ ...style, willChange: shouldUseWillChange ? "transform, opacity, filter" : undefined }}
@@ -1087,7 +1092,13 @@ export function AnimationWrapper({
       onHoverEnd={config.trigger.type === "onHover" ? () => setIsHovered(false) : undefined}
       onTap={config.trigger.type === "onClick" ? () => setIsClicked((c) => !c) : undefined}
     >
-      {children}
+      {hasScroll ? (
+        <div ref={scrollInnerRef} className="block w-full min-w-0" style={{ minHeight: "min-content" }}>
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </MotionComponent>
   );
 }
