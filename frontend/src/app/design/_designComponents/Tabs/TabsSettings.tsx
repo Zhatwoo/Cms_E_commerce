@@ -6,6 +6,8 @@ import { AppearanceGroup } from "../../_components/rightPanel/settings/Appearanc
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
+import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import type { TabsProps, SetProp, TabItem, TypographyProps } from "../../_types/components";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
@@ -28,8 +30,11 @@ export const TabsSettings = () => {
     borderColor, borderWidth, borderStyle, strokePlacement,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
+    fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration,
+    node, // <-- add this
     actions: { setProp }
   } = useNode(node => ({
+    node, // <-- and this
     tabs: node.data.props.tabs || [],
     activeTabId: node.data.props.activeTabId,
     tabHeaderBackgroundColor: node.data.props.tabHeaderBackgroundColor,
@@ -257,49 +262,6 @@ export const TabsSettings = () => {
             </div>
           </div>
 
-          <div className="h-px bg-[var(--builder-border)] w-full" />
-
-          {/* Typography */}
-          <DesignSection title="Typography">
-            <TypographyGroup
-              fontSize={node.data.props.fontSize}
-              fontWeight={node.data.props.fontWeight}
-              fontFamily={node.data.props.fontFamily}
-              fontStyle={node.data.props.fontStyle}
-              lineHeight={node.data.props.lineHeight}
-              letterSpacing={node.data.props.letterSpacing}
-              textAlign={node.data.props.textAlign}
-              textTransform={node.data.props.textTransform}
-              textDecoration={node.data.props.textDecoration}
-              color={activeTabTextColor || "#000000"}
-              setProp={(cb) => setProp((props: any) => {
-                const fake: TypographyProps = {
-                  fontSize: props.fontSize,
-                  fontWeight: props.fontWeight,
-                  fontFamily: props.fontFamily,
-                  fontStyle: props.fontStyle,
-                  lineHeight: props.lineHeight,
-                  letterSpacing: props.letterSpacing,
-                  textAlign: props.textAlign,
-                  textTransform: props.textTransform,
-                  textDecoration: props.textDecoration,
-                  color: props.activeTabTextColor,
-                };
-                cb(fake);
-                props.fontSize = fake.fontSize;
-                props.fontWeight = fake.fontWeight;
-                props.fontFamily = fake.fontFamily;
-                props.fontStyle = fake.fontStyle;
-                props.lineHeight = fake.lineHeight;
-                props.letterSpacing = fake.letterSpacing;
-                props.textAlign = fake.textAlign;
-                props.textTransform = fake.textTransform;
-                props.textDecoration = fake.textDecoration;
-                props.activeTabTextColor = fake.color;
-              })}
-            />
-          </DesignSection>
-
         </div>
       </DesignSection>
 
@@ -350,6 +312,46 @@ export const TabsSettings = () => {
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Typography" defaultOpen={false}>
+        <TypographyGroup
+          fontSize={node.data.props.fontSize}
+          fontWeight={node.data.props.fontWeight}
+          fontFamily={node.data.props.fontFamily}
+          fontStyle={node.data.props.fontStyle}
+          lineHeight={node.data.props.lineHeight}
+          letterSpacing={node.data.props.letterSpacing}
+          textAlign={node.data.props.textAlign}
+          textTransform={node.data.props.textTransform}
+          textDecoration={node.data.props.textDecoration}
+          color={activeTabTextColor || "#000000"}
+          setProp={(cb) => setProp((props: any) => {
+            const fake: TypographyProps = {
+              fontSize: props.fontSize,
+              fontWeight: props.fontWeight,
+              fontFamily: props.fontFamily,
+              fontStyle: props.fontStyle,
+              lineHeight: props.lineHeight,
+              letterSpacing: props.letterSpacing,
+              textAlign: props.textAlign,
+              textTransform: props.textTransform,
+              textDecoration: props.textDecoration,
+              color: props.activeTabTextColor,
+            };
+            cb(fake);
+            props.fontSize = fake.fontSize;
+            props.fontWeight = fake.fontWeight;
+            props.fontFamily = fake.fontFamily;
+            props.fontStyle = fake.fontStyle;
+            props.lineHeight = fake.lineHeight;
+            props.letterSpacing = fake.letterSpacing;
+            props.textAlign = fake.textAlign;
+            props.textTransform = fake.textTransform;
+            props.textDecoration = fake.textDecoration;
+            props.activeTabTextColor = fake.color;
+          })}
         />
       </DesignSection>
 

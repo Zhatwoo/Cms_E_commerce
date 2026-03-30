@@ -97,6 +97,18 @@ export const BannerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
+      <DesignSection title="Banner" defaultOpen={true}>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] text-[var(--builder-text)]">Label</label>
+          <input
+            type="text"
+            value={typeof text === "string" ? text : ""}
+            onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+            className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+          />
+        </div>
+      </DesignSection>
+
       <DesignSection title="Auto Layout">
         <AutoLayoutGroup
           flexDirection={flexDirection}
@@ -109,19 +121,21 @@ export const BannerSettings = () => {
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
-        <SizePositionGroup
-          width={width}
-          height={height}
-          paddingLeft={paddingLeft}
-          paddingRight={paddingRight}
-          paddingTop={paddingTop}
-          paddingBottom={paddingBottom}
-          marginLeft={marginLeft}
-          marginRight={marginRight}
-          marginTop={marginTop}
-          marginBottom={marginBottom}
-          setProp={typedSetProp}
-        />
+        <div className="flex flex-col gap-3">
+          <SizePositionGroup
+            width={width}
+            height={height}
+            paddingLeft={paddingLeft}
+            paddingRight={paddingRight}
+            paddingTop={paddingTop}
+            paddingBottom={paddingBottom}
+            marginLeft={marginLeft}
+            marginRight={marginRight}
+            marginTop={marginTop}
+            marginBottom={marginBottom}
+            setProp={typedSetProp}
+          />
+        </div>
       </DesignSection>
 
       <DesignSection title="Appearance">
@@ -142,31 +156,19 @@ export const BannerSettings = () => {
       </DesignSection>
 
       <DesignSection title="Typography">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Label</label>
-            <input
-              type="text"
-              value={typeof text === "string" ? text : ""}
-              onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
-            />
-          </div>
-
-          <TypographyGroup
-            fontFamily={fontFamily}
-            fontWeight={fontWeight}
-            fontStyle={fontStyle}
-            fontSize={fontSize}
-            lineHeight={lineHeight}
-            letterSpacing={letterSpacing}
-            textAlign={textAlign}
-            textTransform={textTransform}
-            textDecoration={textDecoration}
-            color={color}
-            setProp={typedSetProp as unknown as SetProp<TypographyProps>}
-          />
-        </div>
+        <TypographyGroup
+          fontFamily={fontFamily}
+          fontWeight={fontWeight}
+          fontStyle={fontStyle}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          textDecoration={textDecoration}
+          color={color}
+          setProp={typedSetProp as unknown as SetProp<TypographyProps>}
+        />
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

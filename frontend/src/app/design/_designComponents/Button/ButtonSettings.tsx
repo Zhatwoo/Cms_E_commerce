@@ -6,6 +6,7 @@ import { PositionGroup } from "../../_components/rightPanel/settings/PositionGro
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
+import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import type { ButtonProps, SetProp, TypographyProps } from "../../_types/components";
 
@@ -71,30 +72,7 @@ export const ButtonSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Transform">
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
-          setProp={typedSetProp as any}
-        />
-      </DesignSection>
-
-      <DesignSection title="Button">
+      <DesignSection title="Button" defaultOpen={true}>
         <div className="flex flex-col gap-3">
           {/* Label */}
           <div className="flex flex-col gap-1">
@@ -149,6 +127,29 @@ export const ButtonSettings = () => {
             </div>
           </div>
         </div>
+      </DesignSection>
+
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
+        />
       </DesignSection>
 
       <DesignSection title="Size & Spacing">

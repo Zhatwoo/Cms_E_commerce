@@ -7,6 +7,10 @@ type SizePositionSettableProps = SizeProps & SpacingProps;
 
 interface SizePositionGroupProps extends SizePositionSettableProps {
   setProp: SetProp<SizePositionSettableProps>;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  minHeight?: string | number;
+  maxHeight?: string | number;
 }
 
 export const SizePositionGroup = ({
