@@ -460,7 +460,7 @@ exports.adminDelete = async (req, res) => {
         message: `Admin removed product: ${existing.name || req.params.id}`,
         type: 'error',
         adminId: req.user?.id || 'admin',
-        adminName: req.user.name || 'Admin'
+        adminName: req.user.name || req.user.email || 'Administrator'
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {

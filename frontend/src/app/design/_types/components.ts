@@ -70,6 +70,10 @@ export interface SpacingProps {
 export interface SizeProps {
   width?: string;
   height?: string;
+  minWidth?: string | number;
+  maxWidth?: string | number;
+  minHeight?: string | number;
+  maxHeight?: string | number;
   /** Content size at scale 1; when set, children are scaled with parent resize */
   designWidth?: number;
   designHeight?: number;
@@ -156,6 +160,7 @@ export interface TypographyProps {
   textAlign?: "left" | "center" | "right" | "justify";
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   color?: string;
+  textDecoration?: string;
 }
 
 // ─── Component Prop Interfaces ───────────────────────────────────────────────
@@ -220,15 +225,13 @@ export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, Trans
 }
 
 /** Button component props — interactive element with label, link, and variant. */
-export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps {
+export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps, LayerProps, PositionProps, AnimatableProps, InteractableProps, InteractionProps, TypographyProps {
   label?: string;
   link?: string;
   variant?: "primary" | "secondary" | "outline" | "ghost" | "cta";
   backgroundColor?: string;
+  /** Back-compat or explicit override for text color. Prefer TypographyProps.color. */
   textColor?: string;
-  fontSize?: number;
-  fontWeight?: string;
-  fontFamily?: string;
   borderRadius?: number;
   borderColor?: string;
   borderWidth?: number;
@@ -332,7 +335,7 @@ export interface TabItem {
 }
 
 export interface TabsProps
-  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps, InteractionProps {
+  extends LayoutProps, GridProps, SpacingProps, SizeProps, AppearanceProps, PositionProps, EffectsProps, TransformProps, AnimatableProps, InteractableProps, InteractionProps, TypographyProps {
   tabs: TabItem[];
   activeTabId: string;
   tabAlignment?: "left" | "center" | "right";
@@ -342,7 +345,7 @@ export interface TabsProps
   activeTabTextColor?: string;
 }
 
-export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps, TransformProps {
+export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps, PositionProps, TransformProps, TypographyProps {
   controlType?: "checkbox" | "radio";
   /** Used as radio group name (scoped per-node to avoid collisions). */
   name?: string;
@@ -352,9 +355,6 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   gap?: number;
   /** Gap between options (for groups) */
   itemGap?: number;
-  fontSize?: number;
-  fontFamily?: string;
-  fontWeight?: string;
   /** Hide/show option text labels in canvas */
   showLabels?: boolean;
   options?: Array<{
@@ -366,4 +366,57 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   label?: string;
   checked?: boolean;
   customClassName?: string;
+}
+
+export interface AccordionItem {
+  title: string;
+  content: string;
+  mediaType?: "none" | "image" | "video";
+  mediaUrl?: string;
+}
+
+export interface AccordionProps extends PositionProps, TypographyProps, TransformProps, EffectsProps {
+  items?: AccordionItem[];
+  stylePreset?: "classic" | "wix";
+  editorPreviewMode?: "normal" | "expand-all" | "collapse-all";
+  allowMultiple?: boolean;
+  allowCollapseAll?: boolean;
+  defaultOpenIndex?: number;
+  animationDurationMs?: number;
+  // Container
+  width?: string;
+  minHeight?: number | string;
+  marginTop?: number;
+  marginRight?: number;
+  marginBottom?: number;
+  marginLeft?: number;
+  borderRadius?: number;
+  // Header row
+  backgroundColor?: string;
+  headerBg?: string;
+  headerTextColor?: string;
+  headerFontSize?: number;
+  headerFontWeight?: string;
+  headerFontStyle?: "normal" | "italic";
+  headerLetterSpacing?: number | string;
+  headerLineHeight?: number | string;
+  headerTextAlign?: "left" | "center" | "right" | "justify";
+  headerTextTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  headerTextDecoration?: string;
+  // Content panel
+  contentBg?: string;
+  contentTextColor?: string;
+  contentFontSize?: number;
+  contentFontWeight?: string;
+  contentFontStyle?: "normal" | "italic";
+  contentLetterSpacing?: number | string;
+  contentLineHeight?: number | string;
+  contentTextAlign?: "left" | "center" | "right" | "justify";
+  contentTextTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
+  contentTextDecoration?: string;
+  // Border
+  borderColor?: string;
+  borderWidth?: number;
+  // Icon
+  iconColor?: string;
 }

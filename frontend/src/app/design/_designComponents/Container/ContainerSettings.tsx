@@ -189,12 +189,11 @@ export const ContainerSettings = () => {
       <DesignSection title="Product Binding" defaultOpen={false}>
         <ProductBindingGroup
           productId={productId}
-          onChange={(nextProductId) =>
+          onChange={(newId) => {
             typedSetProp((props) => {
-              props.productId = nextProductId;
-              props.productIndex = undefined;
-            })
-          }
+              props.productId = newId;
+            });
+          }}
         />
       </DesignSection>
 

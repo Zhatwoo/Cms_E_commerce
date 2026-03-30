@@ -61,6 +61,7 @@ export const Badge = ({
 	left = "auto",
 	zIndex = 0,
 	customClassName = "",
+	textDecoration = "none",
 	children,
 }: BadgeProps) => {
 	const {
@@ -232,7 +233,7 @@ export const Badge = ({
 			}}
 			className={customClassName}
 			style={{
-				backgroundColor: background,
+				background,
 				paddingLeft: fluidSpace(pl, 0),
 				paddingRight: fluidSpace(pr, 0),
 				paddingTop: fluidSpace(pt, 0),
@@ -301,6 +302,7 @@ export const Badge = ({
 							letterSpacing: resolvedLetterSpacing,
 							textAlign,
 							textTransform,
+							textDecoration,
 							color,
 							whiteSpace: "nowrap",
 							overflow: "hidden",
@@ -329,6 +331,7 @@ export const Badge = ({
 							letterSpacing: resolvedLetterSpacing,
 							textAlign,
 							textTransform,
+							textDecoration,
 							color,
 							whiteSpace: "nowrap",
 							overflow: "hidden",
@@ -355,6 +358,7 @@ export const BadgeDefaultProps: Partial<BadgeProps> = {
 	letterSpacing: 0,
 	textAlign: "center",
 	textTransform: "none",
+	textDecoration: "none",
 	color: "#ffffff",
 	background: "#16a34a",
 	padding: 8,

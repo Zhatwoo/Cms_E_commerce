@@ -63,6 +63,7 @@ export const Pagination = ({
     rotation = 0,
     flipHorizontal = false,
     flipVertical = false,
+    textDecoration = "none",
 }: PaginationProps) => {
     const { connectors: { connect, drag } } = useNode();
     const id = useNode((node) => node.id);
@@ -114,8 +115,9 @@ export const Pagination = ({
                     style={{
                         fontSize: fluidFontSize,
                         fontWeight,
+                        textDecoration,
                         color,
-                        backgroundColor: background,
+                        background,
                         borderWidth: `${borderWidth}px`,
                         borderColor,
                         borderStyle,
@@ -133,8 +135,9 @@ export const Pagination = ({
         const buttonStyle: React.CSSProperties = {
             fontSize: fluidFontSize,
             fontWeight,
+            textDecoration,
             color,
-            backgroundColor: background,
+            background,
             borderWidth: `${borderWidth}px`,
             borderColor,
             borderStyle,
@@ -243,6 +246,7 @@ export const PaginationDefaultProps: Partial<PaginationProps> = {
     borderWidth: 1,
     borderColor: "#3f3f46",
     background: "transparent",
+    textDecoration: "none",
 };
 
 Pagination.craft = {

@@ -23,6 +23,7 @@ export const PaginationSettings = () => {
     fontWeight,
     color,
     textAlign,
+    textDecoration,
     width,
     height,
     paddingTop,
@@ -71,6 +72,7 @@ export const PaginationSettings = () => {
     fontWeight: node.data.props.fontWeight ?? "400",
     color: node.data.props.color ?? "#a1a1aa",
     textAlign: node.data.props.textAlign ?? "center",
+    textDecoration: node.data.props.textDecoration ?? "none",
     width: node.data.props.width ?? "auto",
     height: node.data.props.height ?? "auto",
     paddingTop: node.data.props.paddingTop ?? 0,
@@ -111,37 +113,7 @@ export const PaginationSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Typography">
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Prev Label</label>
-            <input
-              type="text"
-              value={prevText}
-              onChange={(e) => typedSetProp((p) => { p.prevText = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
-            />
-          </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Next Label</label>
-            <input
-              type="text"
-              value={nextText}
-              onChange={(e) => typedSetProp((p) => { p.nextText = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
-            />
-          </div>
-        </div>
-        <TypographyGroup
-          fontSize={fontSize}
-          fontWeight={fontWeight}
-          color={color}
-          textAlign={textAlign}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Pagination">
+      <DesignSection title="Pagination" defaultOpen={true}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)] font-medium">Type</label>
@@ -269,6 +241,39 @@ export const PaginationSettings = () => {
           borderStyle={borderStyle}
           setProp={typedSetProp}
         />
+      </DesignSection>
+
+      <DesignSection title="Typography" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)] font-medium">Prev Label</label>
+              <input
+                type="text"
+                value={prevText}
+                onChange={(e) => typedSetProp((p) => { p.prevText = e.target.value; })}
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-[var(--builder-text)] font-medium">Next Label</label>
+              <input
+                type="text"
+                value={nextText}
+                onChange={(e) => typedSetProp((p) => { p.nextText = e.target.value; })}
+                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              />
+            </div>
+          </div>
+          <TypographyGroup
+            fontSize={fontSize}
+            fontWeight={fontWeight}
+            color={color}
+            textAlign={textAlign}
+            textDecoration={textDecoration}
+            setProp={typedSetProp}
+          />
+        </div>
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

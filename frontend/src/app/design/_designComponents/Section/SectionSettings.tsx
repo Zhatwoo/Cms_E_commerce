@@ -6,6 +6,8 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { ProductBindingGroup } from "../../_components/rightPanel/settings/ProductBindingGroup";
 import type { SectionProps, SetProp } from "../../_types/components";
 
 export const SectionSettings = () => {
@@ -21,6 +23,8 @@ export const SectionSettings = () => {
     contentWidth, contentMaxWidth,
     boxShadow, opacity, overflow,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
+    rotation, flipHorizontal, flipVertical,
+    productId,
     actions: { setProp },
   } = useNode((node) => ({
     background: node.data.props.background,
@@ -66,12 +70,52 @@ export const SectionSettings = () => {
     bottom: node.data.props.bottom,
     left: node.data.props.left,
     editorVisibility: node.data.props.editorVisibility,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
+    productId: node.data.props.productId,
   }));
 
   const typedSetProp = setProp as SetProp<SectionProps>;
 
   return (
     <div className="flex flex-col pb-4">
+      <DesignSection title="Section" defaultOpen={true}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
+            <select
+              value={contentWidth || "constrained"}
+              onChange={(e) =>
+                typedSetProp((props) => {
+                  props.contentWidth = e.target.value as SectionProps["contentWidth"];
+                })
+              }
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+            >
+              <option value="constrained">Constrained</option>
+              <option value="full">Full Width</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
+            <input
+              type="text"
+              value={contentMaxWidth || "1200px"}
+              onChange={(e) =>
+                typedSetProp((props) => {
+                  props.contentMaxWidth = e.target.value;
+                })
+              }
+              placeholder="1200px"
+              disabled={(contentWidth || "constrained") === "full"}
+              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
+            />
+          </div>
+        </div>
+      </DesignSection>
+
       <DesignSection title="Auto Layout">
         <AutoLayoutGroup
           flexDirection={flexDirection}
@@ -83,56 +127,27 @@ export const SectionSettings = () => {
         />
       </DesignSection>
 
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation ?? 0}
+          flipHorizontal={flipHorizontal ?? false}
+          flipVertical={flipVertical ?? false}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
-              <select
-                value={contentWidth || "constrained"}
-                onChange={(e) =>
-                  typedSetProp((props) => {
-                    props.contentWidth = e.target.value as SectionProps["contentWidth"];
-                  })
-                }
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
-              >
-                <option value="constrained">Constrained</option>
-                <option value="full">Full Width</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
-              <input
-                type="text"
-                value={contentMaxWidth || "1200px"}
-                onChange={(e) =>
-                  typedSetProp((props) => {
-                    props.contentMaxWidth = e.target.value;
-                  })
-                }
-                placeholder="1200px"
-                disabled={(contentWidth || "constrained") === "full"}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          <div className="h-px bg-[var(--builder-border)] w-full" />
-
-          <PositionGroup
-            position={position}
-            display={display}
-            zIndex={zIndex}
-            top={top}
-            right={right}
-            bottom={bottom}
-            left={left}
-            editorVisibility={editorVisibility}
-            setProp={typedSetProp as any}
-          />
-        </div>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
+        />
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
@@ -170,6 +185,17 @@ export const SectionSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           enableMediaFillModes
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Product Binding" defaultOpen={false}>
+        <ProductBindingGroup
+          productId={productId}
+          onChange={(newId) => {
+            typedSetProp((props) => {
+              props.productId = newId;
+            });
+          }}
         />
       </DesignSection>
 

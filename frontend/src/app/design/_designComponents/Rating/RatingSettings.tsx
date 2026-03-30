@@ -18,8 +18,6 @@ export const RatingSettings = () => {
     valueGap,
     filledColor,
     emptyColor,
-    showValue,
-    valueText,
     interactive,
     width,
     height,
@@ -31,15 +29,6 @@ export const RatingSettings = () => {
     marginRight,
     marginBottom,
     marginLeft,
-    fontFamily,
-    fontWeight,
-    fontStyle,
-    fontSize,
-    lineHeight,
-    letterSpacing,
-    textAlign,
-    textTransform,
-    color,
     background,
     borderRadius,
     radiusTopLeft,
@@ -73,8 +62,6 @@ export const RatingSettings = () => {
     valueGap: node.data.props.valueGap ?? 8,
     filledColor: node.data.props.filledColor ?? "#f59e0b",
     emptyColor: node.data.props.emptyColor ?? "#475569",
-    showValue: node.data.props.showValue ?? true,
-    valueText: node.data.props.valueText ?? "",
     interactive: node.data.props.interactive ?? false,
     width: node.data.props.width ?? "auto",
     height: node.data.props.height ?? "auto",
@@ -86,15 +73,6 @@ export const RatingSettings = () => {
     marginRight: node.data.props.marginRight ?? 0,
     marginBottom: node.data.props.marginBottom ?? 0,
     marginLeft: node.data.props.marginLeft ?? 0,
-    fontFamily: node.data.props.fontFamily ?? "Outfit",
-    fontWeight: node.data.props.fontWeight ?? "500",
-    fontStyle: node.data.props.fontStyle ?? "normal",
-    fontSize: node.data.props.fontSize ?? 12,
-    lineHeight: node.data.props.lineHeight ?? 1.2,
-    letterSpacing: node.data.props.letterSpacing ?? 0,
-    textAlign: node.data.props.textAlign ?? "left",
-    textTransform: node.data.props.textTransform ?? "none",
-    color: node.data.props.color ?? "#e2e8f0",
     background: node.data.props.background ?? "transparent",
     borderRadius: node.data.props.borderRadius ?? 8,
     radiusTopLeft: node.data.props.radiusTopLeft,
@@ -182,15 +160,6 @@ export const RatingSettings = () => {
             />
           </div>
           <div className="flex items-end gap-2">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Show Value</label>
-            <input
-              type="checkbox"
-              checked={!!showValue}
-              onChange={(e) => typedSetProp((p) => { p.showValue = e.target.checked; })}
-              className="accent-[var(--builder-accent)] cursor-pointer"
-            />
-          </div>
-          <div className="flex items-end gap-2">
             <label className="text-[10px] text-[var(--builder-text)] font-medium">Interactive</label>
             <input
               type="checkbox"
@@ -236,36 +205,6 @@ export const RatingSettings = () => {
               />
             </div>
           </div>
-        </div>
-      </DesignSection>
-
-      <DesignSection title="Typography">
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Custom Value</label>
-            <input
-              type="text"
-              value={valueText}
-              onChange={(e) => typedSetProp((p) => {
-                const next = e.target.value;
-                p.valueText = next.trim() === "" ? undefined : next;
-              })}
-              placeholder="Leave blank for auto"
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
-            />
-          </div>
-          <TypographyGroup
-            fontFamily={fontFamily}
-            fontWeight={fontWeight}
-            fontStyle={fontStyle}
-            fontSize={fontSize}
-            lineHeight={lineHeight}
-            letterSpacing={letterSpacing}
-            textAlign={textAlign}
-            textTransform={textTransform}
-            color={color}
-            setProp={typedSetProp}
-          />
         </div>
       </DesignSection>
 

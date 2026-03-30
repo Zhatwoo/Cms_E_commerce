@@ -7,32 +7,14 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
-import type { ButtonProps, SetProp } from "../../_types/components";
-
-const FONT_OPTIONS = [
-  "Outfit",
-  "Roboto",
-  "Open Sans",
-  "Poppins",
-  "Ubuntu",
-  "Lato",
-  "Raleway",
-  "Playfair Display",
-  "EB Garamond",
-  "Merriweather",
-  "Lora",
-  "Montserrat",
-  "Oswald",
-  "Pacifico",
-  "JetBrains Mono",
-  "Fira Code",
-];
+import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
+import type { ButtonProps, SetProp, TypographyProps } from "../../_types/components";
 
 export const ButtonSettings = () => {
   const {
     label, link, variant,
     backgroundColor, textColor,
-    fontSize, fontWeight, fontFamily,
+    fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration, color,
     borderRadius, borderWidth,
     width, height,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
@@ -40,6 +22,7 @@ export const ButtonSettings = () => {
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
+    node,
     actions: { setProp }
   } = useNode(node => ({
     label: node.data.props.label,
@@ -50,6 +33,13 @@ export const ButtonSettings = () => {
     fontSize: node.data.props.fontSize,
     fontWeight: node.data.props.fontWeight,
     fontFamily: node.data.props.fontFamily,
+    fontStyle: node.data.props.fontStyle,
+    lineHeight: node.data.props.lineHeight,
+    letterSpacing: node.data.props.letterSpacing,
+    textAlign: node.data.props.textAlign,
+    textTransform: node.data.props.textTransform,
+    textDecoration: node.data.props.textDecoration,
+    color: node.data.props.color,
     borderRadius: node.data.props.borderRadius,
     borderWidth: node.data.props.borderWidth,
     width: node.data.props.width,
@@ -75,36 +65,14 @@ export const ButtonSettings = () => {
     bottom: node.data.props.bottom,
     left: node.data.props.left,
     editorVisibility: node.data.props.editorVisibility,
+    node,
   }));
 
   const typedSetProp = setProp as SetProp<ButtonProps>;
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Transform">
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
-          setProp={typedSetProp as any}
-        />
-      </DesignSection>
-
-      <DesignSection title="Button">
+      <DesignSection title="Button" defaultOpen={true}>
         <div className="flex flex-col gap-3">
           {/* Label */}
           <div className="flex flex-col gap-1">
@@ -161,6 +129,29 @@ export const ButtonSettings = () => {
         </div>
       </DesignSection>
 
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation}
+          flipHorizontal={flipHorizontal}
+          flipVertical={flipVertical}
+          setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <PositionGroup
+          position={position}
+          display={display}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
+        />
+      </DesignSection>
+
       <DesignSection title="Size & Spacing">
         <SizePositionGroup
           width={width}
@@ -180,21 +171,12 @@ export const ButtonSettings = () => {
       <DesignSection title="Appearance">
         <div className="flex flex-col gap-3">
           {/* Colors */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Background</label>
-              <ColorPicker
-                value={backgroundColor || "#3b82f6"}
-                onChange={(val) => typedSetProp((props) => { props.backgroundColor = val; })}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Text Color</label>
-              <ColorPicker
-                value={textColor || "#ffffff"}
-                onChange={(val) => typedSetProp((props) => { props.textColor = val; })}
-              />
-            </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
+            <ColorPicker
+              value={backgroundColor || "#3b82f6"}
+              onChange={(val) => typedSetProp((props) => { props.backgroundColor = val; })}
+            />
           </div>
 
           {/* Border & Radius */}
@@ -218,46 +200,23 @@ export const ButtonSettings = () => {
               />
             </div>
           </div>
-
-          {/* Typography */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
-              <NumericInput
-                value={fontSize ?? 14}
-                onChange={(val) => typedSetProp((props) => { props.fontSize = val; })}
-                min={8}
-                unit="px"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Weight</label>
-              <select
-                value={fontWeight}
-                onChange={(e) => typedSetProp((props) => { props.fontWeight = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-              >
-                <option value="400">Regular</option>
-                <option value="500">Medium</option>
-                <option value="600">Semibold</option>
-                <option value="700">Bold</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Font</label>
-            <select
-              value={fontFamily || "Outfit"}
-              onChange={(e) => typedSetProp((props) => { props.fontFamily = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
-            >
-              {FONT_OPTIONS.map((font) => (
-                <option key={font} value={font}>{font}</option>
-              ))}
-            </select>
-          </div>
         </div>
+      </DesignSection>
+
+      <DesignSection title="Typography">
+        <TypographyGroup
+          fontSize={fontSize}
+          fontWeight={fontWeight}
+          fontFamily={fontFamily}
+          fontStyle={fontStyle}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          textDecoration={textDecoration}
+          color={color ?? textColor}
+          setProp={typedSetProp as unknown as SetProp<TypographyProps>}
+        />
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

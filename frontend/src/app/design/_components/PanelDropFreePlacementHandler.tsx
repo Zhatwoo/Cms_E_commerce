@@ -393,7 +393,41 @@ export function PanelDropFreePlacementHandler() {
 
           const parentDom = query.node(parentId).get()?.dom ?? null;
           const nodeDom = query.node(nodeId).get()?.dom ?? null;
-          if (!parentDom || !nodeDom) continue;
+          if (!parentDom || !nodeDom) {
+            // DOM not mounted yet — schedule a dedicated position-only retry for this node
+            const retryPosition = (retriesLeft: number, pid: string) => {
+              if (retriesLeft <= 0) return;
+              requestAnimationFrame(() => {
+                try {
+                  const pDom = query.node(pid).get()?.dom ?? null;
+                  const nDom = query.node(nodeId).get()?.dom ?? null;
+                  if (!pDom || !nDom) { retryPosition(retriesLeft - 1, pid); return; }
+                  const pRect = pDom.getBoundingClientRect();
+                  const nRect = nDom.getBoundingClientRect();
+                  const { scaleX, scaleY } = getRenderedScale(pDom);
+                  const pW = pDom.clientWidth || pDom.offsetWidth || 0;
+                  const pH = pDom.clientHeight || pDom.offsetHeight || 0;
+                  const nW = nRect.width / scaleX;
+                  const nH = nRect.height / scaleY;
+                  const rawL = (pointerRef.current.x - pRect.left) / scaleX;
+                  const rawT = (pointerRef.current.y - pRect.top) / scaleY;
+                  const fl = Math.round(clamp(rawL, 0, Math.max(0, pW - nW)));
+                  const ft = Math.round(clamp(rawT, 0, Math.max(0, pH - nH)));
+                  actions.setProp(nodeId, (props: Record<string, unknown>) => {
+                    props.position = "absolute";
+                    props.left = `${fl}px`;
+                    props.top = `${ft}px`;
+                    props.right = "auto";
+                    props.bottom = "auto";
+                    props.marginTop = 0;
+                    props.marginLeft = 0;
+                  });
+                } catch { /* ignore */ }
+              });
+            };
+            retryPosition(MAX_RETRY_FRAMES, parentId);
+            continue;
+          }
 
           const parentRect = parentDom.getBoundingClientRect();
           const nodeRect = nodeDom.getBoundingClientRect();
