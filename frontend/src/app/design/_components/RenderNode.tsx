@@ -252,7 +252,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
       if (!shouldTrackRect) setRect(null);
       return;
     }
-    
+
     const update = () => {
       const next = dom.getBoundingClientRect();
       setRect((prev) => {
@@ -266,7 +266,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
         return next;
       });
     };
-    
+
     update();
 
     const scrollUpdate = () => requestAnimationFrame(update);
@@ -304,24 +304,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
 
   return (
     <>
-      {/* Label overlay (portal) — hidden when Hand tool is active */}
-      {isLabelVisible ?
-        ReactDOM.createPortal(
-          <div
-            data-panel="node-label"
-            className={`fixed px-2 py-1 bg-blue-500/90 [backdrop-filter:blur(4px)] text-brand-lighter text-[10px] rounded-t-md z-40 pointer-events-none transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] uppercase font-bold tracking-wider shadow-lg ${isActive || (isDomHovered && !suppressPassiveHover) ? "opacity-100 translate-y-0 scale-100" : "opacity-0 translate-y-1 scale-95"
-              }`}
-            style={{
-              left: 0,
-              top: 0,
-              transform: `translate3d(${rect.left}px, ${rect.top - 24}px, 0)`,
-            }}
-          >
-            {numberedLabel}
-          </div>,
-          document.body
-        )
-        : null}
+      {/* Label overlay (portal) removed as requested */}
 
       {/* Resize / Move overlay — active nodes, including Text when not inline editing */}
       {canShowResizeOverlay ? (
