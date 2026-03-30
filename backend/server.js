@@ -169,6 +169,7 @@ const projectRoutes = require('./routes/projectRoutes');
 const collaborationRoutes = require('./routes/collaborationRoutes');
 const commentRoutes = require('./routes/commentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
+const messageRoutes = require('./routes/messageRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
@@ -188,6 +189,7 @@ app.use('/api/projects', commentRoutes); // Merged into projects path for commen
 app.use('/api/projects', projectRoutes);
 app.use('/api/collaboration', collaborationRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Home route
 app.get('/', (req, res) => {

@@ -212,8 +212,9 @@ export default function MonitoringAnalyticsPage() {
                                 { id: 'engagement', label: 'Revenue Growth' },
                                 { id: 'trends', label: 'Subscription Distribution' },
                             ].map((tab) => (
-                                <button
+                                <motion.button
                                     key={tab.id}
+                                    whileTap={{ scale: 0.94 }}
                                     onClick={() => setActiveTab(tab.id)}
                                     className={`pb-4 px-1 text-sm font-semibold border-b-2 transition-colors ${
                                         activeTab === tab.id
@@ -222,7 +223,7 @@ export default function MonitoringAnalyticsPage() {
                                     }`}
                                 >
                                     {tab.label}
-                                </button>
+                                </motion.button>
                             ))}
                         </div>
                     </div>

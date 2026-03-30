@@ -5,6 +5,7 @@ const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emai
 const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Audit = require('../models/Audit');
 const stripeService = require('../services/stripeService');
 const Notification = require('../models/Notification');
 
@@ -52,6 +53,8 @@ const userToResponse = (user, firebaseUser = null) => {
     lastSeen: user.lastSeen || null,
     paymentMethods: user.paymentMethods || [],
     emailVerified,
+    phone: user.phone || '',
+    notificationPreferences: user.notificationPreferences || { securityAlerts: true, sessionNotifications: true, accountUpdates: true },
     lastPasswordChange: firebaseUser?.metadata?.lastPasswordUpdatedAt ? new Date(firebaseUser.metadata.lastPasswordUpdatedAt).toISOString() : user.createdAt
   };
 };
@@ -536,6 +539,9 @@ exports.updateProfile = async (req, res) => {
     if (notificationPreferences !== undefined) updates.notificationPreferences = notificationPreferences;
 
     if (Object.keys(updates).length > 0) {
+      if (phone !== undefined) {
+        Audit.log('profile_security_update', `Changed recovery phone to: ${phone}`, req.user.id, req.user?.name || req.user?.displayName);
+      }
       const updatedUser = await User.update(req.user.id, updates);
       return res.status(200).json({
         success: true,

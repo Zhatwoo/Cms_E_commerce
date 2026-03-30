@@ -264,17 +264,21 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
             <p className={`${ownerNameClass} font-semibold truncate block w-full`} style={{ color: '#4a1a8a' }} title={ownerLabel}>{ownerLabel}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <a href={viewUrl} target="_blank" rel="noopener noreferrer"
-              className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95"
+            <motion.a 
+              whileTap={{ scale: 0.94 }}
+              href={viewUrl} target="_blank" rel="noopener noreferrer"
+              className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95 flex items-center justify-center"
               style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
               View
-            </a>
-            <button type="button" onClick={() => openWebsiteActionModal(w)}
+            </motion.a>
+            <motion.button 
+              whileTap={{ scale: 0.94 }}
+              type="button" onClick={() => openWebsiteActionModal(w)}
               disabled={isWorking}
-              className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+              className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
               style={{ background: '#ef4444' }}>
               {isWorking ? 'Working…' : 'Dismiss'}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -333,17 +337,21 @@ const ProductCard = React.memo(({ p, workingProductId, setSelectedProduct, openD
           <p className="text-[10px]" style={{ color: '#a090c8' }}>{formatToPHTimeShort(p.createdAt)}</p>
         )}
         <div className="flex items-center gap-2 mt-auto pt-1">
-          <button type="button" onClick={() => setSelectedProduct(p)}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95"
+          <motion.button 
+            whileTap={{ scale: 0.94 }}
+            type="button" onClick={() => setSelectedProduct(p)}
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95 flex items-center justify-center"
             style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
             View
-          </button>
-          <button type="button" onClick={() => openDeleteProductModal(p)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.94 }}
+            type="button" onClick={() => openDeleteProductModal(p)}
             disabled={isWorking}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
             style={{ background: '#ef4444' }}>
             {isWorking ? 'Deleting…' : 'Delete'}
-          </button>
+          </motion.button>
           <span className="ml-auto text-xs font-semibold whitespace-nowrap" style={{ color: '#c89000' }}>
             {formatMoney(p.finalPrice ?? p.price)}
           </span>
@@ -899,10 +907,10 @@ function MonitoringPageContent() {
               {/* Page header */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6">
                 <h1 className="text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>
-                  Website &amp; Product Monitoring
+                  Website Card &amp; Product Monitoring
                 </h1>
                 <p className="mt-1 text-sm font-medium" style={{ color: '#a78bfa' }}>
-                  Website &amp; Product Monitoring
+                  Track performance and status for all active digital entities.
                 </p>
               </motion.div>
 
@@ -916,11 +924,8 @@ function MonitoringPageContent() {
                     className="h-11 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#2d1a50', boxShadow: '0 1px 4px rgba(103,2,191,0.05)' }}
                   />
-                  <div className="absolute left-1 top-1/2 -translate-y-1/2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full shadow-sm"
-                      style={{ background: '#FFCC00', color: '#1a1035' }}>
-                      <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
-                    </div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
+                    <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
                   </div>
                 </div>
 
@@ -951,7 +956,9 @@ function MonitoringPageContent() {
                   </span>
                 </div>
 
-                <button type="button" onClick={() => router.push('/admindashboard/moderationCompliance')}
+                <motion.button 
+                  whileTap={{ scale: 0.94 }}
+                  type="button" onClick={() => router.push('/admindashboard/moderationCompliance')}
                   suppressHydrationWarning
                   className="relative h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95"
                   style={{ background: 'rgba(166,61,255,0.08)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#8b1fe8' }}
@@ -965,17 +972,19 @@ function MonitoringPageContent() {
                       {pendingTotal}
                     </span>
                   )}
-                </button>
+                </motion.button>
 
                 {/* Sort */}
                 <div className="relative">
-                  <button type="button" onClick={() => setSortMenuOpen(!sortMenuOpen)}
+                  <motion.button 
+                    whileTap={{ scale: 0.94 }}
+                    type="button" onClick={() => setSortMenuOpen(!sortMenuOpen)}
                     className="h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95 shadow-sm"
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#8b1fe8' }}>
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                     </svg>
-                  </button>
+                  </motion.button>
                   <AnimatePresence>
                     {sortMenuOpen && (
                       <>
@@ -1004,23 +1013,26 @@ function MonitoringPageContent() {
                 </div>
 
                 {/* Tab switcher */}
-                <div className="ml-auto flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
-                  {(['websites', 'products'] as const).map((t) => (
-                    <button key={t} onClick={() => handleTabChange(t)} suppressHydrationWarning
-                      className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 capitalize ${
-                        activeTab === t ? 'text-[#1a1035]' : 'text-[#7a6aa0] hover:text-[#1a1035]'
-                      }`}>
-                      {activeTab === t && (
-                        <motion.div
-                          layoutId="monitoringTabBackground"
-                          className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                        />
-                      )}
-                      <span className="relative z-10">{t}</span>
-                    </button>
-                  ))}
-                </div>
+                 <div className="ml-auto flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
+                   {(['websites', 'products'] as const).map((t) => (
+                     <motion.button 
+                       key={t}
+                       whileTap={{ scale: 0.94 }}
+                       onClick={() => handleTabChange(t)} suppressHydrationWarning
+                       className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 capitalize ${
+                         activeTab === t ? 'text-[#1a1035]' : 'text-[#7a6aa0] hover:text-[#1a1035]'
+                       }`}>
+                       {activeTab === t && (
+                         <motion.div
+                           layoutId="monitoringTabBackground"
+                           className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                         />
+                       )}
+                       <span className="relative z-10">{t}</span>
+                     </motion.button>
+                   ))}
+                 </div>
               </motion.div>
 
               {/* Websites tab */}
@@ -1089,11 +1101,13 @@ function MonitoringPageContent() {
                       onClick={(e) => e.stopPropagation()}>
                       <div className="mb-5 flex items-center justify-between">
                         <h3 className="text-xl font-bold" style={{ color: '#4a1a8a' }}>Product Details</h3>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); setSelectedProduct(null); }}
-                          className="rounded-xl px-3 py-1.5 text-sm font-medium transition hover:brightness-95"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => setSelectedProduct(null)}
+                          className="rounded-xl px-3 py-1.5 text-sm font-medium transition hover:brightness-95 flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Close
-                        </button>
+                        </motion.button>
                       </div>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         {[
@@ -1117,11 +1131,13 @@ function MonitoringPageContent() {
                         <p className="text-sm" style={{ color: '#4a1a8a' }}>{selectedProduct.description || 'No description'}</p>
                       </div>
                       <div className="mt-5 flex justify-end">
-                        <button type="button" onClick={() => openDeleteProductModal(selectedProduct)}
-                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => openDeleteProductModal(selectedProduct)}
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 flex items-center justify-center"
                           style={{ background: '#ef4444' }}>
                           Delete Product
-                        </button>
+                        </motion.button>
                       </div>
                     </motion.div>
                   </div>
@@ -1146,7 +1162,10 @@ function MonitoringPageContent() {
                           { action: 'take_down' as const, label: 'Take Down Website (Keep data)' },
                           { action: 'delete' as const, label: 'Delete Website (Move to trash)' },
                         ].map(({ action, label }) => (
-                          <button key={action} type="button"
+                          <motion.button 
+                            key={action} 
+                            whileTap={{ scale: 0.98 }}
+                            type="button"
                             onClick={() => setWebsiteActionModal((prev) => ({ ...prev, action }))}
                             className="rounded-xl px-4 py-2.5 text-left text-sm font-medium transition"
                             style={websiteActionModal.action === action
@@ -1155,7 +1174,7 @@ function MonitoringPageContent() {
                                 : { background: 'rgba(166,61,255,0.08)', border: '1.5px solid rgba(166,61,255,0.3)', color: '#4a1a8a' }
                               : { background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(166,61,255,0.12)', color: '#7a6aa0' }}>
                             {label}
-                          </button>
+                          </motion.button>
                         ))}
                       </div>
                       <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#a090c8' }}>Reason (required)</label>
@@ -1165,17 +1184,21 @@ function MonitoringPageContent() {
                         style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#2d1a50' }}
                         rows={4} placeholder="State the moderation reason…" />
                       <div className="mt-4 flex justify-end gap-2">
-                        <button type="button" onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
-                          className="rounded-xl px-4 py-2 text-sm font-semibold transition"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
+                          className="rounded-xl px-4 py-2 text-sm font-semibold transition flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Cancel
-                        </button>
-                        <button type="button" onClick={submitWebsiteAction}
+                        </motion.button>
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={submitWebsiteAction}
                           disabled={Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}`}
-                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
                           style={{ background: '#7b1de8' }}>
                           {Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}` ? 'Saving…' : 'Confirm Moderation'}
-                        </button>
+                        </motion.button>
                       </div>
                     </motion.div>
                   </div>
@@ -1203,17 +1226,21 @@ function MonitoringPageContent() {
                         style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#2d1a50' }}
                         rows={4} placeholder="State why this product is being deleted…" />
                       <div className="mt-4 flex justify-end gap-2">
-                        <button type="button" onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
-                          className="rounded-xl px-4 py-2 text-sm font-semibold transition"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
+                          className="rounded-xl px-4 py-2 text-sm font-semibold transition flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Cancel
-                        </button>
-                        <button type="button" onClick={submitDeleteProduct}
+                        </motion.button>
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={submitDeleteProduct}
                           disabled={Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id}
-                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
                           style={{ background: '#ef4444' }}>
                           {Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id ? 'Deleting…' : 'Delete and Notify'}
-                        </button>
+                        </motion.button>
                       </div>
                     </motion.div>
                   </div>
