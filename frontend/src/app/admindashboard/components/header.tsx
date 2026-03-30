@@ -743,67 +743,74 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             )}
                         </button>
 
-                        {showNotifications ? (
-                            <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 flex w-[24rem] flex-col overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white/95 shadow-[0_12px_45px_rgba(123,78,192,0.25)] backdrop-blur-xl">
-                                <div className="flex items-center justify-between border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/70 px-4 py-3">
-                                    <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
-                                    <button
-                                        onClick={handleMarkAllRead}
-                                        disabled={unreadCount === 0}
-                                        className={`text-[10px] font-bold transition-all ${unreadCount > 0 ? 'text-[#B13BFF] hover:underline cursor-pointer' : 'text-[#8B85A5] cursor-not-allowed opacity-60'}`}
-                                    >
-                                        Mark all as read
-                                    </button>
-                                </div>
-                                <div className="max-h-[24rem] overflow-y-auto scrollbar-thin scrollbar-thumb-[#B13BFF]/20 scrollbar-track-transparent">
-                                    {notifications.length === 0 ? (
-                                        <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
-                                            <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="divide-y divide-[rgba(177,59,255,0.08)]">
-                                            {notifications.slice(0, 15).map((n) => (
-                                                <div
-                                                    key={n.id}
-                                                    className={`group relative flex cursor-default flex-col gap-0.5 px-5 py-3.5 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/25' : ''}`}
-                                                >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <span className={`text-[13px] font-bold leading-snug ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
-                                                        {!n.read && (
-                                                            <button
-                                                                onClick={(e) => handleMarkSingleRead(n.id, e)}
-                                                                className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform group-hover:scale-125"
-                                                                title="Mark as read"
-                                                            />
-                                                        )}
+                        <AnimatePresence>
+                            {showNotifications && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                    className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 flex w-[24rem] flex-col overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white/95 shadow-[0_12px_45px_rgba(123,78,192,0.25)] backdrop-blur-xl"
+                                >
+                                    <div className="flex items-center justify-between border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/70 px-4 py-3">
+                                        <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
+                                        <button
+                                            onClick={handleMarkAllRead}
+                                            disabled={unreadCount === 0}
+                                            className={`text-[10px] font-bold transition-all ${unreadCount > 0 ? 'text-[#B13BFF] hover:underline cursor-pointer' : 'text-[#8B85A5] cursor-not-allowed opacity-60'}`}
+                                        >
+                                            Mark all as read
+                                        </button>
+                                    </div>
+                                    <div className="max-h-[24rem] overflow-y-auto scrollbar-thin scrollbar-thumb-[#B13BFF]/20 scrollbar-track-transparent">
+                                        {notifications.length === 0 ? (
+                                            <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
+                                                <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-[rgba(177,59,255,0.08)]">
+                                                {notifications.slice(0, 15).map((n) => (
+                                                    <div
+                                                        key={n.id}
+                                                        className={`group relative flex cursor-default flex-col gap-0.5 px-5 py-3.5 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/25' : ''}`}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <span className={`text-[13px] font-bold leading-snug ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
+                                                            {!n.read && (
+                                                                <button
+                                                                    onClick={(e) => handleMarkSingleRead(n.id, e)}
+                                                                    className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform group-hover:scale-125"
+                                                                    title="Mark as read"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs leading-relaxed text-[#8B85A5]">
+                                                            {n.adminName && !normalize(n.message).includes(normalize(n.adminName)) ? (
+                                                                <span className="font-bold text-[#B13BFF]">{n.adminName}: </span>
+                                                            ) : null}
+                                                            {n.message}
+                                                        </p>
+                                                        <span className="mt-1.5 text-[10px] font-medium text-[#B13BFF]/60">{formatToPHTime(n.time)}</span>
                                                     </div>
-                                                    <p className="text-xs leading-relaxed text-[#8B85A5]">
-                                                        {n.adminName && !normalize(n.message).includes(normalize(n.adminName)) ? (
-                                                            <span className="font-bold text-[#B13BFF]">{n.adminName}: </span>
-                                                        ) : null}
-                                                        {n.message}
-                                                    </p>
-                                                    <span className="mt-1.5 text-[10px] font-medium text-[#B13BFF]/60">{formatToPHTime(n.time)}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-2.5 text-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowNotifications(false);
-                                            startLoading();
-                                            router.push('/admindashboard/notifications');
-                                        }}
-                                        className="text-xs font-bold text-[#4a1a8a] transition-all hover:text-[#B13BFF] hover:underline"
-                                    >
-                                        See all
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-2.5 text-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowNotifications(false);
+                                                startLoading();
+                                                router.push('/admindashboard/notifications');
+                                            }}
+                                            className="text-xs font-bold text-[#4a1a8a] transition-all hover:text-[#B13BFF] hover:underline"
+                                        >
+                                            See all
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     <div ref={profileMenuRef} className="relative">
@@ -840,27 +847,34 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             </span>
                         </button>
 
-                        {showProfileMenu ? (
-                            <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-44 rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-1.5 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
-                                <button
-                                    type="button"
-                                    onClick={handleProfileClick}
-                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#4E2A8A] transition hover:bg-white/70"
+                        <AnimatePresence>
+                            {showProfileMenu && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                    className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-44 rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-1.5 shadow-[0_12px_30px_rgba(123,78,192,0.18)]"
                                 >
-                                    <ProfileMenuIcon />
-                                    Profile
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleLogout}
-                                    disabled={isLoggingOut}
-                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#B13BFF] transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <LogoutMenuIcon />
-                                    {isLoggingOut ? 'Logging out...' : 'Log out'}
-                                </button>
-                            </div>
-                        ) : null}
+                                    <button
+                                        type="button"
+                                        onClick={handleProfileClick}
+                                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#4E2A8A] transition hover:bg-white/70"
+                                    >
+                                        <ProfileMenuIcon />
+                                        Profile
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleLogout}
+                                        disabled={isLoggingOut}
+                                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#B13BFF] transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <LogoutMenuIcon />
+                                        {isLoggingOut ? 'Logging out...' : 'Log out'}
+                                    </button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>
