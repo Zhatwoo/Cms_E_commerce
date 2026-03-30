@@ -545,8 +545,9 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
             <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex flex-1 items-center gap-3">
-                    {onMenuClick ? (
-                        <button
+                    {onMenuClick && (
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={onMenuClick}
                             aria-label="Open menu"
@@ -554,8 +555,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-2xl lg:hidden"
                         >
                             <Image src="/admin-dashboard/icons/toggle.png" alt="Menu" width={18} height={18} className="object-contain" />
-                        </button>
-                    ) : null}
+                        </motion.button>
+                    )}
 
                     <div ref={searchContainerRef} className="relative w-full max-w-[23rem] sm:max-w-[24rem]">
                         <div className="relative">
@@ -582,7 +583,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             </div>
                         </div>
 
-                        {isSearchOpen ? (
+                        {isSearchOpen && (
                             <div className="admin-dashboard-panel absolute left-0 right-0 top-[calc(100%+0.55rem)] max-h-[21rem] overflow-y-auto rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-2 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
                                 {normalize(query).length < 2 ? (
                                     <p className="px-3 py-2 text-xs text-[#7C7393]">Type at least 2 characters to search all admin content.</p>
@@ -596,26 +597,28 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     <div className="space-y-1">
                                         {isDataLoading ? <p className="px-3 py-1 text-[11px] text-[#7C7393]">Loading more data...</p> : null}
                                         {searchResults.map((result) => (
-                                            <button
+                                            <motion.button
                                                 key={result.id}
+                                                whileTap={{ scale: 0.94 }}
                                                 type="button"
                                                 onClick={() => handleSearchNavigate(result.href)}
                                                 className="w-full rounded-xl px-3 py-2 text-left transition hover:bg-white/70"
                                             >
                                                 <p className="text-sm font-semibold text-[#4E2A8A]">{result.title}</p>
                                                 <p className="text-xs text-[#7C7393]">{result.category} • {result.subtitle}</p>
-                                            </button>
+                                            </motion.button>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                        ) : null}
+                        )}
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
                     <div className="relative message-dropdown-container">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={handleMessagesClick}
                             suppressHydrationWarning
@@ -628,7 +631,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     {messages.filter(m => m.status === 'unread').length > 9 ? '9+' : messages.filter(m => m.status === 'unread').length}
                                 </span>
                             )}
-                        </button>
+                        </motion.button>
 
                         <AnimatePresence>
                             {showMessages && (
@@ -643,13 +646,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                             <h3 className="text-sm font-bold text-[#4a1a8a]">Inbox</h3>
                                             <div className="flex gap-1 rounded-lg bg-black/5 p-0.5">
                                                 {(['internal', 'support', 'request'] as const).map((tab) => (
-                                                    <button
+                                                    <motion.button
                                                         key={tab}
+                                                        whileTap={{ scale: 0.96 }}
                                                         onClick={() => setActiveMessageTab(tab)}
                                                         className={`rounded-md px-2.5 py-1 text-[10px] font-bold transition-all ${activeMessageTab === tab ? 'bg-white text-[#4a1a8a] shadow-sm' : 'text-[#7a6aa0] hover:text-[#4a1a8a]'}`}
                                                     >
                                                         {tab.toUpperCase()}
-                                                    </button>
+                                                    </motion.button>
                                                 ))}
                                             </div>
                                         </div>
@@ -681,13 +685,14 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                                                 <span className={`text-[13px] font-bold ${m.status === 'unread' ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{m.senderName}</span>
                                                             </div>
                                                             {m.status === 'unread' && (
-                                                                <button
+                                                                <motion.button
+                                                                    whileTap={{ scale: 0.8 }}
                                                                     onClick={(e) => handleMarkMessageSingleRead(m.id, e)}
                                                                     className="rounded-full bg-[#B13BFF]/10 p-1 text-[#B13BFF] hover:bg-[#B13BFF] hover:text-white transition-all shadow-sm"
                                                                     title="Mark as read"
                                                                 >
                                                                     <Check className="h-3 w-3" />
-                                                                </button>
+                                                                </motion.button>
                                                             )}
                                                         </div>
                                                         <p className="mt-1 text-xs leading-relaxed text-[#8B85A5] line-clamp-3">{m.message}</p>
@@ -726,7 +731,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     </div>
 
                     <div ref={notificationsRef} className="relative">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={handleNotificationsClick}
                             suppressHydrationWarning
@@ -741,7 +747,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     {unreadCount > 9 ? '9+' : unreadCount}
                                 </span>
                             )}
-                        </button>
+                        </motion.button>
 
                         <AnimatePresence>
                             {showNotifications && (
@@ -814,7 +820,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     </div>
 
                     <div ref={profileMenuRef} className="relative">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={() => setShowProfileMenu((prev) => !prev)}
                             suppressHydrationWarning
@@ -845,7 +852,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     <ProfileChevronIcon />
                                 </span>
                             </span>
-                        </button>
+                        </motion.button>
 
                         <AnimatePresence>
                             {showProfileMenu && (
@@ -855,15 +862,17 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     exit={{ opacity: 0, y: 8, scale: 0.95 }}
                                     className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-44 rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-1.5 shadow-[0_12px_30px_rgba(123,78,192,0.18)]"
                                 >
-                                    <button
+                                    <motion.button
+                                        whileTap={{ scale: 0.98 }}
                                         type="button"
                                         onClick={handleProfileClick}
                                         className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#4E2A8A] transition hover:bg-white/70"
                                     >
                                         <ProfileMenuIcon />
                                         Profile
-                                    </button>
-                                    <button
+                                    </motion.button>
+                                    <motion.button
+                                        whileTap={{ scale: 0.98 }}
                                         type="button"
                                         onClick={handleLogout}
                                         disabled={isLoggingOut}
@@ -871,7 +880,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     >
                                         <LogoutMenuIcon />
                                         {isLoggingOut ? 'Logging out...' : 'Log out'}
-                                    </button>
+                                    </motion.button>
                                 </motion.div>
                             )}
                         </AnimatePresence>
