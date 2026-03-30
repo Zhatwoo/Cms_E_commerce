@@ -39,6 +39,14 @@ export type User = {
   website?: string;
   paymentMethods?: any[];
   paymentMethod?: any; // kept for compatibility
+  emailVerified?: boolean;
+  lastPasswordChange?: string;
+  lastSeen?: string;
+  notificationPreferences?: {
+    securityAlerts: boolean;
+    sessionNotifications: boolean;
+    accountUpdates: boolean;
+  };
 };
 
 export type AuthResponse = {
@@ -493,7 +501,9 @@ export async function logout(): Promise<void> {
 
 /** Get current user from backend (uses cookie). Use to restore session when only cookie is present. */
 export async function getMe(): Promise<{ success: boolean; user?: User }> {
-  return authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  const res = await authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  if (res.success && res.user) setStoredUser(res.user);
+  return res;
 }
 
 export async function registerPublishedSiteUser(params: {
@@ -569,12 +579,27 @@ export async function updateProfile(data: {
   username?: string;
   website?: string;
   bio?: string;
+  phone?: string;
   paymentMethods?: any[];
   paymentMethod?: any;
+  notificationPreferences?: {
+    securityAlerts: boolean;
+    sessionNotifications: boolean;
+    accountUpdates: boolean;
+  };
 }): Promise<{ success: boolean; message?: string; user?: User }> {
-  return authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
+  const res = await authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+  if (res.success && res.user) setStoredUser(res.user);
+  return res;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; token?: string }> {
+  return authFetch<{ success: boolean; message?: string; token?: string }>('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
 

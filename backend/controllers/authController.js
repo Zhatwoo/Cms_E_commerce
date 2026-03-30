@@ -32,13 +32,16 @@ const clearAuthCookie = (res) => {
 };
 
 /** No user cookie: confidential data (email, name) must not appear in cookies or localStorage. */
-const userToResponse = (user) => {
+const userToResponse = (user, firebaseUser = null) => {
   if (!user) return null;
+  // Use Firestore value as primary, fall back to Firebase Auth if provided
+  const emailVerified = firebaseUser ? firebaseUser.emailVerified : (user.emailVerified || false);
+  
   return {
     id: user.id,
     uid: user.uid || user.id,
     email: user.email,
-    name: user.displayName || user.email || '',
+    name: user.displayName || user.fullName || user.email || '',
     avatar: user.avatar || null,
     username: user.username || '',
     website: user.website || '',
@@ -46,7 +49,10 @@ const userToResponse = (user) => {
     role: user.role,
     subscriptionPlan: user.subscriptionPlan,
     createdAt: user.createdAt,
-    paymentMethods: user.paymentMethods || []
+    lastSeen: user.lastSeen || null,
+    paymentMethods: user.paymentMethods || [],
+    emailVerified,
+    lastPasswordChange: firebaseUser?.metadata?.lastPasswordUpdatedAt ? new Date(firebaseUser.metadata.lastPasswordUpdatedAt).toISOString() : user.createdAt
   };
 };
 
@@ -436,6 +442,14 @@ exports.verifyEmail = async (req, res) => {
     // Verify email in Firebase Auth
     await User.setEmailVerified(user.id);
 
+    // Fetch updated firebase user to include verified status in response
+    let firebaseUser = null;
+    try {
+      firebaseUser = await auth.getUser(user.id);
+    } catch (e) {
+      console.warn('verifyEmail: could not fetch updated firebase user:', e.message);
+    }
+
     // Auto-login: create session token
     const authToken = generateToken(user.id);
     setAuthCookie(res, authToken);
@@ -443,7 +457,7 @@ exports.verifyEmail = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Email confirmed! You are now logged in.',
-      user: userToResponse(user),
+      user: userToResponse(user, firebaseUser),
       token: authToken
     });
   } catch (error) {
@@ -476,14 +490,21 @@ exports.getMe = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    let firebaseUser = null;
+    try {
+      firebaseUser = await auth.getUser(req.user.id);
+      
+      // Auto-sync: If Firebase says verified but Firestore doesn't know yet, update Firestore
+      if (firebaseUser?.emailVerified && !user.emailVerified) {
+        await User.update(user.id, { emailVerified: true }).catch(() => {});
+        user.emailVerified = true;
+      }
+    } catch (e) {
+      console.warn('getMe: could not fetch firebase user:', e.message);
+    }
     res.status(200).json({
       success: true,
-      user: {
-        ...userToResponse(user),
-        username: user.username || '',
-        website: user.website || '',
-        bio: user.bio || ''
-      }
+      user: userToResponse(user, firebaseUser)
     });
   } catch (error) {
     res.status(404).json({ success: false, message: 'User not found' });
@@ -497,7 +518,7 @@ exports.logout = (req, res) => {
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, avatar, username, website, bio, paymentMethods } = req.body;
+    const { name, avatar, username, website, bio, paymentMethods, notificationPreferences, phone } = req.body;
     if (avatar !== undefined && typeof avatar === 'string' && avatar.trim().startsWith('data:')) {
       return res.status(400).json({
         success: false,
@@ -510,7 +531,9 @@ exports.updateProfile = async (req, res) => {
     if (username !== undefined) updates.username = username;
     if (website !== undefined) updates.website = website;
     if (bio !== undefined) updates.bio = bio;
+    if (phone !== undefined) updates.phone = phone;
     if (paymentMethods !== undefined) updates.paymentMethods = paymentMethods;
+    if (notificationPreferences !== undefined) updates.notificationPreferences = notificationPreferences;
 
     if (Object.keys(updates).length > 0) {
       const updatedUser = await User.update(req.user.id, updates);
