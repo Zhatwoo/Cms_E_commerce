@@ -105,10 +105,8 @@ export default function TemplatesAssetsPage() {
                   suppressHydrationWarning
                   className="admin-dashboard-panel-soft h-12 w-full rounded-2xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] pl-12 pr-4 text-sm font-medium text-[#471396] outline-none placeholder:text-[#82788F]"
                 />
-                <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
-                   <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm">
-                      <SearchIcon className="h-5 w-5" />
-                   </div>
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
+                  <SearchIcon className="h-5 w-5" />
                 </div>
               </div>
 

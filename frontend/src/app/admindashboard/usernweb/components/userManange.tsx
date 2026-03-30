@@ -747,7 +747,7 @@ export function UserManagement() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-14 pr-4 py-3 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30 focus:border-[#B13BFF]"
               />
-              <div className="absolute left-2.5 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full bg-[#FFCC00] text-[#5F3A84] flex items-center justify-center pointer-events-none shadow-sm">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
                 <SearchIcon />
               </div>
               {search && (
