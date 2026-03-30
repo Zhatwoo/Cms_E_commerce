@@ -18,6 +18,8 @@ export function NewProjectButton({
   theme,
   onCreateProject,
 }: NewProjectButtonProps) {
+  const plusStrokeColor = theme === 'dark' ? '#11134D' : '#FFFFFF';
+
   return (
     <button
       type="button"
@@ -40,12 +42,12 @@ export function NewProjectButton({
             h-20 w-20 rounded-[28px] flex items-center justify-center
             transition-all duration-500 shadow-lg group-hover:scale-110 group-hover:rotate-90
             ${theme === 'dark'
-              ? 'bg-[#FFCE00] text-[#11134D] shadow-[0_0_30px_rgba(255,206,0,0.2)]'
-              : 'bg-linear-to-br from-[#8B5CF6] to-[#D946EF] text-white shadow-[0_10px_25px_rgba(139,92,246,0.3)]'
+              ? 'bg-[#FFCE00] shadow-[0_0_30px_rgba(255,206,0,0.2)]'
+              : 'bg-linear-to-br from-[#8B5CF6] to-[#D946EF] shadow-[0_10px_25px_rgba(139,92,246,0.3)]'
             }
           `}
         >
-          <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24">
+          <svg className="w-10 h-10" fill="none" stroke={plusStrokeColor} strokeWidth={3} viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m7-7H5" />
           </svg>
         </div>

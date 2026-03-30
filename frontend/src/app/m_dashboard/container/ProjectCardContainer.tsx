@@ -2,6 +2,7 @@ import type { Project } from '@/lib/api';
 import type { ReactNode } from 'react';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
 import { PopMenuButton, type PopMenuOption } from '../components/buttons/PopMenuButton';
+import { StatusBadge } from '../components/ui/StatusBadge';
 
 type DashboardTheme = 'light' | 'dark';
 
@@ -115,13 +116,21 @@ export function ProjectCardContainer({
         </div>
 
         <div className="p-6">
-          <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
-            theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
-          }`}>
-            {project.title || 'Untitled Project'}
-          </h3>
-          <p className={`text-[11px] font-bold tracking-widest mt-1 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
-            {project.isShared ? `by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
+          <div className="space-y-2">
+            <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
+              theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
+            }`}>
+              {project.title || 'Untitled Project'}
+            </h3>
+            {project.status && (
+              <StatusBadge status={project.status} size="sm" />
+            )}
+            {project.isShared && (
+              <StatusBadge status="shared" label={`by ${project.ownerName}`} size="sm" />
+            )}
+          </div>
+          <p className={`text-[11px] font-bold tracking-widest mt-3 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
+            {project.isShared ? `Shared by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
           </p>
         </div>
       </div>
