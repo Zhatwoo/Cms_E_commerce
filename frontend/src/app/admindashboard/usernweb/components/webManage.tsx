@@ -852,7 +852,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-12 pr-4 py-2.5 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30"
               />
-              <div className="absolute left-3 top-1/2 -translate-y-1/2 h-7 w-7 rounded-full bg-[#FFCC00] text-[#5F3A84] flex items-center justify-center">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
                 <SearchIcon />
               </div>
             </div>

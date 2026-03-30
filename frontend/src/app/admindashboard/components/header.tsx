@@ -21,6 +21,19 @@ import {
 import { getNotifications, markAsRead, markAllAsRead, fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
 import { formatToPHTime } from '@/lib/dateUtils';
 import { useAdminLoading } from './LoadingProvider';
+import { 
+    getMessages, 
+    sendMessage, 
+    markMessageRead, 
+    type ApiMessage 
+} from '@/lib/api';
+import {
+    MessageSquare,
+    Users,
+    ShieldAlert,
+    ExternalLink,
+    Check
+} from 'lucide-react';
 
 const SearchIcon = () => (
     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,21 +144,34 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const profileMenuRef = useRef<HTMLDivElement | null>(null);
     const notificationsRef = useRef<HTMLDivElement | null>(null);
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [messages, setMessages] = useState<ApiMessage[]>([]);
+    const [showMessages, setShowMessages] = useState(false);
+    const [activeMessageTab, setActiveMessageTab] = useState<'support' | 'internal' | 'request'>('internal');
     const [activeToast, setActiveToast] = useState<{ id: string; title: string; message: string; type: string } | null>(null);
 
     useEffect(() => {
         const load = () => {
             setNotifications(getNotifications());
         };
+        const loadMessages = async () => {
+            const res = await getMessages();
+            if (res.success) setMessages(res.data);
+        };
+
         load();
+        loadMessages();
         window.addEventListener('notificationsUpdate', load);
+        
+        // Poll for messages every 30s
+        const msgInterval = setInterval(loadMessages, 30000);
 
         const onNewReceived = async (e: any) => {
             const newItem = e.detail;
             if (!newItem) return;
 
-            // Refresh the whole notification list from backend
+            // Refresh notifications and messages from backend
             await fetchSharedNotifications();
+            loadMessages();
 
             // Only show toast if it's NOT from the current user (don't double notify)
             if (currentUser && newItem.adminId === currentUser.id) {
@@ -176,6 +202,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
             window.removeEventListener('notificationsUpdate', load);
             window.removeEventListener('notification:new_received', onNewReceived);
             clearInterval(interval);
+            clearInterval(msgInterval);
         };
     }, [currentUser]);
 
@@ -203,6 +230,21 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
     const handleNotificationsClick = () => {
         setShowNotifications((prev) => !prev);
         setShowProfileMenu(false);
+        setShowMessages(false);
+    };
+
+    const handleMessagesClick = () => {
+        setShowMessages((prev) => !prev);
+        setShowNotifications(false);
+        setShowProfileMenu(false);
+    };
+
+    const handleMarkMessageSingleRead = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const res = await markMessageRead(id);
+        if (res.success) {
+            setMessages(prev => prev.map(m => m.id === id ? { ...m, status: 'read' } : m));
+        }
     };
 
     const handleMarkSingleRead = (id: string, e: React.MouseEvent) => {
@@ -290,6 +332,10 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
             if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
                 setShowNotifications(false);
+            }
+
+            if (!event.target || !(event.target as HTMLElement).closest('.message-dropdown-container')) {
+                setShowMessages(false);
             }
         };
 
@@ -499,8 +545,9 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
 
             <div className="flex w-full items-center justify-between gap-4">
                 <div className="flex flex-1 items-center gap-3">
-                    {onMenuClick ? (
-                        <button
+                    {onMenuClick && (
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={onMenuClick}
                             aria-label="Open menu"
@@ -508,8 +555,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             className="admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-2xl lg:hidden"
                         >
                             <Image src="/admin-dashboard/icons/toggle.png" alt="Menu" width={18} height={18} className="object-contain" />
-                        </button>
-                    ) : null}
+                        </motion.button>
+                    )}
 
                     <div ref={searchContainerRef} className="relative w-full max-w-[23rem] sm:max-w-[24rem]">
                         <div className="relative">
@@ -536,7 +583,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             </div>
                         </div>
 
-                        {isSearchOpen ? (
+                        {isSearchOpen && (
                             <div className="admin-dashboard-panel absolute left-0 right-0 top-[calc(100%+0.55rem)] max-h-[21rem] overflow-y-auto rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-2 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
                                 {normalize(query).length < 2 ? (
                                     <p className="px-3 py-2 text-xs text-[#7C7393]">Type at least 2 characters to search all admin content.</p>
@@ -550,26 +597,139 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     <div className="space-y-1">
                                         {isDataLoading ? <p className="px-3 py-1 text-[11px] text-[#7C7393]">Loading more data...</p> : null}
                                         {searchResults.map((result) => (
-                                            <button
+                                            <motion.button
                                                 key={result.id}
+                                                whileTap={{ scale: 0.94 }}
                                                 type="button"
                                                 onClick={() => handleSearchNavigate(result.href)}
                                                 className="w-full rounded-xl px-3 py-2 text-left transition hover:bg-white/70"
                                             >
                                                 <p className="text-sm font-semibold text-[#4E2A8A]">{result.title}</p>
                                                 <p className="text-xs text-[#7C7393]">{result.category} • {result.subtitle}</p>
-                                            </button>
+                                            </motion.button>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                        ) : null}
+                        )}
                     </div>
                 </div>
 
                 <div className="flex items-center gap-3">
+                    <div className="relative message-dropdown-container">
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
+                            type="button"
+                            onClick={handleMessagesClick}
+                            suppressHydrationWarning
+                            className={`admin-dashboard-panel inline-flex h-12 w-12 items-center justify-center rounded-full transition-all hover:-translate-y-0.5 ${showMessages ? 'shadow-[0_0_20px_rgba(177,59,255,0.2)] border-[rgba(177,59,255,0.3)]' : ''}`}
+                            aria-label="Messages"
+                        >
+                            <MessageSquare className="h-5 w-5 text-[#4a1a8a]" />
+                            {messages.filter(m => m.status === 'unread').length > 0 && (
+                                <span className="absolute right-2.5 top-2.5 flex h-[14px] min-w-[14px] items-center justify-center rounded-full bg-[#B13BFF] px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                                    {messages.filter(m => m.status === 'unread').length > 9 ? '9+' : messages.filter(m => m.status === 'unread').length}
+                                </span>
+                            )}
+                        </motion.button>
+
+                        <AnimatePresence>
+                            {showMessages && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                    className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 flex w-[24rem] flex-col overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white/95 shadow-[0_12px_45px_rgba(123,78,192,0.25)] backdrop-blur-xl"
+                                >
+                                    <div className="flex flex-col border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/70">
+                                        <div className="flex items-center justify-between px-4 py-3">
+                                            <h3 className="text-sm font-bold text-[#4a1a8a]">Inbox</h3>
+                                            <div className="flex gap-1 rounded-lg bg-black/5 p-0.5">
+                                                {(['internal', 'support', 'request'] as const).map((tab) => (
+                                                    <motion.button
+                                                        key={tab}
+                                                        whileTap={{ scale: 0.96 }}
+                                                        onClick={() => setActiveMessageTab(tab)}
+                                                        className={`rounded-md px-2.5 py-1 text-[10px] font-bold transition-all ${activeMessageTab === tab ? 'bg-white text-[#4a1a8a] shadow-sm' : 'text-[#7a6aa0] hover:text-[#4a1a8a]'}`}
+                                                    >
+                                                        {tab.toUpperCase()}
+                                                    </motion.button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="max-h-[24rem] overflow-y-auto scrollbar-thin scrollbar-thumb-[#B13BFF]/20">
+                                        {messages.filter(m => m.type === activeMessageTab).length === 0 ? (
+                                            <div className="flex min-h-[10rem] flex-col items-center justify-center p-6 text-center">
+                                                <div className="mb-3 rounded-full bg-[#F5F4FF] p-3">
+                                                    {activeMessageTab === 'internal' ? <Users className="h-6 w-6 text-[#7a6aa0]" /> :
+                                                        activeMessageTab === 'support' ? <ExternalLink className="h-6 w-6 text-[#7a6aa0]" /> :
+                                                            <ShieldAlert className="h-6 w-6 text-[#7a6aa0]" />}
+                                                </div>
+                                                <p className="text-sm font-medium text-[#7a6aa0]">No {activeMessageTab} messages yet.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-[rgba(177,59,255,0.08)]">
+                                                {messages.filter(m => m.type === activeMessageTab).map((m) => (
+                                                    <div
+                                                        key={m.id}
+                                                        className={`group relative flex cursor-default flex-col gap-0.5 px-5 py-3.5 transition hover:bg-[#F5F4FF]/50 ${m.status === 'unread' ? 'bg-[#F5F4FF]/25' : ''}`}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-6 w-6 overflow-hidden rounded-full bg-gradient-to-br from-[#B13BFF] to-[#8B5CF6]">
+                                                                    {m.senderAvatar ? <img src={m.senderAvatar} alt="" className="h-full w-full object-cover" /> :
+                                                                        <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-white">{m.senderName.charAt(0)}</span>}
+                                                                </div>
+                                                                <span className={`text-[13px] font-bold ${m.status === 'unread' ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{m.senderName}</span>
+                                                            </div>
+                                                            {m.status === 'unread' && (
+                                                                <motion.button
+                                                                    whileTap={{ scale: 0.8 }}
+                                                                    onClick={(e) => handleMarkMessageSingleRead(m.id, e)}
+                                                                    className="rounded-full bg-[#B13BFF]/10 p-1 text-[#B13BFF] hover:bg-[#B13BFF] hover:text-white transition-all shadow-sm"
+                                                                    title="Mark as read"
+                                                                >
+                                                                    <Check className="h-3 w-3" />
+                                                                </motion.button>
+                                                            )}
+                                                        </div>
+                                                        <p className="mt-1 text-xs leading-relaxed text-[#8B85A5] line-clamp-3">{m.message}</p>
+                                                        <div className="mt-2 flex items-center justify-between">
+                                                            <span className="text-[10px] font-medium text-[#B13BFF]/60">{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                                            {m.websiteId && (
+                                                                <span className="rounded-md bg-white/50 px-1.5 py-0.5 text-[9px] font-bold text-[#7a6aa0] border border-black/5 flex items-center gap-1">
+                                                                    <ExternalLink className="h-2 w-2" /> Site ID: {m.websiteId.slice(0, 8)}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-2.5 flex items-center justify-center gap-2">
+                                        <motion.button
+                                            whileTap={{ scale: 0.94 }}
+                                            className="text-xs font-bold text-[#4a1a8a] transition-all hover:text-[#B13BFF] hover:translate-x-0.5 flex items-center gap-1"
+                                            onClick={() => {
+                                                setShowMessages(false);
+                                                startLoading();
+                                                router.push('/admindashboard/messages');
+                                            }}
+                                        >
+                                            Open Message Hub <ExternalLink className="h-3.5 w-3.5" />
+                                        </motion.button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
                     <div ref={notificationsRef} className="relative">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={handleNotificationsClick}
                             suppressHydrationWarning
@@ -584,73 +744,81 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     {unreadCount > 9 ? '9+' : unreadCount}
                                 </span>
                             )}
-                        </button>
+                        </motion.button>
 
-                        {showNotifications ? (
-                            <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 flex w-[24rem] flex-col overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white/95 shadow-[0_12px_45px_rgba(123,78,192,0.25)] backdrop-blur-xl">
-                                <div className="flex items-center justify-between border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/70 px-4 py-3">
-                                    <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
-                                    <button
-                                        onClick={handleMarkAllRead}
-                                        disabled={unreadCount === 0}
-                                        className={`text-[10px] font-bold transition-all ${unreadCount > 0 ? 'text-[#B13BFF] hover:underline cursor-pointer' : 'text-[#8B85A5] cursor-not-allowed opacity-60'}`}
-                                    >
-                                        Mark all as read
-                                    </button>
-                                </div>
-                                <div className="max-h-[24rem] overflow-y-auto scrollbar-thin scrollbar-thumb-[#B13BFF]/20 scrollbar-track-transparent">
-                                    {notifications.length === 0 ? (
-                                        <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
-                                            <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="divide-y divide-[rgba(177,59,255,0.08)]">
-                                            {notifications.slice(0, 15).map((n) => (
-                                                <div
-                                                    key={n.id}
-                                                    className={`group relative flex cursor-default flex-col gap-0.5 px-5 py-3.5 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/25' : ''}`}
-                                                >
-                                                    <div className="flex items-start justify-between gap-3">
-                                                        <span className={`text-[13px] font-bold leading-snug ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
-                                                        {!n.read && (
-                                                            <button
-                                                                onClick={(e) => handleMarkSingleRead(n.id, e)}
-                                                                className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform group-hover:scale-125"
-                                                                title="Mark as read"
-                                                            />
-                                                        )}
+                        <AnimatePresence>
+                            {showNotifications && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                    className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 flex w-[24rem] flex-col overflow-hidden rounded-2xl border border-[rgba(177,59,255,0.24)] bg-white/95 shadow-[0_12px_45px_rgba(123,78,192,0.25)] backdrop-blur-xl"
+                                >
+                                    <div className="flex items-center justify-between border-b border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/70 px-4 py-3">
+                                        <h3 className="text-sm font-bold text-[#4a1a8a]">Notifications</h3>
+                                        <button
+                                            onClick={handleMarkAllRead}
+                                            disabled={unreadCount === 0}
+                                            className={`text-[10px] font-bold transition-all ${unreadCount > 0 ? 'text-[#B13BFF] hover:underline cursor-pointer' : 'text-[#8B85A5] cursor-not-allowed opacity-60'}`}
+                                        >
+                                            Mark all as read
+                                        </button>
+                                    </div>
+                                    <div className="max-h-[24rem] overflow-y-auto scrollbar-thin scrollbar-thumb-[#B13BFF]/20 scrollbar-track-transparent">
+                                        {notifications.length === 0 ? (
+                                            <div className="flex min-h-[5rem] items-center justify-center p-6 text-center">
+                                                <p className="text-sm font-medium text-[#7a6aa0]">No notifications yet.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-[rgba(177,59,255,0.08)]">
+                                                {notifications.slice(0, 15).map((n) => (
+                                                    <div
+                                                        key={n.id}
+                                                        className={`group relative flex cursor-default flex-col gap-0.5 px-5 py-3.5 transition hover:bg-[#F5F4FF]/50 ${!n.read ? 'bg-[#F5F4FF]/25' : ''}`}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <span className={`text-[13px] font-bold leading-snug ${!n.read ? 'text-[#4a1a8a]' : 'text-[#7a6aa0]'}`}>{n.title}</span>
+                                                            {!n.read && (
+                                                                <button
+                                                                    onClick={(e) => handleMarkSingleRead(n.id, e)}
+                                                                    className="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-[#B13BFF] transition-transform group-hover:scale-125"
+                                                                    title="Mark as read"
+                                                                />
+                                                            )}
+                                                        </div>
+                                                        <p className="text-xs leading-relaxed text-[#8B85A5]">
+                                                            {n.adminName && !normalize(n.message).includes(normalize(n.adminName)) ? (
+                                                                <span className="font-bold text-[#B13BFF]">{n.adminName}: </span>
+                                                            ) : null}
+                                                            {n.message}
+                                                        </p>
+                                                        <span className="mt-1.5 text-[10px] font-medium text-[#B13BFF]/60">{formatToPHTime(n.time)}</span>
                                                     </div>
-                                                    <p className="text-xs leading-relaxed text-[#8B85A5]">
-                                                        {n.adminName && !normalize(n.message).includes(normalize(n.adminName)) ? (
-                                                            <span className="font-bold text-[#B13BFF]">{n.adminName}: </span>
-                                                        ) : null}
-                                                        {n.message}
-                                                    </p>
-                                                    <span className="mt-1.5 text-[10px] font-medium text-[#B13BFF]/60">{formatToPHTime(n.time)}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-2.5 text-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowNotifications(false);
-                                            startLoading();
-                                            router.push('/admindashboard/notifications');
-                                        }}
-                                        className="text-xs font-bold text-[#4a1a8a] transition-all hover:text-[#B13BFF] hover:underline"
-                                    >
-                                        See all
-                                    </button>
-                                </div>
-                            </div>
-                        ) : null}
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="border-t border-[rgba(177,59,255,0.1)] bg-[#F5F4FF]/50 px-4 py-2.5 text-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setShowNotifications(false);
+                                                startLoading();
+                                                router.push('/admindashboard/notifications');
+                                            }}
+                                            className="text-xs font-bold text-[#4a1a8a] transition-all hover:text-[#B13BFF] hover:underline"
+                                        >
+                                            See all
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     <div ref={profileMenuRef} className="relative">
-                        <button
+                        <motion.button
+                            whileTap={{ scale: 0.94 }}
                             type="button"
                             onClick={() => setShowProfileMenu((prev) => !prev)}
                             suppressHydrationWarning
@@ -681,29 +849,38 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                     <ProfileChevronIcon />
                                 </span>
                             </span>
-                        </button>
+                        </motion.button>
 
-                        {showProfileMenu ? (
-                            <div className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-44 rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-1.5 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
-                                <button
-                                    type="button"
-                                    onClick={handleProfileClick}
-                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#4E2A8A] transition hover:bg-white/70"
+                        <AnimatePresence>
+                            {showProfileMenu && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                                    className="admin-dashboard-panel absolute right-0 top-[calc(100%+0.55rem)] z-30 w-44 rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-1.5 shadow-[0_12px_30px_rgba(123,78,192,0.18)]"
                                 >
-                                    <ProfileMenuIcon />
-                                    Profile
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={handleLogout}
-                                    disabled={isLoggingOut}
-                                    className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#B13BFF] transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    <LogoutMenuIcon />
-                                    {isLoggingOut ? 'Logging out...' : 'Log out'}
-                                </button>
-                            </div>
-                        ) : null}
+                                    <motion.button
+                                        whileTap={{ scale: 0.98 }}
+                                        type="button"
+                                        onClick={handleProfileClick}
+                                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#4E2A8A] transition hover:bg-white/70"
+                                    >
+                                        <ProfileMenuIcon />
+                                        Profile
+                                    </motion.button>
+                                    <motion.button
+                                        whileTap={{ scale: 0.98 }}
+                                        type="button"
+                                        onClick={handleLogout}
+                                        disabled={isLoggingOut}
+                                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-[#B13BFF] transition hover:bg-white/70 disabled:cursor-not-allowed disabled:opacity-60"
+                                    >
+                                        <LogoutMenuIcon />
+                                        {isLoggingOut ? 'Logging out...' : 'Log out'}
+                                    </motion.button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
                 </div>
             </div>

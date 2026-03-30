@@ -19,6 +19,20 @@ import { addNotification } from '@/lib/notifications';
 import { formatToPHTimeShort } from '@/lib/dateUtils';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 import { useAdminLoading } from '../components/LoadingProvider';
+import {
+  BookOpen,
+  Car,
+  Dumbbell,
+  Gem,
+  HeartPulse,
+  Home,
+  Monitor,
+  Package,
+  Shirt,
+  ShoppingBag,
+  Sparkles,
+  UtensilsCrossed,
+} from 'lucide-react';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
@@ -69,6 +83,25 @@ function websiteViewUrl(domainName: string): string {
 
 function productIndustry(product: ApiProduct): string {
   return product.category || product.subcategory || product.subCategory || product.sub_category || 'General';
+}
+
+function industryIcon(label: string): React.ReactElement {
+  const key = normalize(label);
+  let Icon = Package;
+
+  if (/computer|laptop|tech|electronic|phone|gadget/.test(key)) Icon = Monitor;
+  else if (/cloth|fashion|apparel|wear|shirt/.test(key)) Icon = Shirt;
+  else if (/beauty|cosmetic|skin|makeup|fragrance/.test(key)) Icon = Sparkles;
+  else if (/home|furniture|decor|kitchen/.test(key)) Icon = Home;
+  else if (/book|stationery|office/.test(key)) Icon = BookOpen;
+  else if (/food|grocery|drink|snack|restaurant/.test(key)) Icon = UtensilsCrossed;
+  else if (/health|medical|wellness/.test(key)) Icon = HeartPulse;
+  else if (/sport|fitness|gym/.test(key)) Icon = Dumbbell;
+  else if (/auto|car|motor/.test(key)) Icon = Car;
+  else if (/jewel|luxury|watch/.test(key)) Icon = Gem;
+  else if (/toy|kid|baby/.test(key)) Icon = ShoppingBag;
+
+  return <Icon className="h-3.5 w-3.5" strokeWidth={2.25} />;
 }
 
 function getBarHeight(value: number, max: number): string {
@@ -231,17 +264,21 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
             <p className={`${ownerNameClass} font-semibold truncate block w-full`} style={{ color: '#4a1a8a' }} title={ownerLabel}>{ownerLabel}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <a href={viewUrl} target="_blank" rel="noopener noreferrer"
-              className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95"
+            <motion.a 
+              whileTap={{ scale: 0.94 }}
+              href={viewUrl} target="_blank" rel="noopener noreferrer"
+              className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95 flex items-center justify-center"
               style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
               View
-            </a>
-            <button type="button" onClick={() => openWebsiteActionModal(w)}
+            </motion.a>
+            <motion.button 
+              whileTap={{ scale: 0.94 }}
+              type="button" onClick={() => openWebsiteActionModal(w)}
               disabled={isWorking}
-              className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+              className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
               style={{ background: '#ef4444' }}>
               {isWorking ? 'Working…' : 'Dismiss'}
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -300,17 +337,21 @@ const ProductCard = React.memo(({ p, workingProductId, setSelectedProduct, openD
           <p className="text-[10px]" style={{ color: '#a090c8' }}>{formatToPHTimeShort(p.createdAt)}</p>
         )}
         <div className="flex items-center gap-2 mt-auto pt-1">
-          <button type="button" onClick={() => setSelectedProduct(p)}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95"
+          <motion.button 
+            whileTap={{ scale: 0.94 }}
+            type="button" onClick={() => setSelectedProduct(p)}
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95 flex items-center justify-center"
             style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
             View
-          </button>
-          <button type="button" onClick={() => openDeleteProductModal(p)}
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.94 }}
+            type="button" onClick={() => openDeleteProductModal(p)}
             disabled={isWorking}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
             style={{ background: '#ef4444' }}>
             {isWorking ? 'Deleting…' : 'Delete'}
-          </button>
+          </motion.button>
           <span className="ml-auto text-xs font-semibold whitespace-nowrap" style={{ color: '#c89000' }}>
             {formatMoney(p.finalPrice ?? p.price)}
           </span>
@@ -539,10 +580,20 @@ function MonitoringPageContent() {
   }, [uniqueWebsites]);
 
   const productChartData = useMemo(() => {
-    const live = products.filter((p) => normalize(p.status || '') === 'published').length;
-    const offline = products.filter((p) => ['offline', 'suspended'].includes(normalize(p.status || ''))).length;
-    const draft = products.filter((p) => ['draft', 'pending'].includes(normalize(p.status || ''))).length;
-    return [{ label: 'Published', value: live }, { label: 'Offline', value: offline }, { label: 'Draft', value: draft }];
+    const counts = new Map<string, number>();
+
+    products.forEach((product) => {
+      const raw = productIndustry(product);
+      const label = (raw || 'General').trim() || 'General';
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    });
+
+    return Array.from(counts.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => {
+        if (b.value !== a.value) return b.value - a.value;
+        return a.label.localeCompare(b.label);
+      });
   }, [products]);
 
   const flaggedChartData = useMemo(() => {
@@ -657,7 +708,12 @@ function MonitoringPageContent() {
   /* ── Analytics Column ───────────────────────────────────── */
   const renderAnalyticsColumn = () => {
     const statusData = activeTab === 'websites' ? websiteChartData : productChartData;
-    const title = activeTab === 'websites' ? 'Total Websites' : 'Total Products';
+    const title = activeTab === 'websites' ? 'Total Websites' : 'Products by Industry';
+    const isProductsView = activeTab === 'products';
+    const productAxisMax = Math.max(5, Math.ceil(maxStatusVal / 5) * 5);
+    const yAxisLabels = isProductsView
+      ? [productAxisMax, Math.round(productAxisMax * 0.8), Math.round(productAxisMax * 0.6), Math.round(productAxisMax * 0.4), Math.round(productAxisMax * 0.2), 0]
+      : [40, 32, 24, 16, 8, 0];
 
     return (
       <div className="space-y-4">
@@ -675,35 +731,77 @@ function MonitoringPageContent() {
               {isWebsitesExpanded ? (
                 <>
                   <div className="flex flex-col justify-between items-end h-[85%] text-[10px] font-bold w-5 pb-5" style={{ color: '#a090c8' }}>
-                    {['40', '32', '24', '16', '8', '0'].map(v => <span key={v}>{v}</span>)}
+                    {yAxisLabels.map((v) => <span key={String(v)}>{v}</span>)}
                   </div>
-                  <div className="flex-1 flex h-full items-end justify-around gap-6 relative"
+                  <div className={`flex-1 flex h-full items-end relative ${isProductsView ? 'justify-start gap-4 overflow-x-auto overflow-y-visible px-3' : 'justify-around gap-6'}`}
                     style={{ borderLeft: '1px solid rgba(160,144,200,0.15)', borderBottom: '1px solid rgba(160,144,200,0.15)' }}>
-                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pb-5 pr-2">
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none pr-2">
                       {[1, 2, 3, 4, 5].map(i => <div key={i} className="w-full" style={{ borderTop: '1px solid rgba(160,144,200,0.08)' }} />)}
                     </div>
                     {statusData.map((d, idx) => (
-                      <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 z-10 group relative">
-                        <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
-                          {d.value}
+                      <div
+                        key={`${d.label}-${idx}`}
+                        className={`flex h-full flex-col items-center justify-end gap-3 z-10 group relative ${isProductsView ? 'w-11 shrink-0' : 'w-full'}`}
+                      >
+                        <div className="absolute -top-10 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md whitespace-nowrap z-20" style={{ background: '#4a1a8a' }}>
+                          {isProductsView ? `${d.label}: ${d.value}` : d.value}
                         </div>
-                        <div className="w-full max-w-[36px] rounded-t-lg transition-all duration-500 group-hover:brightness-110"
-                          style={{ height: getBarHeight(d.value, Math.max(maxStatusVal, 40)), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }} />
-                        <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
+                        <span className="text-[10px] font-bold leading-none" style={{ color: '#4a1a8a' }}>{d.value}</span>
+                        <div
+                          className={`w-full rounded-t-lg cursor-pointer ${isProductsView ? 'max-w-[14px]' : 'max-w-[36px]'}`}
+                          style={{ height: getBarHeight(d.value, isProductsView ? productAxisMax : Math.max(maxStatusVal, 40)), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }}
+                          title={isProductsView ? `${d.label}: ${d.value}` : String(d.value)}
+                          aria-label={isProductsView ? `${d.label}: ${d.value}` : `${d.value}`}
+                        />
+                        {isProductsView ? (
+                          <span
+                            className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full"
+                            style={{ color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.88)' }}
+                            title={d.label}
+                            aria-label={d.label}
+                          >
+                            {industryIcon(d.label)}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-center" style={{ color: '#7a6aa0' }}>
+                            {d.label}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
-                <div className="flex h-full w-full items-end justify-between gap-3">
+                <div className={`flex h-full w-full items-end ${isProductsView ? 'justify-start gap-4 overflow-x-auto overflow-y-visible px-3' : 'justify-between gap-3'}`}>
                   {statusData.map((d, idx) => (
-                    <div key={`${d.label}-${idx}`} className="flex h-full w-full flex-col items-center justify-end gap-1 group relative">
-                      <div className="absolute -top-7 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md" style={{ background: '#4a1a8a' }}>
-                        {d.value}
+                    <div
+                      key={`${d.label}-${idx}`}
+                      className={`flex h-full flex-col items-center justify-end gap-3 group relative ${isProductsView ? 'w-11 shrink-0' : 'w-full'}`}
+                    >
+                      <div className="absolute -top-10 px-2 py-1 rounded-lg text-[10px] font-bold text-white opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-md whitespace-nowrap z-20" style={{ background: '#4a1a8a' }}>
+                        {isProductsView ? `${d.label}: ${d.value}` : d.value}
                       </div>
-                      <div className="w-full rounded-t-lg transition-all duration-500 group-hover:brightness-110"
-                        style={{ height: getBarHeight(d.value, maxStatusVal), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }} />
-                      <span className="text-[11px] font-medium" style={{ color: '#7a6aa0' }}>{d.label}</span>
+                      <span className="text-[10px] font-bold leading-none" style={{ color: '#4a1a8a' }}>{d.value}</span>
+                      <div
+                        className={`w-full rounded-t-lg cursor-pointer ${isProductsView ? 'max-w-[14px]' : ''}`}
+                        style={{ height: getBarHeight(d.value, maxStatusVal), background: 'linear-gradient(180deg, #a855f7, #7b1de8)' }}
+                        title={isProductsView ? `${d.label}: ${d.value}` : String(d.value)}
+                        aria-label={isProductsView ? `${d.label}: ${d.value}` : `${d.value}`}
+                      />
+                      {isProductsView ? (
+                        <span
+                          className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full"
+                          style={{ color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.88)' }}
+                          title={d.label}
+                          aria-label={d.label}
+                        >
+                          {industryIcon(d.label)}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] font-medium text-center" style={{ color: '#7a6aa0' }}>
+                          {d.label}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -809,10 +907,10 @@ function MonitoringPageContent() {
               {/* Page header */}
               <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6">
                 <h1 className="text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>
-                  Website &amp; Product Monitoring
+                  Website Card &amp; Product Monitoring
                 </h1>
                 <p className="mt-1 text-sm font-medium" style={{ color: '#a78bfa' }}>
-                  Website &amp; Product Monitoring
+                  Track performance and status for all active digital entities.
                 </p>
               </motion.div>
 
@@ -826,11 +924,8 @@ function MonitoringPageContent() {
                     className="h-11 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#2d1a50', boxShadow: '0 1px 4px rgba(103,2,191,0.05)' }}
                   />
-                  <div className="absolute left-1 top-1/2 -translate-y-1/2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full shadow-sm"
-                      style={{ background: '#FFCC00', color: '#1a1035' }}>
-                      <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
-                    </div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
+                    <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
                   </div>
                 </div>
 
@@ -861,7 +956,9 @@ function MonitoringPageContent() {
                   </span>
                 </div>
 
-                <button type="button" onClick={() => router.push('/admindashboard/moderationCompliance')}
+                <motion.button 
+                  whileTap={{ scale: 0.94 }}
+                  type="button" onClick={() => router.push('/admindashboard/moderationCompliance')}
                   suppressHydrationWarning
                   className="relative h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95"
                   style={{ background: 'rgba(166,61,255,0.08)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#8b1fe8' }}
@@ -875,17 +972,19 @@ function MonitoringPageContent() {
                       {pendingTotal}
                     </span>
                   )}
-                </button>
+                </motion.button>
 
                 {/* Sort */}
                 <div className="relative">
-                  <button type="button" onClick={() => setSortMenuOpen(!sortMenuOpen)}
+                  <motion.button 
+                    whileTap={{ scale: 0.94 }}
+                    type="button" onClick={() => setSortMenuOpen(!sortMenuOpen)}
                     className="h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95 shadow-sm"
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#8b1fe8' }}>
                     <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                     </svg>
-                  </button>
+                  </motion.button>
                   <AnimatePresence>
                     {sortMenuOpen && (
                       <>
@@ -914,23 +1013,26 @@ function MonitoringPageContent() {
                 </div>
 
                 {/* Tab switcher */}
-                <div className="ml-auto flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
-                  {(['websites', 'products'] as const).map((t) => (
-                    <button key={t} onClick={() => handleTabChange(t)} suppressHydrationWarning
-                      className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 capitalize ${
-                        activeTab === t ? 'text-[#1a1035]' : 'text-[#7a6aa0] hover:text-[#1a1035]'
-                      }`}>
-                      {activeTab === t && (
-                        <motion.div
-                          layoutId="monitoringTabBackground"
-                          className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
-                          transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                        />
-                      )}
-                      <span className="relative z-10">{t}</span>
-                    </button>
-                  ))}
-                </div>
+                 <div className="ml-auto flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
+                   {(['websites', 'products'] as const).map((t) => (
+                     <motion.button 
+                       key={t}
+                       whileTap={{ scale: 0.94 }}
+                       onClick={() => handleTabChange(t)} suppressHydrationWarning
+                       className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 capitalize ${
+                         activeTab === t ? 'text-[#1a1035]' : 'text-[#7a6aa0] hover:text-[#1a1035]'
+                       }`}>
+                       {activeTab === t && (
+                         <motion.div
+                           layoutId="monitoringTabBackground"
+                           className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                         />
+                       )}
+                       <span className="relative z-10">{t}</span>
+                     </motion.button>
+                   ))}
+                 </div>
               </motion.div>
 
               {/* Websites tab */}
@@ -998,11 +1100,13 @@ function MonitoringPageContent() {
                       style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}>
                       <div className="mb-5 flex items-center justify-between">
                         <h3 className="text-xl font-bold" style={{ color: '#4a1a8a' }}>Product Details</h3>
-                        <button type="button" onClick={() => setSelectedProduct(null)}
-                          className="rounded-xl px-3 py-1.5 text-sm font-medium transition hover:brightness-95"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => setSelectedProduct(null)}
+                          className="rounded-xl px-3 py-1.5 text-sm font-medium transition hover:brightness-95 flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Close
-                        </button>
+                        </motion.button>
                       </div>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                         {[
@@ -1026,11 +1130,13 @@ function MonitoringPageContent() {
                         <p className="text-sm" style={{ color: '#4a1a8a' }}>{selectedProduct.description || 'No description'}</p>
                       </div>
                       <div className="mt-5 flex justify-end">
-                        <button type="button" onClick={() => openDeleteProductModal(selectedProduct)}
-                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => openDeleteProductModal(selectedProduct)}
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 flex items-center justify-center"
                           style={{ background: '#ef4444' }}>
                           Delete Product
-                        </button>
+                        </motion.button>
                       </div>
                     </motion.div>
                   </div>
@@ -1055,7 +1161,10 @@ function MonitoringPageContent() {
                           { action: 'take_down' as const, label: 'Take Down Website (Keep data)' },
                           { action: 'delete' as const, label: 'Delete Website (Move to trash)' },
                         ].map(({ action, label }) => (
-                          <button key={action} type="button"
+                          <motion.button 
+                            key={action} 
+                            whileTap={{ scale: 0.98 }}
+                            type="button"
                             onClick={() => setWebsiteActionModal((prev) => ({ ...prev, action }))}
                             className="rounded-xl px-4 py-2.5 text-left text-sm font-medium transition"
                             style={websiteActionModal.action === action
@@ -1064,7 +1173,7 @@ function MonitoringPageContent() {
                                 : { background: 'rgba(166,61,255,0.08)', border: '1.5px solid rgba(166,61,255,0.3)', color: '#4a1a8a' }
                               : { background: 'rgba(255,255,255,0.8)', border: '1.5px solid rgba(166,61,255,0.12)', color: '#7a6aa0' }}>
                             {label}
-                          </button>
+                          </motion.button>
                         ))}
                       </div>
                       <label className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#a090c8' }}>Reason (required)</label>
@@ -1074,17 +1183,21 @@ function MonitoringPageContent() {
                         style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#2d1a50' }}
                         rows={4} placeholder="State the moderation reason…" />
                       <div className="mt-4 flex justify-end gap-2">
-                        <button type="button" onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
-                          className="rounded-xl px-4 py-2 text-sm font-semibold transition"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
+                          className="rounded-xl px-4 py-2 text-sm font-semibold transition flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Cancel
-                        </button>
-                        <button type="button" onClick={submitWebsiteAction}
+                        </motion.button>
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={submitWebsiteAction}
                           disabled={Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}`}
-                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
                           style={{ background: '#7b1de8' }}>
                           {Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}` ? 'Saving…' : 'Confirm Moderation'}
-                        </button>
+                        </motion.button>
                       </div>
                     </motion.div>
                   </div>
@@ -1112,17 +1225,21 @@ function MonitoringPageContent() {
                         style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#2d1a50' }}
                         rows={4} placeholder="State why this product is being deleted…" />
                       <div className="mt-4 flex justify-end gap-2">
-                        <button type="button" onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
-                          className="rounded-xl px-4 py-2 text-sm font-semibold transition"
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
+                          className="rounded-xl px-4 py-2 text-sm font-semibold transition flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Cancel
-                        </button>
-                        <button type="button" onClick={submitDeleteProduct}
+                        </motion.button>
+                        <motion.button 
+                          whileTap={{ scale: 0.94 }}
+                          type="button" onClick={submitDeleteProduct}
                           disabled={Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id}
-                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60"
+                          className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
                           style={{ background: '#ef4444' }}>
                           {Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id ? 'Deleting…' : 'Delete and Notify'}
-                        </button>
+                        </motion.button>
                       </div>
                     </motion.div>
                   </div>

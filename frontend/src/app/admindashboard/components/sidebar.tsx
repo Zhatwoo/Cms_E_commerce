@@ -10,6 +10,28 @@ import { ADMIN_NAV_ITEMS, isAdminNavItemMatch } from '@/lib/config/adminNavigati
 import { ChevronDownIcon, CloseIcon, LogoutIcon } from '@/lib/icons/adminIcons';
 import { useAdminLoading } from './LoadingProvider';
 
+// ── Message / Chat icon derived from the uploaded purple chat bubble ──────────
+export function MessageIcon({ className = 'h-5 w-5' }: { className?: string }) {
+    return (
+        <svg
+            className={className}
+            viewBox="0 0 512 512"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+        >
+            {/* Rounded rectangle body */}
+            <rect x="16" y="16" width="480" height="360" rx="80" ry="80" fill="currentColor" />
+            {/* Tail / pointer */}
+            <path d="M120 376 L60 460 L240 376 Z" fill="currentColor" />
+            {/* Three dots - changed to white for better visibility and matching design */}
+            <circle cx="168" cy="196" r="36" fill="white" />
+            <circle cx="256" cy="196" r="36" fill="white" />
+            <circle cx="344" cy="196" r="36" fill="white" />
+        </svg>
+    );
+}
+
 interface AdminSidebarProps {
     mobile?: boolean;
     onClose?: () => void;
@@ -155,6 +177,18 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
     const COLLAPSED_WIDTH = 104;
     const EXPANDED_WIDTH = 322;
 
+    // Helper to render a nav item icon — supports both image src and the MessageIcon SVG
+    const renderIcon = (item: typeof ADMIN_NAV_ITEMS[number]) => {
+        if (item.iconComponent === 'MessageIcon') {
+            return (
+                <MessageIcon className="h-5 w-5" />
+            );
+        }
+        return (
+            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+        );
+    };
+
     /* ── Mobile sidebar ──────────────────────────────────────── */
     if (mobile) {
         return (
@@ -207,7 +241,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                             >
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl" style={iconWrapStyle}>
-                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                                    {renderIcon(item)}
                                                 </span>
                                                 <span className="flex-1 text-left text-sm font-semibold">{item.label}</span>
                                                 <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
@@ -223,7 +257,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                                 style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                             >
                                                 <span className="flex h-10 w-10 items-center justify-center rounded-2xl" style={iconWrapStyle}>
-                                                    <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                                    {renderIcon(item)}
                                                 </span>
                                                 <span className="text-sm font-semibold">{item.label}</span>
                                             </Link>
@@ -326,7 +360,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
-                                            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                            {renderIcon(item)}
                                         </span>
                                         <span
                                             className={`ml-3 flex-1 whitespace-nowrap text-left text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
@@ -355,7 +389,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
-                                            <Image src={item.iconSrc} alt={item.iconAlt} width={20} height={20} className="h-5 w-5 object-contain" />
+                                            {renderIcon(item)}
                                         </span>
                                         <span
                                             className={`ml-3 whitespace-nowrap text-sm font-semibold transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`}

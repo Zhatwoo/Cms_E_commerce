@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback, useId } from "react";
 import ReactDOM from "react-dom";
-import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video, Eye, EyeOff } from "lucide-react";
+import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video, Eye, EyeOff, Loader2 } from "lucide-react";
+import { useDesignProject } from "@/app/design/_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "@/app/design/_lib/mediaActions";
 
 type HSVA = { h: number; s: number; v: number; a: number };
 type RGBA = { r: number; g: number; b: number; a: number };
@@ -286,7 +288,11 @@ export const ColorPicker = ({ value, onChange, onMediaChange, label, className =
                     ref={swatchRef}
                     onClick={toggle}
                     className="w-8 h-8 rounded-md border border-transparent relative overflow-hidden flex-shrink-0"
-                    style={{ background: CHECKER_BG, backgroundSize: CHECKER_BG_SIZE, backgroundPosition: CHECKER_BG_POS }}
+                    style={{ 
+                        backgroundImage: CHECKER_BG, 
+                        backgroundSize: CHECKER_BG_SIZE, 
+                        backgroundPosition: CHECKER_BG_POS 
+                    }}
                 >
                     <div className="absolute inset-0" style={{ background: swatchPaint }} />
                 </button>
@@ -359,6 +365,8 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const [savedColors, setSavedColors] = useState<SavedColorEntry[]>([]);
     const [selectedSavedColorId, setSelectedSavedColorId] = useState<string | null>(null);
     const [usedColors, setUsedColors] = useState<UsedColorEntry[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const { projectId } = useDesignProject();
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -903,9 +911,18 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             </button>
                             <div
                                 className="w-10 h-10 rounded-full border border-transparent shadow-inner relative overflow-hidden"
-                                style={{ background: CHECKER_BG, backgroundSize: CHECKER_BG_SIZE, backgroundPosition: CHECKER_BG_POS }}
+                                style={{ 
+                                    backgroundImage: CHECKER_BG, 
+                                    backgroundSize: CHECKER_BG_SIZE, 
+                                    backgroundPosition: CHECKER_BG_POS 
+                                }}
                             >
-                                <div className="absolute inset-0" style={{ backgroundColor: value }} />
+                                <div 
+                                    className="absolute inset-0" 
+                                    style={{ 
+                                        backgroundColor: value 
+                                    }} 
+                                />
                             </div>
                         </div>
                     </div>
@@ -1204,11 +1221,12 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                     }}
                                     className="relative h-6 w-6 rounded-md border border-[var(--builder-border)] transition-colors hover:border-[#2f8cff]"
                                     style={{
-                                        background: entry.alpha < 100
-                                            ? `${CHECKER_BG}, ${rgbaCss(entry.hex, entry.alpha)}`
-                                            : rgbaCss(entry.hex, entry.alpha),
-                                        backgroundSize: entry.alpha < 100 ? `${CHECKER_BG_SIZE}, auto` : undefined,
-                                        backgroundPosition: entry.alpha < 100 ? `${CHECKER_BG_POS}, center` : undefined,
+                                        backgroundImage: entry.alpha < 100
+                                            ? `linear-gradient(${rgbaCss(entry.hex, entry.alpha)}, ${rgbaCss(entry.hex, entry.alpha)}), ${CHECKER_BG}`
+                                            : 'none',
+                                        backgroundColor: entry.alpha < 100 ? 'transparent' : rgbaCss(entry.hex, entry.alpha),
+                                        backgroundSize: entry.alpha < 100 ? `100%, ${CHECKER_BG_SIZE}` : 'auto',
+                                        backgroundPosition: entry.alpha < 100 ? `0% 0%, ${CHECKER_BG_POS}` : '0% 0%',
                                     }}
                                     title={`${entry.hex} ${entry.alpha}%`}
                                 >
@@ -1222,7 +1240,15 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
             {enableFillModes && enableMediaFillModes && paintMode === "image" && (
                 <div className="flex flex-col gap-3">
-                    <div className="h-[156px] rounded-md border border-[var(--builder-border)]" style={{ background: imageUrl ? `url("${imageUrl}") center / cover no-repeat` : CHECKER_BG, backgroundSize: imageUrl ? 'cover' : CHECKER_BG_SIZE, backgroundPosition: imageUrl ? 'center' : CHECKER_BG_POS }} />
+                    <div 
+                        className="h-[156px] rounded-md border border-[var(--builder-border)]" 
+                        style={{ 
+                            backgroundImage: imageUrl ? `url("${imageUrl}")` : CHECKER_BG, 
+                            backgroundSize: imageUrl ? 'cover' : CHECKER_BG_SIZE, 
+                            backgroundPosition: imageUrl ? 'center' : CHECKER_BG_POS,
+                            backgroundRepeat: 'no-repeat'
+                        }} 
+                    />
                     <input
                         type="text"
                         value={imageUrl}
@@ -1235,25 +1261,51 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         ref={imageInputRef}
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        disabled={isUploading}
+                        onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                const next = String(reader.result || "");
-                                setImageUrl(next);
-                                applyImage(next);
-                            };
-                            reader.readAsDataURL(file);
+                            if (!file || !projectId) return;
+                            
+                            setIsUploading(true);
+                            try {
+                                // 1. Immediate local preview
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    const next = String(reader.result || "");
+                                    setImageUrl(next);
+                                    applyImage(next);
+                                };
+                                reader.readAsDataURL(file);
+
+                                // 2. Robust upload to media library
+                                const newItem = await addFileToMediaLibrary(projectId, file);
+                                
+                                // 3. Update with final remote URL
+                                setImageUrl(newItem.url);
+                                applyImage(newItem.url);
+                            } catch (error) {
+                                console.error("Image upload to media library failed:", error);
+                            } finally {
+                                setIsUploading(false);
+                                if (imageInputRef.current) imageInputRef.current.value = "";
+                            }
                         }}
                         className="hidden"
                     />
                     <button
                         type="button"
                         onClick={() => imageInputRef.current?.click()}
-                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs"
+                        disabled={isUploading}
+                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        Upload from computer
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={12} />
+                                Uploading...
+                            </>
+                        ) : (
+                            "Upload from computer"
+                        )}
                     </button>
                 </div>
             )}
@@ -1275,21 +1327,47 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         ref={videoInputRef}
                         type="file"
                         accept="video/*"
-                        onChange={(e) => {
+                        disabled={isUploading}
+                        onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (!file) return;
-                            const objectUrl = URL.createObjectURL(file);
-                            setVideoUrl(objectUrl);
-                            applyVideo(objectUrl);
+                            if (!file || !projectId) return;
+
+                            setIsUploading(true);
+                            try {
+                                // 1. Immediate local preview
+                                const objectUrl = URL.createObjectURL(file);
+                                setVideoUrl(objectUrl);
+                                applyVideo(objectUrl);
+
+                                // 2. Upload to media library
+                                const newItem = await addFileToMediaLibrary(projectId, file);
+                                
+                                // 3. Update with permanent URL
+                                setVideoUrl(newItem.url);
+                                applyVideo(newItem.url);
+                            } catch (error) {
+                                console.error("Video upload failed:", error);
+                            } finally {
+                                setIsUploading(false);
+                                if (videoInputRef.current) videoInputRef.current.value = "";
+                            }
                         }}
                         className="hidden"
                     />
                     <button
                         type="button"
                         onClick={() => videoInputRef.current?.click()}
-                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs"
+                        disabled={isUploading}
+                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        Upload video
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={12} />
+                                Uploading...
+                            </>
+                        ) : (
+                            "Upload video"
+                        )}
                     </button>
                 </div>
             )}

@@ -59,6 +59,18 @@ export type AuthResponse = {
 
 export type ApiError = { success: false; message: string; error?: string };
 
+export type ApiMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  message: string;
+  type: 'support' | 'internal' | 'request';
+  status: 'unread' | 'read';
+  websiteId: string | null;
+  createdAt: string;
+};
+
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message || '';
   if (typeof error === 'string') return error;
@@ -1782,5 +1794,42 @@ export async function markAllSharedNotificationsRead(): Promise<{ success: boole
 export async function deleteSharedNotification(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}`, { method: 'DELETE' });
 }
+
+/**
+ * MESSAGING API
+ */
+
+export async function getMessages(filters: { type?: string; status?: string; limit?: number } = {}): Promise<{ success: boolean; data: ApiMessage[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (filters.type) params.append('type', filters.type);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    
+    return await authFetch(`/api/messages?${params.toString()}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function sendMessage(data: { message: string; type: 'support' | 'internal' | 'request'; senderName?: string; senderAvatar?: string; websiteId?: string }): Promise<{ success: boolean; data?: ApiMessage }> {
+  try {
+    return await authFetch('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function markMessageRead(id: string): Promise<{ success: boolean }> {
+  try {
+    return await authFetch(`/api/messages/${id}/read`, { method: 'PATCH' });
+  } catch {
+    return { success: false };
+  }
+}
+
 
 const api = { getMe, updateProfile }; export default api;

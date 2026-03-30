@@ -147,26 +147,17 @@ function getProjectPageRef(userId, projectId, pageId) {
 
 async function savePageData(userId, projectId, pageId, content) {
   const ref = getProjectPageRef(userId, projectId, pageId);
-  let dataToSave = content;
-
-  // Robust JSON parsing
-  if (typeof content === 'string') {
-    try {
-      // First pass
-      dataToSave = JSON.parse(content);
-
-      // If result is still a string (double encoding), parse again
-      if (typeof dataToSave === 'string') {
-        dataToSave = JSON.parse(dataToSave);
-      }
-    } catch (e) {
-      console.warn('⚠️ JSON parsing failed, saving as raw string/content:', e.message);
-      dataToSave = content;
-    }
+  let dataToSave;
+  // Ensure content is stringified to avoid Firestore Map depth limits (20 levels).
+  // Craft.js data is often deeper than 20 levels.
+  if (typeof content !== 'string') {
+    dataToSave = JSON.stringify(content);
+  } else {
+    dataToSave = content;
   }
 
   const docData = {
-    page: dataToSave, // Use 'page' field as requested
+    page: dataToSave, 
     updated_at: new Date()
   };
 

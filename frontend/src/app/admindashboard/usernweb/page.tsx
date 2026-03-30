@@ -67,7 +67,8 @@ const UserWebsiteManagement = () => {
               className="flex flex-wrap items-center gap-3"
             >
               <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1 relative">
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={() => handleTabToggle('clients')}
                   className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
@@ -82,8 +83,9 @@ const UserWebsiteManagement = () => {
                     />
                   )}
                   <span className="relative z-10">Clients</span>
-                </button>
-                <button
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={() => handleTabToggle('domains')}
                   className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
@@ -98,7 +100,7 @@ const UserWebsiteManagement = () => {
                     />
                   )}
                   <span className="relative z-10">Websites</span>
-                </button>
+                </motion.button>
               </div>
             </motion.div>
 
