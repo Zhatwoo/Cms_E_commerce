@@ -924,14 +924,8 @@ function MonitoringPageContent() {
                     className="h-11 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#2d1a50', boxShadow: '0 1px 4px rgba(103,2,191,0.05)' }}
                   />
-                  <div className="absolute left-1 top-1/2 -translate-y-1/2">
-                    <motion.div 
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="flex h-9 w-9 items-center justify-center rounded-full shadow-sm"
-                      style={{ background: '#FFCC00', color: '#1a1035' }}>
-                      <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
-                    </motion.div>
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
+                    <SearchIcon className="h-4 w-4" strokeWidth={2.3} />
                   </div>
                 </div>
 
