@@ -157,8 +157,8 @@ export function findNearestScrollParent(el: HTMLElement | null): HTMLElement | n
   let parent = el.parentElement;
   while (parent) {
     const style = window.getComputedStyle(parent);
-    const overflow = style.overflow + style.overflowY;
-    if (/(auto|scroll)/.test(overflow)) {
+    const overflow = style.overflow + style.overflowY + style.overflowX;
+    if (/(auto|scroll)/.test(overflow) && isElementScrollable(parent)) {
       return parent;
     }
     if (parent === document.body || parent === document.documentElement) break;
@@ -171,9 +171,9 @@ export function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  // 1. Explicit preview scroll root
+  // 1. Explicit preview scroll root — only trust it if it actually has overflow to scroll
   const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
-  if (explicitPreviewRoot instanceof HTMLElement) {
+  if (explicitPreviewRoot instanceof HTMLElement && isElementScrollable(explicitPreviewRoot)) {
     return { primary: explicitPreviewRoot, fallback: null };
   }
 
@@ -493,31 +493,9 @@ function useGsapScrollEffect(
     const scroller = proxyScroller ?? resolvedScroller ?? fallbackScroller;
 
     // For element-based scrollers (e.g. data-preview-scroll-root), set up:
-    // 1. scrollerProxy so GSAP computes trigger positions relative to element viewport
-    // 2. scroll event bridge so GSAP re-evaluates on every scroll tick
+    // 1. scroll event bridge so GSAP re-evaluates on every scroll tick
     let elementScrollHandler: (() => void) | null = null;
     if (scroller && !proxyScroller) {
-      // Set up scrollerProxy only once per element so GSAP knows buffer/viewport dimensions
-      if (!ELEMENT_SCROLLER_PROXIES.has(scroller)) {
-        ELEMENT_SCROLLER_PROXIES.add(scroller);
-        ScrollTrigger.scrollerProxy(scroller, {
-          scrollTop(value?: number) {
-            if (typeof value === "number") scroller.scrollTop = value;
-            return scroller.scrollTop;
-          },
-          scrollLeft(value?: number) {
-            if (typeof value === "number") scroller.scrollLeft = value;
-            return scroller.scrollLeft;
-          },
-          getBoundingClientRect() {
-            const width = scroller.clientWidth;
-            const height = scroller.clientHeight;
-            return { top: 0, left: 0, width, height, right: width, bottom: height } as DOMRect;
-          },
-          // Keep consistent pin behavior even though we don't use pinning here.
-          pinType: "transform",
-        });
-      }
       // Forward scroll events from the element to ScrollTrigger
       elementScrollHandler = () => ScrollTrigger.update();
       scroller.addEventListener("scroll", elementScrollHandler, { passive: true });
