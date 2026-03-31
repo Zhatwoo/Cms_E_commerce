@@ -71,6 +71,9 @@ export const Section = ({
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
+  rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
   contentWidth = "constrained",
   contentMaxWidth = "1200px",
   customClassName = "",
@@ -105,6 +108,18 @@ export const Section = ({
   const resolvedHeight = String(height ?? "auto").trim() || "auto";
   const constrainedContent = contentWidth !== "full";
   const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
+
+  const transformStyle = React.useMemo(
+    () =>
+      [
+        rotation ? `rotate(${rotation}deg)` : null,
+        flipHorizontal ? "scaleX(-1)" : null,
+        flipVertical ? "scaleY(-1)" : null,
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
+    [rotation, flipHorizontal, flipVertical]
+  );
 
   const setSectionRef = React.useCallback(
     (element: HTMLElement | null) => {
@@ -167,6 +182,8 @@ export const Section = ({
       boxShadow,
       opacity,
       overflow,
+      transform: transformStyle,
+      transformOrigin: "center center",
       display: effectiveDisplay,
       containerType: "inline-size",
     }),
@@ -191,6 +208,7 @@ export const Section = ({
       mt,
       opacity,
       overflow,
+      transformStyle,
       pb,
       pl,
       posLeft,
@@ -319,6 +337,9 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
+  rotation: 0,
+  flipHorizontal: false,
+  flipVertical: false,
   contentWidth: "constrained",
   contentMaxWidth: "1200px",
 };
