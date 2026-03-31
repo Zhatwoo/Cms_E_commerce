@@ -14,8 +14,8 @@ const ChevronRightIcon = () => (
     </svg>
 );
 
-const SearchIcon = () => (
-    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+const SearchIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
+    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M21 21l-4.35-4.35m1.35-5.15a7 7 0 11-14 0 7 7 0 0114 0z" />
     </svg>
 );
@@ -56,15 +56,18 @@ const DismissModal: React.FC<DismissModalProps> = ({ isOpen, onClose, onConfirm,
                             Are you sure you want to dismiss this report for {site}? The report will be archived and no action will be taken.
                         </p>
                         <div className="flex items-center justify-end gap-6">
-                            <button type="button" onClick={onClose} className="text-base font-semibold" style={{ color: '#9A99AF' }}>Cancel</button>
-                            <button
+                            <motion.button 
+                                whileTap={{ scale: 0.96 }}
+                                type="button" onClick={onClose} className="text-base font-semibold" style={{ color: '#9A99AF' }}>Cancel</motion.button>
+                            <motion.button
+                                whileTap={{ scale: 0.94 }}
                                 type="button"
                                 onClick={() => { onConfirm(); onClose(); }}
-                                className="rounded-2xl px-10 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90"
+                                className="rounded-2xl px-10 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90 flex items-center justify-center"
                                 style={{ background: '#FF4343' }}
                             >
                                 Dismiss
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
                 </motion.div>
@@ -133,14 +136,15 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, data }) =>
                     </div>
                     <div className="px-8 pb-8">
                         <div className="flex justify-center">
-                            <button
+                            <motion.button
+                                whileTap={{ scale: 0.94 }}
                                 type="button"
                                 onClick={onClose}
-                                className="rounded-2xl px-10 py-3 text-base font-semibold transition-opacity hover:opacity-90"
+                                className="rounded-2xl px-10 py-3 text-base font-semibold transition-opacity hover:opacity-90 flex items-center justify-center"
                                 style={{ background: '#FFCC00', color: '#1F1F1F' }}
                             >
                                 Close
-                            </button>
+                            </motion.button>
                         </div>
                     </div>
                 </motion.div>
@@ -225,35 +229,50 @@ function ModerationComplianceBoard() {
 
                 {/* Tabs + search */}
                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex gap-1 rounded-xl p-1" style={{ border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.7)' }}>
+                    <div className="flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.7)' }}>
                         {(['reports', 'records'] as const).map((t) => (
-                            <button
+                            <motion.button
                                 key={t}
+                                whileTap={{ scale: 0.94 }}
                                 onClick={() => {
                                     if (t === tab) return;
                                     startLoading();
                                     setTab(t);
                                 }}
-                                className="min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors"
-                                style={tab === t ? { background: '#FFCC00', color: '#471396' } : { color: '#66607E' }}
+                                className={`relative min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                                    tab === t ? 'text-[#471396]' : 'text-[#66607E] hover:text-[#471396]'
+                                }`}
                             >
-                                {t.charAt(0).toUpperCase() + t.slice(1)}
-                            </button>
+                                {tab === t && (
+                                    <motion.div
+                                        layoutId="moderationTabBackground"
+                                        className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                    />
+                                )}
+                                <span className="relative z-10">{t.charAt(0).toUpperCase() + t.slice(1)}</span>
+                            </motion.button>
                         ))}
                     </div>
 
-                    <button type="button" className="inline-flex h-12 w-12 items-center justify-center rounded-full" style={{ background: '#FFCC00', color: '#471396' }} aria-label="Search">
-                        <SearchIcon />
-                    </button>
-
-                    <input
-                        aria-label="Search websites"
-                        placeholder="Search websites"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="h-12 min-w-[17rem] flex-1 rounded-2xl px-4 text-sm font-medium outline-none"
-                        style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
-                    />
+                    <div className="relative flex-1 min-w-[17rem]">
+                        <input
+                            aria-label="Search websites"
+                            placeholder="Search websites"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="h-12 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
+                            style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
+                        />
+                        <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
+                            <motion.div 
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm">
+                                <SearchIcon className="h-5 w-5" />
+                            </motion.div>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Main table */}
@@ -281,8 +300,12 @@ function ModerationComplianceBoard() {
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-5">
-                                            <button type="button" onClick={() => handleView('example-site.com')} className="text-lg font-medium" style={{ color: '#471396' }}>View</button>
-                                            <button type="button" onClick={() => { setCurrentSite('example-site.com'); setShowDismissModal(true); }} className="rounded-xl px-6 py-2.5 text-base font-semibold text-white" style={{ background: '#FF4343' }}>Dismiss</button>
+                                            <motion.button 
+                                                whileTap={{ scale: 0.94 }}
+                                                type="button" onClick={() => handleView('example-site.com')} className="text-lg font-medium transition hover:translate-x-0.5" style={{ color: '#471396' }}>View</motion.button>
+                                            <motion.button 
+                                                whileTap={{ scale: 0.94 }}
+                                                type="button" onClick={() => { setCurrentSite('example-site.com'); setShowDismissModal(true); }} className="rounded-xl px-6 py-2.5 text-base font-semibold text-white transition hover:brightness-95 flex items-center justify-center" style={{ background: '#FF4343' }}>Dismiss</motion.button>
                                         </div>
                                     </div>
                                 </motion.div>

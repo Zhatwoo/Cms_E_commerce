@@ -27,6 +27,8 @@ function fromDoc(doc) {
     createdAt: d.created_at?.toDate?.()?.toISOString?.() || d.created_at,
     updatedAt: d.updated_at?.toDate?.()?.toISOString?.() || d.updated_at,
     lastSeen: d.last_seen?.toDate?.()?.toISOString?.() || d.last_seen || null,
+    emailVerified: d.email_verified || false,
+    notificationPreferences: d.notification_preferences || { securityAlerts: true, sessionNotifications: true, accountUpdates: true }
   };
 }
 
@@ -38,7 +40,9 @@ function toFirestore(data) {
     isActive: 'is_active', subscriptionPlan: 'subscription_plan',
     suspensionReason: 'suspension_reason',
     paymentMethods: 'payment_methods',
-    lastSeen: 'last_seen'
+    lastSeen: 'last_seen',
+    emailVerified: 'email_verified',
+    notificationPreferences: 'notification_preferences'
   };
   const out = {};
   for (const [appKey, dbKey] of Object.entries(map)) {
@@ -118,6 +122,7 @@ class User {
         updated_at: now,
         username: '',
         website: '',
+        email_verified: false,
       };
 
       // 2. Save profile ONLY to: user/roles/client/{uid}
@@ -174,6 +179,7 @@ class User {
         updated_at: now,
         username: '',
         website: '',
+        email_verified: true,
       };
 
       // 2. Save profile to user/roles/{role}/{uid}. Super Admin goes to user/roles/admin per requirement.
@@ -278,6 +284,8 @@ class User {
   static async setEmailVerified(id) {
     if (!id) throw new Error('Missing id');
     await auth.updateUser(id, { emailVerified: true });
+    // Also update in Firestore
+    await this.update(id, { emailVerified: true });
   }
 
   static async verifyPassword(email, password) {

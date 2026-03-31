@@ -66,29 +66,41 @@ const UserWebsiteManagement = () => {
               transition={{ duration: 0.45, delay: 0.08 }}
               className="flex flex-wrap items-center gap-3"
             >
-              <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1">
-                <button
+              <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1 relative">
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={() => handleTabToggle('clients')}
-                  className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
-                    activeTab === 'clients'
-                      ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
-                      : 'text-[#6F657E] hover:text-[#471396]'
+                  className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                    activeTab === 'clients' ? 'text-[#471396]' : 'text-[#6F657E] hover:text-[#471396]'
                   }`}
                 >
-                  Clients
-                </button>
-                <button
+                  {activeTab === 'clients' && (
+                    <motion.div
+                      layoutId="userWebTabBackground"
+                      className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10">Clients</span>
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.94 }}
                   type="button"
                   onClick={() => handleTabToggle('domains')}
-                  className={`rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors ${
-                    activeTab === 'domains'
-                      ? 'bg-[#FFCC00] text-[#471396] shadow-sm'
-                      : 'text-[#6F657E] hover:text-[#471396]'
+                  className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                    activeTab === 'domains' ? 'text-[#471396]' : 'text-[#6F657E] hover:text-[#471396]'
                   }`}
                 >
-                  Websites
-                </button>
+                  {activeTab === 'domains' && (
+                    <motion.div
+                      layoutId="userWebTabBackground"
+                      className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  <span className="relative z-10">Websites</span>
+                </motion.button>
               </div>
             </motion.div>
 

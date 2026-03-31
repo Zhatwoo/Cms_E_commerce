@@ -408,3 +408,49 @@ exports.getUserStats = async (req, res) => {
     });
   }
 };
+
+// @desc    Get all admins for chat
+// @route   GET /api/users/admins/list
+// @access  Private/Admin
+exports.getAdmins = async (req, res) => {
+  try {
+    const { search } = req.query;
+    const allUsers = await User.findAll({ role: 'admin' });
+    
+    let admins = allUsers.map(u => ({
+      id: u.id,
+      name: u.displayName || u.username || u.email || 'Unknown',
+      username: u.username || '',
+      email: u.email || '',
+      avatar: u.avatar || null
+    }));
+
+    // Filter by search term if provided
+    if (search) {
+      const searchLower = search.toLowerCase();
+      admins = admins.filter(a => {
+        const name = (a.name || '').toLowerCase();
+        const username = (a.username || '').toLowerCase();
+        const email = (a.email || '').toLowerCase();
+        return name.includes(searchLower) || username.includes(searchLower) || email.includes(searchLower);
+      });
+    }
+
+    // Optionally exclude current user
+    const currentUserId = req.user?.id;
+    if (currentUserId) {
+      admins = admins.filter(a => a.id !== currentUserId);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: admins
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};

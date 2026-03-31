@@ -39,6 +39,14 @@ export type User = {
   website?: string;
   paymentMethods?: any[];
   paymentMethod?: any; // kept for compatibility
+  emailVerified?: boolean;
+  lastPasswordChange?: string;
+  lastSeen?: string;
+  notificationPreferences?: {
+    securityAlerts: boolean;
+    sessionNotifications: boolean;
+    accountUpdates: boolean;
+  };
 };
 
 export type AuthResponse = {
@@ -50,6 +58,18 @@ export type AuthResponse = {
 };
 
 export type ApiError = { success: false; message: string; error?: string };
+
+export type ApiMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  message: string;
+  type: 'support' | 'internal' | 'request';
+  status: 'unread' | 'read';
+  websiteId: string | null;
+  createdAt: string;
+};
 
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message || '';
@@ -493,7 +513,9 @@ export async function logout(): Promise<void> {
 
 /** Get current user from backend (uses cookie). Use to restore session when only cookie is present. */
 export async function getMe(): Promise<{ success: boolean; user?: User }> {
-  return authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  const res = await authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  if (res.success && res.user) setStoredUser(res.user);
+  return res;
 }
 
 export async function registerPublishedSiteUser(params: {
@@ -569,12 +591,27 @@ export async function updateProfile(data: {
   username?: string;
   website?: string;
   bio?: string;
+  phone?: string;
   paymentMethods?: any[];
   paymentMethod?: any;
+  notificationPreferences?: {
+    securityAlerts: boolean;
+    sessionNotifications: boolean;
+    accountUpdates: boolean;
+  };
 }): Promise<{ success: boolean; message?: string; user?: User }> {
-  return authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
+  const res = await authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+  if (res.success && res.user) setStoredUser(res.user);
+  return res;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; token?: string }> {
+  return authFetch<{ success: boolean; message?: string; token?: string }>('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
 
@@ -1757,5 +1794,128 @@ export async function markAllSharedNotificationsRead(): Promise<{ success: boole
 export async function deleteSharedNotification(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}`, { method: 'DELETE' });
 }
+
+/**
+ * MESSAGING API
+ */
+
+export async function getMessages(filters: { type?: string; status?: string; limit?: number } = {}): Promise<{ success: boolean; data: ApiMessage[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (filters.type) params.append('type', filters.type);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    
+    return await authFetch(`/api/messages?${params.toString()}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function sendMessage(data: { message: string; type: 'support' | 'internal' | 'request'; senderName?: string; senderAvatar?: string; websiteId?: string }): Promise<{ success: boolean; data?: ApiMessage }> {
+  try {
+    return await authFetch('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function markMessageRead(id: string): Promise<{ success: boolean }> {
+  try {
+    return await authFetch(`/api/messages/${id}/read`, { method: 'PATCH' });
+  } catch {
+    return { success: false };
+  }
+}
+
+/* ── Chat/Conversation API ────────────────────────────────────── */
+
+export type Conversation = {
+  conversationId: string;
+  otherUserId: string;
+  otherUserName: string;
+  otherUserAvatar: string | null;
+  otherUserUsername?: string;
+  otherUserEmail?: string;
+  lastMessage: string;
+  lastMessageTime: string;
+  unreadCount: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  recipientId: string | null;
+  conversationId: string | null;
+  message: string;
+  type: string;
+  status: string;
+  createdAt: string;
+};
+
+export type AdminUser = {
+  id: string;
+  name: string;
+  username?: string;
+  email: string;
+  avatar: string | null;
+};
+
+export async function getConversations(): Promise<{ success: boolean; data: Conversation[] }> {
+  try {
+    return await authFetch(`/api/messages/conversations/list`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function getConversationMessages(
+  otherUserId: string,
+  limit?: number
+): Promise<{ success: boolean; data: ChatMessage[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (limit) params.append('limit', limit.toString());
+    const qs = params.toString();
+    return await authFetch(`/api/messages/conversations/${encodeURIComponent(otherUserId)}${qs ? '?' + qs : ''}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function sendDirectMessage(
+  recipientId: string,
+  message: string
+): Promise<{ success: boolean; data?: ChatMessage }> {
+  try {
+    return await authFetch(`/api/messages`, {
+      method: 'POST',
+      body: JSON.stringify({
+        recipientId,
+        message,
+        type: 'direct'
+      })
+    });
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function getAdmins(search?: string): Promise<{ success: boolean; data: AdminUser[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    const qs = params.toString();
+    return await authFetch(`/api/users/admins/list${qs ? '?' + qs : ''}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
 
 const api = { getMe, updateProfile }; export default api;

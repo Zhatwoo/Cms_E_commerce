@@ -11,6 +11,7 @@ export type AdminNavItem = {
   href: string;
   iconSrc: string;
   iconAlt: string;
+  iconComponent?: string; // Support for custom SVG components
   matchExact?: string;
   matchIncludes?: string;
   children?: AdminNavChild[];
@@ -106,6 +107,15 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     iconSrc: '/admin-dashboard/icons/moderation-icon.png',
     iconAlt: 'Moderation',
     matchIncludes: '/moderationCompliance',
+  },
+  {
+    id: 'messaging',
+    label: 'Messages',
+    href: '/admindashboard/messages',
+    iconSrc: '/admin-dashboard/icons/messages-icon.png',
+    iconAlt: 'Messages',
+    iconComponent: 'MessageIcon',
+    matchIncludes: '/messages',
   },
 ];
 
