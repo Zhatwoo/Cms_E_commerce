@@ -2,7 +2,6 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
-import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
@@ -47,9 +46,6 @@ export const PaginationSettings = () => {
     boxShadow,
     overflow,
     cursor,
-    rotation,
-    flipHorizontal,
-    flipVertical,
     position,
     display,
     zIndex,
@@ -96,9 +92,6 @@ export const PaginationSettings = () => {
     boxShadow: node.data.props.boxShadow ?? "none",
     overflow: node.data.props.overflow ?? "visible",
     cursor: node.data.props.cursor ?? "default",
-    rotation: node.data.props.rotation ?? 0,
-    flipHorizontal: node.data.props.flipHorizontal ?? false,
-    flipVertical: node.data.props.flipVertical ?? false,
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
     zIndex: node.data.props.zIndex ?? 0,
@@ -187,15 +180,6 @@ export const PaginationSettings = () => {
             />
           </div>
         </div>
-      </DesignSection>
-
-      <DesignSection title="Transform" defaultOpen={false}>
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={typedSetProp}
-        />
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
