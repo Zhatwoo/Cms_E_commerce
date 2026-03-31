@@ -73,7 +73,7 @@ export function ProjectCardContainer({
   return (
     <div
       className={`
-        group relative rounded-4xl overflow-hidden transition-all duration-500 cursor-pointer
+        group relative rounded-4xl overflow-hidden transition-all duration-500 cursor-pointer antialiased
         ${theme === 'dark'
           ? 'bg-[#15093E] border border-[#272261] shadow-[0_20px_40px_rgba(0,0,0,0.3)]'
           : 'admin-dashboard-panel-soft border-0'
@@ -112,16 +112,11 @@ export function ProjectCardContainer({
             bgColor="transparent"
             className="w-full h-full aspect-16/10! rounded-none!"
           />
+          {/* Decorative Overlay */}
           <div className={`absolute inset-0 opacity-10 ${theme === 'light' ? 'bg-[#8B5CF6]' : 'bg-transparent'}`} />
-        </div>
-
-        <div className="p-6">
-          <div className="space-y-2">
-            <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
-              theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
-            }`}>
-              {project.title || 'Untitled Project'}
-            </h3>
+          
+          {/* BADGE LAYOUT: Bottom-Right of Image */}
+          <div className="absolute bottom-3 right-3 z-40 flex flex-wrap gap-2 pointer-events-none">
             {project.status && (
               <StatusBadge status={project.status} size="sm" />
             )}
@@ -129,9 +124,19 @@ export function ProjectCardContainer({
               <StatusBadge status="shared" label={`by ${project.ownerName}`} size="sm" />
             )}
           </div>
-          <p className={`text-[11px] font-bold tracking-widest mt-3 ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
-            {project.isShared ? `Shared by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
-          </p>
+        </div>
+
+        <div className="p-6">
+          <div className="flex flex-col gap-1">
+            <h3 className={`text-lg font-black [font-family:var(--font-outfit),sans-serif] tracking-tight truncate transition-colors duration-300 ${
+              theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
+            }`}>
+              {project.title || 'Untitled Project'}
+            </h3>
+            <p className={`text-[11px] font-bold [font-family:var(--font-outfit),sans-serif] tracking-widest ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
+              {project.isShared ? `Shared by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
+            </p>
+          </div>
         </div>
       </div>
     </div>

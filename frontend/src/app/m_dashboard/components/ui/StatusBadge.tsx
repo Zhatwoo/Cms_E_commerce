@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { useTheme } from '../../components/context/theme-context';
 
 /// Reusable status badge component for displaying project status 
-/// with high-end editorial styling and theme-aware contrast.
+/// with consistent styling across the dashboard. Supports 'published', 'live', 'draft', 
+// and 'shared' statuses.
 ///
 /// Parameters:
 /// - [status]: The raw status string (e.g., 'live', 'draft').
@@ -26,12 +27,11 @@ function getStatusStyles(status: ProjectStatus | null | undefined, isDark: boole
     case 'published':
     case 'live':
       return {
-        // Light mode: Vibrant green | Dark mode: Soft emerald glow
         bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50',
         text: isDark ? 'text-emerald-400' : 'text-emerald-700',
         border: isDark ? 'border-emerald-500/20' : 'border-emerald-200',
         dot: 'bg-emerald-500',
-        label: 'Live'
+        label: 'Published' 
       };
     case 'shared':
       return {
@@ -43,10 +43,10 @@ function getStatusStyles(status: ProjectStatus | null | undefined, isDark: boole
       };
     default:
       return {
-        bg: isDark ? 'bg-slate-500/10' : 'bg-slate-100',
-        text: isDark ? 'text-slate-400' : 'text-slate-600',
-        border: isDark ? 'border-slate-500/20' : 'border-slate-200',
-        dot: 'bg-slate-400',
+        bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50',
+        text: isDark ? 'text-amber-500' : 'text-amber-700',
+        border: isDark ? 'border-amber-500/20' : 'border-amber-200',
+        dot: 'bg-amber-500',
         label: 'Draft'
       };
   }
@@ -61,7 +61,6 @@ export function StatusBadge({ status, label, size = 'sm' }: StatusBadgeProps) {
   const styles = getStatusStyles(status, isDark);
   const displayLabel = label || styles.label;
 
-  // Editorial typography: small, bold, and slightly wider tracking
   const sizeClasses = size === 'md'
     ? 'px-2.5 py-1 text-[11px]'
     : 'px-2 py-0.5 text-[10px]';
@@ -75,7 +74,6 @@ export function StatusBadge({ status, label, size = 'sm' }: StatusBadgeProps) {
         shrink-0 whitespace-nowrap
       `}
     >
-      {/* Precision Indicator Dot - More "Editorial" than a standard icon */}
       <span className={`relative flex h-1.5 w-1.5 shrink-0`}>
         {/* Pulsing effect for Live status only */}
         {(status === 'live' || status === 'published') && (

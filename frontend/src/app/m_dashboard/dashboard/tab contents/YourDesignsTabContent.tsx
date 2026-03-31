@@ -93,9 +93,9 @@ type YourDesignsTabContentProps = {
    */
   setShowAllOtherProjects: Dispatch<SetStateAction<boolean>>;
   /**
-   * Opens the create project modal.
+   * Navigates to the dedicated create project page.
    */
-  setCreateModalOpen: Dispatch<SetStateAction<boolean>>;
+  onCreateProject: () => void;
   /**
    * Opens/closes project action menus.
    */
@@ -139,7 +139,7 @@ export function YourDesignsTabContent({
   setActiveProjectIndex,
   setIsSliderTransitionEnabled,
   setShowAllOtherProjects,
-  setCreateModalOpen,
+  onCreateProject,
   setOpenProjectMenuId,
   onEditProject,
   onDeleteProject,
@@ -250,7 +250,7 @@ export function YourDesignsTabContent({
          {/* New Project BButton */}
           <NewProjectButton
             theme={theme}
-            onCreateProject={() => setCreateModalOpen(true)}
+            onCreateProject={onCreateProject}
           />
          
          {/* Project Container */}
