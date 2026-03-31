@@ -34,6 +34,42 @@ function scheduleScrollTriggerRefresh(delayMs = 200) {
   }, delayMs);
 }
 
+function getMaxScrollY(
+  scroller: HTMLElement | null | undefined,
+  view: Window,
+  proxiedParentScroller: HTMLElement | null
+): number {
+  if (proxiedParentScroller) {
+    return Math.max(0, proxiedParentScroller.scrollHeight - proxiedParentScroller.clientHeight);
+  }
+  if (scroller instanceof HTMLElement) {
+    return Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  }
+  const previewRoot = view.document?.querySelector?.(
+    '[data-preview-scroll-root="true"]'
+  ) as HTMLElement | null | undefined;
+  if (previewRoot) return Math.max(0, previewRoot.scrollHeight - previewRoot.clientHeight);
+  const docEl = view.document?.documentElement as HTMLElement | null | undefined;
+  if (docEl) return Math.max(0, docEl.scrollHeight - view.innerHeight);
+  return 0;
+}
+
+/** Decide when to freeze scrubbed scroll effects due to effectively zero scroll range. */
+function shouldFreezeScrubbedScrollEffect(
+  _st: ScrollTrigger,
+  scroller: HTMLElement | null | undefined,
+  view: Window,
+  proxiedParentScroller: HTMLElement | null
+): boolean {
+  const maxY = getMaxScrollY(scroller, view, proxiedParentScroller);
+  // In Web Preview (has explicit preview scroll root), never freeze just because the page is short.
+  const previewRoot = view.document?.querySelector?.(
+    '[data-preview-scroll-root="true"]'
+  ) as HTMLElement | null | undefined;
+  if (previewRoot) return false;
+  return maxY <= 3;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
 }
@@ -637,18 +673,28 @@ function useGsapScrollEffect(
     // Use a natural ease for all scroll effects for a clean, smooth feel
     const naturalEase = config.scrub ? "none" : "power1.inOut";
 
+    const isEntranceEffect = (c: typeof config) => {
+      const s = c.speed ?? 1;
+      const type = c.type as ScrollEffectType;
+      // Effects that start from a "hidden/distorted" state and end in "natural/steady"
+      if (type === "fade" && s >= 0) return true;
+      if (type === "blur" && s < 0) return true;
+      if (type === "scale" && s < 0) return true;
+      if (type === "reveal") return true;
+      return false;
+    };
+
     // Detect if the element is already in the initial viewport to prevent sudden shifts
     const rect = el.getBoundingClientRect();
     const isAboveFold = rect.top < (view.innerHeight || 800);
     
-    // Dynamic triggers: if the element is already visible, start at scroll 0.
-    // Otherwise, start when it enters the viewport.
-    const effectiveStart = config.start || (isAboveFold ? "top top" : "top bottom");
-    const speedMagnitude = getScrollSpeedMagnitude(config.speed);
-    // Default range responds to speed so perceived movement speed changes with slider.
-    // Higher speed => shorter scroll distance needed.
-    const dynamicDistancePx = Math.round(900 / speedMagnitude);
-    const effectiveEnd = config.end || `+=${dynamicDistancePx}`;
+    // Dynamic triggers:
+    // 1. If the element is already visible, start immediately.
+    // 2. If it's a "Reveal" effect (Entrance), start as it enters from the bottom and end at the center.
+    // 3. Otherwise (Exit), stay steady until the center and end at the top.
+    const isReveal = isEntranceEffect(config);
+    const effectiveStart = config.start || (isAboveFold ? "top top" : (isReveal ? "top bottom" : "top 45%"));
+    const effectiveEnd = config.end || (isReveal ? "top 45%" : "top -15%");
 
     if (config.type === "freeMove") {
       const keyframes = computeFreeMoveKeyframes();
@@ -903,24 +949,24 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
       to.force3D = true;
       break;
     case "zoom": {
-      // Zoom: always from 1 to 1+z
-      const zScale = Math.abs(speed) * 1.2; // Reduced from 1.5
-      const zDepth = speed * 150; // Reduced from 200
+      // Zoom: from steady (1, 0) to 1+z
+      const zScale = Math.abs(speed) * 1.2;
+      const zDepth = speed * 150;
       from.scale = 1;
-      from.z = -zDepth;
+      from.z = 0;
       to.scale = 1 + zScale;
       to.z = zDepth;
       to.force3D = true;
       break;
     }
     case "tilt3d": {
-      // Tilt3d: always -t to t
-      const t = Math.abs(speed) * 30; // Reduced from 35
-      from.rotationX = -t;
-      from.rotationY = isVertical ? 0 : -t;
+      // Tilt3d: from steady (0,0) to t
+      const t = Math.abs(speed) * 30;
+      from.rotationX = 0;
+      from.rotationY = 0;
       from.transformPerspective = 1200;
-      to.rotationX = t;
-      to.rotationY = isVertical ? 0 : t;
+      to.rotationX = speed >= 0 ? t : -t;
+      to.rotationY = isVertical ? 0 : (speed >= 0 ? t : -t);
       to.transformPerspective = 1200;
       to.force3D = true;
       break;
