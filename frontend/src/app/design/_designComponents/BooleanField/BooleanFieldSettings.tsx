@@ -2,7 +2,6 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
-import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
@@ -45,9 +44,6 @@ export const BooleanFieldSettings = () => {
     marginRight,
     marginBottom,
     marginLeft,
-    rotation,
-    flipHorizontal,
-    flipVertical,
     position,
     display,
     zIndex,
@@ -90,9 +86,6 @@ export const BooleanFieldSettings = () => {
     marginRight: node.data.props.marginRight ?? 0,
     marginBottom: node.data.props.marginBottom ?? 0,
     marginLeft: node.data.props.marginLeft ?? 0,
-    rotation: node.data.props.rotation ?? 0,
-    flipHorizontal: node.data.props.flipHorizontal ?? false,
-    flipVertical: node.data.props.flipVertical ?? false,
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
     zIndex: node.data.props.zIndex ?? 0,
@@ -294,16 +287,6 @@ export const BooleanFieldSettings = () => {
             </div>
           </div>
         </div>
-      </DesignSection>
-
-      {/* Transform */}
-      <DesignSection title="Transform" defaultOpen={false}>
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={typedSetProp}
-        />
       </DesignSection>
 
       {/* Layout & Layer */}
