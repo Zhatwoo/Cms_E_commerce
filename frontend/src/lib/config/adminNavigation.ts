@@ -108,15 +108,6 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     iconAlt: 'Moderation',
     matchIncludes: '/moderationCompliance',
   },
-  {
-    id: 'messaging',
-    label: 'Messages',
-    href: '/admindashboard/messages',
-    iconSrc: '/admin-dashboard/icons/messages-icon.png',
-    iconAlt: 'Messages',
-    iconComponent: 'MessageIcon',
-    matchIncludes: '/messages',
-  },
 ];
 
 export function isAdminNavItemMatch(pathname: string, item: AdminNavItem): boolean {
