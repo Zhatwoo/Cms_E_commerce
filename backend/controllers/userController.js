@@ -415,7 +415,10 @@ exports.getUserStats = async (req, res) => {
 exports.getAdmins = async (req, res) => {
   try {
     const { search } = req.query;
-    const allUsers = await User.findAll({ role: 'admin' });
+    // Get both admin and super_admin types
+    const adminsList = await User.findAll({ role: 'admin' });
+    const superAdminsList = await User.findAll({ role: 'super_admin' });
+    const allUsers = [...adminsList, ...superAdminsList];
     
     let admins = allUsers.map(u => ({
       id: u.id,

@@ -17,13 +17,15 @@ const { protect, admin } = require('../middleware/auth');
 
 // All routes require authentication and admin role
 router.use(protect);
+
+// Get all admins for chat - accessible by protected users (clients and admins)
+router.get('/admins/list', getAdmins);
+
+// Admin-only routes from this point down
 router.use(admin);
 
 // Statistics route
 router.get('/stats', getUserStats);
-
-// Get all admins for chat
-router.get('/admins/list', getAdmins);
 
 // CRUD routes
 router.route('/')
