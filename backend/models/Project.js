@@ -338,13 +338,20 @@ async function listShared(userId, userEmail) {
 }
 
 async function countAll() {
-  const clientSnap = await db.collection('user').doc('roles').collection('client').get();
-  let total = 0;
-  for (const doc of clientSnap.docs) {
-    const projSnap = await doc.ref.collection('projects').get();
-    total += projSnap.size;
+  try {
+    // collectionGroup count is much more efficient than looping through users
+    const snap = await db.collectionGroup('projects').get();
+    return snap.size;
+  } catch (e) {
+    console.warn('[Project.countAll] collectionGroup failed, falling back to manual count:', e.message);
+    const clientSnap = await db.collection('user').doc('roles').collection('client').get();
+    let total = 0;
+    for (const doc of clientSnap.docs) {
+      const projSnap = await doc.ref.collection('projects').get();
+      total += projSnap.size;
+    }
+    return total;
   }
-  return total;
 }
 
 module.exports = {

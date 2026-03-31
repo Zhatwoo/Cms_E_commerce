@@ -344,7 +344,15 @@ class User {
       let ref = db.collection('user').doc('roles').collection(coll);
       if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
       const snap = await ref.get();
-      all = all.concat(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+      all = all.concat(snap.docs.map(d => {
+        const data = d.data();
+        // Safe conversion of timestamps
+        let lastSeenDate = null;
+        if (data.last_seen) {
+          lastSeenDate = data.last_seen.toDate ? data.last_seen.toDate() : new Date(data.last_seen);
+        }
+        return { ...data, id: d.id, last_seen_date: lastSeenDate };
+      }));
     }
 
     const clients = all.filter(u => u.role === 'client' || u.role === 'super_admin');
@@ -357,7 +365,7 @@ class User {
     });
 
     const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
-    const onlineCount = all.filter(u => u.last_seen && new Date(u.last_seen) > threeMinsAgo).length;
+    const onlineCount = all.filter(u => u.last_seen_date && u.last_seen_date > threeMinsAgo).length;
 
     return {
       total: all.length,
