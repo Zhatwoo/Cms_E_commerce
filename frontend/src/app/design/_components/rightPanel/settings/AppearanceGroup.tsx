@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Scan, Plus, SquareRoundCorner, Eye, EyeOff, Minus } from "lucide-react";
+import { Scan, SquareRoundCorner, Eye, EyeOff, Minus } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorPicker } from "./inputs/ColorPicker";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
@@ -141,12 +141,6 @@ export const AppearanceGroup = ({
     });
   };
 
-  const addFill = () => {
-    if (background === "transparent" || !background) {
-      applySolidFill(lastVisibleFillRef.current || "#A54C4C");
-    }
-  };
-
   const removeFill = () => {
     setIsFillVisible(false);
     setProp((props) => {
@@ -200,14 +194,6 @@ export const AppearanceGroup = ({
                 <span className="h-1 w-1 rounded-full bg-current" />
                 <span className="h-1 w-1 rounded-full bg-current" />
               </span>
-            </button>
-            <button
-              type="button"
-              onClick={addFill}
-              className="p-0.5 rounded text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"
-              title="Add fill"
-            >
-              <Plus size={12} />
             </button>
           </div>
         </div>
