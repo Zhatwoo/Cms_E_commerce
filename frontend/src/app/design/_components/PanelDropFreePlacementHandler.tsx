@@ -54,9 +54,25 @@ function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: num
   };
 }
 
+function getNodeContentHost(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+  const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+  return host ?? element;
+}
+
 function getMoveMode(displayName: string | undefined): MoveMode {
   if (displayName === "Page") return "page-canvas";
   return "absolute";
+}
+
+function usesFlowPlacement(parentDisplayName: string | undefined, parentProps: Record<string, unknown>): boolean {
+  const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+  return parentProps.isFreeform !== true && (
+    parentDisplay === "flex" ||
+    parentDisplay === "grid" ||
+    (!!parentDisplayName && FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName))
+  );
 }
 
 function isBlockedDropPoint(point: Point, newSet: Set<string>, query: ReturnType<typeof useEditor>["query"]): boolean {
@@ -282,7 +298,7 @@ export function PanelDropFreePlacementHandler() {
 
         const computeFlowInsertIndex = (targetId: string, newSet: Set<string>): number | null => {
           try {
-            const targetDom = query.node(targetId).get()?.dom ?? null;
+            const targetDom = getNodeContentHost(query.node(targetId).get()?.dom ?? null);
             if (!targetDom) return null;
             const childIds = resolveChildIds(targetId).filter((id) => !newSet.has(id));
             if (childIds.length === 0) return 0;
@@ -375,7 +391,7 @@ export function PanelDropFreePlacementHandler() {
           let parentId = latestNodes[nodeId]?.data?.parent;
           if (!parentId) continue;
           const nodeDisplayName = latestNodes[nodeId]?.data?.displayName;
-          const parentDisplayName = latestNodes[parentId]?.data?.displayName;
+          let parentDisplayName = latestNodes[parentId]?.data?.displayName;
           const nodeCustom = (latestNodes[nodeId] as any)?.data?.custom as Record<string, unknown> | undefined;
           const isPrebuiltBlock = nodeCustom?.isPrebuiltBlock === true;
           if (parentDisplayName === "Viewport" && nodeDisplayName !== "Page" && (fallbackPageId || forcedDropTargetId)) {
@@ -385,13 +401,35 @@ export function PanelDropFreePlacementHandler() {
                 const insertAt = ((latestNodes[nextParent]?.data?.nodes as string[] | undefined) ?? []).length;
                 actions.move(nodeId, nextParent, insertAt);
                 parentId = nextParent;
+                parentDisplayName = latestNodes[parentId]?.data?.displayName;
               } catch {
                 // ignore
               }
             }
           }
 
-          const parentDom = query.node(parentId).get()?.dom ?? null;
+          const displayName = latestNodes[nodeId]?.data?.displayName;
+          const parentProps = (latestNodes[parentId]?.data?.props ?? {}) as Record<string, unknown>;
+          const parentFreeformPref = parentProps.isFreeform;
+          const parentIsFreeform = parentFreeformPref === true;
+          const parentUsesFlowPlacement = usesFlowPlacement(parentDisplayName, parentProps);
+          const forceFlowInFreeform =
+            !isPrebuiltBlock &&
+            !!displayName &&
+            FLOW_LAYOUT_TYPES.has(displayName) &&
+            !!parentDisplayName &&
+            FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName);
+          const allowFreeformLayout = parentFreeformPref !== false;
+          const forceFlowPlacement =
+            parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
+          const shouldKeepFlowPlacement =
+            parentUsesFlowPlacement || forceFlowPlacement || !allowFreeformLayout || forceFlowInFreeform;
+          const shouldImageFillParent =
+            !parentIsFreeform &&
+            displayName === "Image" &&
+            (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
+
+          const parentDom = getNodeContentHost(query.node(parentId).get()?.dom ?? null);
           const nodeDom = query.node(nodeId).get()?.dom ?? null;
           if (!parentDom || !nodeDom) {
             // DOM not mounted yet — schedule a dedicated position-only retry for this node
@@ -399,9 +437,23 @@ export function PanelDropFreePlacementHandler() {
               if (retriesLeft <= 0) return;
               requestAnimationFrame(() => {
                 try {
-                  const pDom = query.node(pid).get()?.dom ?? null;
+                  const pDom = getNodeContentHost(query.node(pid).get()?.dom ?? null);
                   const nDom = query.node(nodeId).get()?.dom ?? null;
                   if (!pDom || !nDom) { retryPosition(retriesLeft - 1, pid); return; }
+                  const retryState = query.getState();
+                  const retryNodes = (retryState?.nodes ?? {}) as Record<string, { data?: { displayName?: string; props?: Record<string, unknown> } }>;
+                  const retryParentDisplayName = retryNodes[pid]?.data?.displayName;
+                  const retryProps = (retryNodes[pid]?.data?.props ?? {}) as Record<string, unknown>;
+                  const retryDisplayName = retryNodes[nodeId]?.data?.displayName;
+                  const retryParentIsFreeform = retryProps.isFreeform === true;
+                  const retryShouldKeepFlowPlacement =
+                    usesFlowPlacement(retryParentDisplayName, retryProps) ||
+                    retryParentDisplayName === "Tab Content" ||
+                    retryParentDisplayName === "TabContent";
+                  const retryShouldImageFillParent =
+                    !retryParentIsFreeform &&
+                    retryDisplayName === "Image" &&
+                    (retryParentDisplayName === "Section" || retryParentDisplayName === "Tab Content" || retryParentDisplayName === "TabContent");
                   const pRect = pDom.getBoundingClientRect();
                   const nRect = nDom.getBoundingClientRect();
                   const { scaleX, scaleY } = getRenderedScale(pDom);
@@ -414,13 +466,31 @@ export function PanelDropFreePlacementHandler() {
                   const fl = Math.round(clamp(rawL, 0, Math.max(0, pW - nW)));
                   const ft = Math.round(clamp(rawT, 0, Math.max(0, pH - nH)));
                   actions.setProp(nodeId, (props: Record<string, unknown>) => {
-                    props.position = "absolute";
-                    props.left = `${fl}px`;
-                    props.top = `${ft}px`;
-                    props.right = "auto";
-                    props.bottom = "auto";
+                    if (retryShouldKeepFlowPlacement) {
+                      props.position = "relative";
+                      props.left = "auto";
+                      props.top = "auto";
+                      props.right = "auto";
+                      props.bottom = "auto";
+                    } else {
+                      props.position = "absolute";
+                      props.left = `${fl}px`;
+                      props.top = `${ft}px`;
+                      props.right = "auto";
+                      props.bottom = "auto";
+                    }
                     props.marginTop = 0;
                     props.marginLeft = 0;
+
+                    if (retryShouldImageFillParent) {
+                      props.width = "100%";
+                      props.height = "100%";
+                      props.maxWidth = "100%";
+                      props.maxHeight = "100%";
+                      props.minWidth = 0;
+                      props.minHeight = 0;
+                      if (!props.objectFit) props.objectFit = "cover";
+                    }
                   });
                 } catch { /* ignore */ }
               });
@@ -447,28 +517,6 @@ export function PanelDropFreePlacementHandler() {
           const finalLeft = Math.round(clamp(rawLeft, 0, maxLeft));
           const finalTop = Math.round(clamp(rawTop, 0, maxTop));
 
-          const displayName = latestNodes[nodeId]?.data?.displayName;
-          const parentProps = (latestNodes[parentId]?.data?.props ?? {}) as Record<string, unknown>;
-          const parentDisplay = String(parentProps.display ?? "").toLowerCase();
-          const parentFreeformPref = parentProps.isFreeform;
-          const parentIsFlexParent =
-            parentDisplay === "flex" ||
-            parentDisplay === "grid" ||
-            (!!parentDisplayName && FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName));
-          const parentIsFreeform =
-            parentFreeformPref === true ||
-            (!parentIsFlexParent && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
-          const forceFlowInFreeform =
-            !isPrebuiltBlock &&
-            !!displayName &&
-            FLOW_LAYOUT_TYPES.has(displayName) &&
-            !!parentDisplayName &&
-            FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName);
-          const allowFreeformLayout = parentFreeformPref !== false;
-          const forceFlowPlacement =
-            parentDisplayName === "Tab Content" || parentDisplayName === "TabContent";
-          const shouldImageFillParent =
-            displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
           if (displayName === "Column") {
             if (parentDisplayName && HORIZONTAL_COLUMN_PARENTS.has(parentDisplayName)) {
               actions.setProp(parentId, (props: Record<string, unknown>) => {
@@ -514,8 +562,8 @@ export function PanelDropFreePlacementHandler() {
             });
           } else {
             actions.setProp(nodeId, (props: Record<string, unknown>) => {
-              // Tab panels should keep normal flow; don't apply pixel offsets that can push nodes outside.
-              if (forceFlowPlacement || !allowFreeformLayout || forceFlowInFreeform) {
+              // Flow parents should keep normal flow; don't apply pixel offsets that can push nodes around after drop.
+              if (shouldKeepFlowPlacement) {
                 props.position = "relative";
                 props.left = "auto";
                 props.top = "auto";
@@ -543,7 +591,9 @@ export function PanelDropFreePlacementHandler() {
               const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));
               const nextTop = Math.round(currentTop + (finalTop - (nodeRect.top - parentRect.top)));
 
-              props.position = props.position && props.position !== "static" ? props.position : "relative";
+              props.position = parentIsFreeform
+                ? "absolute"
+                : (props.position && props.position !== "static" ? props.position : "relative");
               props.left = `${nextLeft}px`;
               props.top = `${nextTop}px`;
               props.right = "auto";

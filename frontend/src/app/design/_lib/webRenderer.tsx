@@ -1025,9 +1025,13 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     borderStyle: "solid",
     flexDirection: "column",
     flexWrap: "nowrap",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "flex-start",
     gap: 0,
+    display: "block",
+    isFreeform: true,
+    contentWidth: "full",
+    contentMaxWidth: "none",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -4388,7 +4392,9 @@ export function WebPreview({
     </>
   );
 
-  return (
+      const isContainedScroller = fillViewport || isPhoneSize || shouldUseResponsiveViewport;
+
+      return (
     <>
       <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
@@ -4403,7 +4409,7 @@ export function WebPreview({
       {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
         ref={ref}
-        data-preview-scroll-root="true"
+        data-preview-scroll-root={isContainedScroller ? "true" : undefined}
         style={{
           width: "100%",
           minHeight: "100vh",
@@ -4411,7 +4417,7 @@ export function WebPreview({
           flexDirection: "column",
           alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
-          overflowY: "auto",
+          overflowY: isContainedScroller ? "auto" : "visible",
           backgroundColor: background,
         }}
       >

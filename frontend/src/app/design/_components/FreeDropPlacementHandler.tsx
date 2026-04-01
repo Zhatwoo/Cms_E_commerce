@@ -46,6 +46,13 @@ function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: num
   };
 }
 
+function getNodeContentHost(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+  const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+  return host ?? element;
+}
+
 function isSupportedSource(target: EventTarget | null): boolean {
   const el = target instanceof Element ? target : null;
   if (!el) return false;
@@ -158,11 +165,13 @@ export function FreeDropPlacementHandler() {
         const isLayoutLike = LAYOUT_LIKE_TYPES.has(displayName);
         const parentNode = nodes[parentId];
         const parentDisplayName = parentNode?.data?.displayName ?? "";
-        const shouldImageFillParent =
-          displayName === "Image" && (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
         const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
         const parentDisplay = String(parentProps.display ?? "flex").toLowerCase();
         const parentIsFreeform = parentProps.isFreeform === true;
+        const shouldImageFillParent =
+          !parentIsFreeform &&
+          displayName === "Image" &&
+          (parentDisplayName === "Section" || parentDisplayName === "Tab Content" || parentDisplayName === "TabContent");
         const parentIsFlexParent =
           parentDisplay === "flex" ||
           parentDisplay === "grid" ||
@@ -179,7 +188,7 @@ export function FreeDropPlacementHandler() {
         let nodeLogicalHeight = 0;
 
         try {
-          const parentDom = query.node(parentId).get()?.dom ?? null;
+          const parentDom = getNodeContentHost(query.node(parentId).get()?.dom ?? null);
           if (dropPoint && parentDom) {
             const rect = parentDom.getBoundingClientRect();
             const { scaleX, scaleY } = getRenderedScale(parentDom);
@@ -206,7 +215,7 @@ export function FreeDropPlacementHandler() {
         if (parentIsFlexParent && !parentIsFreeform) {
           let insertIndex = 0;
           try {
-            const parentDom = query.node(parentId).get()?.dom ?? null;
+            const parentDom = getNodeContentHost(query.node(parentId).get()?.dom ?? null);
             const parentStyle = parentDom ? window.getComputedStyle(parentDom) : null;
             const isRow = (parentStyle?.flexDirection ?? "").startsWith("row");
             const orderedChildren = ((parentNode as any)?.data?.nodes as string[] | undefined) ?? [];

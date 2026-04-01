@@ -30,6 +30,9 @@ export default function AdminDashboardLayout({
     const loginWithNext = `/adminauth/login?next=${encodeURIComponent(safeNextPath)}`;
 
     const verifyAdminAccess = async () => {
+      // If already authorized, don't block navigation again unless it's a full page reload
+      if (isAuthorized) return;
+
       try {
         const res = await getMe();
         if (!isMounted) return;
@@ -37,16 +40,13 @@ export default function AdminDashboardLayout({
         if (res.success && res.user && isAdminRole(res.user.role)) {
           setStoredUser(res.user);
           setIsAuthorized(true);
-          return;
+        } else {
+          await logout();
+          router.replace(loginWithNext);
         }
-
-        await logout();
-        if (!isMounted) return;
-        router.replace(loginWithNext);
       } catch {
         await logout();
-        if (!isMounted) return;
-        router.replace(loginWithNext);
+        if (isMounted) router.replace(loginWithNext);
       } finally {
         if (isMounted) {
           setIsChecking(false);
@@ -59,7 +59,8 @@ export default function AdminDashboardLayout({
     return () => {
       isMounted = false;
     };
-  }, [pathname, router, searchParams]);
+  }, [router]); // Only re-run if router changes (which is rare) or on mount
+
 
   // Real-time presence heartbeat
   useEffect(() => {
