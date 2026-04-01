@@ -81,64 +81,61 @@ export function ProjectCardContainer({
         hover:-translate-y-2
       `}
     >
+      {/* Glow & Hover Borders (Keep these as they are) */}
       {theme === 'light' && (
         <div className="absolute inset-0 z-10 pointer-events-none bg-[radial-gradient(ellipse_at_top,var(--tw-gradient-stops))] from-[#8B5CF6]/10 via-transparent to-transparent opacity-100" />
       )}
-
-      <div
-        className={`
-          absolute inset-0 z-30 rounded-4xl pointer-events-none transition-all duration-500
-          border-2 opacity-0 group-hover:opacity-100
-          ${theme === 'dark' ? 'border-[#FFCE00]/50' : 'border-[#8B5CF6]/60'}
-        `}
-      />
+      <div className={`absolute inset-0 z-30 rounded-4xl pointer-events-none transition-all duration-500 border-2 opacity-0 group-hover:opacity-100 ${theme === 'dark' ? 'border-[#FFCE00]/50' : 'border-[#8B5CF6]/60'}`} />
 
       {!project.isShared && (
         <PopMenuButton
           theme={theme}
           isOpen={isMenuOpen}
           triggerIcon={menuTriggerIcon}
-          triggerAriaLabel={`Open menu for ${project.title || 'Untitled Project'}`}
           onToggle={() => onToggleMenu(project.id)}
           options={menuOptions}
         />
       )}
 
       <div role="button" onClick={() => onOpenDesign(project.id)}>
-        <div className={`relative w-full aspect-video overflow-hidden ${theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white'}`}>
-          <DraftPreviewThumbnail
-            projectId={project.id}
-            borderColor="transparent"
-            bgColor="transparent"
-            className="w-full h-full aspect-16/10! rounded-none!"
-          />
-          {/* Decorative Overlay */}
-          <div className={`absolute inset-0 opacity-10 ${theme === 'light' ? 'bg-[#8B5CF6]' : 'bg-transparent'}`} />
-          
-          {/* BADGE LAYOUT: Bottom-Right of Image */}
-          <div className="absolute bottom-3 right-3 z-40 flex flex-wrap gap-2 pointer-events-none">
-            {project.status && (
-              <StatusBadge status={project.status} size="sm" />
-            )}
-            {project.isShared && (
-              <StatusBadge status="shared" label={`by ${project.ownerName}`} size="sm" />
-            )}
-          </div>
-        </div>
+        {/* THUMBNAIL: Now purely visual, no badges inside */}
+        {/* THUMBNAIL AREA */}
+<div className={`relative w-full aspect-video overflow-hidden ${theme === 'dark' ? 'bg-[#0A0A26]' : 'bg-white'}`}>
+  <DraftPreviewThumbnail
+    projectId={project.id}
+    borderColor="transparent"
+    bgColor="transparent"
+    className="w-full h-full aspect-16/10! rounded-none!"
+  />
+  
+  {/* SCRIM OVERLAY: This ensures the badge is ALWAYS readable by adding a subtle shadow behind it */}
+  <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 pointer-events-none" />
 
-        <div className="p-6">
-          <div className="flex flex-col gap-1">
-            <h3 className={`text-lg font-black [font-family:var(--font-outfit),sans-serif] tracking-tight truncate transition-colors duration-300 ${
-              theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
-            }`}>
-              {project.title || 'Untitled Project'}
-            </h3>
-            <p className={`text-[11px] font-bold [font-family:var(--font-outfit),sans-serif] tracking-widest ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
-              {project.isShared ? `Shared by ${project.ownerName}` : formatEditedDate(project.updatedAt)}
-            </p>
-          </div>
+  {/* BADGE PLACEMENT: Floating in the bottom-right corner */}
+  <div className="absolute bottom-4 right-4 z-20 flex gap-2 pointer-events-none">
+    {project.status && (
+      <StatusBadge status={project.status} size="sm" />
+    )}
+    {project.isShared && (
+      <StatusBadge status="shared" label={`By ${project.ownerName}`} size="sm" />
+    )}
+  </div>
+</div>
+
+{/* TITLE AREA (Back to your original tight layout) */}
+<div className="p-6">
+  <div className="flex flex-col gap-1">
+    <h3 className={`text-lg font-black tracking-tight truncate transition-colors duration-300 ${
+      theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#120533] group-hover:text-[#8B5CF6]'
+    }`}>
+      {project.title || 'Untitled Project'}
+    </h3>
+    <p className={`text-[11px] font-bold tracking-widest ${theme === 'dark' ? 'text-[#6F70A8]' : 'text-[#8B5CF6]/70'}`}>
+      {formatEditedDate(project.updatedAt)}
+    </p>
+  </div>
+</div>
         </div>
       </div>
-    </div>
   );
 }

@@ -184,13 +184,25 @@ export function YourDesignsTabContent({
           <button
             type="button"
             onClick={() => onOpenDesign(featuredProject?.id)}
-            className="
+            className={`
               rounded-full px-10 py-3 text-base font-bold cursor-pointer
               transition-all duration-300 ease-out
               hover:-translate-y-1 hover:brightness-110 active:scale-95
-              text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]
-            "
-            style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
+              text-white
+              ${theme === 'dark' ? 'hover:shadow-[0_12px_28px_rgba(255,206,0,0.55)]' : 'hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]'}
+            `}
+            style={
+              theme === 'dark'
+                ? {
+                    background: '#FFCE00',
+                    color: '#120533',
+                    boxShadow: '0 8px 24px rgba(255, 206, 0, 0.42)',
+                  }
+                : {
+                    background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
+                    boxShadow: '0 8px 24px rgba(217,70,239,0.4)',
+                  }
+            }
           >
             View Project
           </button>

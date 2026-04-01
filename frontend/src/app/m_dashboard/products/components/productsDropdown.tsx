@@ -1,5 +1,6 @@
 'use client';
 import React, { useRef } from 'react';
+import { useTheme } from '../../components/context/theme-context';
 
 /**
  * A category/subcategory filter dropdown menu for products.
@@ -30,8 +31,10 @@ export function ProductsDropdown({
   showMenu: boolean;
   onMenuToggle: (show: boolean) => void;
 }) {
+  const { theme } = useTheme();
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectedCategoryLabel = filterOptions.find((option) => option.value === selectedCategory)?.label ?? 'All';
+  const fontColor = theme === 'light' ? '#475569' : '#ddd1ff';
 
   return (
     <div ref={menuRef} className="relative">
@@ -39,7 +42,7 @@ export function ProductsDropdown({
         type="button"
         onClick={() => onMenuToggle(!showMenu)}
         className="h-[46px] px-4 rounded-xl border text-[13px] font-semibold min-w-[156px] pr-9 text-left relative"
-        style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: '#ddd1ff' }}
+        style={{ backgroundColor: '#141446', borderColor: '#2D3A90', color: fontColor }}
         title="Filter by subcategory"
       >
         <span className="truncate block">{selectedCategoryLabel}</span>
@@ -61,7 +64,7 @@ export function ProductsDropdown({
                   onMenuToggle(false);
                 }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
-                style={{ color: '#D2D6F7' }}
+                style={{ color: fontColor }}
               >
                 <span>{option.label}</span>
                 <span>{checked ? '✓' : ''}</span>

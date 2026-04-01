@@ -1,23 +1,24 @@
 'use client';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { AlertTriangle, CheckCircle, LucideIcon } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { type Product, type ProductVariant } from '../lib/productsData';
 import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
 import { SearchBar } from '../components/ui/searchbar';
+import { EmptyState, type EmptyStateTone } from '../components/ui/emptyState';
 import ProductAddModal from './components/productAddModal';
 import ProductEditModal from './components/productEditModal';
-import { StatsAnalytics } from './components/statsAnalytics';
 import { ProductsDropdown } from './components/productsDropdown';
 import { ProductCard } from './components/productContainer';
 import { ProductDetailsModal } from './components/viewProductDetails';
 import { PaginationControls } from './components/paginationControls';
-import { EmptyStates } from './components/emptyStates';
 import { ProductListView } from './components/productListView';
+import { AddProductButton } from './components/button';
+import { StatusFilterButton, ViewModeToggleButton } from './components/subbuttons';
 
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
@@ -27,6 +28,149 @@ type ProductPopupState = {
   message: string;
   tone: 'success' | 'error';
 };
+
+type ProductStatTile = {
+  id: 'active' | 'inactive';
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  accent: string;
+  animationDelay?: number;
+  isSkeleton?: boolean;
+};
+
+const PRODUCT_STAT_ACCENT_COLORS = {
+  active: '#22d3a4',
+  inactive: '#ff4f8c',
+} as const;
+
+type EmptyStatesProps = {
+  variant: 'no-products' | 'no-results';
+  canAddProducts: boolean;
+  blockedAddProductMessage?: string | null;
+  onAddProduct: () => void;
+  onClearFilters?: () => void;
+  theme?: EmptyStateTone;
+};
+
+function EmptyStates({
+  variant,
+  canAddProducts,
+  blockedAddProductMessage,
+  onAddProduct,
+  onClearFilters,
+  theme = 'light',
+}: EmptyStatesProps) {
+  const isNoProducts = variant === 'no-products';
+
+  return isNoProducts ? (
+    <EmptyState
+      tone={theme}
+      badgeText="Fresh Start"
+      title="No products here yet."
+      description={canAddProducts
+        ? "Ready to grow your inventory? Add your first item to see how it looks in your new workspace."
+        : blockedAddProductMessage || "You're almost there! Complete your store setup to unlock product creation."}
+      primaryAction={{
+        label: canAddProducts ? "Start Creating" : "Complete Setup",
+        onClick: onAddProduct,
+        disabled: !canAddProducts,
+      }}
+      footerNote={!canAddProducts ? "Configuration in progress" : undefined}
+    />
+  ) : (
+    <EmptyState
+      tone={theme}
+      badgeText="No matches found"
+      title="We couldn't find that."
+      description="It looks like nothing matches your current search."
+      secondaryAction={{
+        label: 'Show all products',
+        onClick: onClearFilters,
+        disabled: !onClearFilters,
+      }}
+    />
+  );
+}
+
+const ProductStatTileCard = React.memo(({
+  id,
+  label,
+  value,
+  icon: Icon,
+  accent,
+  animationDelay = 0,
+  isSkeleton = false,
+}: ProductStatTile) => (
+  <motion.div
+    key={id}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: animationDelay, ease: [0.23, 1, 0.32, 1], duration: 0.5 }}
+    className="relative overflow-hidden rounded-3xl border transition-all duration-500 hover:shadow-xl group"
+    style={{
+      backgroundColor: 'var(--dashboard-light-surface, #141446)',
+      borderColor: `${accent}25`,
+      minHeight: 100,
+      padding: '20px 24px',
+      boxShadow: '0 4px 20px -12px rgba(0,0,0,0.5)',
+    }}
+  >
+    <div
+      className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.05] blur-2xl rounded-full transition-opacity duration-500 group-hover:opacity-[0.08]"
+      style={{ backgroundColor: accent }}
+    />
+
+    <div className="flex items-center gap-5 relative z-10">
+      <div
+        className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl transition-all duration-300 group-hover:scale-110"
+        style={{
+          backgroundColor: `${accent}10`,
+          border: `1px solid ${accent}20`,
+        }}
+      >
+        {isSkeleton ? (
+          <div className="w-6 h-6 rounded bg-linear-to-r from-gray-700 to-gray-800 animate-pulse" />
+        ) : (
+          <Icon className="w-6 h-6 transition-colors duration-300" style={{ color: accent }} />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 flex-1">
+        {isSkeleton ? (
+          <div className="h-3 w-24 rounded bg-gray-700 animate-pulse" />
+        ) : (
+          <span
+            className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 transition-opacity duration-300 group-hover:opacity-80"
+            style={{
+              color: 'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
+              fontFamily: 'var(--font-outfit), sans-serif',
+            }}
+          >
+            {label}
+          </span>
+        )}
+
+        {isSkeleton ? (
+          <div className="h-7 w-20 rounded bg-gray-700 animate-pulse" />
+        ) : (
+          <span
+            className="text-2xl font-black leading-none transition-colors duration-300"
+            style={{
+              color: 'var(--dashboard-light-text, #ffffff)',
+              letterSpacing: '-1px',
+              fontFamily: 'var(--font-outfit), sans-serif',
+            }}
+          >
+            {String(value)}
+          </span>
+        )}
+      </div>
+    </div>
+  </motion.div>
+));
+
+ProductStatTileCard.displayName = 'ProductStatTileCard';
 
 function getLowStockThreshold(product: Product): number {
   const threshold = Number(product.lowStockThreshold);
@@ -627,6 +771,26 @@ export default function ProductsPage() {
     active: products.filter((product) => product.status === 'active').length,
     inactive: products.filter((product) => product.status === 'inactive').length,
   };
+  const statCards: ProductStatTile[] = useMemo(() => [
+    {
+      id: 'active',
+      label: 'Active',
+      value: productInsights.active,
+      icon: CheckCircle,
+      accent: PRODUCT_STAT_ACCENT_COLORS.active,
+      animationDelay: 0,
+      isSkeleton: loadingProducts,
+    },
+    {
+      id: 'inactive',
+      label: 'Inactive',
+      value: productInsights.inactive,
+      icon: AlertTriangle,
+      accent: PRODUCT_STAT_ACCENT_COLORS.inactive,
+      animationDelay: 0.06,
+      isSkeleton: loadingProducts,
+    },
+  ], [productInsights, loadingProducts]);
 
   return (
     <div className="dashboard-landing-light space-y-6">
@@ -669,9 +833,12 @@ export default function ProductsPage() {
       )}
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
+
+        {/* Header */}
         <div className="text-center">
+          {/* Title */}
           <h1
-            className="text-[clamp(34px,5vw,56px)] font-extrabold tracking-[-1.8px] leading-[1.2]"
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
             style={{ color: colors.text.primary }}
           >
             My{' '}
@@ -682,9 +849,13 @@ export default function ProductsPage() {
               Products
             </span>
           </h1>
-          <p className="mt-2 text-sm" style={{ color: colors.text.secondary }}>Track stock performance and catalog details.</p>
+          {/* Subtitle */}
+          <p className={`text-base sm:text-lg mt-2 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#120533]/70'}`}>
+            Track stock performance and catalog details.
+          </p>
         </div>
 
+        {/* Search Box */}
         <SearchBar
           value={searchTerm}
           onChange={(value) => { setSearchTerm(value); setCurrentPage(1); }}
@@ -697,7 +868,11 @@ export default function ProductsPage() {
           <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
         )}
 
-        <StatsAnalytics productInsights={productInsights} />
+        <div className="w-full grid grid-cols-2 gap-[10px]">
+          {statCards.map((card) => (
+            <ProductStatTileCard key={card.id} {...card} />
+          ))}
+        </div>
       </section>
 
       {loadingProducts ? (
@@ -720,88 +895,35 @@ export default function ProductsPage() {
                   onMenuToggle={setShowCategoryFilterMenu}
                 />
 
-                <button
-                  type="button"
+                <AddProductButton
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
-                  className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', borderColor: 'transparent', color: '#ffffff' }}
-                  title="Add product"
-                >
-                  + Add Product
-                </button>
+                  title={blockedAddProductMessage || 'Add product'}
+                />
               </div>
 
               <div className="flex items-center gap-2 justify-end">
-                <div ref={statusMenuRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                    className={`h-[48px] w-[48px] cursor-pointer rounded-2xl border flex items-center justify-center transition-all duration-300 ${showStatusFilterMenu ? 'shadow-md scale-105' : 'hover:scale-105'} ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
-                    style={{ 
-                      backgroundColor: showStatusFilterMenu && theme === 'light' ? '#14034A' : (theme === 'light' ? undefined : colors.bg.card),
-                      borderColor: theme === 'light' ? undefined : '#1F1F51',
-                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : undefined,
-                      color: showStatusFilterMenu && theme === 'light' ? '#FFFFFF' : (theme === 'light' ? '#14034A' : '#FFCE00')
+                <div ref={statusMenuRef}>
+                  <StatusFilterButton
+                    showStatusFilterMenu={showStatusFilterMenu}
+                    onToggle={() => setShowStatusFilterMenu((prev) => !prev)}
+                    statusFilter={statusFilter}
+                    onFilterChange={(value) => {
+                      setStatusFilter(value);
+                      setCurrentPage(1);
+                      setShowStatusFilterMenu(false);
                     }}
-                    title="Filter products"
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  {showStatusFilterMenu && (
-                    <div
-                      className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
-                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                    >
-                      {[
-                        { value: 'all', label: 'All' },
-                        { value: 'active', label: 'Active' },
-                        { value: 'inactive', label: 'Inactive' },
-                      ].map((item) => {
-                        const checked = statusFilter === item.value;
-                        return (
-                          <button
-                            key={item.value}
-                            type="button"
-                            onClick={() => {
-                              setStatusFilter(item.value as typeof statusFilter);
-                              setCurrentPage(1);
-                              setShowStatusFilterMenu(false);
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
-                            style={{ color: '#D2D6F7' }}
-                          >
-                            <span>{item.label}</span>
-                            <span>{checked ? '✓' : ''}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                    theme={theme}
+                    isLight={theme === 'light'}
+                  />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  className={`h-12 w-12 rounded-2xl border inline-flex items-center justify-center transition-all duration-300 ${viewMode === 'list' ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
-                  style={{ 
-                    borderColor: viewMode === 'list' ? 'transparent' : colors.border.faint, 
-                    backgroundColor: viewMode === 'list' 
-                      ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
-                      : (theme === 'light' ? 'rgba(255,255,255,0.72)' : colors.bg.card), 
-                    color: viewMode === 'list' ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary),
-                    boxShadow: theme === 'dark' && viewMode !== 'list' ? '0 0 12px rgba(31,31,81,0.4)' : undefined,
-                  }}
-                  title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
-                >
-                  {viewMode === 'tile' ? (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
-                  )}
-                </button>
+                <ViewModeToggleButton
+                  viewMode={viewMode}
+                  onToggle={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
+                  theme={theme}
+                  colors={colors}
+                />
               </div>
             </div>
           </div>
@@ -820,11 +942,11 @@ export default function ProductsPage() {
               onDelete={handleDelete}
               onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
               onCloseMenu={() => setOpenMenuProductId(null)}
+              onSaveProduct={handleSaveProduct}
             />
           ) : (
             <EmptyStates
               variant="no-results"
-              colors={colors}
               canAddProducts={canAddProducts}
               onAddProduct={() => setShowAddModal(true)}
               onClearFilters={() => {
@@ -832,16 +954,17 @@ export default function ProductsPage() {
                 setSelectedCategory('all');
                 setCurrentPage(1);
               }}
+              theme={theme}
             />
           )}
         </>
       ) : (
         <EmptyStates
           variant="no-products"
-          colors={colors}
           canAddProducts={canAddProducts}
           blockedAddProductMessage={blockedAddProductMessage}
           onAddProduct={() => setShowAddModal(true)}
+          theme={theme}
         />
       )}
 
@@ -852,15 +975,6 @@ export default function ProductsPage() {
           setEditingProduct(undefined);
         }}
         onSave={handleSaveProduct}
-        uploadSubdomain={selectedSubdomain}
-        projectIndustry={selectedProject?.industry || null}
-      />
-
-      <ProductEditModal
-        isOpen={Boolean(editingProduct)}
-        onClose={() => setEditingProduct(undefined)}
-        onSave={handleSaveProduct}
-        editingProduct={editingProduct!}
         uploadSubdomain={selectedSubdomain}
         projectIndustry={selectedProject?.industry || null}
       />

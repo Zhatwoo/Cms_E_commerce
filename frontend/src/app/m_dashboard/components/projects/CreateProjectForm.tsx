@@ -138,7 +138,7 @@ export function CreateProjectForm({
           </span>
         </h2>
         <p className={`text-base sm:text-lg mt-2 ${theme === "dark" ? "text-[#8A8FC4]" : "text-[#120533]/70"}`}>
-          Give your project a name and an optional subdomain.
+          Give your project a name and a subdomain.
         </p>
       </div>
 
@@ -219,9 +219,10 @@ export function CreateProjectForm({
           className={`
             cursor-pointer relative px-12 py-5 rounded-2xl text-sm font-black uppercase tracking-[0.4em] transition-all duration-500
             active:scale-95 disabled:opacity-50
-            text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)] hover:brightness-110 hover:-translate-y-1
+            ${theme === "dark" ? "text-[#120533] shadow-[0_8px_24px_rgba(255,206,0,0.42)] hover:shadow-[0_12px_28px_rgba(255,206,0,0.55)]" : "text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]"}
+            hover:brightness-110 hover:-translate-y-1
           `}
-          style={{ background: "linear-gradient(90deg, #9333ea 0%, #ec4899 100%)" }}
+          style={{ background: theme === "dark" ? "#FFCE00" : "linear-gradient(90deg, #9333ea 0%, #ec4899 100%)" }}
         >
           {creating ? "Creating..." : "Create Website"}
         </button>
