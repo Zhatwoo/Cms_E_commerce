@@ -81,6 +81,13 @@ function parsePxOrAuto(value: unknown): number {
   return 0;
 }
 
+function getNodeContentHost(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+  const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+  return host ?? element;
+}
+
 function parseNumberOrZero(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   const parsed = parseFloat(String(value ?? "0"));
@@ -272,7 +279,7 @@ function computeInsertIndex(
 ): number {
   try {
     const targetNode = nodes[targetId] as any;
-    const targetDom = queryNode(targetId).get()?.dom;
+    const targetDom = getNodeContentHost(queryNode(targetId).get()?.dom ?? null);
     if (!targetDom) return 0;
 
     const computedStyle = window.getComputedStyle(targetDom);
@@ -445,7 +452,7 @@ export const FigmaStyleDragHandler = () => {
         const previousDropId = d.currentDropTargetId;
         if (previousDropId && previousDropId !== dropTargetId) {
           try {
-            const el = queryRef.current.node(previousDropId).get()?.dom;
+            const el = getNodeContentHost(queryRef.current.node(previousDropId).get()?.dom ?? null);
             if (el) el.classList.remove("component-drop-target");
           } catch { /* skip */ }
         }
@@ -455,7 +462,7 @@ export const FigmaStyleDragHandler = () => {
 
         if (dropTargetId) {
           try {
-            const targetDom = queryRef.current.node(dropTargetId).get()?.dom;
+            const targetDom = getNodeContentHost(queryRef.current.node(dropTargetId).get()?.dom ?? null);
             if (targetDom) {
               targetDom.classList.add("component-drop-target");
 
@@ -623,9 +630,14 @@ export const FigmaStyleDragHandler = () => {
 
         const parentId = entry.parentId;
         const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
-        const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+        const parentProps = parentId ? (queryRef.current.node(parentId).get()?.data?.props ?? {}) as Record<string, unknown> : {};
+        const isFreeformParent =
+          parentProps.isFreeform === true ||
+          parentDisplayName === "Page" ||
+          parentDisplayName === "Viewport";
 
         if (isFreeformParent) {
+          if (!isAbsoluteLike) props.position = "absolute";
           props.top = `${rawTop}px`;
           props.left = `${rawLeft}px`;
           return;
@@ -647,7 +659,11 @@ export const FigmaStyleDragHandler = () => {
       const rawMarginLeft = Math.round(marginLeft + dx);
       const parentId = entry.parentId;
       const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
-      const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+      const parentProps = parentId ? (queryRef.current.node(parentId).get()?.data?.props ?? {}) as Record<string, unknown> : {};
+      const isFreeformParent =
+        parentProps.isFreeform === true ||
+        parentDisplayName === "Page" ||
+        parentDisplayName === "Viewport";
 
       if (isFreeformParent) {
         props.marginTop = rawMarginTop;
@@ -1181,7 +1197,7 @@ export const FigmaStyleDragHandler = () => {
         )) {
           try {
             const insertIndex = d.currentInsertIndex ?? computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
-            const dropTargetDom = queryRef.current.node(dropTargetId).get()?.dom ?? null;
+            const dropTargetDom = getNodeContentHost(queryRef.current.node(dropTargetId).get()?.dom ?? null);
             const dropTargetRect = dropTargetDom?.getBoundingClientRect() ?? null;
             const { scaleX: dropScaleX, scaleY: dropScaleY } = getRenderedScale(dropTargetDom);
             const dxScreen = d.lastX - d.startX;
