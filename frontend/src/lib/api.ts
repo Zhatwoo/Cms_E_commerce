@@ -494,11 +494,7 @@ export async function resendVerificationEmail(email: string): Promise<{ success:
 /** Logout: clear cookie on backend and clear local user data */
 export async function logout(): Promise<void> {
   try {
-    if (typeof window === 'undefined') {
-      await fetch(`${getApiUrl()}/api/auth/logout`, { method: 'POST', credentials: 'include' });
-    } else {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    }
+    await apiFetch<{ success: boolean; message?: string }>('/api/auth/logout', { method: 'POST' });
   } catch {
     // ignore
   }

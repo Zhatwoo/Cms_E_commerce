@@ -52,26 +52,25 @@ function formatDate(value: string | undefined): string {
   return formatToPHTime(value);
 }
 
-function isUserOnline(lastSeen?: string, isOnline?: boolean): boolean {
+function isUserOnline(lastSeen?: string, isOnline?: boolean, nowMs: number = Date.now()): boolean {
   if (isOnline === true) return true;
   if (isOnline === false) return false;
 
   if (lastSeen) {
-    const now = new Date();
     const ls = new Date(lastSeen);
     // within last 3 minutes = Online (was 5)
-    if ((now.getTime() - ls.getTime()) < 3 * 60 * 1000) return true;
+    if ((nowMs - ls.getTime()) < 3 * 60 * 1000) return true;
   }
   return false;
 }
 
-function getLastActiveLabel(lastSeen?: string): string {
+function getLastActiveLabel(lastSeen?: string, nowMs: number = Date.now()): string {
   if (!lastSeen) return 'Active recently';
 
   const last = new Date(lastSeen);
   if (Number.isNaN(last.getTime())) return 'Active recently';
 
-  const diffMs = Date.now() - last.getTime();
+  const diffMs = Math.max(0, nowMs - last.getTime());
   if (diffMs < 60 * 1000) return 'Active just now';
 
   const mins = Math.floor(diffMs / (60 * 1000));
@@ -84,6 +83,24 @@ function getLastActiveLabel(lastSeen?: string): string {
   if (days < 7) return `Active ${days}d ago`;
 
   return `Active ${formatToPHTime(lastSeen)}`;
+}
+
+function getLastActiveLabelFromMs(lastActiveMs?: number, nowMs: number = Date.now()): string {
+  if (!lastActiveMs || !Number.isFinite(lastActiveMs)) return 'Active recently';
+
+  const diffMs = Math.max(0, nowMs - lastActiveMs);
+  if (diffMs < 60 * 1000) return 'Active just now';
+
+  const mins = Math.floor(diffMs / (60 * 1000));
+  if (mins < 60) return `Active ${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Active ${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Active ${days}d ago`;
+
+  return `Active ${formatToPHTime(new Date(lastActiveMs).toISOString())}`;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -178,6 +195,8 @@ export function UserManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('recent');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [clockMs, setClockMs] = useState(() => Date.now());
+  const [offlineSinceById, setOfflineSinceById] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -240,6 +259,40 @@ export function UserManagement() {
     }, 20000);
     return () => clearInterval(interval);
   }, [loadClients]);
+
+  useEffect(() => {
+    // Keep relative last-active labels updating even when no new data arrives.
+    const clock = setInterval(() => setClockMs(Date.now()), 15000);
+    return () => clearInterval(clock);
+  }, []);
+
+  useEffect(() => {
+    setOfflineSinceById((prev) => {
+      const next: Record<string, number> = {};
+
+      for (const client of clients) {
+        const active = isClientActive(client);
+        if (!active) continue;
+
+        const online = isUserOnline(client.lastSeen, client.isOnline, clockMs);
+        if (online) continue;
+
+        const lastSeenMs = client.lastSeen ? new Date(client.lastSeen).getTime() : NaN;
+        const candidate = Number.isFinite(lastSeenMs) ? lastSeenMs : clockMs;
+        const existing = prev[client.id];
+
+        // Preserve the earliest known offline timestamp so elapsed time never jumps backward.
+        next[client.id] = Number.isFinite(existing) ? Math.min(existing, candidate) : candidate;
+      }
+
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (prevKeys.length === nextKeys.length && prevKeys.every((k) => prev[k] === next[k])) {
+        return prev;
+      }
+      return next;
+    });
+  }, [clients, clockMs]);
   
   useEffect(() => {
     // Listen for real-time updates from other admins
@@ -268,7 +321,7 @@ export function UserManagement() {
         (c.email || '').toLowerCase().includes(search.toLowerCase());
       const matchPlan = !planFilter || (c.subscriptionPlan || 'free').toLowerCase() === planFilter.toLowerCase();
       const active = isClientActive(c);
-      const online = active && isUserOnline(c.lastSeen, c.isOnline);
+      const online = active && isUserOnline(c.lastSeen, c.isOnline, clockMs);
       const matchStatus =
         !statusFilter ||
         (statusFilter === 'active' && active) ||
@@ -277,7 +330,7 @@ export function UserManagement() {
         (statusFilter === 'restricted' && (c.status || '').toLowerCase() === 'restricted');
       return matchFocusedClient && matchSearch && matchPlan && matchStatus;
     });
-  }, [clients, focusedClientId, search, planFilter, statusFilter]);
+  }, [clients, focusedClientId, search, planFilter, statusFilter, clockMs]);
 
   const sortedFiltered = useMemo(() => {
     const copy = [...filtered];
@@ -299,11 +352,11 @@ export function UserManagement() {
     const basic = clients.filter((c) => (c.subscriptionPlan || '').toLowerCase() === 'basic').length;
     const pro = clients.filter((c) => (c.subscriptionPlan || '').toLowerCase() === 'pro').length;
     const active = clients.filter((c) => isClientActive(c)).length;
-    const online = clients.filter((c) => isClientActive(c) && isUserOnline(c.lastSeen, c.isOnline)).length;
+    const online = clients.filter((c) => isClientActive(c) && isUserOnline(c.lastSeen, c.isOnline, clockMs)).length;
     const suspended = clients.filter((c) => (c.status || '').toLowerCase() === 'suspended').length;
     const restricted = clients.filter((c) => (c.status || '').toLowerCase() === 'restricted').length;
     return { total, free, basic, pro, active, online, suspended, restricted };
-  }, [clients]);
+  }, [clients, clockMs]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -998,7 +1051,7 @@ export function UserManagement() {
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
-                  const online = isUserOnline(client.lastSeen, client.isOnline);
+                  const online = isUserOnline(client.lastSeen, client.isOnline, clockMs);
                   const busy = actionLoadingId === client.id;
                   const storage = getClientStorage(client);
                   
@@ -1008,7 +1061,12 @@ export function UserManagement() {
                   
                   let statusLabel = active ? 'Active' : 'Inactive';
                   if (active) {
-                    statusLabel = online ? 'Online' : getLastActiveLabel(client.lastSeen);
+                    statusLabel = online
+                      ? 'Online'
+                      : getLastActiveLabelFromMs(
+                          offlineSinceById[client.id] || (client.lastSeen ? new Date(client.lastSeen).getTime() : undefined),
+                          clockMs
+                        );
                   } else if (isSuspended) {
                     statusLabel = 'Suspended';
                   } else if (isRestricted) {
