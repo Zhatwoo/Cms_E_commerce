@@ -126,6 +126,8 @@ export interface LayerProps {
 export interface PositionProps extends LayerProps {
   position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
   display?: "flex" | "inline-flex" | "grid" | "block" | "inline-block" | "none";
+  /** Editor-only free-placement mode for page/section-like parents. */
+  isFreeform?: boolean;
   zIndex?: number;
   top?: string;
   right?: string;

@@ -423,10 +423,10 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
     // Listen for real-time updates from other admins
     const handleUpdate = () => {
       console.log('[WebManagement] Real-time notification received, refreshing list...');
-      loadWebsites();
+      loadWebsites(true);
     };
-    window.addEventListener('notification:new_received', handleUpdate);
-    return () => window.removeEventListener('notification:new_received', handleUpdate);
+    window.addEventListener('admin:data_changed', handleUpdate);
+    return () => window.removeEventListener('admin:data_changed', handleUpdate);
   }, [loadWebsites]);
 
   useEffect(() => {

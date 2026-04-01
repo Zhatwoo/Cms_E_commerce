@@ -1,5 +1,24 @@
 const Notification = require('../models/Notification');
 
+const IMPORTANT_NOTIFICATION_TITLES = new Set([
+  'website published',
+  'website updated',
+  'website deleted',
+  'website permanently deleted',
+  'website offline',
+  'website taken down',
+  'website flagged',
+  'product created',
+  'product updated',
+  'product deleted',
+  'product removed',
+]);
+
+function isImportantNotification(title) {
+  const normalizedTitle = String(title || '').trim().toLowerCase();
+  return IMPORTANT_NOTIFICATION_TITLES.has(normalizedTitle);
+}
+
 /** Admin: list latest shared notifications. */
 exports.getNotifications = async (req, res) => {
   try {
@@ -14,6 +33,14 @@ exports.getNotifications = async (req, res) => {
 exports.addNotification = async (req, res) => {
   try {
     const { title, message, type } = req.body;
+    if (!isImportantNotification(title)) {
+      return res.status(202).json({
+        success: true,
+        ignored: true,
+        message: 'Notification ignored. Only important website/product notifications are allowed.',
+      });
+    }
+
     const notification = await Notification.create({
       title,
       message,

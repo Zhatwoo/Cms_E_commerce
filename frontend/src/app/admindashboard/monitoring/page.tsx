@@ -421,6 +421,8 @@ function MonitoringPageContent() {
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
   const [workingWebsiteKey, setWorkingWebsiteKey] = useState<string | null>(null);
   const [workingProductId, setWorkingProductId] = useState<string | null>(null);
+  const hiddenWebsiteDomainsRef = useRef<Set<string>>(new Set());
+  const hiddenProductIdsRef = useRef<Set<string>>(new Set());
   const [toast, setToast] = useState<{ open: boolean; message: string; tone: ToastTone }>({ open: false, message: '', tone: 'success' });
   const [websiteActionModal, setWebsiteActionModal] = useState<WebsiteActionModalState>({ open: false, target: null, action: 'take_down', reason: '' });
   const [productDeleteModal, setProductDeleteModal] = useState<ProductDeleteModalState>({ open: false, target: null, reason: '' });
@@ -438,8 +440,15 @@ function MonitoringPageContent() {
         getDomainsManagement(),
         listProducts({ limit: 200, ignoreActiveProjectScope: true, includeAllUsers: true }),
       ]);
-      setWebsites(domainRes.success && Array.isArray(domainRes.data) ? domainRes.data : []);
-      setProducts(productRes.success && Array.isArray(productRes.items) ? productRes.items : []);
+      const nextWebsites = domainRes.success && Array.isArray(domainRes.data) ? domainRes.data : [];
+      const nextProducts = productRes.success && Array.isArray(productRes.items) ? productRes.items : [];
+
+      // Keep deleted items hidden even if a stale refresh response arrives right after moderation.
+      const hiddenWebsiteDomains = hiddenWebsiteDomainsRef.current;
+      const hiddenProductIds = hiddenProductIdsRef.current;
+
+      setWebsites(nextWebsites.filter((w) => !hiddenWebsiteDomains.has(normalize(w.domainName))));
+      setProducts(nextProducts.filter((p) => !hiddenProductIds.has(p.id)));
     } finally {
       if (!silent) setLoading(false);
     }
@@ -453,11 +462,11 @@ function MonitoringPageContent() {
       loadData(true);
     }, 30000);
 
-    const onNotifReceived = () => loadData(true);
-    window.addEventListener('notification:new_received', onNotifReceived);
+    const onDataChanged = () => loadData(true);
+    window.addEventListener('admin:data_changed', onDataChanged);
     return () => {
       clearInterval(interval);
-      window.removeEventListener('notification:new_received', onNotifReceived);
+      window.removeEventListener('admin:data_changed', onDataChanged);
     };
   }, []);
 
@@ -665,7 +674,8 @@ function MonitoringPageContent() {
         }
       );
       setToast({ open: true, message: res.message || 'Website updated.', tone: 'success' });
-      setWebsites((prev) => prev.filter((w) => `${w.userId}::${w.id}` !== key));
+      hiddenWebsiteDomainsRef.current.add(normalize(website.domainName));
+      setWebsites((prev) => prev.filter((w) => `${w.userId}::${w.id}` !== key && normalize(w.domainName) !== normalize(website.domainName)));
       setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' });
     } catch (error) {
       setToast({ open: true, message: error instanceof Error ? error.message : 'Website action failed', tone: 'error' });
@@ -696,6 +706,7 @@ function MonitoringPageContent() {
           metadata: { productId: product.id, sku: product.sku || 'N/A', website: product.subdomain || 'N/A', reason },
         }
       );
+      hiddenProductIdsRef.current.add(product.id);
       setProducts((prev) => prev.filter((p) => p.id !== product.id));
       if (selectedProduct?.id === product.id) setSelectedProduct(null);
       setProductDeleteModal({ open: false, target: null, reason: '' });

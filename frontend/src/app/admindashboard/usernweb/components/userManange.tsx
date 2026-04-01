@@ -52,12 +52,55 @@ function formatDate(value: string | undefined): string {
   return formatToPHTime(value);
 }
 
-function isUserOnline(lastSeen?: string): boolean {
-  if (!lastSeen) return false;
-  const now = new Date();
-  const ls = new Date(lastSeen);
-  // within last 3 minutes = Online (was 5)
-  return (now.getTime() - ls.getTime()) < 3 * 60 * 1000;
+function isUserOnline(lastSeen?: string, isOnline?: boolean, nowMs: number = Date.now()): boolean {
+  if (isOnline === true) return true;
+  if (isOnline === false) return false;
+
+  if (lastSeen) {
+    const ls = new Date(lastSeen);
+    // within last 3 minutes = Online (was 5)
+    if ((nowMs - ls.getTime()) < 3 * 60 * 1000) return true;
+  }
+  return false;
+}
+
+function getLastActiveLabel(lastSeen?: string, nowMs: number = Date.now()): string {
+  if (!lastSeen) return 'Active recently';
+
+  const last = new Date(lastSeen);
+  if (Number.isNaN(last.getTime())) return 'Active recently';
+
+  const diffMs = Math.max(0, nowMs - last.getTime());
+  if (diffMs < 60 * 1000) return 'Active just now';
+
+  const mins = Math.floor(diffMs / (60 * 1000));
+  if (mins < 60) return `Active ${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Active ${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Active ${days}d ago`;
+
+  return `Active ${formatToPHTime(lastSeen)}`;
+}
+
+function getLastActiveLabelFromMs(lastActiveMs?: number, nowMs: number = Date.now()): string {
+  if (!lastActiveMs || !Number.isFinite(lastActiveMs)) return 'Active recently';
+
+  const diffMs = Math.max(0, nowMs - lastActiveMs);
+  if (diffMs < 60 * 1000) return 'Active just now';
+
+  const mins = Math.floor(diffMs / (60 * 1000));
+  if (mins < 60) return `Active ${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Active ${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Active ${days}d ago`;
+
+  return `Active ${formatToPHTime(new Date(lastActiveMs).toISOString())}`;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -152,6 +195,8 @@ export function UserManagement() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('recent');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [clockMs, setClockMs] = useState(() => Date.now());
+  const [offlineSinceById, setOfflineSinceById] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -214,6 +259,40 @@ export function UserManagement() {
     }, 20000);
     return () => clearInterval(interval);
   }, [loadClients]);
+
+  useEffect(() => {
+    // Keep relative last-active labels updating even when no new data arrives.
+    const clock = setInterval(() => setClockMs(Date.now()), 15000);
+    return () => clearInterval(clock);
+  }, []);
+
+  useEffect(() => {
+    setOfflineSinceById((prev) => {
+      const next: Record<string, number> = {};
+
+      for (const client of clients) {
+        const active = isClientActive(client);
+        if (!active) continue;
+
+        const online = isUserOnline(client.lastSeen, client.isOnline, clockMs);
+        if (online) continue;
+
+        const lastSeenMs = client.lastSeen ? new Date(client.lastSeen).getTime() : NaN;
+        const candidate = Number.isFinite(lastSeenMs) ? lastSeenMs : clockMs;
+        const existing = prev[client.id];
+
+        // Preserve the earliest known offline timestamp so elapsed time never jumps backward.
+        next[client.id] = Number.isFinite(existing) ? Math.min(existing, candidate) : candidate;
+      }
+
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (prevKeys.length === nextKeys.length && prevKeys.every((k) => prev[k] === next[k])) {
+        return prev;
+      }
+      return next;
+    });
+  }, [clients, clockMs]);
   
   useEffect(() => {
     // Listen for real-time updates from other admins
@@ -221,8 +300,8 @@ export function UserManagement() {
       console.log('[UserManagement] Real-time notification received, refreshing list...');
       loadClients(true);
     };
-    window.addEventListener('notification:new_received', handleUpdate);
-    return () => window.removeEventListener('notification:new_received', handleUpdate);
+    window.addEventListener('admin:data_changed', handleUpdate);
+    return () => window.removeEventListener('admin:data_changed', handleUpdate);
   }, [loadClients]);
 
   useEffect(() => {
@@ -242,14 +321,16 @@ export function UserManagement() {
         (c.email || '').toLowerCase().includes(search.toLowerCase());
       const matchPlan = !planFilter || (c.subscriptionPlan || 'free').toLowerCase() === planFilter.toLowerCase();
       const active = isClientActive(c);
+      const online = active && isUserOnline(c.lastSeen, c.isOnline, clockMs);
       const matchStatus =
         !statusFilter ||
         (statusFilter === 'active' && active) ||
+        (statusFilter === 'online' && online) ||
         (statusFilter === 'suspended' && (c.status || '').toLowerCase() === 'suspended') ||
         (statusFilter === 'restricted' && (c.status || '').toLowerCase() === 'restricted');
       return matchFocusedClient && matchSearch && matchPlan && matchStatus;
     });
-  }, [clients, focusedClientId, search, planFilter, statusFilter]);
+  }, [clients, focusedClientId, search, planFilter, statusFilter, clockMs]);
 
   const sortedFiltered = useMemo(() => {
     const copy = [...filtered];
@@ -271,9 +352,11 @@ export function UserManagement() {
     const basic = clients.filter((c) => (c.subscriptionPlan || '').toLowerCase() === 'basic').length;
     const pro = clients.filter((c) => (c.subscriptionPlan || '').toLowerCase() === 'pro').length;
     const active = clients.filter((c) => isClientActive(c)).length;
+    const online = clients.filter((c) => isClientActive(c) && isUserOnline(c.lastSeen, c.isOnline, clockMs)).length;
     const suspended = clients.filter((c) => (c.status || '').toLowerCase() === 'suspended').length;
-    return { total, free, basic, pro, active, suspended };
-  }, [clients]);
+    const restricted = clients.filter((c) => (c.status || '').toLowerCase() === 'restricted').length;
+    return { total, free, basic, pro, active, online, suspended, restricted };
+  }, [clients, clockMs]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -682,8 +765,9 @@ export function UserManagement() {
                 >
                   <option value="">All Status</option>
                   <option value="active">Active ({loading ? '...' : stats.active})</option>
+                  <option value="online">Online ({loading ? '...' : stats.online})</option>
                   <option value="suspended">Suspended ({loading ? '...' : stats.suspended})</option>
-                  <option value="restricted">Restricted ({loading ? '...' : Math.max(0, stats.total - stats.active - stats.suspended)})</option>
+                  <option value="restricted">Restricted ({loading ? '...' : stats.restricted})</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9A62D8]"><ChevronDownIcon /></div>
               </div>
@@ -967,7 +1051,7 @@ export function UserManagement() {
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
-                  const online = isUserOnline(client.lastSeen);
+                  const online = isUserOnline(client.lastSeen, client.isOnline, clockMs);
                   const busy = actionLoadingId === client.id;
                   const storage = getClientStorage(client);
                   
@@ -977,7 +1061,12 @@ export function UserManagement() {
                   
                   let statusLabel = active ? 'Active' : 'Inactive';
                   if (active) {
-                    statusLabel = online ? 'Online' : 'Offline';
+                    statusLabel = online
+                      ? 'Online'
+                      : getLastActiveLabelFromMs(
+                          offlineSinceById[client.id] || (client.lastSeen ? new Date(client.lastSeen).getTime() : undefined),
+                          clockMs
+                        );
                   } else if (isSuspended) {
                     statusLabel = 'Suspended';
                   } else if (isRestricted) {

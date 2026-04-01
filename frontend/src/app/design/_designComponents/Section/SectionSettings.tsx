@@ -20,7 +20,6 @@ export const SectionSettings = () => {
     radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
-    contentWidth, contentMaxWidth,
     boxShadow, opacity, overflow,
     position, display, zIndex, top, right, bottom, left, editorVisibility,
     rotation, flipHorizontal, flipVertical,
@@ -57,8 +56,6 @@ export const SectionSettings = () => {
     alignItems: node.data.props.alignItems,
     justifyContent: node.data.props.justifyContent,
     gap: node.data.props.gap,
-    contentWidth: node.data.props.contentWidth,
-    contentMaxWidth: node.data.props.contentMaxWidth,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
@@ -80,42 +77,6 @@ export const SectionSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Section" defaultOpen={true}>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
-            <select
-              value={contentWidth || "constrained"}
-              onChange={(e) =>
-                typedSetProp((props) => {
-                  props.contentWidth = e.target.value as SectionProps["contentWidth"];
-                })
-              }
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
-            >
-              <option value="constrained">Constrained</option>
-              <option value="full">Full Width</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
-            <input
-              type="text"
-              value={contentMaxWidth || "1200px"}
-              onChange={(e) =>
-                typedSetProp((props) => {
-                  props.contentMaxWidth = e.target.value;
-                })
-              }
-              placeholder="1200px"
-              disabled={(contentWidth || "constrained") === "full"}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
-            />
-          </div>
-        </div>
-      </DesignSection>
-
       <DesignSection title="Auto Layout">
         <AutoLayoutGroup
           flexDirection={flexDirection}

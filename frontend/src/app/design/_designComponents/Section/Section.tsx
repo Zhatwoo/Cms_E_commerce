@@ -10,17 +10,6 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
-function normalizeFlexPos(
-  value: unknown,
-  fallback: "flex-start" | "center" | "flex-end"
-): "flex-start" | "center" | "flex-end" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "start" || raw === "flex-start") return "flex-start";
-  if (raw === "end" || raw === "flex-end") return "flex-end";
-  if (raw === "center") return "center";
-  return fallback;
-}
-
 function isColorLike(value: unknown): boolean {
   const v = String(value ?? "").trim().toLowerCase();
   if (!v) return false;
@@ -57,11 +46,12 @@ export const Section = ({
   borderStyle = "solid",
   strokePlacement = "mid",
   flexDirection = "column",
-  flexWrap = "nowrap",
-  alignItems = "center",
-  justifyContent = "flex-start",
-  gap = 0,
-  display = "flex",
+  flexWrap: _flexWrap = "nowrap",
+  alignItems: _alignItems = "flex-start",
+  justifyContent: _justifyContent = "flex-start",
+  gap: _gap = 0,
+  display = "block",
+  isFreeform = true,
   position = "relative",
   zIndex = 0,
   top = "auto",
@@ -74,8 +64,7 @@ export const Section = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
-  contentWidth = "constrained",
-  contentMaxWidth = "1200px",
+  contentWidth: _contentWidth = "constrained",
   customClassName = "",
   editorVisibility = "auto",
   children,
@@ -83,15 +72,8 @@ export const Section = ({
   const {
     id,
     connectors: { connect },
-    childCount,
-  } = useNode((node) => ({
-    childCount: Array.isArray(node.data.nodes) ? node.data.nodes.length : 0,
-  }));
-
-  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
+  } = useNode();
   const isHeaderAsset = /header/i.test(id ?? "");
-  const resolvedAlignItems = normalizeFlexPos(alignItems, "center");
-  const resolvedJustifyContent = normalizeFlexPos(justifyContent, "flex-start");
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -106,8 +88,12 @@ export const Section = ({
   const mb = marginBottom ?? m;
 
   const resolvedHeight = String(height ?? "auto").trim() || "auto";
-  const constrainedContent = contentWidth !== "full";
   const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
+  void _contentWidth;
+  void _flexWrap;
+  void _alignItems;
+  void _justifyContent;
+  void _gap;
 
   const transformStyle = React.useMemo(
     () =>
@@ -128,7 +114,7 @@ export const Section = ({
     [connect]
   );
 
-  const effectiveDisplay = 
+  const effectiveDisplay =
     editorVisibility === "hide" 
       ? "none" 
       : editorVisibility === "show" && display === "none"
@@ -184,7 +170,7 @@ export const Section = ({
       overflow,
       transform: transformStyle,
       transformOrigin: "center center",
-      display: effectiveDisplay,
+      display: isFreeform ? "block" : effectiveDisplay,
       containerType: "inline-size",
     }),
     [
@@ -221,43 +207,17 @@ export const Section = ({
       top,
       width,
       zIndex,
+      effectiveDisplay,
+      isFreeform,
       editorVisibility,
       display,
     ]
   );
 
-  const contentShellStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      width: "100%",
-      maxWidth: constrainedContent ? contentMaxWidth : "none",
-      marginInline: constrainedContent ? "auto" : undefined,
-      minWidth: 0,
-      position: "relative",
-      boxSizing: "border-box",
-    }),
-    [constrainedContent, contentMaxWidth]
-  );
-
-  const contentStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      width: "100%",
-      minWidth: 0,
-      minHeight: !hasChildren ? "80px" : undefined,
-      position: "relative",
-      boxSizing: "border-box",
-      display,
-      flexDirection,
-      flexWrap,
-      alignItems: resolvedAlignItems,
-      justifyContent: resolvedJustifyContent,
-      gap: fluidSpace(gap, 0),
-    }),
-    [display, flexDirection, flexWrap, gap, hasChildren, resolvedAlignItems, resolvedJustifyContent]
-  );
-
   return (
     <section
       data-node-id={id}
+      data-node-content-host="true"
       data-fluid-space="true"
       data-layout={flexDirection === "row" ? "row" : "column"}
       {...(isHeaderAsset ? { "data-header": "true" } : {})}
@@ -288,11 +248,7 @@ export const Section = ({
           ) : null}
         </div>
       ) : null}
-      <div style={contentShellStyle}>
-        <div style={contentStyle}>
-          {children}
-        </div>
-      </div>
+      {children}
     </section>
   );
 };
@@ -324,10 +280,11 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
-  alignItems: "center",
+  alignItems: "flex-start",
   justifyContent: "flex-start",
   gap: 0,
-  display: "flex",
+  display: "block",
+  isFreeform: true,
   position: "relative",
   zIndex: 0,
   top: "auto",
@@ -340,8 +297,8 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   rotation: 0,
   flipHorizontal: false,
   flipVertical: false,
-  contentWidth: "constrained",
-  contentMaxWidth: "1200px",
+  contentWidth: "full",
+  contentMaxWidth: "none",
 };
 
 Section.craft = {

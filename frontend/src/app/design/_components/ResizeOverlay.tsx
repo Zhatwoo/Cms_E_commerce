@@ -42,6 +42,13 @@ function rectChanged(prev: DOMRect | null, next: DOMRect): boolean {
   );
 }
 
+function getNodeContentHost(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+  const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+  return host ?? element;
+}
+
 function getEffectiveZoom(el: HTMLElement): number {
   const cssZoom = getCssZoomOnly(el);
   const ancestorScale = getAncestorTransformScale(el);
@@ -542,6 +549,12 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
             props.left = "auto";
             props.right = "auto";
             props.bottom = "auto";
+          } else if (dropParentIsFreeform) {
+            props.position = "absolute";
+            props.top = "0px";
+            props.left = "0px";
+            props.right = "auto";
+            props.bottom = "auto";
           } else {
             props.top = "0px";
             props.left = "0px";
@@ -665,7 +678,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
           if (!hasPageCanvasMove) {
             const parentId = state.nodes[nodeId]?.data?.parent;
-            const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+            const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
             const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
             const siblingRects: SiblingRect[] = [];
             for (const sid of siblingIds) {
@@ -710,7 +723,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const childCount = (((state.nodes[nodeId] as any)?.data?.nodes as string[] | undefined) ?? []).length;
           const bypassBoundsForResize = nodeDisplayName === "Section" || (nodeDisplayName === "Container" && childCount > 0);
           const parentId = state.nodes[nodeId]?.data?.parent;
-          const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+          const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
           if (dragRef.current && parentDom && !bypassBoundsForResize) {
             const parentRect = parentDom.getBoundingClientRect();
             dragRef.current.guideBounds = {
@@ -1278,15 +1291,23 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               const baseLeft = parsePxOrAuto(itemProps.left);
               const finalTop = baseTop + clampedMove.dy;
               const finalLeft = baseLeft + clampedMove.dx;
+              const latestState = query.getState();
+              const latestParentId = latestState.nodes[item.nodeId]?.data?.parent as string | undefined;
+              const latestParentProps = latestParentId
+                ? (latestState.nodes[latestParentId]?.data?.props ?? {}) as Record<string, unknown>
+                : {};
+              const offsetInsideFreeform = latestParentProps.isFreeform === true;
 
-              if (!item.dom.style.position || item.dom.style.position === "static") {
-                item.dom.style.position = "relative";
-              }
+              item.dom.style.position = offsetInsideFreeform ? "absolute" : ((!item.dom.style.position || item.dom.style.position === "static") ? "relative" : item.dom.style.position);
               item.dom.style.top = `${finalTop}px`;
               item.dom.style.left = `${finalLeft}px`;
 
               actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
-                if (!props.position || props.position === "static") props.position = "relative";
+                if (offsetInsideFreeform) {
+                  props.position = "absolute";
+                } else if (!props.position || props.position === "static") {
+                  props.position = "relative";
+                }
                 props.top = `${finalTop}px`;
                 props.left = `${finalLeft}px`;
               });

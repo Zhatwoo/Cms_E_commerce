@@ -72,8 +72,8 @@ export default function MonitoringAnalyticsPage() {
             console.log('[Analytics] Real-time notification received, refreshing data...');
             loadAnalytics(true);
         };
-        window.addEventListener('notification:new_received', handleUpdate);
-        return () => window.removeEventListener('notification:new_received', handleUpdate);
+        window.addEventListener('admin:data_changed', handleUpdate);
+        return () => window.removeEventListener('admin:data_changed', handleUpdate);
     }, [loadAnalytics]);
 
     const tabNames: Record<string, string> = {
