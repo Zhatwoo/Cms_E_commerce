@@ -43,11 +43,11 @@ exports.protect = async (req, res, next) => {
       role: user.role
     };
 
-    // Update lastSeen (presence) - at most once every minute to reduce writes
+    // Update presence - at most once every minute for lastSeen, but immediately recover isOnline when needed.
     const now = Date.now();
     const lastSeenMs = user.lastSeen ? new Date(user.lastSeen).getTime() : 0;
-    if (now - lastSeenMs > 60000) {
-      User.update(user.id, { lastSeen: new Date().toISOString() }).catch(() => {});
+    if (now - lastSeenMs > 60000 || user.isOnline !== true) {
+      User.update(user.id, { lastSeen: new Date().toISOString(), isOnline: true }).catch(() => {});
     }
 
     next();

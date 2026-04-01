@@ -30,128 +30,204 @@ import {
 import { formatToPHTime } from "@/lib/dateUtils";
 import { useAdminLoading } from "../components/LoadingProvider";
 
-// Custom styles for the scrollable area
-const ScrollbarStyles = () => (
-  <style jsx global>{`
-    .notifications-scrollbar::-webkit-scrollbar {
-      width: 6px;
-    }
-    .notifications-scrollbar::-webkit-scrollbar-track {
-      background: rgba(177, 59, 255, 0.05);
-      border-radius: 10px;
-    }
-    .notifications-scrollbar::-webkit-scrollbar-thumb {
-      background: rgba(177, 59, 255, 0.15);
-      border-radius: 10px;
-    }
-    .notifications-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: rgba(177, 59, 255, 0.25);
-      border-radius: 10px;
-    }
-  `}</style>
-);
+type NotificationTab = "list" | "configure" | "trash";
 
-type FilterType = "all" | "unread" | "read" | "trash";
+type NotificationItem = LibNotificationItem;
 
-export default function NotificationsPage() {
-  const { startLoading, stopLoading } = useAdminLoading();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [trash, setTrash] = useState<NotificationItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+type NotificationSetting = {
+	id: string;
+	label: string;
+	email: boolean;
+	push: boolean;
+};
 
-  // Search and Filter
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all");
-  const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 7;
+function ModalShell({
+	children,
+	isOpen,
+	onClose,
+}: {
+	children: React.ReactNode;
+	isOpen: boolean;
+	onClose: () => void;
+}) {
+	if (!isOpen) return null;
 
-  const loadNotifications = () => {
-    const list = getNotifications();
-    setNotifications(list);
-    setIsLoading(false);
-  };
+	return (
+		<AnimatePresence>
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				exit={{ opacity: 0 }}
+				className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(215,204,245,0.66)] p-4 backdrop-blur-[4px]"
+				onClick={onClose}
+			>
+				<motion.div
+					initial={{ scale: 0.97, opacity: 0, y: 12 }}
+					animate={{ scale: 1, opacity: 1, y: 0 }}
+					exit={{ scale: 0.97, opacity: 0, y: 8 }}
+					transition={{ duration: 0.22 }}
+					className="admin-dashboard-panel w-full max-w-[520px] rounded-[28px] border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-8 shadow-[0_16px_40px_rgba(123,78,192,0.16)]"
+					onClick={(event) => event.stopPropagation()}
+				>
+					{children}
+				</motion.div>
+			</motion.div>
+		</AnimatePresence>
+	);
+}
 
-  useEffect(() => {
-    loadNotifications();
-    window.addEventListener('notificationsUpdate', loadNotifications);
-    return () => window.removeEventListener('notificationsUpdate', loadNotifications);
-  }, []);
+function NotificationCheckbox({
+	checked,
+	onChange,
+	label,
+}: {
+	checked: boolean;
+	onChange: (checked: boolean) => void;
+	label: string;
+}) {
+	return (
+		<label className="inline-flex cursor-pointer items-center justify-center">
+			<input
+				type="checkbox"
+				checked={checked}
+				onChange={(event) => onChange(event.target.checked)}
+				className="peer sr-only"
+				aria-label={label}
+			/>
+			<span className="flex h-5 w-5 items-center justify-center rounded-[3px] border border-[#A148FF] bg-white text-white transition peer-checked:bg-[#A148FF] peer-checked:text-white">
+				<CheckIcon />
+			</span>
+		</label>
+	);
+}
 
-  // Sync loading state with provider
-  useEffect(() => {
-    if (isLoading) startLoading();
-    else stopLoading();
-  }, [isLoading, startLoading, stopLoading]);
+function ActionButton({
+	children,
+	onClick,
+	disabled,
+	icon,
+}: {
+	children: React.ReactNode;
+	onClick: () => void;
+	disabled?: boolean;
+	icon?: React.ReactNode;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			disabled={disabled}
+			className="inline-flex items-center gap-3 rounded-[18px] border border-[rgba(177,59,255,0.16)] bg-white px-6 py-3 text-[1.05rem] font-semibold text-[#857E9F] shadow-[0_5px_0_rgba(208,168,255,0.55)] transition hover:-translate-y-[1px] hover:text-[#471396] disabled:cursor-not-allowed disabled:opacity-60 disabled:bg-[#F2F0F7] disabled:shadow-none"
+		>
+			{icon}
+			<span>{children}</span>
+		</button>
+	);
+}
 
-  // Derived Data
-  const filteredList = useMemo(() => {
-    let base = activeFilter === "trash" ? trash : notifications;
-    
-    return base.filter(n => {
-      const matchesSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           n.message.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesFilter = activeFilter === "all" || 
-                           activeFilter === "trash" || 
-                           (activeFilter === "unread" && !n.read) || 
-                           (activeFilter === "read" && n.read);
-      return matchesSearch && matchesFilter;
-    });
-  }, [notifications, trash, searchQuery, activeFilter]);
+function NotificationsPageContent() {
+	const { startLoading } = useAdminLoading();
+	const [sidebarOpen, setSidebarOpen] = useState(false);
+	const [activeTab, setActiveTab] = useState<NotificationTab>("list");
+	const [selectedIds, setSelectedIds] = useState<string[]>([]);
+	const [trashSelectedIds, setTrashSelectedIds] = useState<string[]>([]);
+	const [showRestoreModal, setShowRestoreModal] = useState(false);
+	const [showPermanentDeleteModal, setShowPermanentDeleteModal] = useState(false);
+	const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+	const [trash, setTrash] = useState<NotificationItem[]>([]);
+	const [detailItem, setDetailItem] = useState<NotificationItem | null>(null);
 
-  const totalPages = Math.ceil(filteredList.length / ITEMS_PER_PAGE);
-  const paginatedList = filteredList.slice(
-    (currentPage - 1) * ITEMS_PER_PAGE,
-    currentPage * ITEMS_PER_PAGE
-  );
+	useEffect(() => {
+		const load = () => {
+			setNotifications(getNotifications());
+		};
+		load();
+		window.addEventListener('notificationsUpdate', load);
+		return () => window.removeEventListener('notificationsUpdate', load);
+	}, []);
 
-  // Reset page when filtering
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, activeFilter]);
+	const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
+		{ id: "evt-site-publish", label: "Takedown Website", email: true, push: true },
+		{ id: "evt-template-update", label: "Delete Website", email: true, push: true },
+		{ id: "evt-custom-domain", label: "Delete Product", email: true, push: true },
+		{ id: "evt-user-modified", label: "Modified User", email: true, push: true },
+	]);
 
-  const getIcon = (type: string, read: boolean) => {
-    switch (type) {
-      case "success":
-        return <CheckCircle className={read ? "text-emerald-400" : "text-emerald-500"} size={20} />;
-      case "warning":
-        return <AlertTriangle className={read ? "text-orange-400" : "text-orange-500"} size={20} />;
-      case "error":
-        return <Trash2 className={read ? "text-red-400" : "text-red-500"} size={20} />;
-      default:
-        return <Info className={read ? "text-blue-400" : "text-blue-500"} size={20} />;
-    }
-  };
+	const unreadCount = notifications.filter((item) => !item.read).length;
+	const allSelected = notifications.length > 0 && selectedIds.length === notifications.length;
+	const trashAllSelected = trash.length > 0 && trashSelectedIds.length === trash.length;
 
-  const getBgColor = (type: string, read: boolean) => {
-    if (read) return "bg-gray-50 border-gray-100 opacity-60";
-    switch (type) {
-      case "success":
-        return "bg-emerald-50 border-emerald-100";
-      case "warning":
-        return "bg-orange-50 border-orange-100";
-      case "error":
-        return "bg-red-50 border-red-100";
-      default:
-        return "bg-blue-50 border-blue-100";
-    }
-  };
+	const setUniqueSelection = (ids: string[]) => Array.from(new Set(ids));
 
-  const handleMarkRead = async (id: string) => {
-    await markAsRead(id);
-  };
+	const toggleSelectAll = (checked: boolean) => {
+		setSelectedIds(checked ? notifications.map((item) => item.id) : []);
+	};
 
-  const handleMarkAllRead = async () => {
-    await markAllAsRead();
-  };
+	const toggleSelectOne = (id: string, checked: boolean) => {
+		setSelectedIds((prev) =>
+			checked ? setUniqueSelection([...prev, id]) : prev.filter((item) => item !== id)
+		);
+	};
 
-  const handleDelete = async (id: string) => {
-    const item = notifications.find(n => n.id === id);
-    if (item) {
-      setTrash(prev => [item, ...prev]);
-      await deleteNotificationItem(id);
-    }
-  };
+	const toggleTrashSelectAll = (checked: boolean) => {
+		setTrashSelectedIds(checked ? trash.map((item) => item.id) : []);
+	};
+
+	const toggleTrashSelectOne = (id: string, checked: boolean) => {
+		setTrashSelectedIds((prev) =>
+			checked ? setUniqueSelection([...prev, id]) : prev.filter((item) => item !== id)
+		);
+	};
+
+	const handleMarkAsRead = () => {
+		if (selectedIds.length === 0) return;
+		markAsRead(selectedIds[0]); // Actually markAsRead should probably support multiple or I use a loop
+		// Wait, lib/notifications.ts markAsRead only takes one ID.
+		// But I should use the one I added: markAllAsRead or loop markAsRead.
+		selectedIds.forEach(id => markAsRead(id));
+		setSelectedIds([]);
+	};
+
+	const handleMarkAllAsRead = async () => {
+		await markAllAsRead();
+		setSelectedIds([]);
+	};
+
+	const handleDelete = () => {
+		if (selectedIds.length === 0) return;
+		const toTrash = notifications.filter((item) => selectedIds.includes(item.id));
+		setTrash((current) => [...toTrash.filter((item) => !current.some((entry) => entry.id === item.id)), ...current]);
+		const updated = notifications.filter((item) => !selectedIds.includes(item.id));
+		saveNotifications(updated);
+		setSelectedIds([]);
+	};
+
+	const handleRestore = (id: string) => {
+		const restored = trash.find((item) => item.id === id);
+		if (!restored) return;
+		setTrash((prev) => prev.filter((item) => item.id !== id));
+		setNotifications((current) => (current.some((item) => item.id === restored.id) ? current : [restored, ...current]));
+	};
+
+	const handlePermanentDelete = (id: string) => {
+		setTrash((prev) => prev.filter((item) => item.id !== id));
+	};
+
+	const handleBulkRestore = () => {
+		trashSelectedIds.forEach((id) => handleRestore(id));
+		setTrashSelectedIds([]);
+		setShowRestoreModal(false);
+	};
+
+	const handleBulkPermanentDelete = () => {
+		trashSelectedIds.forEach((id) => handlePermanentDelete(id));
+		setTrashSelectedIds([]);
+		setShowPermanentDeleteModal(false);
+	};
+
+	const handleSettingToggle = (id: string, channel: "email" | "push") => {
+		setNotificationSettings((prev) => prev.map((item) => (item.id === id ? { ...item, [channel]: !item[channel] } : item)));
+	};
 
   return (
     <div className="admin-dashboard-shell flex h-screen overflow-hidden" suppressHydrationWarning>

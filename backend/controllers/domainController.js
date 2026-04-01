@@ -232,20 +232,6 @@ exports.setClientDomainStatus = async (req, res) => {
       );
     }
 
-    // Broadcast change
-    try {
-      const notif = await Notification.create({
-        title: 'Status Updated',
-        message: `Domain ${subdomain || domainId} updated to ${normalized} status.`,
-        type: 'info',
-        adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || req.user?.email || 'Administrator'
-      });
-      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
-    } catch (e) {
-      console.warn('Set status notification failed:', e.message);
-    }
-
     res.status(200).json({ success: true, message: 'Status updated', data: updated });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
