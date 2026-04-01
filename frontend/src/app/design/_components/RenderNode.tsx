@@ -189,32 +189,6 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
             return;
           }
 
-          let cursor: string | undefined = id;
-          let groupAncestorId: string | null = null;
-
-          while (cursor && cursor !== "ROOT") {
-            const parentId = nodes[cursor]?.data?.parent as string | undefined;
-            if (!parentId || parentId === "ROOT") break;
-            const parentNode = nodes[parentId];
-            const displayName = parentNode?.data?.displayName as string | undefined;
-            const isCanvas = parentNode?.data?.isCanvas === true;
-            const isPageLike = displayName === "Page" || displayName === "Viewport";
-            if ((isCanvas || (displayName && selectableGroupNames.has(displayName))) && !isPageLike) {
-              groupAncestorId = parentId;
-              break;
-            }
-            cursor = parentId;
-          }
-
-          if (groupAncestorId && groupAncestorId !== id) {
-            if (event.cancelable) event.preventDefault();
-            event.stopPropagation();
-            if (typeof event.stopImmediatePropagation === "function") {
-              event.stopImmediatePropagation();
-            }
-            actions.selectNode(groupAncestorId);
-            return;
-          }
         } catch {
           // ignore
         }
