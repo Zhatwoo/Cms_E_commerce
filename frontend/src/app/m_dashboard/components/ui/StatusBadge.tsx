@@ -27,25 +27,25 @@ function getStatusStyles(status: ProjectStatus | null | undefined, isDark: boole
     case 'published':
     case 'live':
       return {
-        bg: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50',
-        text: isDark ? 'text-emerald-400' : 'text-emerald-700',
-        border: isDark ? 'border-emerald-500/20' : 'border-emerald-200',
+        glow: 'bg-emerald-500/40',
+        text: isDark ? 'text-emerald-400' : 'text-emerald-600',
+        border: isDark ? 'border-emerald-500/50' : 'border-emerald-400/60',
         dot: 'bg-emerald-500',
         label: 'Published' 
       };
     case 'shared':
       return {
-        bg: isDark ? 'bg-blue-500/10' : 'bg-blue-50',
-        text: isDark ? 'text-blue-400' : 'text-blue-700',
-        border: isDark ? 'border-blue-500/20' : 'border-blue-200',
+        glow: 'bg-blue-500/40',
+        text: isDark ? 'text-blue-400' : 'text-blue-600',
+        border: isDark ? 'border-blue-500/50' : 'border-blue-400/60',
         dot: 'bg-blue-500',
         label: 'Shared'
       };
     default:
       return {
-        bg: isDark ? 'bg-amber-500/10' : 'bg-amber-50',
-        text: isDark ? 'text-amber-500' : 'text-amber-700',
-        border: isDark ? 'border-amber-500/20' : 'border-amber-200',
+        glow: 'bg-amber-500/40',
+        text: isDark ? 'text-amber-400' : 'text-amber-600',
+        border: isDark ? 'border-amber-500/50' : 'border-amber-400/60',
         dot: 'bg-amber-500',
         label: 'Draft'
       };
@@ -55,34 +55,45 @@ function getStatusStyles(status: ProjectStatus | null | undefined, isDark: boole
 export function StatusBadge({ status, label, size = 'sm' }: StatusBadgeProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  
   if (!status) return null;
 
   const styles = getStatusStyles(status, isDark);
   const displayLabel = label || styles.label;
 
-  const sizeClasses = size === 'md'
-    ? 'px-2.5 py-1 text-[11px]'
-    : 'px-2 py-0.5 text-[10px]';
+  const sizeClasses = size === 'md' 
+    ? 'px-3.5 py-1.5 text-[10px]' 
+    : 'px-2.5 py-1 text-[9px]';
 
   return (
-    <span
-      className={`
-        inline-flex items-center gap-2 rounded-full font-bold tracking-tight
-        transition-all duration-300 select-none border
-        ${sizeClasses} ${styles.bg} ${styles.text} ${styles.border}
-        shrink-0 whitespace-nowrap
-      `}
-    >
-      <span className={`relative flex h-1.5 w-1.5 shrink-0`}>
-        {/* Pulsing effect for Live status only */}
-        {(status === 'live' || status === 'published') && (
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-        )}
-        <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${styles.dot}`} />
-      </span>
+    <div className="relative group/badge">
+      {/* 1. THE REINFORCEMENT: A localized shadow that creates contrast on light images */}
+      <div className="absolute inset-0 bg-black/40 blur-xl rounded-full -z-20 opacity-0 group-hover/badge:opacity-100 transition-opacity" />
+      
+      {/* 2. THE GLOW: The status-specific aura */}
+      <div className={`absolute -inset-1 blur-lg rounded-full -z-10 opacity-20 ${styles.glow}`} />
+      
+      <span
+        className={`
+          inline-flex items-center gap-2 rounded-full font-black tracking-[0.2em]
+          transition-all duration-500 select-none uppercase border-2
+          backdrop-blur-2xl shadow-2xl
+          ${sizeClasses} 
+          ${isDark 
+            ? `bg-[#0A0A26]/80 ${styles.text} ${styles.border}` 
+            : `bg-white/90 ${styles.text} ${styles.border}`
+          }
+          shrink-0 whitespace-nowrap
+        `}
+      >
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          {(status === 'live' || status === 'published') && (
+            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-60 ${styles.dot}`} />
+          )}
+          <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${styles.dot}`} />
+        </span>
 
-      <span className="uppercase tracking-[0.05em]">{displayLabel}</span>
-    </span>
+        <span className="leading-none">{displayLabel}</span>
+      </span>
+    </div>
   );
 }

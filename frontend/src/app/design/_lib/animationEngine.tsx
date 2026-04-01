@@ -673,28 +673,7 @@ function useGsapScrollEffect(
     // Use a natural ease for all scroll effects for a clean, smooth feel
     const naturalEase = config.scrub ? "none" : "power1.inOut";
 
-    const isEntranceEffect = (c: typeof config) => {
-      const s = c.speed ?? 1;
-      const type = c.type as ScrollEffectType;
-      // Effects that start from a "hidden/distorted" state and end in "natural/steady"
-      if (type === "fade" && s >= 0) return true;
-      if (type === "blur" && s < 0) return true;
-      if (type === "scale" && s < 0) return true;
-      if (type === "reveal") return true;
-      return false;
-    };
-
-    // Detect if the element is already in the initial viewport to prevent sudden shifts
-    const rect = el.getBoundingClientRect();
-    const isAboveFold = rect.top < (view.innerHeight || 800);
-    
-    // Dynamic triggers:
-    // 1. If the element is already visible, start immediately.
-    // 2. If it's a "Reveal" effect (Entrance), start as it enters from the bottom and end at the center.
-    // 3. Otherwise (Exit), stay steady until the center and end at the top.
-    const isReveal = isEntranceEffect(config);
-    const effectiveStart = config.start || (isAboveFold ? "top top" : (isReveal ? "top bottom" : "top 45%"));
-    const effectiveEnd = config.end || (isReveal ? "top 45%" : "top -15%");
+    // Replaced by 3-point enter/steady/exit logic in tlScroll
 
     if (config.type === "freeMove") {
       const keyframes = computeFreeMoveKeyframes();
@@ -764,22 +743,35 @@ function useGsapScrollEffect(
         }
       };
     } else {
-      // Reset any previous transforms to ensure we measure from the "steady" layout state
       gsap.set(el, { clearProps: "transform,opacity,filter,clip-path" });
       
       const tlScroll = gsap.timeline({
         scrollTrigger: {
           trigger: el,
           scroller: scroller || view || undefined,
-          start: effectiveStart,
-          end: effectiveEnd,
+          start: "top bottom",
+          end: "bottom top",
           scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
           invalidateOnRefresh: true,
           immediateRender: true,
         },
-        defaults: { ease: naturalEase },
       });
       const { from, to } = getScrollEffectRange(config);
+      
+      const steady: Record<string, unknown> = {};
+      for (const k in from) {
+        if (k === "opacity" || k === "scale") steady[k] = 1;
+        else if (k === "filter") steady[k] = "blur(0px)";
+        else if (k === "clipPath") steady[k] = "inset(0% 0% 0% 0%)";
+        else steady[k] = 0;
+      }
+      for (const k in to) {
+        if (k === "opacity" || k === "scale") steady[k] = 1;
+        else if (k === "filter") steady[k] = "blur(0px)";
+        else if (k === "clipPath") steady[k] = "inset(0% 0% 0% 0%)";
+        else if (!(k in steady)) steady[k] = 0;
+      }
+
       // Clamp and round all numeric values for pixel-perfect movement
       const clampObj = (obj: Record<string, unknown>) => {
         const out: Record<string, unknown> = {};
@@ -790,6 +782,14 @@ function useGsapScrollEffect(
         }
         return out;
       };
+
+      const rectHeight = el.offsetHeight || 100;
+      const sh = proxiedParentScroller ? proxiedParentScroller.clientHeight : ((scroller as Element)?.clientHeight || view.innerHeight || 800);
+      const totalDist = rectHeight + sh;
+      
+      const pIn = Math.min(0.4, rectHeight / totalDist);
+      const pOut = Math.min(0.4, rectHeight / totalDist);
+      const pSteady = Math.max(0.01, 1 - pIn - pOut);
       
       // If rotate effect, set transformOrigin to center for true rotation
       if (config.type === "rotate") {
@@ -797,11 +797,21 @@ function useGsapScrollEffect(
       }
 
       tlScroll.fromTo(el, clampObj(from), {
-        ...clampObj(to),
-        // Use a natural ease for all effects
-        ease: naturalEase,
-        ...(config.type === "rotate" ? { transformOrigin: "50% 50%" } : {}),
+        ...clampObj(steady),
+        duration: pIn,
+        ease: "power1.out",
       });
+      tlScroll.to(el, {
+        ...clampObj(steady),
+        duration: pSteady,
+        ease: "none",
+      });
+      tlScroll.to(el, {
+        ...clampObj(to),
+        duration: pOut,
+        ease: "power1.in",
+      });
+      // End of configuration for standard scrollEffect timeline
 
       // Schedule a single debounced refresh — prevents cascade of refreshes on mount.
       scheduleScrollTriggerRefresh();
@@ -865,110 +875,93 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
 
   switch (config.type as ScrollEffectType) {
     case "parallax": {
-      // Parallax: start from 0 (steady) and move towards p
-      // Subtle distance (100px max) feels more refined/optimized
-      const maxDist = 120;
-      const p = speed * maxDist;
+      const dist = speed * 150;
       if (isVertical) {
-        from.y = 0;
-        to.y = p;
+        from.y = dist;
+        to.y = -dist;
       } else {
-        from.x = 0;
-        to.x = p;
+        from.x = dist;
+        to.x = -dist;
       }
-      to.force3D = true;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "fade":
-      // Fade: always from steady (1) to transparent (0) or reverse depending on speed
-      from.opacity = speed >= 0 ? 0 : 1;
-      to.opacity = speed >= 0 ? 1 : 0;
-      to.force3D = true;
+      from.opacity = 0;
+      to.opacity = 0;
+      from.force3D = true; to.force3D = true;
       break;
     case "scale": {
-      // Scale: start from steady (1) to 1+s
-      const s = Math.abs(speed) * 0.4; // Slightly reduced multiplier
-      from.scale = speed >= 0 ? 1 : 1 + s;
-      to.scale = speed >= 0 ? 1 + s : 1;
-      to.force3D = true;
+      const s = Math.abs(speed) * 0.4;
+      const scaleVal = speed >= 0 ? Math.max(0, 1 - s) : 1 + s;
+      from.scale = scaleVal;
+      to.scale = scaleVal;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "rotate": {
-      // Rotate: start from steady (0) to r
-      const r = speed * 120; // Reduced from 180 for more control
-      from.rotation = 0;
-      to.rotation = r;
-      to.force3D = true;
+      const r = speed * 120;
+      from.rotation = r;
+      to.rotation = -r;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "blur": {
-      // Blur: start from steady (0px) to b or reverse
-      const b = Math.abs(speed) * 15; // Reduced from 20
-      from.filter = speed >= 0 ? "blur(0px)" : `blur(${b}px)`;
-      to.filter = speed >= 0 ? `blur(${b}px)` : "blur(0px)";
-      to.force3D = true;
+      const b = Math.abs(speed) * 15;
+      const bStr = `blur(${b}px)`;
+      from.filter = bStr;
+      to.filter = bStr;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "horizontalMove": {
-      // Horizontal move: start from steady (0) to h
-      const h = speed * 300; // Reduced from 400
-      from.x = 0;
-      to.x = h;
-      to.force3D = true;
+      const h = speed * 300;
+      from.x = h;
+      to.x = -h;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "freeMove": {
-      // FreeMove: already starts from steady (0,0)
-      const start = config.freeMove?.start;
-      const end = config.freeMove?.end;
-      if (start && end) {
-        from.x = 0;
-        from.y = 0;
-        to.x = speed * (end.x - start.x);
-        to.y = speed * (end.y - start.y);
-      }
+      // FreeMove is handled separately in timeline
       break;
     }
     case "skew": {
-      // Skew: start from steady (0) to sk
-      const sk = speed * 20; // Reduced from 25
+      const sk = speed * 25;
       if (isVertical) {
-        from.skewY = 0;
-        to.skewY = sk;
+        from.skewY = sk;
+        to.skewY = -sk;
       } else {
-        from.skewX = 0;
-        to.skewX = sk;
+        from.skewX = sk;
+        to.skewX = -sk;
       }
-      to.force3D = true;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "reveal":
-      // Reveal: always from clipped to revealed
-      from.clipPath = speed >= 0 ? "inset(0% 100% 0% 0%)" : "inset(100% 0% 0% 0%)";
-      to.clipPath = "inset(0% 0% 0% 0%)";
-      to.force3D = true;
+      from.clipPath = speed >= 0 ? "inset(100% 0% 0% 0%)" : "inset(0% 100% 0% 0%)";
+      to.clipPath = speed >= 0 ? "inset(0% 0% 100% 0%)" : "inset(0% 0% 0% 100%)";
+      from.force3D = true; to.force3D = true;
       break;
     case "zoom": {
-      // Zoom: from steady (1, 0) to 1+z
       const zScale = Math.abs(speed) * 1.2;
       const zDepth = speed * 150;
-      from.scale = 1;
-      from.z = 0;
-      to.scale = 1 + zScale;
-      to.z = zDepth;
-      to.force3D = true;
+      const scaleVal = speed >= 0 ? 1 - zScale : 1 + zScale;
+      from.scale = Math.max(0, scaleVal);
+      from.z = -zDepth;
+      to.scale = Math.max(0, scaleVal);
+      to.z = -zDepth;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "tilt3d": {
-      // Tilt3d: from steady (0,0) to t
       const t = Math.abs(speed) * 30;
-      from.rotationX = 0;
-      from.rotationY = 0;
+      from.rotationX = speed >= 0 ? t : -t;
+      from.rotationY = isVertical ? 0 : (speed >= 0 ? t : -t);
       from.transformPerspective = 1200;
-      to.rotationX = speed >= 0 ? t : -t;
-      to.rotationY = isVertical ? 0 : (speed >= 0 ? t : -t);
+      to.rotationX = speed >= 0 ? -t : t;
+      to.rotationY = isVertical ? 0 : (speed >= 0 ? -t : t);
       to.transformPerspective = 1200;
-      to.force3D = true;
+      from.force3D = true; to.force3D = true;
       break;
     }
   }
@@ -1040,10 +1033,14 @@ export function AnimationWrapper({
   useEffect(() => {
     if (config.trigger.type === "onLoad") {
       setHasTriggered(true);
-    } else if (config.trigger.type === "onScroll" && rootReady && isInView) {
-      setHasTriggered(true);
+    } else if (config.trigger.type === "onScroll" && rootReady) {
+      if (isInView) {
+        setHasTriggered(true);
+      } else if (!config.trigger.once) {
+        setHasTriggered(false);
+      }
     }
-  }, [config.trigger.type, isInView, rootReady]);
+  }, [config.trigger.type, isInView, rootReady, config.trigger.once]);
 
   useEffect(() => {
     const el = outerRef.current;

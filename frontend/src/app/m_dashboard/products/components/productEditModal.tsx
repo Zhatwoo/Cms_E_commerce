@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
+import { SaveProductButton } from './button';
 import { type Product } from '../../lib/productsData';
 import { uploadProductImageApi } from '@/lib/api';
 import { getIndustryCategories, INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
@@ -1026,6 +1027,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                     onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
                     className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
                     style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
+                    title="Previous image"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" /></svg>
                   </button>
@@ -1034,6 +1036,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                     onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
                     className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
                     style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
+                    title="Next image"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
                   </button>
@@ -1139,6 +1142,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                 accept="image/*"
                 multiple
                 className="hidden"
+                title="Select product images"
                 onClick={(e) => {
                   e.stopPropagation();
                 }}
@@ -1165,6 +1169,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                   onClick={requestClose}
                   className="w-10 h-10 rounded-full flex items-center justify-center"
                   style={{ color: subtitleColor }}
+                  title="Close modal"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.4} d="M6 18L18 6M6 6l12 12" />
@@ -1303,7 +1308,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
                       <input type="number" value={fd.price || ''} onChange={e => set('price', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00" step="0.01" className={iCls} style={{ ...iSt, paddingLeft: '1.8rem' }} />
+                        placeholder="0.00" title="Product price" step="0.01" className={iCls} style={{ ...iSt, paddingLeft: '1.8rem' }} />
                     </div>
                   </div>
                   <div>
@@ -1323,6 +1328,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                         value={fd.costPrice || ''}
                         onChange={e => set('costPrice', parseFloat(e.target.value) || 0)}
                         placeholder="0.00"
+                        title="Cost of Goods - Amount spent to produce this product"
                         step="0.01"
                         className={iCls}
                         style={{ ...iSt, paddingLeft: '1.8rem' }}
@@ -1693,6 +1699,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                                         type="number"
                                         min={0}
                                         step="0.01"
+                                        placeholder="Price"
                                         value={fd.variantPrices?.[combo.stockKey] ?? 0}
                                         onChange={(e) => {
                                           const amount = Math.max(0, Number.parseFloat(e.target.value || '0') || 0);
@@ -1709,6 +1716,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                                       <input
                                         type="number"
                                         min={0}
+                                        placeholder="Stock"
                                         value={fd.variantStocks?.[combo.stockKey] ?? 0}
                                         onChange={(e) => {
                                           const amount = Math.max(0, parseInt(e.target.value || '0', 10) || 0);
@@ -1766,7 +1774,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                           <div>
                             <label className={lCls} style={{ color: '#9FB3DF' }}>Low Stock Alert</label>
                             <input type="number" value={fd.lowStockThreshold} onChange={e => set('lowStockThreshold', parseInt(e.target.value) || 0)}
-                              placeholder="50" className={iCls} style={iSt} />
+                              placeholder="50" title="Low stock alert threshold" className={iCls} style={iSt} />
                           </div>
                         </div>
                       </div>
@@ -1775,12 +1783,12 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                         <div>
                           <label className={lCls} style={{ color: '#9FB3DF' }}>Initial Stock</label>
                           <input type="number" value={fd.stock} onChange={e => set('stock', parseInt(e.target.value) || 0)}
-                            placeholder="100" className={iCls} style={iSt} />
+                            placeholder="100" title="Initial stock quantity" className={iCls} style={iSt} />
                         </div>
                         <div>
                           <label className={lCls} style={{ color: '#9FB3DF' }}>Low Stock Alert</label>
                           <input type="number" value={fd.lowStockThreshold} onChange={e => set('lowStockThreshold', parseInt(e.target.value) || 0)}
-                            placeholder="20" className={iCls} style={iSt} />
+                            placeholder="20" title="Low stock alert threshold" className={iCls} style={iSt} />
                         </div>
                       </div>
                     )}
@@ -1793,6 +1801,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                             type="text"
                             value={fd.sku}
                             onChange={e => set('sku', e.target.value)}
+                            placeholder="e.g. WHITE-TEE-001"
                             className={iCls}
                             style={iSt}
                           />
@@ -1806,7 +1815,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                 </div>
 
                 <div className="hidden">
-                  <input type="text" value={fd.sku} onChange={e => set('sku', e.target.value)} />
+                  <input type="text" value={fd.sku} onChange={e => set('sku', e.target.value)} title="Product SKU" placeholder="SKU" />
                 </div>
               </div>
 
@@ -1819,15 +1828,14 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
+                <SaveProductButton
                   onClick={save}
                   disabled={saving}
-                  className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none text-white transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:brightness-110 active:scale-95'}`}
-                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#FFFFFF', boxShadow: '0 10px 24px rgba(217,70,239,0.4)' }}
-                >
-                  {saving ? 'Updating...' : 'Update Product'}
-                </button>
+                  loading={saving}
+                  loadingText="Updating..."
+                  actionText="Update Product"
+                  isLight={isLight}
+                />
               </div>
             </div>
 
