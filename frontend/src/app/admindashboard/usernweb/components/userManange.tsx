@@ -85,24 +85,6 @@ function getLastActiveLabel(lastSeen?: string, nowMs: number = Date.now()): stri
   return `Active ${formatToPHTime(lastSeen)}`;
 }
 
-function getLastActiveLabelFromMs(lastActiveMs?: number, nowMs: number = Date.now()): string {
-  if (!lastActiveMs || !Number.isFinite(lastActiveMs)) return 'Active recently';
-
-  const diffMs = Math.max(0, nowMs - lastActiveMs);
-  if (diffMs < 60 * 1000) return 'Active just now';
-
-  const mins = Math.floor(diffMs / (60 * 1000));
-  if (mins < 60) return `Active ${mins}m ago`;
-
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `Active ${hours}h ago`;
-
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `Active ${days}d ago`;
-
-  return `Active ${formatToPHTime(new Date(lastActiveMs).toISOString())}`;
-}
-
 function getPlanStorageLimitGb(plan: string): number {
   switch ((plan || '').toLowerCase()) {
     case 'pro': return 100;
@@ -196,7 +178,6 @@ export function UserManagement() {
   const [sortOption, setSortOption] = useState<SortOption>('recent');
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [clockMs, setClockMs] = useState(() => Date.now());
-  const [offlineSinceById, setOfflineSinceById] = useState<Record<string, number>>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
@@ -265,34 +246,6 @@ export function UserManagement() {
     const clock = setInterval(() => setClockMs(Date.now()), 15000);
     return () => clearInterval(clock);
   }, []);
-
-  useEffect(() => {
-    setOfflineSinceById((prev) => {
-      const next: Record<string, number> = {};
-
-      for (const client of clients) {
-        const active = isClientActive(client);
-        if (!active) continue;
-
-        const online = isUserOnline(client.lastSeen, client.isOnline, clockMs);
-        if (online) continue;
-
-        const lastSeenMs = client.lastSeen ? new Date(client.lastSeen).getTime() : NaN;
-        const candidate = Number.isFinite(lastSeenMs) ? lastSeenMs : clockMs;
-        const existing = prev[client.id];
-
-        // Preserve the earliest known offline timestamp so elapsed time never jumps backward.
-        next[client.id] = Number.isFinite(existing) ? Math.min(existing, candidate) : candidate;
-      }
-
-      const prevKeys = Object.keys(prev);
-      const nextKeys = Object.keys(next);
-      if (prevKeys.length === nextKeys.length && prevKeys.every((k) => prev[k] === next[k])) {
-        return prev;
-      }
-      return next;
-    });
-  }, [clients, clockMs]);
   
   useEffect(() => {
     // Listen for real-time updates from other admins
@@ -1061,12 +1014,7 @@ export function UserManagement() {
                   
                   let statusLabel = active ? 'Active' : 'Inactive';
                   if (active) {
-                    statusLabel = online
-                      ? 'Online'
-                      : getLastActiveLabelFromMs(
-                          offlineSinceById[client.id] || (client.lastSeen ? new Date(client.lastSeen).getTime() : undefined),
-                          clockMs
-                        );
+                    statusLabel = online ? 'Online' : getLastActiveLabel(client.lastSeen, clockMs);
                   } else if (isSuspended) {
                     statusLabel = 'Suspended';
                   } else if (isRestricted) {
