@@ -1646,6 +1646,7 @@ export type ClientRow = {
   phone?: string;
   bio?: string;
   lastSeen?: string;
+  isOnline?: boolean;
 };
 
 export async function getClients(): Promise<{

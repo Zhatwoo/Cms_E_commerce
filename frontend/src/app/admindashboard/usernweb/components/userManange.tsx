@@ -52,12 +52,14 @@ function formatDate(value: string | undefined): string {
   return formatToPHTime(value);
 }
 
-function isUserOnline(lastSeen?: string): boolean {
-  if (!lastSeen) return false;
-  const now = new Date();
-  const ls = new Date(lastSeen);
-  // within last 3 minutes = Online (was 5)
-  return (now.getTime() - ls.getTime()) < 3 * 60 * 1000;
+function isUserOnline(lastSeen?: string, isOnline?: boolean): boolean {
+  if (lastSeen) {
+    const now = new Date();
+    const ls = new Date(lastSeen);
+    // within last 3 minutes = Online (was 5)
+    if ((now.getTime() - ls.getTime()) < 3 * 60 * 1000) return true;
+  }
+  return isOnline === true;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -221,8 +223,8 @@ export function UserManagement() {
       console.log('[UserManagement] Real-time notification received, refreshing list...');
       loadClients(true);
     };
-    window.addEventListener('notification:new_received', handleUpdate);
-    return () => window.removeEventListener('notification:new_received', handleUpdate);
+    window.addEventListener('admin:data_changed', handleUpdate);
+    return () => window.removeEventListener('admin:data_changed', handleUpdate);
   }, [loadClients]);
 
   useEffect(() => {
@@ -242,9 +244,11 @@ export function UserManagement() {
         (c.email || '').toLowerCase().includes(search.toLowerCase());
       const matchPlan = !planFilter || (c.subscriptionPlan || 'free').toLowerCase() === planFilter.toLowerCase();
       const active = isClientActive(c);
+      const online = active && isUserOnline(c.lastSeen, c.isOnline);
       const matchStatus =
         !statusFilter ||
         (statusFilter === 'active' && active) ||
+        (statusFilter === 'online' && online) ||
         (statusFilter === 'suspended' && (c.status || '').toLowerCase() === 'suspended') ||
         (statusFilter === 'restricted' && (c.status || '').toLowerCase() === 'restricted');
       return matchFocusedClient && matchSearch && matchPlan && matchStatus;
@@ -271,8 +275,10 @@ export function UserManagement() {
     const basic = clients.filter((c) => (c.subscriptionPlan || '').toLowerCase() === 'basic').length;
     const pro = clients.filter((c) => (c.subscriptionPlan || '').toLowerCase() === 'pro').length;
     const active = clients.filter((c) => isClientActive(c)).length;
+    const online = clients.filter((c) => isClientActive(c) && isUserOnline(c.lastSeen, c.isOnline)).length;
     const suspended = clients.filter((c) => (c.status || '').toLowerCase() === 'suspended').length;
-    return { total, free, basic, pro, active, suspended };
+    const restricted = clients.filter((c) => (c.status || '').toLowerCase() === 'restricted').length;
+    return { total, free, basic, pro, active, online, suspended, restricted };
   }, [clients]);
 
   useEffect(() => {
@@ -682,8 +688,9 @@ export function UserManagement() {
                 >
                   <option value="">All Status</option>
                   <option value="active">Active ({loading ? '...' : stats.active})</option>
+                  <option value="online">Online ({loading ? '...' : stats.online})</option>
                   <option value="suspended">Suspended ({loading ? '...' : stats.suspended})</option>
-                  <option value="restricted">Restricted ({loading ? '...' : Math.max(0, stats.total - stats.active - stats.suspended)})</option>
+                  <option value="restricted">Restricted ({loading ? '...' : stats.restricted})</option>
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#9A62D8]"><ChevronDownIcon /></div>
               </div>
@@ -967,7 +974,7 @@ export function UserManagement() {
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
-                  const online = isUserOnline(client.lastSeen);
+                  const online = isUserOnline(client.lastSeen, client.isOnline);
                   const busy = actionLoadingId === client.id;
                   const storage = getClientStorage(client);
                   
@@ -977,7 +984,7 @@ export function UserManagement() {
                   
                   let statusLabel = active ? 'Active' : 'Inactive';
                   if (active) {
-                    statusLabel = online ? 'Online' : 'Offline';
+                    statusLabel = online ? 'Online' : 'Active / Offline';
                   } else if (isSuspended) {
                     statusLabel = 'Suspended';
                   } else if (isRestricted) {

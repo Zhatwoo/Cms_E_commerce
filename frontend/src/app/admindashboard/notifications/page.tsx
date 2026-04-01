@@ -5,7 +5,14 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
 import { CheckIcon, RestoreIcon, TrashOutlineIcon } from "@/lib/icons/adminIcons";
-import { getNotifications, saveNotifications, markAsRead, markAllAsRead, type NotificationItem as LibNotificationItem } from "@/lib/notifications";
+import {
+	getNotifications,
+	fetchSharedNotifications,
+	deleteNotificationItem,
+	markAsRead,
+	markAllAsRead,
+	type NotificationItem as LibNotificationItem,
+} from "@/lib/notifications";
 
 import { formatToPHTime } from "@/lib/dateUtils";
 import { useAdminLoading } from "../components/LoadingProvider";
@@ -20,6 +27,24 @@ type NotificationSetting = {
 	email: boolean;
 	push: boolean;
 };
+
+const TRASH_IDS_STORAGE_KEY = "mercato_admin_notification_trash_ids";
+
+function readTrashIds(): string[] {
+	if (typeof window === "undefined") return [];
+	try {
+		const raw = localStorage.getItem(TRASH_IDS_STORAGE_KEY);
+		const parsed = raw ? JSON.parse(raw) : [];
+		return Array.isArray(parsed) ? parsed.map(String) : [];
+	} catch {
+		return [];
+	}
+}
+
+function writeTrashIds(ids: string[]) {
+	if (typeof window === "undefined") return;
+	localStorage.setItem(TRASH_IDS_STORAGE_KEY, JSON.stringify(Array.from(new Set(ids))));
+}
 
 function ModalShell({
 	children,
@@ -118,12 +143,25 @@ function NotificationsPageContent() {
 	const [detailItem, setDetailItem] = useState<NotificationItem | null>(null);
 
 	useEffect(() => {
-		const load = () => {
-			setNotifications(getNotifications());
+		const applyWithTrash = (source: NotificationItem[]) => {
+			const trashSet = new Set(readTrashIds());
+			setNotifications(source.filter((item) => !trashSet.has(item.id)));
+			setTrash(source.filter((item) => trashSet.has(item.id)));
 		};
-		load();
-		window.addEventListener('notificationsUpdate', load);
-		return () => window.removeEventListener('notificationsUpdate', load);
+
+		const load = async () => {
+			const shared = await fetchSharedNotifications();
+			applyWithTrash(shared);
+		};
+
+		void load();
+
+		const handleUpdates = () => {
+			applyWithTrash(getNotifications());
+		};
+
+		window.addEventListener("notificationsUpdate", handleUpdates);
+		return () => window.removeEventListener("notificationsUpdate", handleUpdates);
 	}, []);
 
 	const [notificationSettings, setNotificationSettings] = useState<NotificationSetting[]>([
@@ -159,12 +197,9 @@ function NotificationsPageContent() {
 		);
 	};
 
-	const handleMarkAsRead = () => {
+	const handleMarkAsRead = async () => {
 		if (selectedIds.length === 0) return;
-		markAsRead(selectedIds[0]); // Actually markAsRead should probably support multiple or I use a loop
-		// Wait, lib/notifications.ts markAsRead only takes one ID.
-		// But I should use the one I added: markAllAsRead or loop markAsRead.
-		selectedIds.forEach(id => markAsRead(id));
+		await Promise.all(selectedIds.map((id) => markAsRead(id)));
 		setSelectedIds([]);
 	};
 
@@ -175,21 +210,25 @@ function NotificationsPageContent() {
 
 	const handleDelete = () => {
 		if (selectedIds.length === 0) return;
-		const toTrash = notifications.filter((item) => selectedIds.includes(item.id));
+		const movedIds = new Set(selectedIds);
+		const toTrash = notifications.filter((item) => movedIds.has(item.id));
 		setTrash((current) => [...toTrash.filter((item) => !current.some((entry) => entry.id === item.id)), ...current]);
-		const updated = notifications.filter((item) => !selectedIds.includes(item.id));
-		saveNotifications(updated);
+		setNotifications((current) => current.filter((item) => !movedIds.has(item.id)));
+		writeTrashIds([...readTrashIds(), ...selectedIds]);
 		setSelectedIds([]);
 	};
 
 	const handleRestore = (id: string) => {
 		const restored = trash.find((item) => item.id === id);
 		if (!restored) return;
+		writeTrashIds(readTrashIds().filter((trashId) => trashId !== id));
 		setTrash((prev) => prev.filter((item) => item.id !== id));
 		setNotifications((current) => (current.some((item) => item.id === restored.id) ? current : [restored, ...current]));
 	};
 
-	const handlePermanentDelete = (id: string) => {
+	const handlePermanentDelete = async (id: string) => {
+		await deleteNotificationItem(id);
+		writeTrashIds(readTrashIds().filter((trashId) => trashId !== id));
 		setTrash((prev) => prev.filter((item) => item.id !== id));
 	};
 
@@ -199,8 +238,8 @@ function NotificationsPageContent() {
 		setShowRestoreModal(false);
 	};
 
-	const handleBulkPermanentDelete = () => {
-		trashSelectedIds.forEach((id) => handlePermanentDelete(id));
+	const handleBulkPermanentDelete = async () => {
+		await Promise.all(trashSelectedIds.map((id) => handlePermanentDelete(id)));
 		setTrashSelectedIds([]);
 		setShowPermanentDeleteModal(false);
 	};

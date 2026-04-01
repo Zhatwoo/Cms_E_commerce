@@ -7,7 +7,6 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Audit = require('../models/Audit');
 const stripeService = require('../services/stripeService');
-const Notification = require('../models/Notification');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -125,22 +124,6 @@ exports.register = async (req, res) => {
     // Create user in Firebase immediately (emailVerified: false - can't login until confirmed)
     const user = await User.register({ name: name.trim(), email: normEmail, password });
     
-    // Broadcast to Admins: New User Signed Up
-    try {
-      if (req.app.get('io')) {
-        const notif = await Notification.create({
-          title: 'New User Registered',
-          message: `${name.trim()} (${normEmail}) just created an account.`,
-          type: 'info',
-          adminId: 'system',
-          adminName: name.trim()
-        });
-        req.app.get('io').emit('notification:added', notif);
-      }
-    } catch (e) {
-      console.warn('Register notification failed:', e.message);
-    }
-
     // Generate verification token (JWT with user ID and email)
     const verificationToken = jwt.sign(
       { userId: user.id, email: normEmail, type: 'email_verification' },
@@ -395,8 +378,8 @@ exports.login = async (req, res) => {
     const token = generateToken(uid);
     setAuthCookie(res, token);
 
-    // Update lastSeen immediately on login
-    await User.update(uid, { lastSeen: new Date().toISOString() }).catch(() => {});
+    // Update presence immediately on login
+    await User.update(uid, { lastSeen: new Date().toISOString(), isOnline: true }).catch(() => {});
 
     res.status(200).json({
       success: true,
@@ -514,9 +497,28 @@ exports.getMe = async (req, res) => {
   }
 };
 
-exports.logout = (req, res) => {
-  clearAuthCookie(res);
-  res.status(200).json({ success: true, message: 'Logged out' });
+exports.logout = async (req, res) => {
+  try {
+    // Best-effort: resolve user from auth cookie so we can flip presence immediately on logout.
+    const token = req.cookies?.[COOKIE_NAME];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const uid = decoded?.id;
+        if (uid) {
+          // Move lastSeen behind online threshold so admin UI shows Offline right away.
+          const offlineAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+          await User.update(uid, { lastSeen: offlineAt, isOnline: false }).catch(() => {});
+
+        }
+      } catch {
+        // ignore invalid/expired token during logout
+      }
+    }
+  } finally {
+    clearAuthCookie(res);
+    res.status(200).json({ success: true, message: 'Logged out' });
+  }
 };
 
 exports.updateProfile = async (req, res) => {
