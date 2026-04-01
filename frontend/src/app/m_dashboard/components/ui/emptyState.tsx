@@ -34,7 +34,7 @@ export function EmptyState({
   const isDark = tone === 'dark';
 
   return (
-    <section className={`w-full max-w-5xl mx-auto py-24 px-4 transition-all duration-500 ${className}`}>
+    <section className={`w-full max-w-5xl mx-auto py-24 px-4 transition-all duration-500 [font-family:var(--font-outfit),sans-serif] ${className}`}>
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 border-t border-slate-500/10 pt-12">
         <div className="max-w-xl">
           {badgeText ? (
@@ -67,11 +67,11 @@ export function EmptyState({
                 onClick={primaryAction.onClick}
                 disabled={primaryAction.disabled}
                 className={`
-                  relative px-10 h-16 rounded-xl text-[11px] font-black uppercase tracking-[0.3em] transition-all duration-500
+                  cursor-pointer relative px-10 h-16 rounded-3xl text-xs font-black uppercase tracking-[0.3em] transition-all duration-500
                   active:scale-95 disabled:opacity-40
                   ${isDark
-                    ? 'bg-[#FFCE00] text-[#121241] shadow-[0_15px_40px_rgba(255,206,0,0.15)]'
-                    : 'bg-[#8B5CF6] text-white shadow-[0_20px_50px_rgba(139,92,246,0.4)] hover:shadow-[0_25px_70px_rgba(139,92,246,0.6)]'
+                    ? 'bg-[#FFCE00] text-[#121241] shadow-[0_15px_40px_rgba(255,206,0,0.15)] hover:shadow-[0_22px_56px_rgba(255,206,0,0.35)]'
+                    : 'bg-linear-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]'
                   }
                 `}
               >
