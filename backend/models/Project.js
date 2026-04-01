@@ -338,14 +338,28 @@ async function listShared(userId, userEmail) {
 }
 
 async function countAll() {
-  const clientSnap = await db.collection('user').doc('roles').collection('client').get();
-  let total = 0;
-  for (const doc of clientSnap.docs) {
-    const projSnap = await doc.ref.collection('projects').get();
-    total += projSnap.size;
+  try {
+    const t0 = Date.now();
+    // Use collectionGroup to count projects across all users efficiently
+    const snap = await db.collectionGroup('projects').get();
+    console.log('[READ] Project.countAll collectionGroup', { count: snap.size, ms: Date.now() - t0 });
+    return snap.size;
+  } catch (e) {
+    if (/index|indexes/i.test(String(e.message))) {
+      console.warn('[Project.countAll] Fallback: collectionGroup index needed. Run: firebase deploy --only firestore:indexes');
+      // Fallback if index missing (this is slow but safe)
+      const snap = await db.collection('user').doc('roles').collection('client').get();
+      let total = 0;
+      for (const d of snap.docs) {
+        total += (await d.ref.collection('projects').get()).size;
+      }
+      return total;
+    }
+    console.error('[Project.countAll] Error:', e.message);
+    return 0;
   }
-  return total;
 }
+
 
 module.exports = {
   create,

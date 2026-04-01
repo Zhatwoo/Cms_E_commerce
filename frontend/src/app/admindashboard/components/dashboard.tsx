@@ -282,12 +282,6 @@ export function AdminDashboard() {
                 const dCount = Number(s.activeDomains || 0);
                 const pCount = Number(s.pendingWebsites || 0);
 
-                // Simulation utility for brand new platforms
-                const generateFallback = (finalValue: number, seed: number) => {
-                    const base = [finalValue * 0.4, finalValue * 0.2, finalValue * 0.5, finalValue * 0.8, finalValue * 0.6, finalValue * 0.9, finalValue];
-                    return base.map(v => Math.max(v, seed));
-                };
-
                 setStats({
                     activeUsers: uCount,
                     publishedWebsites: wCount,
@@ -301,6 +295,9 @@ export function AdminDashboard() {
                     }
                 });
             }
+        } catch (error) {
+            console.error('[Dashboard] Failed to load realtime data:', error);
+            // Non-fatal error: dashboard will just show zeros/fallbacks
         } finally {
             setLoading(false);
         }

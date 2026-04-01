@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Scan, Plus, SquareRoundCorner, Eye, EyeOff, Minus } from "lucide-react";
+import { Scan, SquareRoundCorner, Eye, EyeOff } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorPicker } from "./inputs/ColorPicker";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
@@ -141,22 +141,6 @@ export const AppearanceGroup = ({
     });
   };
 
-  const addFill = () => {
-    if (background === "transparent" || !background) {
-      applySolidFill(lastVisibleFillRef.current || "#A54C4C");
-    }
-  };
-
-  const removeFill = () => {
-    setIsFillVisible(false);
-    setProp((props) => {
-      props.background = "transparent";
-      props.backgroundImage = "";
-      props.backgroundVideo = "";
-      props.backgroundOverlay = "";
-    });
-  };
-
   const handleRadiusChange = (corner: string, val: number) => {
     setProp((props) => {
       if (corner === "all") {
@@ -201,14 +185,6 @@ export const AppearanceGroup = ({
                 <span className="h-1 w-1 rounded-full bg-current" />
               </span>
             </button>
-            <button
-              type="button"
-              onClick={addFill}
-              className="p-0.5 rounded text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"
-              title="Add fill"
-            >
-              <Plus size={12} />
-            </button>
           </div>
         </div>
 
@@ -230,14 +206,6 @@ export const AppearanceGroup = ({
             title={isFillVisible || hasMedia ? "Hide fill" : "Show fill"}
           >
             {isFillVisible || hasMedia ? <Eye size={12} /> : <EyeOff size={12} />}
-          </button>
-          <button
-            type="button"
-            onClick={removeFill}
-            className="h-8 w-8 rounded-lg bg-[var(--builder-surface-2)] border border-[var(--builder-border)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] flex items-center justify-center"
-            title="Remove fill"
-          >
-            <Minus size={12} />
           </button>
         </div>
       </div>

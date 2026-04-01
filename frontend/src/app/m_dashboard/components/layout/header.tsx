@@ -46,6 +46,12 @@ const BellIcon = () => (
     </svg>
 );
 
+const MessageIcon = () => (
+    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+);
+
 const ChevronDownIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -110,7 +116,11 @@ const LogoutIcon = () => (
     </svg>
 );
 
-const NOTIFICATIONS: { id: number; text: string; time: string; unread: boolean }[] = [];
+const NOTIFICATIONS: { id: number; text: string; time: string; unread: boolean }[] = [
+    { id: 1, text: 'Welcome to your dashboard!', time: '1m ago', unread: true },
+    { id: 2, text: 'New order received for project "Portfolio"', time: '2h ago', unread: false },
+    { id: 3, text: 'Your domain registration is complete.', time: '1d ago', unread: false },
+];
 
 type DashboardHeaderProps = {
     onMenuToggle: () => void;
@@ -205,6 +215,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 )}
 
                 <div className="flex items-center gap-4">
+                    <div className="hidden lg:flex" aria-hidden="true" />
                     <button
                         type="button"
                         onClick={toggleTheme}

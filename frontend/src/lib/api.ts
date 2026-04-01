@@ -1840,7 +1840,9 @@ export type Conversation = {
   otherUserAvatar: string | null;
   otherUserUsername?: string;
   otherUserEmail?: string;
+  otherUserRole?: string;
   lastMessage: string;
+  lastMessageType: string;
   lastMessageTime: string;
   unreadCount: number;
 };
@@ -1865,46 +1867,6 @@ export type AdminUser = {
   email: string;
   avatar: string | null;
 };
-
-export async function getConversations(): Promise<{ success: boolean; data: Conversation[] }> {
-  try {
-    return await authFetch(`/api/messages/conversations/list`);
-  } catch {
-    return { success: false, data: [] };
-  }
-}
-
-export async function getConversationMessages(
-  otherUserId: string,
-  limit?: number
-): Promise<{ success: boolean; data: ChatMessage[] }> {
-  try {
-    const params = new URLSearchParams();
-    if (limit) params.append('limit', limit.toString());
-    const qs = params.toString();
-    return await authFetch(`/api/messages/conversations/${encodeURIComponent(otherUserId)}${qs ? '?' + qs : ''}`);
-  } catch {
-    return { success: false, data: [] };
-  }
-}
-
-export async function sendDirectMessage(
-  recipientId: string,
-  message: string
-): Promise<{ success: boolean; data?: ChatMessage }> {
-  try {
-    return await authFetch(`/api/messages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        recipientId,
-        message,
-        type: 'direct'
-      })
-    });
-  } catch {
-    return { success: false };
-  }
-}
 
 export async function getAdmins(search?: string): Promise<{ success: boolean; data: AdminUser[] }> {
   try {

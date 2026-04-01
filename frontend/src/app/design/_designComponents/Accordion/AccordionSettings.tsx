@@ -1,7 +1,6 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -50,9 +49,6 @@ export const AccordionSettings = () => {
     borderColor,
     borderWidth,
     iconColor,
-    rotation,
-    flipHorizontal,
-    flipVertical,
     opacity,
     boxShadow,
     overflow,
@@ -108,9 +104,6 @@ export const AccordionSettings = () => {
     borderColor: node.data.props.borderColor as string,
     borderWidth: node.data.props.borderWidth as number,
     iconColor: node.data.props.iconColor as string,
-    rotation: node.data.props.rotation as number,
-    flipHorizontal: node.data.props.flipHorizontal as boolean,
-    flipVertical: node.data.props.flipVertical as boolean,
     opacity: node.data.props.opacity as number,
     boxShadow: node.data.props.boxShadow as string,
     overflow: node.data.props.overflow as string,
@@ -390,15 +383,6 @@ export const AccordionSettings = () => {
             </div>
           </div>
         </div>
-      </DesignSection>
-
-      <DesignSection title="Transform" defaultOpen={false}>
-        <TransformGroup
-          rotation={rotation}
-          flipHorizontal={flipHorizontal}
-          flipVertical={flipVertical}
-          setProp={setProp as any}
-        />
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>

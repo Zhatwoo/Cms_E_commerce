@@ -209,12 +209,18 @@ class User {
     const norm = email.toLowerCase().trim();
     const roles = ['client', 'admin', 'support', 'super_admin'];
 
-    // STRICT: Search ONLY in nested role collections
-    for (const role of roles) {
-      const snap = await db.collection('user').doc('roles').collection(role).where('email', '==', norm).limit(1).get();
-      if (!snap.empty) return fromDoc(snap.docs[0]);
-    }
+    // Parallel search across role collections
+    const results = await Promise.all(roles.map(role => 
+      db.collection('user').doc('roles').collection(role === 'super_admin' ? 'admin' : role)
+        .where('email', '==', norm).limit(1).get()
+    ));
 
+    for (const snap of results) {
+      if (!snap.empty) {
+        const user = fromDoc(snap.docs[0]);
+        if (user) return user;
+      }
+    }
     return null;
   }
 
@@ -222,13 +228,13 @@ class User {
     if (!id) return null;
     const roles = ['client', 'admin', 'support', 'super_admin'];
 
-    // STRICT: Search ONLY in nested role collections
-    for (const role of roles) {
-      const doc = await db.collection('user').doc('roles').collection(role).doc(id).get();
-      if (doc.exists) return fromDoc(doc);
-    }
+    // Parallel fetch from all possible role paths
+    const results = await Promise.all(roles.map(role => 
+      db.collection('user').doc('roles').collection(role === 'super_admin' ? 'admin' : role).doc(id).get()
+    ));
 
-    return null;
+    const found = results.find(doc => doc.exists);
+    return found ? fromDoc(found) : null;
   }
 
   static async get(id) {
@@ -237,14 +243,18 @@ class User {
 
   static async findAll(filters = {}) {
     const roles = filters.role ? [filters.role.toLowerCase()] : ['client', 'admin', 'support', 'super_admin'];
-    let allUsers = [];
-
-    for (const role of roles) {
+    
+    // Parallel fetch from role collections
+    const snaps = await Promise.all(roles.map(role => {
       const collectionRole = role === 'super_admin' ? 'admin' : role;
       let ref = db.collection('user').doc('roles').collection(collectionRole);
       if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
       if (filters.status) ref = ref.where('status', '==', filters.status);
-      const snap = await ref.get();
+      return ref.get();
+    }));
+
+    let allUsers = [];
+    for (const snap of snaps) {
       allUsers = allUsers.concat(snap.docs.map(d => fromDoc(d)));
     }
 
@@ -337,85 +347,123 @@ class User {
   }
 
   static async getStats() {
-    const roles = ['admin', 'support', 'client', 'super_admin'];
+    const rolesToCheck = ['admin', 'support', 'client'];
+    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
+    
+    // 1. Parallel collection of data/counts
+    const results = await Promise.all(rolesToCheck.map(async (coll) => {
+      const collRef = db.collection('user').doc('roles').collection(coll);
+      
+      // Get all users in this role (still needed for byStatus/byPlan unless we do many more parallel counts)
+      // For large datasets, this should be replaced entirely with aggregate queries.
+      const snap = await collRef.get();
+      const docs = snap.docs.map(d => {
+        const data = d.data();
+        let lastSeenDate = null;
+        if (data.last_seen) {
+          lastSeenDate = data.last_seen.toDate ? data.last_seen.toDate() : new Date(data.last_seen);
+        }
+        return { ...data, id: d.id, last_seen_date: lastSeenDate };
+      });
+
+      const onlineCountInColl = docs.filter(u => u.last_seen_date && u.last_seen_date > threeMinsAgo).length;
+
+      return { docs, onlineCount: onlineCountInColl };
+    }));
+
     let all = [];
-    for (const role of roles) {
-      const coll = role === 'super_admin' ? 'admin' : role;
-      let ref = db.collection('user').doc('roles').collection(coll);
-      if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
-      const snap = await ref.get();
-      all = all.concat(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    let onlineCount = 0;
+    for (const res of results) {
+      all = all.concat(res.docs);
+      onlineCount += res.onlineCount;
     }
 
-    const clients = all.filter(u => u.role === 'client' || u.role === 'super_admin');
-    const byPlan = { free: 0, basic: 0, pro: 0 };
-    clients.forEach((u) => {
-      const p = (u.subscription_plan || 'free').toLowerCase();
-      if (p === 'basic') byPlan.basic++;
-      else if (p === 'pro') byPlan.pro++;
-      else byPlan.free++;
-    });
+    const byRole = {
+      admin: all.filter(u => u.role === 'admin' || u.role === 'super_admin' || u.role === 'super admin').length,
+      support: all.filter(u => u.role === 'support').length,
+      client: all.filter(u => u.role === 'client' || u.role === 'user').length
+    };
 
-    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
-    const onlineCount = all.filter(u => u.last_seen && new Date(u.last_seen) > threeMinsAgo).length;
+    const byStatus = {
+      active: all.filter(u => !u.status || u.status === 'Active' || u.status === 'Published').length,
+      suspended: all.filter(u => u.status === 'Suspended' || u.status === 'Banned').length
+    };
+
+    const byPlan = {
+      free: all.filter(u => (u.subscription_plan || u.subscriptionPlan || 'free') === 'free').length,
+      basic: all.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'basic').length,
+      pro: all.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'pro').length
+    };
+
+    // If no real data, provide some mock distribution for visual clarity in dashboard
+    if (all.length === 0) {
+      byPlan.free = 0; byPlan.basic = 0; byPlan.pro = 0;
+    }
 
     return {
       total: all.length,
       online: onlineCount,
-      byStatus: {
-        active: all.filter(u => u.status === 'active').length,
-        published: all.filter(u => u.status === 'Published').length,
-        restricted: all.filter(u => u.status === 'Restricted').length,
-        suspended: all.filter(u => u.status === 'Suspended').length,
-      },
-      byRole: {
-        admin: all.filter(u => u.role === 'admin').length,
-        support: all.filter(u => u.role === 'support').length,
-        client: all.filter(u => u.role === 'client').length,
-        super_admin: all.filter(u => (u.role === 'super_admin' || u.role === 'super admin')).length,
-      },
+      byRole,
+      byStatus,
       byPlan,
+      lastUpdated: new Date().toISOString()
     };
+
   }
 
-  /** Signups over time (client role only) for analytics. Returns { labels, signups }. */
-  static async getSignupsOverTime(period) {
-    const snap = await db.collection('user').doc('roles').collection('client').get();
-    const clients = snap.docs.map(d => {
-      const data = d.data();
-      const created = data.created_at?.toDate?.() || new Date(data.created_at);
-      return { created };
-    });
+  /** Signups trend across all roles. Returns { signups: counts, labels, period }. */
+  static async getSignupsOverTime(period = '7days') {
     const now = new Date();
-    let start;
-    let buckets;
+    let start = new Date(now);
+    let buckets = 7;
+
     if (period === '7days') {
-      start = new Date(now);
-      start.setDate(start.getDate() - 7);
+      start.setDate(now.getDate() - 7);
       buckets = 7;
     } else if (period === '30days') {
-      start = new Date(now);
-      start.setDate(start.getDate() - 30);
+      start.setDate(now.getDate() - 30);
       buckets = 4;
     } else {
-      start = new Date(now);
-      start.setMonth(start.getMonth() - 3);
+      start.setMonth(now.getMonth() - 3);
       buckets = 3;
     }
+
     const bucketMs = (now.getTime() - start.getTime()) / buckets;
     const counts = new Array(buckets).fill(0);
     const labels = [];
+
     for (let i = 0; i < buckets; i++) {
       const t = new Date(start.getTime() + (i + 1) * bucketMs);
-      labels.push(period === '7days' ? t.toLocaleDateString('en-US', { weekday: 'short' }) : period === '30days' ? `Week ${i + 1}` : t.toLocaleDateString('en-US', { month: 'short' }));
+      labels.push(
+        period === '7days'
+          ? t.toLocaleDateString('en-US', { weekday: 'short' })
+          : period === '30days'
+          ? `Week ${i + 1}`
+          : t.toLocaleDateString('en-US', { month: 'short' })
+      );
     }
-    clients.forEach(({ created }) => {
-      if (created < start) return;
-      const idx = Math.min(Math.floor((created - start) / bucketMs), buckets - 1);
-      if (idx >= 0) counts[idx]++;
-    });
-    return { labels, signups: counts };
+
+    const rolesToCheck = ['admin', 'support', 'client'];
+    const snaps = await Promise.all(rolesToCheck.map(coll => 
+      db.collection('user').doc('roles').collection(coll)
+        .where('created_at', '>=', start)
+        .get()
+    ));
+
+    for (const snap of snaps) {
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const created = data.created_at?.toDate?.() || (data.created_at ? new Date(data.created_at) : null);
+        if (created) {
+          const idx = Math.min(Math.floor((created.getTime() - start.getTime()) / bucketMs), buckets - 1);
+          if (idx >= 0) counts[idx]++;
+        }
+      });
+    }
+
+    return { signups: counts, labels, period };
   }
+
 }
 
 module.exports = User;
