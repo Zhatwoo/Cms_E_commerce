@@ -17,6 +17,8 @@ import { ProductCard } from './components/productContainer';
 import { ProductDetailsModal } from './components/viewProductDetails';
 import { PaginationControls } from './components/paginationControls';
 import { ProductListView } from './components/productListView';
+import { AddProductButton } from './components/button';
+import { StatusFilterButton, ViewModeToggleButton } from './components/subbuttons';
 
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
@@ -893,88 +895,35 @@ export default function ProductsPage() {
                   onMenuToggle={setShowCategoryFilterMenu}
                 />
 
-                <button
-                  type="button"
+                <AddProductButton
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
-                  className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${canAddProducts ? 'hover:opacity-90' : 'opacity-50 cursor-not-allowed'}`}
-                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', borderColor: 'transparent', color: '#ffffff' }}
-                  title="Add product"
-                >
-                  + Add Product
-                </button>
+                  title={blockedAddProductMessage || 'Add product'}
+                />
               </div>
 
               <div className="flex items-center gap-2 justify-end">
-                <div ref={statusMenuRef} className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setShowStatusFilterMenu((prev) => !prev)}
-                    className={`h-[48px] w-[48px] cursor-pointer rounded-2xl border flex items-center justify-center transition-all duration-300 ${showStatusFilterMenu ? 'shadow-md scale-105' : 'hover:scale-105'} ${theme === 'light' ? 'admin-dashboard-panel-soft border-0' : ''}`}
-                    style={{ 
-                      backgroundColor: showStatusFilterMenu && theme === 'light' ? '#14034A' : (theme === 'light' ? undefined : colors.bg.card),
-                      borderColor: theme === 'light' ? undefined : '#1F1F51',
-                      boxShadow: theme === 'dark' ? '0 0 12px rgba(31,31,81,0.4)' : undefined,
-                      color: showStatusFilterMenu && theme === 'light' ? '#FFFFFF' : (theme === 'light' ? '#14034A' : '#FFCE00')
+                <div ref={statusMenuRef}>
+                  <StatusFilterButton
+                    showStatusFilterMenu={showStatusFilterMenu}
+                    onToggle={() => setShowStatusFilterMenu((prev) => !prev)}
+                    statusFilter={statusFilter}
+                    onFilterChange={(value) => {
+                      setStatusFilter(value);
+                      setCurrentPage(1);
+                      setShowStatusFilterMenu(false);
                     }}
-                    title="Filter products"
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </button>
-                  {showStatusFilterMenu && (
-                    <div
-                      className="absolute right-0 top-full mt-2 w-56 rounded-xl border p-2 z-30"
-                      style={{ backgroundColor: '#141446', borderColor: '#2D3A90' }}
-                    >
-                      {[
-                        { value: 'all', label: 'All' },
-                        { value: 'active', label: 'Active' },
-                        { value: 'inactive', label: 'Inactive' },
-                      ].map((item) => {
-                        const checked = statusFilter === item.value;
-                        return (
-                          <button
-                            key={item.value}
-                            type="button"
-                            onClick={() => {
-                              setStatusFilter(item.value as typeof statusFilter);
-                              setCurrentPage(1);
-                              setShowStatusFilterMenu(false);
-                            }}
-                            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm hover:bg-white/5"
-                            style={{ color: '#D2D6F7' }}
-                          >
-                            <span>{item.label}</span>
-                            <span>{checked ? '✓' : ''}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                    theme={theme}
+                    isLight={theme === 'light'}
+                  />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  className={`h-12 w-12 rounded-2xl border inline-flex items-center justify-center transition-all duration-300 ${viewMode === 'list' ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
-                  style={{ 
-                    borderColor: viewMode === 'list' ? 'transparent' : colors.border.faint, 
-                    backgroundColor: viewMode === 'list' 
-                      ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
-                      : (theme === 'light' ? 'rgba(255,255,255,0.72)' : colors.bg.card), 
-                    color: viewMode === 'list' ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary),
-                    boxShadow: theme === 'dark' && viewMode !== 'list' ? '0 0 12px rgba(31,31,81,0.4)' : undefined,
-                  }}
-                  title={viewMode === 'tile' ? 'Switch to list view' : 'Switch to tile view'}
-                >
-                  {viewMode === 'tile' ? (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
-                  ) : (
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
-                  )}
-                </button>
+                <ViewModeToggleButton
+                  viewMode={viewMode}
+                  onToggle={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
+                  theme={theme}
+                  colors={colors}
+                />
               </div>
             </div>
           </div>
@@ -993,6 +942,7 @@ export default function ProductsPage() {
               onDelete={handleDelete}
               onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
               onCloseMenu={() => setOpenMenuProductId(null)}
+              onSaveProduct={handleSaveProduct}
             />
           ) : (
             <EmptyStates
@@ -1025,15 +975,6 @@ export default function ProductsPage() {
           setEditingProduct(undefined);
         }}
         onSave={handleSaveProduct}
-        uploadSubdomain={selectedSubdomain}
-        projectIndustry={selectedProject?.industry || null}
-      />
-
-      <ProductEditModal
-        isOpen={Boolean(editingProduct)}
-        onClose={() => setEditingProduct(undefined)}
-        onSave={handleSaveProduct}
-        editingProduct={editingProduct!}
         uploadSubdomain={selectedSubdomain}
         projectIndustry={selectedProject?.industry || null}
       />

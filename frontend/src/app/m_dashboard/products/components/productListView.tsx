@@ -29,6 +29,8 @@ export interface ProductListViewProps {
   onToggleMenu: (productId: string) => void;
   /** Callback to explicitly close any open action menu. */
   onCloseMenu: () => void;
+  /** Async callback to save product data (used by edit modal). */
+  onSaveProduct?: (productData: Partial<Product> & Record<string, unknown>) => Promise<boolean>;
 }
 
 function isImageSource(value: string): boolean {
@@ -130,6 +132,7 @@ export function ProductListView({
   onDelete,
   onToggleMenu,
   onCloseMenu,
+  onSaveProduct,
 }: ProductListViewProps) {
   if (viewMode === 'tile') {
     return (
@@ -146,6 +149,7 @@ export function ProductListView({
               menuOpen={openMenuProductId === product.id}
               onToggleMenu={() => onToggleMenu(product.id)}
               onCloseMenu={onCloseMenu}
+              onSaveProduct={onSaveProduct}
             />
           ))}
         </AnimatePresence>
