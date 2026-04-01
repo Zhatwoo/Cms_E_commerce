@@ -753,3 +753,6 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
         </header>
     );
 }
+
+export default AdminHeader;
+
