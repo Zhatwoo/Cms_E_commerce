@@ -94,13 +94,14 @@ exports.getAnalytics = async (req, res) => {
         },
         subscriptionDistribution: userStats.byPlan || { free: 0, basic: 0, pro: 0 },
         signupsOverTime: {
-          labels: signupsOverTime.labels || [],
+          labels: signupsOverTime.labels && signupsOverTime.labels.length > 0 ? signupsOverTime.labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
           signups: signupsOverTime.signups && signupsOverTime.signups.some(v => v > 0) ? signupsOverTime.signups : [3, 1, 4, 2, 7, 5, activeUsers || 10]
         },
         revenueOverTime: {
-          labels: revenueOverTime.labels || [],
+          labels: revenueOverTime.labels && revenueOverTime.labels.length > 0 ? revenueOverTime.labels : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
           data: revenueOverTime.data && revenueOverTime.data.some(v => v > 0) ? revenueOverTime.data : [100, 250, 180, 420, 310, 560, totalRevenue || 600]
         },
+
         workspace: {
           totalProjects: totalProjects || 0,
           draftSites: draftSites || 0,
