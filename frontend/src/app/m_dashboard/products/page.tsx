@@ -81,7 +81,7 @@ function EmptyStates({
       tone={theme}
       badgeText="No matches found"
       title="We couldn't find that."
-      description="It looks like nothing matches your current search"
+      description="It looks like nothing matches your current search."
       secondaryAction={{
         label: 'Show all products',
         onClick: onClearFilters,
