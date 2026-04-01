@@ -510,9 +510,24 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
           },
         });
 
-        // The simulation plays through the full range: Initial -> Final -> Reset to Initial
-        timeline.fromTo(element, from, { ...to, duration: baseDuration });
-        timeline.to(element, { ...from, duration: baseDuration * 0.5 });
+        // The simulation plays through the full range: Entering -> Steady -> Exiting
+        const steady: Record<string, unknown> = {};
+        for (const k in from) {
+          if (k === "opacity" || k === "scale") steady[k] = 1;
+          else if (k === "filter") steady[k] = "blur(0px)";
+          else if (k === "clipPath") steady[k] = "inset(0% 0% 0% 0%)";
+          else steady[k] = 0;
+        }
+        for (const k in to) {
+          if (k === "opacity" || k === "scale") steady[k] = 1;
+          else if (k === "filter") steady[k] = "blur(0px)";
+          else if (k === "clipPath") steady[k] = "inset(0% 0% 0% 0%)";
+          else if (!(k in steady)) steady[k] = 0;
+        }
+
+        timeline.fromTo(element, from, { ...steady, duration: baseDuration * 0.35 });
+        timeline.to(element, { ...steady, duration: baseDuration * 0.3, ease: "none" });
+        timeline.to(element, { ...to, duration: baseDuration * 0.35 });
 
         scrollPreviewTimelineRef.current = timeline;
         return;
@@ -598,7 +613,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
 
       const absolute = getDomXY(element);
       const current = animation.scrollEffect.freeMove;
-      const mode = "relative";
+      const mode = current?.mode ?? "relative";
       const effectiveZoom = getEffectiveZoom(element);
       const originAbs = current?.origin ?? absolute;
 
