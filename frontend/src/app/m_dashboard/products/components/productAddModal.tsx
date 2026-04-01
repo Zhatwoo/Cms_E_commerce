@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
+import { SaveProductButton } from './button';
 import { type Product } from '../../lib/productsData';
 import { uploadProductImageApi } from '@/lib/api';
 import { getIndustryCategories, INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
@@ -1103,6 +1104,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 <div className="flex items-center gap-1.5 mr-2">
                   <button
                     type="button"
+                    title="Previous image"
                     onClick={(e) => { e.stopPropagation(); moveSlide(-1); }}
                     className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
                     style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
@@ -1111,6 +1113,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                   </button>
                   <button
                     type="button"
+                    title="Next image"
                     onClick={(e) => { e.stopPropagation(); moveSlide(1); }}
                     className="w-10 h-10 rounded-xl flex items-center justify-center backdrop-blur-md transition-all hover:scale-110 active:scale-95"
                     style={{ backgroundColor: 'rgba(0,0,0,0.5)', color: '#FFF' }}
@@ -1218,6 +1221,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 type="file"
                 accept="image/*"
                 multiple
+                title="Select product images"
                 className="hidden"
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1242,6 +1246,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 </div>
                 <button
                   type="button"
+                  title="Close modal"
                   onClick={requestClose}
                   className="w-10 h-10 rounded-full flex items-center justify-center"
                   style={{ color: subtitleColor }}
@@ -1281,7 +1286,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                       readOnly
                       className={iCls}
                       style={{ ...iSt, opacity: 0.9 }}
-                      title={lockedProjectCategory ? 'Category is set from your project industry and cannot be edited here.' : undefined}
+                      title="Category - inherited from project setup"
                     />
                     <p className="mt-1 text-[11px]" style={{ color: labelColor }}>
                       Category is inherited from your project setup.
@@ -1357,6 +1362,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                   <label className={lCls} style={{ color: labelColor }}>Description</label>
                   <textarea value={fd.description} onChange={e => set('description', e.target.value)}
                     placeholder="e.g. High quality white cotton t-shirt, comfortable and durable..."
+                    title="Product description"
                     rows={3}
                     className={`${iCls} resize-none`} style={{ ...iSt, minHeight: 116 }} />
                 </div>
@@ -1383,7 +1389,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold" style={{ color: '#D6CEFF' }}>₱</span>
                       <input type="number" value={fd.price || ''} onChange={e => set('price', parseFloat(e.target.value) || 0)}
-                        placeholder="0.00" step="0.01" className={iCls} style={{ ...iSt, paddingLeft: '1.8rem' }} />
+                        placeholder="0.00" title="Product price" step="0.01" className={iCls} style={{ ...iSt, paddingLeft: '1.8rem' }} />
                     </div>
                   </div>
                   <div>
@@ -1599,6 +1605,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                                         <input
                                           type="file"
                                           accept="image/*"
+                                          title="Upload option image"
                                           className="hidden"
                                           disabled={Boolean(uploadingOptionImage[optionImageKey])}
                                           onChange={(e) => {
@@ -1773,6 +1780,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                                         type="number"
                                         min={0}
                                         step="0.01"
+                                        placeholder="0.00"
+                                        title="Variant price"
                                         value={fd.variantPrices?.[combo.stockKey] ?? 0}
                                         onChange={(e) => {
                                           const amount = Math.max(0, Number.parseFloat(e.target.value || '0') || 0);
@@ -1789,6 +1798,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                                       <input
                                         type="number"
                                         min={0}
+                                        placeholder="0"
+                                        title="Variant stock quantity"
                                         value={fd.variantStocks?.[combo.stockKey] ?? 0}
                                         onChange={(e) => {
                                           const amount = Math.max(0, parseInt(e.target.value || '0', 10) || 0);
@@ -1846,7 +1857,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                           <div>
                             <label className={lCls} style={{ color: '#9FB3DF' }}>Low Stock Alert</label>
                             <input type="number" value={fd.lowStockThreshold} onChange={e => set('lowStockThreshold', parseInt(e.target.value) || 0)}
-                              placeholder="50" className={iCls} style={iSt} />
+                              placeholder="50" title="Low stock alert threshold" className={iCls} style={iSt} />
                           </div>
                         </div>
                       </div>
@@ -1855,12 +1866,12 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                         <div>
                           <label className={lCls} style={{ color: '#9FB3DF' }}>Initial Stock</label>
                           <input type="number" value={fd.stock} onChange={e => set('stock', parseInt(e.target.value) || 0)}
-                            placeholder="100" className={iCls} style={iSt} />
+                            placeholder="100" title="Initial stock quantity" className={iCls} style={iSt} />
                         </div>
                         <div>
                           <label className={lCls} style={{ color: '#9FB3DF' }}>Low Stock Alert</label>
                           <input type="number" value={fd.lowStockThreshold} onChange={e => set('lowStockThreshold', parseInt(e.target.value) || 0)}
-                            placeholder="20" className={iCls} style={iSt} />
+                            placeholder="20" title="Low stock alert threshold" className={iCls} style={iSt} />
                         </div>
                       </div>
                     )}
@@ -1873,6 +1884,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                             type="text"
                             value={fd.sku}
                             readOnly
+                            placeholder="Auto-generated SKU"
+                            title="Product SKU - Auto-generated from product name"
                             className={iCls}
                             style={{ ...iSt, opacity: 0.9, paddingRight: '2.75rem' }}
                           />
@@ -1901,7 +1914,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 </div>
 
                 <div className="hidden">
-                  <input type="text" value={fd.sku} onChange={e => set('sku', e.target.value)} />
+                  <input type="text" value={fd.sku} onChange={e => set('sku', e.target.value)} title="Product SKU" placeholder="SKU" />
                 </div>
               </div>
 
@@ -1914,15 +1927,14 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 >
                   Cancel
                 </button>
-                <button
-                  type="button"
+                <SaveProductButton
                   onClick={save}
                   disabled={saving}
-                  className={`px-8 h-10 rounded-2xl font-semibold text-sm leading-none text-white transition-all ${saving ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5 hover:brightness-110 active:scale-95'}`}
-                  style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', color: '#FFFFFF', boxShadow: '0 10px 24px rgba(217,70,239,0.4)' }}
-                >
-                  {saving ? 'Saving...' : 'Add Product'}
-                </button>
+                  loading={saving}
+                  loadingText="Saving..."
+                  actionText="Add Product"
+                  isLight={isLight}
+                />
               </div>
             </div>
 

@@ -1,8 +1,9 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { type Product, type ProductVariant } from '@/lib/productsData';
+import { type Product, type ProductVariant } from '@/app/m_dashboard/lib/productsData';
 import { StatusBadge } from './statusBadge';
+import ProductEditModal from './productEditModal';
 
 type ThemeColors = {
   [key: string]: any;
@@ -20,7 +21,7 @@ function isImageSource(value: string): boolean {
 
 function getVariantGroups(product: Product): ProductVariant[] {
   return Array.isArray(product.variants)
-    ? product.variants.filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
+    ? product.variants.filter((variant: ProductVariant) => Array.isArray(variant.options) && variant.options.length > 0)
     : [];
 }
 
@@ -52,7 +53,7 @@ function getSelectedVariantImage(product: Product, selectedOptions: Record<strin
     if (variant.name.trim().toLowerCase() === 'size') continue;
     const selectedOptionId = selectedOptions[variant.id];
     if (!selectedOptionId) continue;
-    const selectedOption = variant.options.find((option) => option.id === selectedOptionId);
+    const selectedOption = variant.options.find((option: any) => option.id === selectedOptionId);
     const image = String(selectedOption?.image || '').trim();
     if (isImageSource(image)) return image;
   }
@@ -108,6 +109,7 @@ export function ProductCard({
   menuOpen,
   onToggleMenu,
   onCloseMenu,
+  onSaveProduct,
 }: {
   product: Product;
   colors: ThemeColors;
@@ -117,8 +119,10 @@ export function ProductCard({
   menuOpen: boolean;
   onToggleMenu: () => void;
   onCloseMenu: () => void;
+  onSaveProduct?: (productData: Partial<Product> & Record<string, unknown>) => Promise<boolean>;
 }) {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
+  const [showEditModal, setShowEditModal] = useState(false);
   const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
   const imageValue = String(selectedVariantImage || product.image || '').trim();
   const showImage = isImageSource(imageValue);
@@ -131,7 +135,7 @@ export function ProductCard({
   const singleVariantId = singleVariantGroup?.id || '';
   const singleVariantOptions = singleVariantGroup?.options ?? [];
   const maxVisibleVariantChips = 2;
-  const totalVariantLabelChars = singleVariantOptions.reduce((sum, option) => sum + String(option.name || '').length, 0)
+  const totalVariantLabelChars = singleVariantOptions.reduce((sum: number, option: any) => sum + String(option.name || '').length, 0)
     + Math.max(0, singleVariantOptions.length - 1);
   const canDisplayAllVariantsInOneLine = singleVariantOptions.length <= 3 && totalVariantLabelChars <= 18;
   const visibleVariantOptions = canDisplayAllVariantsInOneLine
@@ -166,6 +170,7 @@ export function ProductCard({
   }, [product.id, product.variants]);
 
   return (
+    <>
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -207,7 +212,7 @@ export function ProductCard({
             onClick={(event) => event.stopPropagation()}
           >
             <button type="button" onClick={() => { onCloseMenu(); onView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
-            <button type="button" onClick={() => { onCloseMenu(); onEdit(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
+            <button type="button" onClick={() => { onCloseMenu(); setShowEditModal(true); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
             <button type="button" onClick={() => { onCloseMenu(); onDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
           </div>
         )}
@@ -249,7 +254,7 @@ export function ProductCard({
 
           {isSingleVariantGroup && singleVariantOptions.length > 0 && (
             <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
-              {visibleVariantOptions.map((option) => (
+              {visibleVariantOptions.map((option: any) => (
                 <span
                   key={`${product.id}-${singleVariantId}-${option.id}`}
                   className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
@@ -296,5 +301,22 @@ export function ProductCard({
         </div>
       </div>
     </motion.div>
+
+    <ProductEditModal
+      isOpen={showEditModal}
+      onClose={() => setShowEditModal(false)}
+      onSave={async (productData) => {
+        if (onSaveProduct) {
+          const success = await onSaveProduct(productData);
+          if (success) {
+            setShowEditModal(false);
+          }
+          return success;
+        }
+        return false;
+      }}
+      editingProduct={product}
+    />
+    </>
   );
 }
