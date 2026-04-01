@@ -264,11 +264,11 @@ function ModerationComplianceBoard() {
                             className="h-12 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
                             style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
                         />
-                        <div className="absolute left-1.5 top-1/2 -translate-y-1/2">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
                             <motion.div 
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
-                                className="flex h-9 w-9 items-center justify-center rounded-full bg-[#FFCC00] text-[#471396] shadow-sm">
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="flex items-center justify-center text-[#FFB800]">
                                 <SearchIcon className="h-5 w-5" />
                             </motion.div>
                         </div>
