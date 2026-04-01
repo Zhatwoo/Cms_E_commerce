@@ -502,17 +502,19 @@ exports.logout = async (req, res) => {
     // Best-effort: resolve user from auth cookie so we can flip presence immediately on logout.
     const token = req.cookies?.[COOKIE_NAME];
     if (token) {
+      let uid = null;
       try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const uid = decoded?.id;
-        if (uid) {
-          // Move lastSeen behind online threshold so admin UI shows Offline right away.
-          const offlineAt = new Date(Date.now() - 10 * 60 * 1000).toISOString();
-          await User.update(uid, { lastSeen: offlineAt, isOnline: false }).catch(() => {});
-
-        }
+        uid = decoded?.id || null;
       } catch {
-        // ignore invalid/expired token during logout
+        // Token might be expired/invalid for verify, but decode can still give user id for presence update.
+        const decoded = jwt.decode(token);
+        uid = decoded && typeof decoded === 'object' ? decoded.id : null;
+      }
+
+      if (uid) {
+        // Record real logout time and explicitly mark offline.
+        await User.update(uid, { lastSeen: new Date().toISOString(), isOnline: false }).catch(() => {});
       }
     }
   } finally {

@@ -53,13 +53,37 @@ function formatDate(value: string | undefined): string {
 }
 
 function isUserOnline(lastSeen?: string, isOnline?: boolean): boolean {
+  if (isOnline === true) return true;
+  if (isOnline === false) return false;
+
   if (lastSeen) {
     const now = new Date();
     const ls = new Date(lastSeen);
     // within last 3 minutes = Online (was 5)
     if ((now.getTime() - ls.getTime()) < 3 * 60 * 1000) return true;
   }
-  return isOnline === true;
+  return false;
+}
+
+function getLastActiveLabel(lastSeen?: string): string {
+  if (!lastSeen) return 'Active recently';
+
+  const last = new Date(lastSeen);
+  if (Number.isNaN(last.getTime())) return 'Active recently';
+
+  const diffMs = Date.now() - last.getTime();
+  if (diffMs < 60 * 1000) return 'Active just now';
+
+  const mins = Math.floor(diffMs / (60 * 1000));
+  if (mins < 60) return `Active ${mins}m ago`;
+
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `Active ${hours}h ago`;
+
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Active ${days}d ago`;
+
+  return `Active ${formatToPHTime(lastSeen)}`;
 }
 
 function getPlanStorageLimitGb(plan: string): number {
@@ -984,7 +1008,7 @@ export function UserManagement() {
                   
                   let statusLabel = active ? 'Active' : 'Inactive';
                   if (active) {
-                    statusLabel = online ? 'Online' : 'Active / Offline';
+                    statusLabel = online ? 'Online' : getLastActiveLabel(client.lastSeen);
                   } else if (isSuspended) {
                     statusLabel = 'Suspended';
                   } else if (isRestricted) {
