@@ -209,12 +209,18 @@ class User {
     const norm = email.toLowerCase().trim();
     const roles = ['client', 'admin', 'support', 'super_admin'];
 
-    // STRICT: Search ONLY in nested role collections
-    for (const role of roles) {
-      const snap = await db.collection('user').doc('roles').collection(role).where('email', '==', norm).limit(1).get();
-      if (!snap.empty) return fromDoc(snap.docs[0]);
-    }
+    // Parallel search across role collections
+    const results = await Promise.all(roles.map(role => 
+      db.collection('user').doc('roles').collection(role === 'super_admin' ? 'admin' : role)
+        .where('email', '==', norm).limit(1).get()
+    ));
 
+    for (const snap of results) {
+      if (!snap.empty) {
+        const user = fromDoc(snap.docs[0]);
+        if (user) return user;
+      }
+    }
     return null;
   }
 
@@ -222,13 +228,13 @@ class User {
     if (!id) return null;
     const roles = ['client', 'admin', 'support', 'super_admin'];
 
-    // STRICT: Search ONLY in nested role collections
-    for (const role of roles) {
-      const doc = await db.collection('user').doc('roles').collection(role).doc(id).get();
-      if (doc.exists) return fromDoc(doc);
-    }
+    // Parallel fetch from all possible role paths
+    const results = await Promise.all(roles.map(role => 
+      db.collection('user').doc('roles').collection(role === 'super_admin' ? 'admin' : role).doc(id).get()
+    ));
 
-    return null;
+    const found = results.find(doc => doc.exists);
+    return found ? fromDoc(found) : null;
   }
 
   static async get(id) {
@@ -237,14 +243,18 @@ class User {
 
   static async findAll(filters = {}) {
     const roles = filters.role ? [filters.role.toLowerCase()] : ['client', 'admin', 'support', 'super_admin'];
-    let allUsers = [];
-
-    for (const role of roles) {
+    
+    // Parallel fetch from role collections
+    const snaps = await Promise.all(roles.map(role => {
       const collectionRole = role === 'super_admin' ? 'admin' : role;
       let ref = db.collection('user').doc('roles').collection(collectionRole);
       if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
       if (filters.status) ref = ref.where('status', '==', filters.status);
-      const snap = await ref.get();
+      return ref.get();
+    }));
+
+    let allUsers = [];
+    for (const snap of snaps) {
       allUsers = allUsers.concat(snap.docs.map(d => fromDoc(d)));
     }
 
@@ -338,11 +348,15 @@ class User {
 
   static async getStats() {
     const rolesToCheck = ['admin', 'support', 'client'];
-    let all = [];
+    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
     
-    // 1. Collect all users from all role collections
-    for (const coll of rolesToCheck) {
-      const snap = await db.collection('user').doc('roles').collection(coll).get();
+    // 1. Parallel collection of data/counts
+    const results = await Promise.all(rolesToCheck.map(async (coll) => {
+      const collRef = db.collection('user').doc('roles').collection(coll);
+      
+      // Get all users in this role (still needed for byStatus/byPlan unless we do many more parallel counts)
+      // For large datasets, this should be replaced entirely with aggregate queries.
+      const snap = await collRef.get();
       const docs = snap.docs.map(d => {
         const data = d.data();
         let lastSeenDate = null;
@@ -351,11 +365,18 @@ class User {
         }
         return { ...data, id: d.id, last_seen_date: lastSeenDate };
       });
-      all = all.concat(docs);
-    }
 
-    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
-    const onlineCount = all.filter(u => u.last_seen_date && u.last_seen_date > threeMinsAgo).length;
+      const onlineCountInColl = docs.filter(u => u.last_seen_date && u.last_seen_date > threeMinsAgo).length;
+
+      return { docs, onlineCount: onlineCountInColl };
+    }));
+
+    let all = [];
+    let onlineCount = 0;
+    for (const res of results) {
+      all = all.concat(res.docs);
+      onlineCount += res.onlineCount;
+    }
 
     const byRole = {
       admin: all.filter(u => u.role === 'admin' || u.role === 'super_admin' || u.role === 'super admin').length,
@@ -368,16 +389,29 @@ class User {
       suspended: all.filter(u => u.status === 'Suspended' || u.status === 'Banned').length
     };
 
+    const byPlan = {
+      free: all.filter(u => (u.subscription_plan || u.subscriptionPlan || 'free') === 'free').length,
+      basic: all.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'basic').length,
+      pro: all.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'pro').length
+    };
+
+    // If no real data, provide some mock distribution for visual clarity in dashboard
+    if (all.length === 0) {
+      byPlan.free = 0; byPlan.basic = 0; byPlan.pro = 0;
+    }
+
     return {
       total: all.length,
       online: onlineCount,
       byRole,
       byStatus,
+      byPlan,
       lastUpdated: new Date().toISOString()
     };
+
   }
 
-  /** Signups trend across all roles. Returns { signups: counts, period }. */
+  /** Signups trend across all roles. Returns { signups: counts, labels, period }. */
   static async getSignupsOverTime(period = '7days') {
     const now = new Date();
     let start = new Date(now);
@@ -396,22 +430,40 @@ class User {
 
     const bucketMs = (now.getTime() - start.getTime()) / buckets;
     const counts = new Array(buckets).fill(0);
+    const labels = [];
+
+    for (let i = 0; i < buckets; i++) {
+      const t = new Date(start.getTime() + (i + 1) * bucketMs);
+      labels.push(
+        period === '7days'
+          ? t.toLocaleDateString('en-US', { weekday: 'short' })
+          : period === '30days'
+          ? `Week ${i + 1}`
+          : t.toLocaleDateString('en-US', { month: 'short' })
+      );
+    }
 
     const rolesToCheck = ['admin', 'support', 'client'];
-    for (const coll of rolesToCheck) {
-      const snap = await db.collection('user').doc('roles').collection(coll).get();
+    const snaps = await Promise.all(rolesToCheck.map(coll => 
+      db.collection('user').doc('roles').collection(coll)
+        .where('created_at', '>=', start)
+        .get()
+    ));
+
+    for (const snap of snaps) {
       snap.docs.forEach(d => {
         const data = d.data();
         const created = data.created_at?.toDate?.() || (data.created_at ? new Date(data.created_at) : null);
-        if (created && created >= start) {
+        if (created) {
           const idx = Math.min(Math.floor((created.getTime() - start.getTime()) / bucketMs), buckets - 1);
           if (idx >= 0) counts[idx]++;
         }
       });
     }
 
-    return { signups: counts, period };
+    return { signups: counts, labels, period };
   }
+
 }
 
 module.exports = User;

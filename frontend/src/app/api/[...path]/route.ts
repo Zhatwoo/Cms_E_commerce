@@ -29,7 +29,14 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
       init.body = await request.text();
     }
 
-    const res = await fetch(`${target}${search}`, init);
+    const res = await fetch(`${target}${search}`, init).catch(async (err) => {
+      // Local fallback: try 5001 if 5000 fails (standard port switch behavior in this project)
+      if (target.includes('localhost:5000') || target.includes('127.0.0.1:5000')) {
+        const fallbackTarget = target.replace(/:5000\//, ':5001/');
+        return fetch(`${fallbackTarget}${search}`, init);
+      }
+      throw err;
+    });
     const body = await res.arrayBuffer();
     const nextRes = new NextResponse(body, {
       status: res.status,

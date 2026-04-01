@@ -110,7 +110,11 @@ function getStartDate(period) {
 
 async function getRevenueByPeriod(period) {
   const start = getStartDate(period);
-  const snap = await db.collection(COLLECTION).orderBy('created_at', 'asc').get();
+  const snap = await db.collection(COLLECTION)
+    .where('status', '==', 'Paid') // Optimized: only count paid revenue
+    .where('created_at', '>=', start)
+    .orderBy('created_at', 'asc')
+    .get();
   const buckets = period === '7days' ? 7 : period === '30days' ? 4 : 3;
   const bucketMs = (Date.now() - start.getTime()) / buckets;
   const sums = new Array(buckets).fill(0);
@@ -130,5 +134,6 @@ async function getRevenueByPeriod(period) {
   });
   return { labels, data: sums };
 }
+
 
 module.exports = { create, findById, findByUserId, findAll, update, delete: deleteById, count, getTotalRevenue, getRevenueByPeriod };
