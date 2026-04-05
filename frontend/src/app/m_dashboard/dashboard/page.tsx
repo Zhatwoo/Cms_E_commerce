@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import {
   updateProject,
   deleteProject,
@@ -315,43 +315,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             </span>
           </h1>
 
-          <div className="flex items-center gap-8 text-xs uppercase font-bold tracking-widest [font-family:var(--font-outfit),sans-serif]">
-            {DASHBOARD_TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                /* Casting tab.id to HeroTab fixes the TS error Severity 8 */
-                onClick={() => setActiveTab(tab.id as HeroTab)}
-                className={`
-                  cursor-pointer relative pb-1 transition-all duration-300
-                  ${activeTab === tab.id 
-                    ? (theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#120533]') 
-                    : (theme === 'dark' ? 'text-[#807FAF]' : 'text-[#120533]/50')
-                  }
-                  hover:opacity-70
-                `}
-              >
-                {tab.label}
-                
-                {activeTab === tab.id && (
-                  <motion.span
-                    layoutId="dashboard-tab-underline"
-                    className="absolute left-0 right-0 -bottom-0.5 h-[2.5px] rounded-full"
-                    style={{ 
-                      background: theme === 'dark'
-                        ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' 
-                        : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)' 
-                    }}
-                    transition={{ 
-                      type: 'spring', 
-                      stiffness: 520, 
-                      damping: 38 
-                    }}
-                  />
-                )}
-              </button>
-            ))}
-          </div>
+          <TabBar<HeroTab>
+            tabs={DASHBOARD_TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            theme={theme as 'light' | 'dark'}
+            underlineLayoutId="dashboard-tab-underline"
+          />
 
           <div 
             className={`
