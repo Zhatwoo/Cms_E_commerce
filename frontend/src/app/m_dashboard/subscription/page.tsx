@@ -6,6 +6,7 @@ import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { getStoredUser } from '@/lib/api';
 import { SUBSCRIPTION_LIMITS, type SubscriptionPlan } from '@/lib/subscriptionLimits';
+import { Check } from 'lucide-react';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -150,23 +151,24 @@ export default function SubscriptionPage() {
 
   return (
     <div
-      className="relative mx-auto w-full px-4 sm:px-6 pb-16"
+      className="dashboard-landing-light relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif] space-y-5"
       style={{ fontFamily: "var(--font-outfit), 'Outfit', sans-serif" }}
     >
       {/* ── HERO ───────────────────────────────────────────────────────────── */}
-      <section className="mb-10 text-center pt-4">
+      <section className="text-center py-4">
         <motion.h1
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="text-[36px] sm:text-[48px] font-black leading-[1.08] tracking-[-0.02em]"
-          style={{ color: isDark ? '#fff' : '#120533' }}
+          className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
+          style={{ color: colors.text.primary }}
         >
-          Choose Your{' '}
+          Subscription{' '}
           <span
-            className="bg-gradient-to-r from-[#8b3dff] to-[#c026d3] bg-clip-text text-transparent"
+            className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${isDark ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+            style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
           >
-            Scale
+            Plans
           </span>
         </motion.h1>
 
@@ -174,42 +176,11 @@ export default function SubscriptionPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.12, duration: 0.4 }}
-          className="mx-auto mt-3 max-w-xl text-[15px]"
-          style={{ color: isDark ? 'rgba(255,255,255,0.55)' : '#616170' }}
+          className={`text-base sm:text-lg mt-2 ${isDark ? 'text-[#8A8FC4]' : 'text-[#120533]/70'}`}
         >
           Start free, upgrade as you grow — no lock-ins, no surprises.
         </motion.p>
 
-        {/* Current plan pill */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-          className="mt-5 inline-flex items-center gap-2.5 rounded-full border px-5 py-2 text-xs font-semibold"
-          style={{
-            borderColor: `${currentPlanData.accent}55`,
-            backgroundColor: isDark ? `${currentPlanData.glow}` : `${currentPlanData.accent}12`,
-            color: currentPlanData.accent,
-          }}
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-60"
-              style={{ backgroundColor: currentPlanData.accent }} />
-            <span className="relative inline-flex h-2 w-2 rounded-full"
-              style={{ backgroundColor: currentPlanData.accent }} />
-          </span>
-          Active: {currentPlanData.name} Plan
-          {currentPlan !== 'free' && (
-            <button
-              type="button"
-              onClick={handleCancel}
-              className="ml-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-opacity hover:opacity-70"
-              style={{ backgroundColor: '#ef444422', color: '#f87171' }}
-            >
-              Cancel
-            </button>
-          )}
-        </motion.div>
       </section>
 
       {/* ── PLAN CARDS ─────────────────────────────────────────────────────── */}
@@ -221,16 +192,20 @@ export default function SubscriptionPage() {
 
           // Border: match landing page style
           const borderStyle = isCurrent
-            ? `3px solid ${plan.accent}`
+            ? (isDark ? '3px solid #FACC15' : `3px solid ${plan.accent}`)
             : isPremium
               ? isDark ? '3px solid #f5c400' : '3px solid #d946ef'
               : isDark ? '1px solid #3d2a93' : '1px solid #c1c1cd';
 
           // Background: white in light, dark card in dark
           const cardBg = isDark ? '#111058' : '#ffffff';
-          const cardShadow = isDark
-            ? '8px 10px 20px rgba(5,3,39,0.55)'
-            : '8px 10px 12px rgba(20,20,50,0.06)';
+          const cardShadow = isCurrent
+            ? (isDark
+              ? '0 20px 40px -10px rgba(5,3,39,0.5)'
+                : `0 20px 40px -10px rgba(124,58,237,0.1), 0 0 0 3px ${plan.accent}20, 0 0 20px ${plan.accent}15`)
+            : (isDark
+                ? '0 10px 20px rgba(5,3,39,0.2)'
+                : '0 10px 12px rgba(20,20,50,0.03)');
 
           // Title color
           const titleColor = isPremium
@@ -246,12 +221,19 @@ export default function SubscriptionPage() {
           let btnBg = '';
           let btnColor = '';
           let btnBorder = '';
+          let btnShadow = 'none';
+          let btnHoverClass = 'hover:brightness-110';
 
           if (isCurrent) {
-            btnBg = isDark ? 'rgba(147,51,234,0.15)' : '#f0f0f4';
-            btnColor = isDark ? '#a78bfa' : '#120533';
-            btnBorder = isDark ? '1px solid rgba(147,51,234,0.3)' : '1px solid #c1c1cd';
-          } else if (action === 'upgrade' || action === 'contact') {
+            btnBg = isDark
+              ? 'linear-gradient(90deg,#FACC15 0%,#EAB308 100%)'
+              : 'linear-gradient(90deg,#9333ea 0%,#ec4899 100%)';
+            btnColor = isDark ? '#1c1d2b' : '#ffffff';
+            btnBorder = isDark ? '1px solid rgba(250,204,21,0.55)' : '1px solid rgba(217,70,239,0.25)';
+            btnShadow = isDark
+              ? '0 10px 24px rgba(250,204,21,0.28)'
+              : '0 10px 24px rgba(217,70,239,0.28)';
+          } else if (action === 'upgrade') {
             if (isPremium) {
               btnBg = isDark ? '#f5c400' : 'linear-gradient(90deg,#9333ea 0%,#ec4899 100%)';
               btnColor = isDark ? '#1c1d2b' : '#fff';
@@ -259,6 +241,11 @@ export default function SubscriptionPage() {
               btnBg = 'linear-gradient(90deg,#9333ea 0%,#ec4899 100%)';
               btnColor = '#fff';
             }
+          } else if (action === 'contact') {
+            btnBg = isDark ? 'rgba(255,255,255,0.06)' : '#F4F1FC';
+            btnColor = isDark ? 'rgba(255,255,255,0.75)' : '#5B5473';
+            btnBorder = isDark ? '1px solid rgba(255,255,255,0.16)' : '1px solid #E6DDF8';
+            btnHoverClass = 'hover:brightness-100';
           } else {
             // downgrade
             btnBg = isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f4';
@@ -372,11 +359,12 @@ export default function SubscriptionPage() {
                   type="button"
                   disabled={isCurrent}
                   onClick={() => handleAction(plan.id)}
-                  className="mt-8 w-full rounded-full px-6 py-3 text-[14px] font-extrabold leading-none transition-all duration-200 hover:brightness-110 active:scale-[0.97] disabled:cursor-default"
+                  className={`mt-8 w-full rounded-full px-6 py-3 text-[14px] font-extrabold leading-none transition-all duration-200 ${btnHoverClass} active:scale-[0.97] disabled:cursor-default`}
                   style={{
                     background: btnBg,
                     color: btnColor,
                     border: btnBorder || 'none',
+                    boxShadow: btnShadow,
                   }}
                 >
                   {ctaLabels[action]}
@@ -389,98 +377,132 @@ export default function SubscriptionPage() {
 
       {/* ── COMPARISON TABLE ───────────────────────────────────────────────── */}
       <motion.section
-        initial={{ opacity: 0, y: 16 }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.38 }}
-        className="rounded-[2rem] border overflow-hidden"
+        className="relative rounded-[3rem] border overflow-hidden backdrop-blur-3xl transition-all duration-500"
         style={{
-          borderColor: isDark ? '#3d2a93' : '#e2e2ea',
-          backgroundColor: isDark ? '#111058' : '#ffffff',
-          boxShadow: isDark ? '8px 10px 20px rgba(5,3,39,0.55)' : '8px 10px 12px rgba(20,20,50,0.06)',
+          backgroundColor: isDark ? 'rgba(17, 16, 88, 0.4)' : '#ffffff',
+          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 25, 58, 0.1)',
+          boxShadow: isDark 
+            ? '0 40px 100px -20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' 
+            : '0 40px 100px -20px rgba(18,25,58,0.04)',
         }}
       >
-        <div className="px-6 sm:px-8 pt-6 pb-2 flex items-center justify-between">
-          <h3
-            className="text-base font-bold"
-            style={{ color: isDark ? '#fff' : '#120533' }}
-          >
-            Feature Comparison
-          </h3>
-          <span
-            className="text-[11px]"
-            style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#a6a0c0' }}
-          >
-            All prices monthly
-          </span>
+        {/* 1. THE SPECTRUM STRIP: Using the Gradient from your screenshot */}
+        <div 
+          className="absolute top-0 left-0 right-0 h-[4px] z-20" 
+          style={{ background: 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' }}
+        />
+
+        {/* Header: Editorial Identity */}
+        <div className="px-8 py-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-white/5">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              {/* Match the top strip gradient here for a subtle "tab" look */}
+              <div className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(180deg, #7C3AED 0%, #FF9E4A 100%)' }} />
+              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[#7C3AED]">
+                Featured Offered 2026
+              </span>
+            </div>
+            <h3 className="text-4xl font-black tracking-tighter"
+                style={{ color: isDark ? '#FFF' : '#12193A', fontFamily: 'var(--font-montserrat)' }}>
+              Comparison Plan
+            </h3>
+          </div>
+          
+          <div className="flex flex-col items-end gap-2">
+          
+            {currentPlan !== 'free' && (
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide transition-all duration-200 hover:brightness-105 active:scale-[0.98]"
+                style={{
+                  background: isDark ? 'rgba(239,68,68,0.14)' : 'rgba(239,68,68,0.08)',
+                  color: isDark ? '#fca5a5' : '#dc2626',
+                  border: isDark ? '1px solid rgba(248,113,113,0.35)' : '1px solid rgba(220,38,38,0.22)',
+                }}
+              >
+                Cancel Plan
+              </button>
+            )}
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[600px] text-sm">
+        <div className="overflow-x-auto pb-5">
+          <table className="w-full min-w-[900px] border-collapse">
             <thead>
-              <tr style={{ borderBottom: `1px solid ${isDark ? '#3d2a93' : '#e2e2ea'}` }}>
-                <th
-                  className="py-3 px-6 sm:px-8 text-left font-medium w-[28%]"
-                  style={{ color: isDark ? 'rgba(255,255,255,0.45)' : '#a6a0c0' }}
-                >
-                  Feature
+              <tr>
+                <th className="py-7 px-8 text-left w-[30%]">
+                  <span className="text-[10px] font-black uppercase tracking-[0.6em] opacity-20">Functionality_Index</span>
                 </th>
-                {PLANS.map((plan) => (
-                  <th
-                    key={plan.id}
-                    className="py-3 px-3 text-left font-bold w-[18%]"
-                    style={{
-                      color: currentPlan === plan.id
-                        ? plan.accent
-                        : isDark ? 'rgba(255,255,255,0.75)' : '#303044',
-                    }}
-                  >
-                    {plan.name}
-                    {currentPlan === plan.id && (
-                      <span
-                        className="ml-1.5 inline-block rounded-full w-1.5 h-1.5 align-middle"
-                        style={{ backgroundColor: plan.accent }}
-                      />
-                    )}
-                  </th>
-                ))}
+                {PLANS.map((plan) => {
+                  const isCurrent = currentPlan === plan.id;
+                  return (
+                    <th key={plan.id} className="py-7 px-5 text-left relative overflow-visible">
+                      {/* 2. Spotlight: Column depth for the chosen plan */}
+                      {isCurrent && (
+                        <div className="absolute inset-x-2 inset-y-0 bg-[#7C3AED]/[0.03] z-0 border-x border-[#7C3AED]/5" />
+                      )}
+                      
+                      <div className="relative z-10 flex flex-col gap-2 transition-all">
+                        {/* Current Plan Name: Gradient Text from Screenshot */}
+                        <span className={`text-[14px] font-black uppercase tracking-[0.3em] transition-all
+                                        ${isCurrent ? 'bg-clip-text text-transparent scale-105 origin-left' : 'opacity-30'}`}
+                              style={{ 
+                                backgroundImage: isCurrent ? 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' : 'none',
+                                color: isCurrent ? 'transparent' : (isDark ? '#FFF' : '#12193A') 
+                              }}>
+                          {plan.name}
+                        </span>
+                        
+                        {isCurrent && (
+                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7C3AED]/10 border border-[#7C3AED]/20">
+                            <div className="w-1 h-1 rounded-full bg-[#7C3AED] shadow-[0_0_8px_#7C3AED]" />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-[#7C3AED]">Active_Choice</span>
+                          </div>
+                        )}
+                      </div>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
-            <tbody>
-              {COMPARISON_ROWS.map((row, rowIdx) => (
-                <tr
-                  key={row.label}
-                  style={{
-                    borderBottom: rowIdx < COMPARISON_ROWS.length - 1
-                      ? `1px solid ${isDark ? '#3d2a93' : '#e2e2ea'}`
-                      : undefined,
-                  }}
-                >
-                  <td
-                    className="py-3 px-6 sm:px-8"
-                    style={{ color: isDark ? 'rgba(255,255,255,0.65)' : '#616170' }}
-                  >
-                    {row.label}
+
+            <tbody className="divide-y-0 relative">
+              {COMPARISON_ROWS.map((row) => (
+                <tr key={row.label} className="group transition-all hover:bg-white/[0.02]">
+                  <td className="py-4 px-8">
+                    <span className="text-[13px] font-bold tracking-tight opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all inline-block"
+                          style={{ color: isDark ? '#FFF' : '#12193A' }}>
+                      {row.label}
+                    </span>
                   </td>
                   {row.values.map((val, colIdx) => {
                     const plan = PLANS[colIdx];
                     const isCurrent = plan.id === currentPlan;
-                    const isPositive = val !== '—';
+                    const isCheck = val === '✓';
+                    const isDash = val === '—';
+
                     return (
-                      <td
-                        key={plan.id}
-                        className="py-3 px-3 font-semibold"
-                        style={{
-                          color: !isPositive
-                            ? isDark ? 'rgba(255,255,255,0.25)' : '#c1c1cd'
-                            : isCurrent
-                              ? plan.accent
-                              : val === 'Unlimited' || val === '✓'
-                                ? isDark ? '#86EFAC' : '#16a34a'
-                                : isDark ? 'rgba(255,255,255,0.85)' : '#303044',
-                          opacity: !isPositive ? 0.6 : 1,
-                        }}
-                      >
-                        {val}
+                      <td key={plan.id} className="py-4 px-5 relative">
+                        {/* Subtle column persistence for active plan */}
+                        {isCurrent && <div className="absolute inset-x-2 inset-y-0 bg-[#7C3AED]/[0.02] border-x border-[#7C3AED]/5 z-0" />}
+                        
+                        <div className="relative z-10">
+                          {isCheck ? (
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20 shadow-[0_0_20px_rgba(124,58,237,0.1)]">
+                              <Check size={11} strokeWidth={4} />
+                            </div>
+                          ) : isDash ? (
+                            <span className="text-[10px] font-black opacity-10 tracking-[0.4em]">—</span>
+                          ) : (
+                            <span className={`text-[13px] font-black tracking-tighter ${isCurrent ? 'text-[#7C3AED] scale-105' : 'opacity-70 group-hover:opacity-100'}`}
+                                  style={{ color: isDark ? '#FFF' : '#12193A' }}>
+                              {val}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     );
                   })}
@@ -488,6 +510,24 @@ export default function SubscriptionPage() {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Footer: Tech Document Style */}
+        <div
+          className="px-8 py-5 border-t"
+          style={{
+            backgroundColor: isDark ? 'rgba(255,255,255,0.01)' : '#ffffff',
+            borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(18,25,58,0.08)',
+          }}
+        >
+          <div className="flex justify-between items-center">
+            <span className="text-[8px] font-black uppercase tracking-[0.5em] opacity-10" style={{ color: isDark ? '#FFF' : '#12193A' }}>
+              Ref_Auth: Inspire_Holdings_2026
+            </span>
+            <div className="flex gap-4 opacity-10">
+              {[1, 2, 3].map((i) => <div key={i} className="h-1.5 w-1.5 rounded-full bg-white" />)}
+            </div>
+          </div>
         </div>
       </motion.section>
 
