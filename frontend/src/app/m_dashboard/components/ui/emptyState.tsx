@@ -15,6 +15,7 @@ export type EmptyStateProps = {
   title: string;
   description?: string | null;
   tone?: EmptyStateTone;
+  size?: 'default' | 'compact';
   primaryAction?: EmptyStateAction;
   secondaryAction?: EmptyStateAction;
   footerNote?: string;
@@ -26,6 +27,7 @@ export function EmptyState({
   title,
   description,
   tone = 'light',
+  size = 'default',
   primaryAction,
   secondaryAction,
   footerNote,
@@ -33,33 +35,35 @@ export function EmptyState({
 }: EmptyStateProps) {
   const isDark = tone === 'dark';
   const hasActions = !!(primaryAction || secondaryAction);
+  const isCompact = size === 'compact';
 
   return (
-    <section className={`w-full max-w-5xl mx-auto py-24 px-4 transition-all duration-700 [font-family:var(--font-outfit),sans-serif] ${className}`}>
+    <section className={`w-full max-w-5xl mx-auto transition-all duration-700 [font-family:var(--font-outfit),sans-serif] ${isCompact ? 'py-8 px-2' : 'py-24 px-4'} ${className}`}>
       <div 
         className={`
-          flex flex-col border-t border-slate-500/10 pt-12 transition-all duration-700
+          flex flex-col border-t border-slate-500/10 transition-all duration-700
+          ${isCompact ? 'pt-5' : 'pt-12'}
           ${hasActions ? 'md:flex-row md:items-end justify-between gap-12' : 'items-center text-center'}
         `}
       >
         <div className={hasActions ? 'max-w-xl' : 'max-w-2xl'}>
           {badgeText ? (
-            <div className={`flex items-center gap-3 mb-8 ${hasActions ? 'justify-start' : 'justify-center'}`}>
+            <div className={`flex items-center gap-3 ${isCompact ? 'mb-4' : 'mb-8'} ${hasActions ? 'justify-start' : 'justify-center'}`}>
               <div className={`w-1.5 h-1.5 rounded-full animate-pulse ${isDark ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
               <span
-                className={`text-[10px] font-black uppercase tracking-[0.4em] opacity-40 ${isDark ? 'text-white' : 'text-[#120533]'}`}
+                className={`${isCompact ? 'text-[9px] tracking-[0.28em]' : 'text-[10px] tracking-[0.4em]'} font-black uppercase opacity-40 ${isDark ? 'text-white' : 'text-[#120533]'}`}
               >
                 {badgeText}
               </span>
             </div>
           ) : null}
 
-          <h3 className={`text-5xl sm:text-6xl font-black tracking-tighter leading-[0.85] mb-8 ${isDark ? 'text-white' : 'text-[#120533]'}`}>
+          <h3 className={`${isCompact ? 'text-3xl sm:text-4xl mb-4' : 'text-5xl sm:text-6xl mb-8'} font-black tracking-tighter leading-[0.9] ${isDark ? 'text-white' : 'text-[#120533]'}`}>
             {title}
           </h3>
 
           {description ? (
-            <p className={`text-sm font-medium leading-relaxed opacity-50 mx-auto ${hasActions ? 'max-w-sm ml-0' : 'max-w-md'} ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
+            <p className={`${isCompact ? 'text-xs' : 'text-sm'} font-medium leading-relaxed opacity-50 mx-auto ${hasActions ? 'max-w-sm ml-0' : 'max-w-md'} ${isDark ? 'text-slate-400' : 'text-slate-600'}`}>
               {description}
             </p>
           ) : null}
@@ -77,7 +81,7 @@ export function EmptyState({
                   active:scale-95 disabled:opacity-40
                   ${isDark
                     ? 'bg-[#FFCE00] text-[#121241] shadow-[0_15px_40px_rgba(255,206,0,0.15)] hover:shadow-[0_22px_56px_rgba(255,206,0,0.35)]'
-                    : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]'
+                    : 'bg-linear-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]'
                   }
                 `}
               >
@@ -112,7 +116,7 @@ export function EmptyState({
         ) : null}
       </div>
 
-      <div className="mt-20 w-full h-px bg-gradient-to-r from-transparent via-slate-500/10 to-transparent" />
+      <div className={`${isCompact ? 'mt-8' : 'mt-20'} w-full h-px bg-linear-to-r from-transparent via-slate-500/10 to-transparent`} />
     </section>
   );
 }

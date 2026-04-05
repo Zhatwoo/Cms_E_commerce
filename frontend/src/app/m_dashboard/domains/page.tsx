@@ -1,7 +1,7 @@
 'use client';
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTheme } from '../components/context/theme-context';
 import { useAuth } from '../components/context/auth-context';
 import { useProject } from '../components/context/project-context';
@@ -15,32 +15,25 @@ import {
 } from '@/lib/api';
 import { subscribeUserProjectSubdomains, type ProjectSubdomainEntry } from '@/lib/firebase';
 import { PublishModal } from '../components/PublishModal';
-import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
+import { DomainCard } from '@/app/m_dashboard/domains/card/domainCard';
+import { DomainListRow } from '@/app/m_dashboard/domains/list/domainListRow';
+import { DomainDetailsSidebar } from '@/app/m_dashboard/domains/sidebar/domainDetailsSidebar';
+import { SearchBar } from '../components/ui/searchbar';
+import { StatsAnalytics } from '../components/ui/statsAnalytics';
+import { ViewModeToggle } from '../components/buttons/viewModeToggle';
+import { EmptyState } from '../components/ui/emptyState';
 import {
-  Globe, Plus, Search, ExternalLink, Copy, Pencil, Check, Clock, X,
-  Calendar, FileText, ArrowDownToLine, ChevronDown, ChevronUp,
-  Link2, Unlink, ShieldCheck, AlertTriangle, Loader2, LayoutGrid, List,
+  Globe, Plus, Check, Clock,
 } from 'lucide-react';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
-const SITE_HOST = process.env.NEXT_PUBLIC_SITE_HOST ?? 'localhost:3000';
 const GRAD = 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)';
 const ADD_SITE_BG = 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)';
 const VISIT_BG = 'linear-gradient(135deg, #22c55e 0%, #16a34a 55%, #15803d 100%)';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function toSlug(s: string) { return s.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || ''; }
-
-function getDisplayUrl(subdomain: string, origin: string | null) {
-  const slug = toSlug(subdomain);
-  return origin && (origin.includes('localhost') || origin.includes('127.0.0.1'))
-    ? `${slug}/${SITE_HOST}`
-    : `${slug}.${BASE_DOMAIN}`;
-}
 
 function isPublished(status?: string | null) {
   return (status || '').trim().toLowerCase() === 'published';
@@ -55,43 +48,12 @@ function validateSubdomain(v: string) {
   return null;
 }
 
-// ─── Small atoms ──────────────────────────────────────────────────────────────
-
-function StatusBadge({ published }: { published: boolean }) {
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
-      style={{
-        backgroundColor: published ? 'rgba(74,222,128,0.12)' : 'rgba(251,146,60,0.12)',
-        color: published ? '#4ade80' : '#fb923c',
-      }}>
-      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: published ? '#4ade80' : '#fb923c' }} />
-      {published ? 'Published' : 'Draft'}
-    </span>
-  );
-}
-
-function SidebarRow({ icon, label, children, action }: {
-  icon: React.ReactNode; label: string; children: React.ReactNode; action?: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em]"
-          style={{ color: 'rgba(255,255,255,0.4)' }}>
-          {icon}{label}
-        </div>
-        {action}
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-}
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 type DomainEntry = { project: Project; subdomain: string | null };
 
 export default function DomainsPage() {
+  const router = useRouter();
   const { colors, theme } = useTheme();
   const { user, loading: authLoading } = useAuth();
   const { selectedProject, refreshProjects: refreshContextProjects } = useProject();
@@ -134,6 +96,12 @@ export default function DomainsPage() {
     published: domainsList.filter(d => isPublished(d.project.status)).length,
     draft: domainsList.filter(d => !isPublished(d.project.status)).length,
   };
+
+  const statCards = [
+    { id: 'total-sites', label: 'TOTAL SITES', value: stats.total, icon: Globe, accent: '#a78bfa' },
+    { id: 'published-sites', label: 'PUBLISHED', value: stats.published, icon: Check, accent: '#4ade80' },
+    { id: 'draft-sites', label: 'IN DRAFT', value: stats.draft, icon: Clock, accent: '#fb923c' },
+  ];
 
   // UI state
   const [selectedDomain, setSelectedDomain] = useState<DomainEntry | null>(null);
@@ -312,9 +280,10 @@ export default function DomainsPage() {
   // ── Modal helpers
   const cardBg = 'rgba(14,8,50,0.98)';
   const cardBdr = '1px solid rgba(255,255,255,0.1)';
+  const tableHeaderBg = theme === 'dark' ? '#1E1B4B' : '#803BED';
 
   return (
-    <div className="dashboard-landing-light relative [font-family:var(--font-outfit),sans-serif] space-y-5">
+    <div className="dashboard-landing-light relative min-h-[calc(1  00vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif] space-y-5">
 
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
@@ -326,50 +295,61 @@ export default function DomainsPage() {
 
       {/* ── HEADER ─────────────────────────────────────────────────────────── */}
       <section className="text-center py-4">
-        <motion.h1
-          className={`inline-block text-[42px] sm:text-[58px] font-extrabold leading-[0.95] tracking-tight bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}>
-          My Sites
-        </motion.h1>
-        <motion.p className="mt-2.5 text-sm" style={{ color: colors.text.muted }}
-          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay: 0.08 }}>
-          Manage and publish your websites
-        </motion.p>
-        <motion.div className="mt-5 inline-flex"
-          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-85"
-            style={{ background: ADD_SITE_BG, boxShadow: '0 10px 24px rgba(217,70,239,0.42)' }}>
-            {addSiteLoading ? 'loading...' : <><Plus className="w-3.5 h-3.5" /> Add Site</>}
-          </button>
-        </motion.div>
+        <h1
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
+            style={{ color: colors.text.primary }}
+          >
+            My{' '}
+            <span
+              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
+            >
+              Sites
+            </span>
+          </h1>
+          {/* Subtitle */}
+          <p className={`text-base sm:text-lg mt-2 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#120533]/70'}`}>
+            Manage and publish your websites
+          </p>
+
+        <SearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          theme={theme as 'light' | 'dark'}
+          placeholder="Search by title or subdomain..."
+          className="mx-auto mt-6 max-w-[860px]"
+        />
+
       </section>
 
       {/* ── STAT STRIP ─────────────────────────────────────────────────────── */}
       {!loading && domainsList.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: 'Total Sites', value: stats.total, icon: Globe, accent: '#a78bfa' },
-            { label: 'Published', value: stats.published, icon: Check, accent: '#4ade80' },
-            { label: 'In Draft', value: stats.draft, icon: Clock, accent: '#fb923c' },
-          ].map((s, i) => {
-            const Icon = s.icon;
-            return (
-              <motion.div key={s.label}
-                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                className="rounded-2xl p-4 flex items-center gap-3"
-                style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)' }}>
-                <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ backgroundColor: `${s.accent}18` }}>
-                  <Icon className="w-4 h-4" style={{ color: s.accent }} />
-                </div>
-                <div>
-                  <p className="text-2xl font-extrabold leading-none" style={{ color: colors.text.primary }}>{s.value}</p>
-                  <p className="text-[10px] mt-0.5 uppercase tracking-wider font-semibold" style={{ color: colors.text.muted }}>{s.label}</p>
-                </div>
-              </motion.div>
-            );
-          })}
+        <StatsAnalytics cards={statCards} gridCols="grid-cols-1 sm:grid-cols-3" gap="gap-3" />
+      )}
+
+      {!loading && domainsList.length > 0 && (
+        <div className="flex items-center justify-between mt-1">
+          <button
+            type="button"
+            onClick={handleAddDomainClick}
+            disabled={addSiteLoading}
+            className="inline-flex h-10 items-center gap-2 px-5 py-5.5 rounded-xl text-xs font-bold transition-all hover:-translate-y-1 hover:brightness-110 active:scale-95 disabled:opacity-70"
+            style={{
+              background: theme === 'dark' ? '#FACC15' : ADD_SITE_BG,
+              color: theme === 'dark' ? '#120533' : '#FFFFFF',
+              boxShadow: theme === 'dark'
+                ? '0 8px 24px rgba(255, 206, 0, 0.42)'
+                : '0 8px 24px rgba(217,70,239,0.4)',
+            }}
+          >
+            {addSiteLoading ? 'loading...' : <><Plus className="w-3.5 h-3.5" /> Add Site</>}
+          </button>
+
+          <ViewModeToggle
+            value={viewMode}
+            onChange={setViewMode}
+            theme={theme as 'light' | 'dark'}
+          />
         </div>
       )}
 
@@ -379,402 +359,172 @@ export default function DomainsPage() {
           Loading…
         </div>
       ) : domainsList.length === 0 ? (
-        <div className="rounded-2xl p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
-          style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>No sites yet</p>
-            <p className="text-xs mt-1" style={{ color: colors.text.muted }}>Publish your first website from the Web Builder.</p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <Link href="/m_dashboard/web-builder"
-              className="px-4 py-2 text-xs font-semibold rounded-xl border transition-opacity hover:opacity-75"
-              style={{ borderColor: 'rgba(255,255,255,0.1)', color: colors.text.secondary }}>
-              Web Builder
-            </Link>
-            <button type="button" onClick={handleAddDomainClick} disabled={addSiteLoading}
-              className="px-4 py-2 text-xs font-bold rounded-xl text-white"
-              style={{ background: ADD_SITE_BG }}>
-              {addSiteLoading ? 'loading...' : 'Add site'}
-            </button>
-          </div>
-        </div>
+        <EmptyState
+          tone={theme as 'light' | 'dark'}
+          badgeText="Domains"
+          title="No sites yet"
+          description="Publish your first website from the Web Builder."
+          primaryAction={{
+            label: addSiteLoading ? 'Loading...' : 'Add Site',
+            onClick: handleAddDomainClick,
+            disabled: addSiteLoading,
+          }}
+          secondaryAction={{
+            label: 'Web Builder',
+            onClick: () => router.push('/m_dashboard/web-builder'),
+          }}
+          className="max-w-none! mx-0! py-10!"
+        />
       ) : (
         <div
-          className="flex flex-col md:flex-row gap-4 rounded-3xl p-3"
-          style={{
-            background: theme === 'dark'
-              ? 'linear-gradient(180deg, rgba(18,22,74,0.52), rgba(11,14,49,0.5))'
-              : 'linear-gradient(180deg, #FFFFFF, #F8F8FB)',
-            border: theme === 'dark' ? '1px solid rgba(148,163,184,0.18)' : `1px solid ${colors.border.faint}`,
-          }}
-        >
-
+          className="flex flex-col md:flex-row gap-4 rounded-3xl py-3">
           {/* List/Grid column */}
           <div className="flex-1 min-w-0 space-y-3">
-
-            {/* Search + view toggle */}
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: colors.text.muted }} />
-                <input type="text" placeholder="Search by title or subdomain…"
-                  value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-                  className="m-dashboard-search-shadow w-full pl-9 pr-4 py-2.5 rounded-xl text-sm outline-none"
-                  style={{
-                    background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.bg.searchBar,
-                    border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${colors.border.faint}`,
-                    color: colors.text.primary,
-                  }} />
-              </div>
-              <div className="flex gap-1 p-1 rounded-xl" style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.bg.searchBar, border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${colors.border.faint}` }}>
-                {([['grid', LayoutGrid], ['list', List]] as const).map(([mode, Icon]) => (
-                  <button key={mode} type="button" onClick={() => setViewMode(mode)}
-                    className="p-1.5 rounded-lg transition-all"
-                    style={{ backgroundColor: viewMode === mode ? (theme === 'dark' ? 'rgba(255,255,255,0.1)' : colors.bg.card) : 'transparent', color: viewMode === mode ? colors.text.primary : colors.text.muted }}>
-                    <Icon size={15} />
-                  </button>
-                ))}
-              </div>
-            </div>
 
             {filtered.length === 0 ? (
               <p className="text-xs py-8 text-center" style={{ color: colors.text.muted }}>
                 {searchQuery.trim() ? 'No sites match your search.' : 'No sites yet.'}
               </p>
             ) : viewMode === 'grid' ? (
-
-              /* ─── GRID ─── */
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {filtered.map(({ project, subdomain }) => {
-                  const pub = isPublished(project.status);
-                  const canVisit = Boolean(subdomain && pub);
-                  const isSelected = selectedDomain?.project.id === project.id;
-                  return (
-                    <motion.div key={project.id}
-                      className="relative rounded-2xl overflow-hidden cursor-pointer transition-all"
-                      style={{
-                        background: theme === 'dark'
-                          ? 'linear-gradient(180deg, rgba(24,32,88,0.55), rgba(14,18,58,0.78))'
-                          : 'linear-gradient(180deg, #FFFFFF, #F8F8FB)',
-                        border: isSelected
-                          ? `1px solid ${theme === 'dark' ? 'rgba(96,165,250,0.6)' : colors.accent.purple}`
-                          : `1px solid ${theme === 'dark' ? 'rgba(148,163,184,0.18)' : colors.border.faint}`,
-                        boxShadow: isSelected
-                          ? (theme === 'dark' ? '0 0 0 1px rgba(96,165,250,0.28), 0 10px 24px rgba(7,10,34,0.28)' : '0 8px 24px rgba(103,2,191,0.15)')
-                          : (theme === 'dark' ? '0 8px 18px rgba(7,10,34,0.22)' : '0 6px 18px rgba(21,9,62,0.08)'),
-                      }}
-                      whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}
-                      onClick={() => setSelectedDomain({ project, subdomain })}>
-                      {/* Thumbnail */}
-                      <div className="relative w-full" style={{ borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : `1px solid ${colors.border.faint}` }}>
-                        <DraftPreviewThumbnail projectId={project.id} borderColor={theme === 'dark' ? 'rgba(255,255,255,0.07)' : colors.border.faint} bgColor={theme === 'dark' ? 'rgba(255,255,255,0.03)' : colors.bg.searchBar} />
-                        <div className="absolute top-2 right-2"><StatusBadge published={pub} /></div>
-                      </div>
-                      {/* Content */}
-                      <div className="p-3 space-y-2.5">
-                        <div>
-                          <h3 className="font-semibold text-sm truncate" style={{ color: colors.text.primary }}>{project.title}</h3>
-                          <p className="text-[10px] font-mono truncate mt-0.5" style={{ color: colors.text.muted }}>
-                            {subdomain ? getDisplayUrl(subdomain, origin) : 'No subdomain'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {canVisit ? (
-                            <a href={getSubdomainSiteUrl(subdomain as string, origin)} target="_blank" rel="noopener noreferrer"
-                              onClick={e => e.stopPropagation()}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-white transition-opacity hover:opacity-85"
-                              style={{ background: VISIT_BG }}>
-                              <ExternalLink size={11} /> Visit
-                            </a>
-                          ) : (
-                            <a href={`/design?projectId=${project.id}`} onClick={e => e.stopPropagation()}
-                              className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-xl text-[11px] font-semibold text-white transition-opacity hover:opacity-85"
-                              style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}>
-                              <ExternalLink size={11} /> Publish to go live
-                            </a>
-                          )}
-                          {pub && (
-                            <button type="button" onClick={e => handleUnpublish(project.id, e)}
-                              disabled={unpublishingId === project.id}
-                              className="flex items-center justify-center p-1.5 rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                              style={{ borderColor: 'rgba(248,113,113,0.3)', backgroundColor: 'rgba(248,113,113,0.08)', color: '#f87171' }}
-                              title="Unpublish and take down your live website">
-                              <ArrowDownToLine size={12} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {filtered.map(({ project, subdomain }) => (
+                  <DomainCard
+                    key={project.id}
+                    project={project}
+                    subdomain={subdomain}
+                    origin={origin}
+                    theme={theme as 'light' | 'dark'}
+                    colors={colors}
+                    selected={selectedDomain?.project.id === project.id}
+                    unpublishingId={unpublishingId}
+                    onSelect={(selectedProject: Project, selectedSubdomain: string | null) => setSelectedDomain({ project: selectedProject, subdomain: selectedSubdomain })}
+                    onUnpublish={handleUnpublish}
+                  />
+                ))}
               </div>
-
             ) : (
-
-              /* ─── LIST ─── */
-              <div className="space-y-2">
-                {filtered.map(({ project, subdomain }) => {
-                  const pub = isPublished(project.status);
-                  const canVisit = Boolean(subdomain && pub);
-                  const cardUrl = canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : '';
-                  const isSelected = selectedDomain?.project.id === project.id;
-                  return (
-                    <motion.div key={project.id}
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                      className="rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer transition-all hover:bg-white/[0.02]"
-                      style={{
-                        background: theme === 'dark'
-                          ? 'linear-gradient(180deg, rgba(24,32,88,0.5), rgba(14,18,58,0.68))'
-                          : 'linear-gradient(180deg, #FFFFFF, #F8F8FB)',
-                        border: isSelected
-                          ? `1px solid ${theme === 'dark' ? 'rgba(96,165,250,0.55)' : colors.accent.purple}`
-                          : `1px solid ${theme === 'dark' ? 'rgba(148,163,184,0.18)' : colors.border.faint}`,
-                      }}
-                      onClick={() => setSelectedDomain({ project, subdomain })}>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate" style={{ color: colors.text.primary }}>{project.title}</p>
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <p className="text-[11px] font-mono truncate" style={{ color: colors.text.muted }}>
-                            {subdomain ? getDisplayUrl(subdomain, origin) : 'No subdomain'}
-                          </p>
-                          {cardUrl && (
-                            <button type="button" onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(cardUrl).then(() => showAlert('Copied', 'Copied'), () => { }); }}
-                              className="p-0.5 rounded hover:opacity-70 flex-shrink-0" style={{ color: colors.text.muted }}>
-                              <Copy size={11} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <StatusBadge published={pub} />
-                        <a href={canVisit ? getSubdomainSiteUrl(subdomain as string, origin) : `/design?projectId=${project.id}`}
-                          target={canVisit ? '_blank' : '_self'} rel="noopener noreferrer"
-                          onClick={e => e.stopPropagation()}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-xl transition-opacity hover:opacity-85"
-                          style={{ background: canVisit ? VISIT_BG : GRAD, color: '#fff' }}>
-                          <ExternalLink size={12} />{canVisit ? 'Visit' : 'Publish'}
-                        </a>
-                        {pub && (
-                          <button type="button" onClick={e => handleUnpublish(project.id, e)}
-                            disabled={unpublishingId === project.id}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-[11px] font-semibold rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                            style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}
-                            title="Unpublish and take down your live website">
-                            <ArrowDownToLine size={12} />
-                            {unpublishingId === project.id ? 'Taking down…' : 'Take down'}
-                          </button>
-                        )}
-                      </div>
-                    </motion.div>
-                  );
-                })}
+              <div
+                className="overflow-hidden rounded-3xl border"
+                style={{
+                  background: theme === 'dark'
+                    ? 'linear-gradient(180deg, rgba(24,32,88,0.5), rgba(14,18,58,0.68))'
+                    : '#FFFFFF',
+                  borderColor: theme === 'dark' ? 'rgba(148,163,184,0.18)' : colors.border.faint,
+                  boxShadow: theme === 'dark' ? '0 12px 30px rgba(7,10,34,0.18)' : '0 8px 24px rgba(21,9,62,0.06)',
+                }}
+              >
+                <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
+                  <table className="w-full min-w-[980px] border-collapse">
+                    <colgroup>
+                      <col style={{ width: '34%' }} />
+                      <col style={{ width: '28%' }} />
+                      <col style={{ width: '16%' }} />
+                      <col style={{ width: '22%' }} />
+                    </colgroup>
+                    <thead>
+                      <tr
+                        style={{
+                          color: '#FFFFFF',
+                          fontSize: 10,
+                          fontWeight: 800,
+                          letterSpacing: '0.15em',
+                          textTransform: 'uppercase',
+                        }}
+                      >
+                        <th
+                          className="sticky top-0 z-10 px-5 py-4 text-left"
+                          style={{ background: tableHeaderBg }}
+                        >
+                          Site
+                        </th>
+                        <th
+                          className="sticky top-0 z-10 px-5 py-4 text-left"
+                          style={{ background: tableHeaderBg }}
+                        >
+                          URL
+                        </th>
+                        <th
+                          className="sticky top-0 z-10 px-5 py-4 text-center"
+                          style={{ background: tableHeaderBg }}
+                        >
+                          Status
+                        </th>
+                        <th
+                          className="sticky top-0 z-10 px-5 py-4 text-center"
+                          style={{ background: tableHeaderBg }}
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-6 py-14 text-center">
+                            <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>
+                              {searchQuery.trim() ? 'No sites match your search.' : 'No sites yet.'}
+                            </p>
+                            <p className="mt-1 text-xs" style={{ color: colors.text.muted }}>
+                              Add a site to start managing domains.
+                            </p>
+                          </td>
+                        </tr>
+                      ) : filtered.map(({ project, subdomain }) => (
+                        <DomainListRow
+                          key={project.id}
+                          project={project}
+                          subdomain={subdomain}
+                          origin={origin}
+                          theme={theme as 'light' | 'dark'}
+                          colors={colors}
+                          selected={selectedDomain?.project.id === project.id}
+                          unpublishingId={unpublishingId}
+                          onSelect={(selectedProject: Project, selectedSubdomain: string | null) => setSelectedDomain({ project: selectedProject, subdomain: selectedSubdomain })}
+                          onUnpublish={handleUnpublish}
+                          onCopyUrl={(url: string) => navigator.clipboard.writeText(url).then(() => showAlert('URL copied to clipboard', 'Copied'), () => showAlert('Failed to copy URL', 'Error'))}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
 
           {/* ─── SIDEBAR ─── */}
           <AnimatePresence>
-            {selectedDomain && (
-              <motion.aside
-                key="sidebar"
-                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-                transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-                className="w-full md:w-80 shrink-0 rounded-2xl overflow-hidden flex flex-col"
-                style={{
-                  background: theme === 'dark'
-                    ? 'linear-gradient(180deg, rgba(20,26,84,0.62), rgba(12,16,56,0.74))'
-                    : 'linear-gradient(180deg, #FFFFFF, #F8F8FB)',
-                  border: theme === 'dark' ? '1px solid rgba(148,163,184,0.22)' : `1px solid ${colors.border.faint}`,
-                  boxShadow: theme === 'dark' ? '0 12px 30px rgba(7,10,34,0.28)' : '0 8px 24px rgba(21,9,62,0.08)',
-                  maxHeight: 700,
-                }}>
-
-                {/* Sidebar header */}
-                <div className="px-4 py-3.5 flex items-center justify-between flex-shrink-0"
-                  style={{ borderBottom: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : `1px solid ${colors.border.faint}` }}>
-                  <div>
-                    <p className="text-xs font-bold" style={{ color: colors.text.primary }}>Website Details</p>
-                    <p className="text-[10px] mt-0.5 truncate max-w-[200px]" style={{ color: colors.text.muted }}>{selectedDomain.project.title}</p>
-                  </div>
-                  <button type="button" onClick={() => setSelectedDomain(null)}
-                    className="w-7 h-7 rounded-xl flex items-center justify-center hover:opacity-70 transition-opacity"
-                    style={{ backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.07)' : colors.bg.searchBar, color: colors.text.muted }}>
-                    <X size={14} />
-                  </button>
-                </div>
-
-                <div className="flex-1 overflow-y-auto p-4 space-y-4">
-
-                  <SidebarRow icon={<FileText size={10} />} label="Title">
-                    <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>{selectedDomain.project.title}</p>
-                  </SidebarRow>
-
-                  <SidebarRow icon={<Globe size={10} />} label="Subdomain"
-                    action={selectedDomain.subdomain ? (
-                      <button onClick={() => { setEditSubdomainVal(selectedDomain.subdomain ?? ''); setEditSubdomainErr(''); setShowEditSubdomain(true); }}
-                        className="inline-flex items-center gap-1 text-[10px] font-semibold hover:opacity-70 transition-opacity"
-                        style={{ color: colors.text.muted }}>
-                        <Pencil size={10} /> Edit
-                      </button>
-                    ) : undefined}>
-                    <p className="text-xs font-mono" style={{ color: colors.text.primary }}>
-                      {selectedDomain.subdomain ? getDisplayUrl(selectedDomain.subdomain, origin) : 'No subdomain'}
-                    </p>
-                  </SidebarRow>
-
-                  <SidebarRow icon={<ExternalLink size={10} />} label="Live URL"
-                    action={siteUrl ? (
-                      <button onClick={handleCopyUrl} className="inline-flex items-center gap-1 text-[10px] font-semibold hover:opacity-70" style={{ color: colors.text.muted }}>
-                        <Copy size={10} /> Copy
-                      </button>
-                    ) : undefined}>
-                    {siteUrl ? (
-                      <a href={siteUrl} target="_blank" rel="noopener noreferrer"
-                        className="text-xs font-mono break-all hover:underline" style={{ color: '#a78bfa' }}>
-                        {siteUrl}
-                      </a>
-                    ) : (
-                      <p className="text-xs" style={{ color: colors.text.muted }}>—</p>
-                    )}
-                  </SidebarRow>
-
-                  <SidebarRow icon={<Check size={10} />} label="Status">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <StatusBadge published={isPublished(selectedDomain.project.status)} />
-                      {isPublished(selectedDomain.project.status) && (
-                        <button type="button" onClick={() => handleUnpublish(selectedDomain.project.id)}
-                          disabled={unpublishingId === selectedDomain.project.id}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-lg border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                          style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
-                          <ArrowDownToLine size={11} />
-                          {unpublishingId === selectedDomain.project.id ? 'Taking down…' : 'Take down'}
-                        </button>
-                      )}
-                    </div>
-                  </SidebarRow>
-                  {isPublished(selectedDomain.project.status) && (
-                    <div className="pt-3.5 space-y-2.5" style={{ borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : `1px solid ${colors.border.faint}` }}>
-                      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.1em]"
-                        style={{ color: 'rgba(255,255,255,0.4)' }}>
-                        <Link2 size={10} /> Custom Domain
-                      </div>
-
-                      {customDomains[selectedDomain.project.id] ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono flex-1 truncate" style={{ color: colors.text.primary }}>
-                              {customDomains[selectedDomain.project.id].domain}
-                            </span>
-                            <span className="text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 font-semibold"
-                              style={{
-                                backgroundColor: customDomains[selectedDomain.project.id].domainStatus === 'verified' ? 'rgba(74,222,128,0.12)' : 'rgba(251,146,60,0.12)',
-                                color: customDomains[selectedDomain.project.id].domainStatus === 'verified' ? '#4ade80' : '#fb923c',
-                              }}>
-                              {customDomains[selectedDomain.project.id].domainStatus === 'verified'
-                                ? <><ShieldCheck size={10} /> Verified</>
-                                : <><AlertTriangle size={10} /> Pending</>}
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            {customDomains[selectedDomain.project.id].domainStatus !== 'verified' && (
-                              <button type="button" onClick={handleVerifyDomain} disabled={verifying}
-                                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-[10px] font-bold rounded-xl text-white disabled:opacity-50"
-                                style={{ background: 'linear-gradient(135deg,#15803d,#22c55e)' }}>
-                                {verifying ? <><Loader2 size={11} className="animate-spin" /> Verifying…</> : <><ShieldCheck size={11} /> Verify DNS</>}
-                              </button>
-                            )}
-                            <button type="button" onClick={handleRemoveCustomDomain} disabled={removingDomain}
-                              className="flex items-center justify-center gap-1 px-3 py-1.5 text-[10px] font-semibold rounded-xl border disabled:opacity-40 hover:opacity-75 transition-opacity"
-                              style={{ borderColor: 'rgba(248,113,113,0.3)', color: '#f87171' }}>
-                              {removingDomain ? <Loader2 size={11} className="animate-spin" /> : <><Unlink size={11} /> Remove</>}
-                            </button>
-                          </div>
-                          {customDomains[selectedDomain.project.id].domainStatus !== 'verified' && dnsInstructions && (
-                            <div className="p-3 rounded-xl text-[11px] space-y-2"
-                              style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : colors.bg.searchBar, border: theme === 'dark' ? '1px solid rgba(255,255,255,0.08)' : `1px solid ${colors.border.faint}` }}>
-                              <p className="font-bold" style={{ color: colors.text.primary }}>DNS Setup</p>
-                              <p style={{ color: colors.text.secondary }}>{dnsInstructions.message}</p>
-                              {[['Option A — A Record', dnsInstructions.optionA], ['Option B — CNAME', dnsInstructions.optionB]].map(([label, opt]: any) => (
-                                <div key={label} className="space-y-1">
-                                  <p className="font-semibold" style={{ color: colors.text.primary }}>{label}</p>
-                                  <div className="font-mono p-2 rounded-lg text-[10px] space-y-0.5"
-                                    style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.04)' : colors.bg.card, color: colors.text.secondary }}>
-                                    <p>Type: {opt.type}</p><p>Host: {opt.host}</p><p>Value: {opt.value}</p>
-                                  </div>
-                                </div>
-                              ))}
-                              <p style={{ color: colors.text.muted }}>DNS changes can take up to 48h. Click &quot;Verify DNS&quot; once configured.</p>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <button type="button"
-                          onClick={() => { setCustomDomainInput(''); setCustomDomainErr(''); setDnsInstructions(null); setShowCustomModal(true); }}
-                          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-[11px] font-semibold rounded-xl border border-dashed hover:opacity-75 transition-opacity"
-                          style={{ borderColor: 'rgba(255,255,255,0.15)', color: colors.text.muted }}>
-                          <Link2 size={13} /> Connect custom domain
-                        </button>
-                      )}
-
-                    </div>
-                  )}
-
-                  {/* Dates */}
-                  {[['Created', selectedDomain.project.createdAt], ['Last updated', selectedDomain.project.updatedAt]].map(([label, val]) =>
-                    val ? (
-                      <SidebarRow key={label as string} icon={<Calendar size={10} />} label={label as string}>
-                        <p className="text-xs" style={{ color: colors.text.primary }}>
-                          {new Date(val as string).toLocaleString()}
-                        </p>
-                      </SidebarRow>
-                    ) : null
-                  )}
-
-                  {/* Publish history */}
-                  <div className="pt-3.5" style={{ borderTop: theme === 'dark' ? '1px solid rgba(255,255,255,0.07)' : `1px solid ${colors.border.faint}` }}>
-                    <button type="button" onClick={() => setHistoryExpanded(!historyExpanded)}
-                      className="flex items-center gap-2 w-full text-left text-xs font-bold hover:opacity-75 transition-opacity"
-                      style={{ color: colors.text.primary }}>
-                      <Calendar size={13} /> Publish History
-                      <span className="ml-auto">{historyExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}</span>
-                    </button>
-                    <AnimatePresence>
-                      {historyExpanded && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
-                          className="mt-3 space-y-2 overflow-hidden">
-                          <div className="flex items-center justify-between text-[11px]">
-                            <span style={{ color: colors.text.muted }}>Status</span>
-                            <StatusBadge published={isPublished(selectedDomain.project.status)} />
-                          </div>
-                          {scheduleInfo?.scheduledAt && (
-                            <div className="flex items-center justify-between text-[11px]">
-                              <span style={{ color: colors.text.muted }}>Next scheduled</span>
-                              <span style={{ color: colors.text.primary }}>{new Date(scheduleInfo.scheduledAt).toLocaleString()}</span>
-                            </div>
-                          )}
-                          <p className="text-[10px] uppercase tracking-wider font-bold mt-2" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                            Last 10 changes
-                          </p>
-                          {publishHistory.length > 0 ? (
-                            <ul className="space-y-1 max-h-40 overflow-y-auto">
-                              {publishHistory.map((entry, i) => (
-                                <li key={`${entry.at}-${i}`}
-                                  className="flex items-center justify-between gap-2 py-1.5 px-2.5 rounded-xl text-[10px]"
-                                  style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.03)' : colors.bg.searchBar, borderLeft: theme === 'dark' ? '2px solid rgba(167,139,250,0.5)' : `2px solid ${colors.accent.purple}` }}>
-                                  <span className="capitalize font-semibold" style={{ color: colors.text.secondary }}>{entry.type}</span>
-                                  <span style={{ color: colors.text.muted }}>{new Date(entry.at).toLocaleString()}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          ) : (
-                            <p className="text-[11px]" style={{ color: colors.text.muted }}>No history yet.</p>
-                          )}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </div>
-              </motion.aside>
-            )}
+            <DomainDetailsSidebar
+              selectedDomain={selectedDomain}
+              theme={theme as 'light' | 'dark'}
+              colors={colors}
+              origin={origin}
+              scheduleInfo={scheduleInfo}
+              publishHistory={publishHistory}
+              unpublishingId={unpublishingId}
+              historyExpanded={historyExpanded}
+              setHistoryExpanded={setHistoryExpanded}
+              customDomains={customDomains}
+              dnsInstructions={dnsInstructions}
+              verifying={verifying}
+              removingDomain={removingDomain}
+              onClose={() => setSelectedDomain(null)}
+              onOpenEditSubdomain={() => {
+                if (!selectedDomain) return;
+                setEditSubdomainVal(selectedDomain.subdomain ?? '');
+                setEditSubdomainErr('');
+                setShowEditSubdomain(true);
+              }}
+              onCopyUrl={handleCopyUrl}
+              onUnpublish={handleUnpublish}
+              onVerifyDomain={handleVerifyDomain}
+              onRemoveCustomDomain={handleRemoveCustomDomain}
+              onOpenCustomDomainModal={() => {
+                setCustomDomainInput('');
+                setCustomDomainErr('');
+                setDnsInstructions(null);
+                setShowCustomModal(true);
+              }}
+            />
           </AnimatePresence>
         </div>
       )}
