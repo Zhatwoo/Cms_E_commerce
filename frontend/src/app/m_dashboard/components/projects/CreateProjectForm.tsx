@@ -68,17 +68,7 @@ export function CreateProjectForm({
 
       try {
         setCreating(true);
-
         const user = getStoredUser();
-        const plan = user?.subscriptionPlan || "free";
-        const limits = getLimits(plan);
-        const projectListRes = await listProjects();
-        const activeProjects = projectListRes.success && projectListRes.projects ? projectListRes.projects : [];
-
-        if (activeProjects.length >= limits.projects) {
-          setError(`Your ${plan} plan allows up to ${limits.projects} projects. Upgrade to unlock more.`);
-          return;
-        }
 
         const response = await createProject({
           title: trimmedTitle,
