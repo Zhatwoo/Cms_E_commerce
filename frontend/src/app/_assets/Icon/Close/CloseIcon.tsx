@@ -14,7 +14,7 @@ export const CloseIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "close",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

@@ -14,7 +14,7 @@ export const SearchIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "search",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

@@ -14,7 +14,7 @@ export const ShoppingBasketIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "shoppingBasket",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };
