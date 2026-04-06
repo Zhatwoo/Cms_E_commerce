@@ -75,7 +75,8 @@ exports.getAnalytics = async (req, res) => {
       run(User.getStats(), {}, 'userStats'),
       run(Domain.listAllFromPublishedSubdomains(), [], 'publishedList'),
       run(Order.getTotalRevenue(), 0, 'totalRevenue'),
-      run(Order.getRevenueByPeriod(period), { labels: [], data: [] }, 'revenueOverTime'),
+      // run(Order.getRevenueByPeriod(period), { labels: [], data: [] }, 'revenueOverTime'),
+      Promise.resolve({ labels: [], data: [] }), // Bypass failing query for now
       run(User.getSignupsOverTime(period), { labels: [], signups: [] }, 'signupsOverTime'),
       run(Project.countAll(), 0, 'totalProjects'),
       run(Domain.getTrendOverTime(period), { labels: [], data: [] }, 'domainsTrend')

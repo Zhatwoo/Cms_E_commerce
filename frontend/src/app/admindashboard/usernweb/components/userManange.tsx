@@ -2,7 +2,25 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { Eye, EyeOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Eye, 
+  EyeOff, 
+  User, 
+  Clock, 
+  LogOut, 
+  LogIn, 
+  Settings, 
+  ShieldAlert, 
+  Trash2, 
+  UserCheck, 
+  MoreHorizontal, 
+  Mail, 
+  Phone, 
+  Info,
+  Calendar,
+  X
+} from 'lucide-react';
 import {
   getClients,
   updateClientPlan,
@@ -201,6 +219,10 @@ export function UserManagement() {
   });
   const [showEditPassword, setShowEditPassword] = useState(false);
   const [actionReason, setActionReason] = useState('');
+  const [detailModal, setDetailModal] = useState<{ isOpen: boolean; client: ClientRow | null }>({
+    isOpen: false,
+    client: null,
+  });
 
   const selection = useGDriveSelection();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -799,57 +821,59 @@ export function UserManagement() {
               )}
             </div>
           </div>
-
+          
+          {/* Bulk Actions Bar */}
           {selectedClients.length > 0 && (
-            <div className="mt-4 flex items-center gap-3 border-t border-[#EBDDFF] pt-3">
-              <span className="text-sm font-medium text-[#6F657E]">{selectedClients.length} selected</span>
-              <button
-                type="button"
-                onClick={() => {
-                  if (allFilteredSelected) {
-                    selection.clearSelection();
-                  } else {
-                    selection.selectAll(filtered.map((c) => c.id));
-                  }
-                }}
-                className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
-              >
-                {allFilteredSelected ? 'Unselect All' : 'Select All'}
-              </button>
-              {selectedClients.length === 1 ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={confirmBulkSuspend}
-                    className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100"
-                  >
-                    {allSelectedSuspended ? 'Unsuspend' : 'Suspend'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={confirmBulkDelete}
-                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
-                  >
-                    Delete
-                  </button>
-                </>
-              ) : (
+            <motion.div 
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              className="mt-6 flex items-center justify-between gap-4 border-t border-[rgba(177,59,255,0.18)] pt-5"
+            >
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {selectedClients.slice(0, 3).map((c, i) => (
+                    <div key={c.id} className="h-8 w-8 rounded-full border-2 border-white bg-[#EBDDFF] flex items-center justify-center text-[10px] font-bold text-[#4a1a8a]" style={{ zIndex: 3 - i }}>
+                      {(c.displayName || c.email).charAt(0).toUpperCase()}
+                    </div>
+                  ))}
+                  {selectedClients.length > 3 && (
+                    <div className="h-8 w-8 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center text-[10px] font-bold text-gray-500 z-0">
+                      +{selectedClients.length - 3}
+                    </div>
+                  )}
+                </div>
+                <span className="text-sm font-black uppercase tracking-widest text-[#7E4FB4]">
+                  {selectedClients.length} Users Selected
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={confirmBulkSuspend}
+                  className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-amber-700 bg-amber-50 rounded-xl border border-amber-200 hover:bg-amber-100 transition-all flex items-center gap-2"
+                >
+                  <ShieldAlert className="h-4 w-4" />
+                  {allSelectedSuspended ? 'Unsuspend' : 'Suspend Selected'}
+                </button>
                 <button
                   type="button"
                   onClick={confirmBulkDelete}
-                  className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+                  className="px-5 py-2.5 text-xs font-black uppercase tracking-widest text-red-700 bg-red-50 rounded-xl border border-red-200 hover:bg-red-100 transition-all flex items-center gap-2"
                 >
-                  Delete
+                  <Trash2 className="h-4 w-4" />
+                  Delete Selected
                 </button>
-              )}
-              <button
-                type="button"
-                onClick={() => selection.clearSelection()}
-                className="text-sm text-[#7E4FB4] hover:text-[#5D2CA7]"
-              >
-                Clear
-              </button>
-            </div>
+                <div className="w-[1px] h-6 bg-gray-200 mx-2" />
+                <button
+                  type="button"
+                  onClick={() => selection.clearSelection()}
+                  className="px-4 py-2.5 text-xs font-bold text-gray-500 hover:text-gray-700 transition"
+                >
+                  Deselect All
+                </button>
+              </div>
+            </motion.div>
           )}
         </div>
 
@@ -990,17 +1014,28 @@ export function UserManagement() {
           <table className="w-full min-w-[900px] table-fixed border-collapse">
             <thead>
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[17%]">Name</th>
-                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[24%]">Email</th>
-                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[18%]">Plan</th>
-                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[15%]">Created</th>
-                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[12%]">Status</th>
-                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-center text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[14%]">Actions</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left border-b border-[rgba(177,59,255,0.2)] w-[5%] whitespace-nowrap">
+                  <input 
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    onChange={(e) => {
+                      if (e.target.checked) selection.selectAll(filtered.map(f => f.id));
+                      else selection.clearSelection();
+                    }}
+                    className="h-4 w-4 rounded border-[#E2C7FF] text-[#B13BFF] focus:ring-[#B13BFF]/30 cursor-pointer"
+                  />
+                </th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[17%]">Name</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[24%]">Email</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[18%]">Plan</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[15%]">Created</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[12%]">Status</th>
+                <th className="sticky top-0 z-20 bg-[#F5F4FF] px-4 py-4 text-center text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] border-b border-[rgba(177,59,255,0.2)] w-[14%]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : filtered.length > 0 ? (
                 pagedClients.map((client) => {
                   const active = isClientActive(client);
@@ -1025,26 +1060,29 @@ export function UserManagement() {
                   return (
                     <tr
                       key={client.id}
-                      className={`select-none cursor-pointer transition-all duration-200 rounded-lg ${isSelected
-                        ? 'bg-gradient-to-r from-[#E8D9FF] to-[#F0E5FF] border-2 border-[#D0B4FF] shadow-md hover:shadow-lg hover:from-[#E0CAFF] hover:to-[#E8D9FF]'
+                      className={`select-none cursor-pointer transition-all duration-200 ${isSelected
+                        ? 'bg-[#F3E8FF]/60'
                         : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
                         }`}
                       onClick={(e) => {
-                        (e as React.MouseEvent).preventDefault?.();
-                        const isCtrlKey = (e as React.MouseEvent).ctrlKey || (e as React.MouseEvent).metaKey;
-                        selection.handleRowClick(client.id, (e as React.MouseEvent).shiftKey, isCtrlKey, pagedClientIds);
-                      }}
-                      onMouseDown={(e) => {
-                        (e as React.MouseEvent).preventDefault?.();
-                        selection.handleRowMouseDown(client.id);
-                      }}
-                      onMouseEnter={() => selection.handleRowMouseEnter(client.id, pagedClientIds)}
-                      onMouseUp={() => selection.handleRowMouseUp()}
-                      onMouseLeave={() => {
-                        if (!selection.isDragging) selection.handleRowMouseUp();
+                        e.stopPropagation();
+                        setDetailModal({ isOpen: true, client });
                       }}
                     >
-                      <td className="px-4 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={client.displayName || ''}>
+                      <td className="px-4 py-4 text-center">
+                         <input 
+                          type="checkbox"
+                          checked={isSelected}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const isCtrlKey = e.ctrlKey || e.metaKey;
+                            selection.handleRowClick(client.id, e.shiftKey, isCtrlKey, pagedClientIds);
+                          }}
+                          onChange={() => {}}
+                          className="h-4 w-4 rounded border-[#E2C7FF] text-[#B13BFF] focus:ring-[#B13BFF]/30 cursor-pointer"
+                        />
+                      </td>
+                      <td className="px-4 py-4 text-[1rem] font-black text-[#26155E] truncate" title={client.displayName || ''}>
                         {client.displayName || '—'}
                       </td>
                       <td className="px-4 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={client.email}>
@@ -1251,6 +1289,180 @@ export function UserManagement() {
           </div>
         </div>
       </div >
+      <AnimatePresence>
+        {detailModal.isOpen && detailModal.client && (
+          <UserDetailModal 
+            client={detailModal.client} 
+            onClose={() => setDetailModal({ isOpen: false, client: null })}
+            onEdit={() => {
+              setDetailModal({ isOpen: false, client: null });
+              handleEditClick(detailModal.client!);
+            }}
+            onSuspend={() => {
+              setDetailModal({ isOpen: false, client: null });
+              confirmSuspendClient(detailModal.client!);
+            }}
+            onActivate={() => {
+              setDetailModal({ isOpen: false, client: null });
+              confirmActivateClient(detailModal.client!);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </>
+  );
+}
+
+function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: { 
+  client: ClientRow; 
+  onClose: () => void;
+  onEdit: () => void;
+  onSuspend: () => void;
+  onActivate: () => void;
+}) {
+  const active = isClientActive(client);
+  const statusCls = active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+  
+  // Mock activity logs
+  const logs = [
+    { id: 1, type: 'login', icon: LogIn, color: '#10B981', action: 'Logged in to dashboard', time: '10 minutes ago' },
+    { id: 2, type: 'update', icon: Settings, color: '#8B5CF6', action: 'Updated website settings', time: '2 hours ago' },
+    { id: 3, type: 'logout', icon: LogOut, color: '#EF4444', action: 'Logged out from session', time: 'Yesterday' },
+    { id: 4, type: 'security', icon: ShieldAlert, color: '#F59E0B', action: 'Password change attempt detected', time: '3 days ago' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#4a1a8a]/20 backdrop-blur-[6px] p-4" onClick={onClose}>
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className="relative w-full max-w-4xl bg-white rounded-[32px] overflow-hidden shadow-2xl flex flex-col md:flex-row h-[700px] max-h-[90vh]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Left Panel: Profile */}
+        <div className="w-full md:w-[320px] bg-[#fdfcff] p-8 border-r border-[#f0e5ff] flex flex-col items-center">
+            <div className="h-28 w-28 rounded-[28px] bg-gradient-to-br from-[#B13BFF] to-[#6D28D9] flex items-center justify-center text-white text-4xl font-black shadow-xl mb-6">
+              {(client.displayName || client.email).charAt(0).toUpperCase()}
+            </div>
+            <h3 className="text-xl font-black text-[#26155E] text-center mb-1">{client.displayName || 'Unnamed User'}</h3>
+            <p className="text-sm font-bold text-[#8E47D8]/60 mb-6">{client.email}</p>
+            
+            <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-8 ${statusCls}`}>
+              {active ? 'Active Account' : 'Inactive / Suspended'}
+            </div>
+
+            <div className="w-full space-y-4">
+              <div className="flex items-center gap-3 text-sm text-[#462596] font-semibold">
+                <div className="h-8 w-8 rounded-xl bg-[#F3E8FF] flex items-center justify-center text-[#B13BFF]">
+                  <Mail className="h-4 w-4" />
+                </div>
+                <span className="truncate">{client.email}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-[#462596] font-semibold">
+                <div className="h-8 w-8 rounded-xl bg-[#F3E8FF] flex items-center justify-center text-[#B13BFF]">
+                  <Phone className="h-4 w-4" />
+                </div>
+                <span>{client.phone || '+63 — — —'}</span>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-[#462596] font-semibold">
+                <div className="h-8 w-8 rounded-xl bg-[#F3E8FF] flex items-center justify-center text-[#B13BFF]">
+                  <Calendar className="h-4 w-4" />
+                </div>
+                <span>Joined {formatToPHTime(client.createdAt).split(',')[0]}</span>
+              </div>
+            </div>
+
+            <div className="mt-auto grid grid-cols-2 gap-3 w-full">
+              <button 
+                onClick={onEdit}
+                className="py-2.5 rounded-2xl bg-[#f5f4ff] text-[#4a1a8a] text-xs font-black uppercase tracking-widest border border-[#e2c7ff] hover:bg-[#ebdfff] transition-all"
+              >
+                Edit
+              </button>
+              {active ? (
+                <button 
+                  onClick={onSuspend}
+                  className="py-2.5 rounded-2xl bg-amber-50 text-amber-600 text-xs font-black uppercase tracking-widest border border-amber-200 hover:bg-amber-100 transition-all"
+                >
+                  Suspend
+                </button>
+              ) : (
+                <button 
+                  onClick={onActivate}
+                  className="py-2.5 rounded-2xl bg-emerald-50 text-emerald-600 text-xs font-black uppercase tracking-widest border border-emerald-200 hover:bg-emerald-100 transition-all"
+                >
+                  Activate
+                </button>
+              )}
+            </div>
+        </div>
+
+        {/* Right Panel: Content */}
+        <div className="flex-1 flex flex-col">
+          <div className="p-8 pb-4 flex items-center justify-between">
+            <div>
+              <h4 className="text-2xl font-black text-[#26155E] tracking-tight">Activity Logs</h4>
+              <p className="text-sm font-bold text-[#8E47D8]/50 uppercase tracking-widest">Recent System Interaction</p>
+            </div>
+            <button onClick={onClose} className="p-2.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all">
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-8 py-4 custom-scrollbar">
+            <div className="relative">
+              {/* Timeline Line */}
+              <div className="absolute left-6 top-0 bottom-0 w-[1.5px] bg-[#f0e5ff] ml-[-0.75px]" />
+              
+              <div className="space-y-8 relative">
+                {logs.map((log) => (
+                  <div key={log.id} className="flex gap-6 items-start">
+                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0 z-10" style={{ background: log.color }}>
+                      <log.icon className="h-5 w-5" />
+                    </div>
+                    <div className="pt-1">
+                      <p className="text-[15px] font-black text-[#26155E] tracking-tight">{log.action}</p>
+                      <div className="flex items-center gap-2 mt-1 opacity-50 font-bold text-[11px] uppercase tracking-wider">
+                        <Clock className="h-3 w-3" />
+                        <span>{log.time}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-12 rounded-3xl bg-[#f8f7ff] p-6 border border-[#f0e5ff]">
+               <div className="flex items-center gap-3 mb-4">
+                 <div className="h-8 w-8 rounded-xl bg-white flex items-center justify-center text-[#B13BFF] shadow-sm">
+                   <Info className="h-4 w-4" />
+                 </div>
+                 <h5 className="font-black text-[#462596] text-sm uppercase tracking-widest">Account Metadata</h5>
+               </div>
+               <div className="grid grid-cols-2 gap-6">
+                  <div>
+                    <p className="text-[10px] font-black text-[#8E47D8]/60 uppercase tracking-widest mb-1">User ID</p>
+                    <p className="text-xs font-mono font-bold text-[#26155E] break-all">{client.id}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-[#8E47D8]/60 uppercase tracking-widest mb-1">Last Seen</p>
+                    <p className="text-xs font-bold text-[#26155E]">{client.lastSeen ? formatToPHTime(client.lastSeen) : 'Never'}</p>
+                  </div>
+               </div>
+            </div>
+          </div>
+
+          <div className="p-8 border-t border-[#f0e5ff] bg-white flex justify-end">
+            <button 
+              onClick={onClose}
+              className="px-10 py-3 rounded-2xl bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] text-white font-black uppercase tracking-widest shadow-xl hover:shadow-[#B13BFF]/40 hover:scale-[1.03] transition-all"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
   );
 }
