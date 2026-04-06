@@ -55,6 +55,7 @@ export const Video = ({
     bottom = "auto",
     left = "auto",
     zIndex = 0,
+    alignSelf = "auto",
     display = "block",
     editorVisibility = "auto",
     _autoFitInTabs = false,
@@ -113,7 +114,10 @@ export const Video = ({
         }
     }, [_isDraggingSource, id, actions]);
 
-    const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
+    const shouldFillParent =
+      parentDisplay === "flex" ||
+      parentDisplay === "inline-flex" ||
+      parentDisplay === "grid";
     const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
     const isTabsLikeContext =
         isInsideTabsContext ||
@@ -259,6 +263,7 @@ export const Video = ({
                 maxWidth: "100%",
                 minWidth: 0,
                 height: resolvedHeight,
+                alignSelf,
                 paddingTop: fluidSpace(pt),
                 paddingRight: fluidSpace(pr),
                 paddingBottom: fluidSpace(pb),

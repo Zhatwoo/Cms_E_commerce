@@ -63,6 +63,7 @@ export const BooleanField = ({
   zIndex = 0,
   display = "inline-flex",
   editorVisibility = "auto",
+  alignSelf = "auto",
   options,
   // back-compat single option
   label,
@@ -164,6 +165,7 @@ export const BooleanField = ({
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         display: effectiveDisplay ?? "inline-flex",
+        alignSelf,
         flexDirection: "column",
         alignItems: "flex-start",
         justifyContent: "flex-start",

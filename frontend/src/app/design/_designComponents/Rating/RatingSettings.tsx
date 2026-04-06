@@ -40,6 +40,7 @@ export const RatingSettings = () => {
     borderStyle,
     position,
     display,
+    alignSelf,
     zIndex,
     top,
     right,
@@ -84,6 +85,7 @@ export const RatingSettings = () => {
     borderStyle: node.data.props.borderStyle ?? "solid",
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
+    alignSelf: node.data.props.alignSelf ?? "auto",
     zIndex: node.data.props.zIndex ?? 1,
     top: node.data.props.top ?? "auto",
     right: node.data.props.right ?? "auto",
@@ -221,6 +223,7 @@ export const RatingSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

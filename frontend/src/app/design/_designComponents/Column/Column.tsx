@@ -47,6 +47,7 @@ export const Column = ({
   display = "flex",
   position = "static",
   zIndex = 0,
+  alignSelf = "auto",
   top = "auto",
   right: posRight = "auto",
   bottom = "auto",
@@ -90,6 +91,9 @@ export const Column = ({
         ? "flex"
         : display;
 
+  const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
+  const isGridDisplay = effectiveDisplay === "grid";
+
   const transformStyle =
     [
       rotation ? `rotate(${rotation}deg)` : null,
@@ -103,7 +107,7 @@ export const Column = ({
     <div
       data-node-id={id}
       data-fluid-space="true"
-      data-layout={effectiveDisplay === "flex" ? (flexDirection === "row" ? "row" : "column") : undefined}
+      data-layout={isFlexDisplay ? (flexDirection === "row" ? "row" : "column") : undefined}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -136,15 +140,16 @@ export const Column = ({
         position,
         display: effectiveDisplay ?? "flex",
         zIndex: zIndex !== 0 ? zIndex : undefined,
+        alignSelf,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
-        flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
-        flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
-        alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
-        justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
-        gap: effectiveDisplay === "flex" ? fluidSpace(gap, 0) : undefined,
+        flexDirection: isFlexDisplay ? flexDirection : undefined,
+        flexWrap: isFlexDisplay ? flexWrap : undefined,
+        alignItems: isFlexDisplay || isGridDisplay ? alignItems : undefined,
+        justifyContent: isFlexDisplay || isGridDisplay ? justifyContent : undefined,
+        gap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
         boxShadow,
         opacity,
         overflow,

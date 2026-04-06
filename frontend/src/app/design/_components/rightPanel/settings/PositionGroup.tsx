@@ -23,6 +23,14 @@ const DISPLAY_OPTIONS: { value: PositionProps["display"]; label: string }[] = [
   { value: "none", label: "None" },
 ];
 
+const ALIGN_SELF_OPTIONS: { value: NonNullable<PositionProps["alignSelf"]>; label: string }[] = [
+  { value: "auto", label: "Auto" },
+  { value: "flex-start", label: "Start" },
+  { value: "center", label: "Center" },
+  { value: "flex-end", label: "End" },
+  { value: "stretch", label: "Stretch" },
+];
+
 const EDITOR_VISIBILITY_OPTIONS: { value: NonNullable<PositionProps["editorVisibility"]>; label: string }[] = [
   { value: "auto", label: "Auto" },
   { value: "show", label: "Show" },
@@ -32,6 +40,7 @@ const EDITOR_VISIBILITY_OPTIONS: { value: NonNullable<PositionProps["editorVisib
 export const PositionGroup = ({
   position = "static",
   display = "flex",
+  alignSelf = "auto",
   zIndex = 0,
   top = "auto",
   right = "auto",
@@ -149,6 +158,35 @@ export const PositionGroup = ({
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Align Self (for flex parents) */}
+      <div className="flex flex-col gap-1">
+        <label className="text-[12px] text-[var(--builder-text)] font-base">
+          Align Self
+        </label>
+        <select
+          value={alignSelf ?? "auto"}
+          onChange={(e) =>
+            setProp((props) => {
+              props.alignSelf = e.target.value as PositionProps["alignSelf"];
+            })
+          }
+          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+        >
+          {ALIGN_SELF_OPTIONS.map((opt) => (
+            <option
+              key={opt.value}
+              value={opt.value}
+              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
+            >
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-[10px] text-[var(--builder-text-muted)] leading-snug">
+          Works when the parent display is Flex/Inline Flex.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1">

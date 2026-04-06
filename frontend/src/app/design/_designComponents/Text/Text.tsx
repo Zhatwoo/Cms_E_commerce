@@ -56,6 +56,7 @@ export const Text = ({
   color = "#000000",
   position = "relative",
   display = "block",
+  alignSelf = "auto",
   zIndex = 2,
   top = "auto",
   right = "auto",
@@ -105,6 +106,7 @@ export const Text = ({
   const FLEX_PARENT_TYPES = new Set(["Row", "Column", "Section", "Container", "Frame"]);
   const isFlexOrGridParent =
     parentDisplay === "flex" ||
+    parentDisplay === "inline-flex" ||
     parentDisplay === "grid" ||
     FLEX_PARENT_TYPES.has(parentDisplayName);
   const resolvedWidth = width ?? (isFlowText && isFlexOrGridParent ? "100%" : undefined);
@@ -201,7 +203,7 @@ export const Text = ({
     height: hasExplicitHeight ? height : "auto",
     maxWidth: "100%",
     minWidth: 0,
-    alignSelf: undefined,
+    alignSelf,
     boxSizing: "border-box",
     minHeight: hasExplicitHeight ? undefined : "min-content",
     overflow: hasExplicitHeight ? "hidden" : "visible",
