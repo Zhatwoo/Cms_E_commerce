@@ -66,6 +66,7 @@ export const Button = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
+  alignSelf = "auto",
   display,
   children,
 }: ButtonProps) => {
@@ -134,6 +135,7 @@ export const Button = ({
         opacity,
         boxShadow,
         position,
+        alignSelf,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
         bottom: position !== "static" ? bottom : undefined,

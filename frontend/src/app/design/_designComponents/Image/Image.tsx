@@ -52,6 +52,7 @@ export const Image = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
+  alignSelf = "auto",
   badge,
   badgeColor = "#1e293b",
   display = "block",
@@ -112,7 +113,10 @@ export const Image = ({
     }
   }, [_isDraggingSource, id, actions]);
 
-  const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
+  const shouldFillParent =
+    parentDisplay === "flex" ||
+    parentDisplay === "inline-flex" ||
+    parentDisplay === "grid";
   const isContainerLikeParent =
     parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
   const isTabsLikeContext =
@@ -252,6 +256,7 @@ export const Image = ({
       style={{
         width: resolvedWidth,
         height: resolvedHeight,
+        alignSelf,
         paddingTop: fluidSpace(pt),
         paddingRight: fluidSpace(pr),
         paddingBottom: fluidSpace(pb),

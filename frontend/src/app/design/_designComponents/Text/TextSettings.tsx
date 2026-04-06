@@ -17,7 +17,7 @@ export const TextSettings = () => {
     paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    position, display, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     previewEditable,
     isCodeBlock,
     codeLanguage,
@@ -53,6 +53,7 @@ export const TextSettings = () => {
     flipVertical: node.data.props.flipVertical,
     position: node.data.props.position,
     display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
     right: node.data.props.right,
@@ -125,6 +126,7 @@ export const TextSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

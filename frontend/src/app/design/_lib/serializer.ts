@@ -538,6 +538,12 @@ function cleanProps(
     // Always strip shorthand props (individual values are the source of truth)
     if (SHORTHAND_PROPS.has(key)) continue;
 
+    // Treat alignSelf="auto" as default to avoid noisy output.
+    if (key === "alignSelf") {
+      const raw = String(value ?? "").trim().toLowerCase();
+      if (!raw || raw === "auto") continue;
+    }
+
     // Deep compare animation objects — only keep if non-default
     if (key === "animation") {
       if (value && JSON.stringify(value) !== DEFAULT_ANIMATION_JSON) {
