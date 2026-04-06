@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -18,19 +18,18 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
     const revenueChartRef = useRef<HTMLCanvasElement>(null);
     const revenueChartInstanceRef = useRef<Chart | null>(null);
 
-    const labels = revenueOverTime?.labels ?? [];
-    const data = revenueOverTime?.data ?? [];
+    const labels = useMemo(() => revenueOverTime?.labels ?? [], [revenueOverTime?.labels]);
+    const data = useMemo(() => revenueOverTime?.data ?? [], [revenueOverTime?.data]);
 
     useEffect(() => {
         if (!revenueChartRef.current) return;
 
-        if (revenueChartInstanceRef.current) {
-            revenueChartInstanceRef.current.destroy();
-            revenueChartInstanceRef.current = null;
-        }
-
         const ctx = revenueChartRef.current.getContext('2d');
         if (!ctx) return;
+
+        if (revenueChartInstanceRef.current) {
+            revenueChartInstanceRef.current.destroy();
+        }
 
         revenueChartInstanceRef.current = new Chart(ctx, {
             type: 'bar',
@@ -50,6 +49,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false, // Performance optimization
                 interaction: {
                     mode: 'index',
                     intersect: false,
@@ -65,6 +65,10 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                             boxHeight: 6,
                         },
                     },
+                    tooltip: {
+                        enabled: true,
+                        animation: { duration: 0 } // Performance optimization
+                    }
                 },
                 scales: {
                     y: {
@@ -85,6 +89,9 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                         },
                         ticks: {
                             color: 'rgba(71, 19, 150, 0.64)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: period === '7days' ? 7 : 12
                         },
                     },
                 },
@@ -94,9 +101,10 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
         return () => {
             if (revenueChartInstanceRef.current) {
                 revenueChartInstanceRef.current.destroy();
+                revenueChartInstanceRef.current = null;
             }
         };
-    }, [labels, data]);
+    }, [labels, data, period]);
 
     return (
         <motion.div

@@ -181,6 +181,8 @@ type EditModalState = {
   password?: string;
 };
 
+import { useDebounce } from '@/hooks/useDebounce';
+
 export function UserManagement() {
   const searchParams = useSearchParams();
   const urlSearch = searchParams.get('search') || '';
@@ -191,6 +193,7 @@ export function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 400); 
   const [planFilter, setPlanFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sortOption, setSortOption] = useState<SortOption>('recent');
@@ -291,9 +294,9 @@ export function UserManagement() {
   const filtered = useMemo(() => {
     return clients.filter((c) => {
       const matchFocusedClient = !focusedClientId || c.id === focusedClientId;
-      const matchSearch = !search ||
-        (c.displayName || '').toLowerCase().includes(search.toLowerCase()) ||
-        (c.email || '').toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !debouncedSearch ||
+        (c.displayName || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (c.email || '').toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchPlan = !planFilter || (c.subscriptionPlan || 'free').toLowerCase() === planFilter.toLowerCase();
       const active = isClientActive(c);
       const online = active && isUserOnline(c.lastSeen, c.isOnline, clockMs);
@@ -305,7 +308,7 @@ export function UserManagement() {
         (statusFilter === 'restricted' && (c.status || '').toLowerCase() === 'restricted');
       return matchFocusedClient && matchSearch && matchPlan && matchStatus;
     });
-  }, [clients, focusedClientId, search, planFilter, statusFilter, clockMs]);
+  }, [clients, focusedClientId, debouncedSearch, planFilter, statusFilter, clockMs]);
 
   const sortedFiltered = useMemo(() => {
     const copy = [...filtered];

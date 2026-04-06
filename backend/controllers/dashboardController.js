@@ -6,6 +6,73 @@ const Product = require('../models/Product');
 const Order = require('../models/Order');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
+const Audit = require('../models/Audit');
+const cache = require('../utils/cache');
+
+// @desc    Get dashboard summary (unified endpoint with aggregate stats)
+// @route   GET /api/dashboard/summary
+// @access  Private/Admin
+exports.getDashboardSummary = async (req, res) => {
+    const cacheKey = 'dashboard_summary';
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+        return res.status(200).json({ ...cachedData, fromCache: true });
+    }
+
+    try {
+        const run = async (task, defaultValue) => {
+            try { return await task; } catch (err) { return defaultValue; }
+        };
+
+        const [userStats, pagesCount, postsCount, productsCount, ordersCount, publishedList, totalProjects, recentAudit] = await Promise.all([
+            run(User.getStats(), {}),
+            run(Page.count(), 0),
+            run(Post.count(), 0),
+            run(Product.count(), 0),
+            run(Order.count(), 0),
+            run(Domain.listAllFromPublishedSubdomains(), []),
+            run(Project.countAll(), 0),
+            run(Audit.getRecent(5), [])
+        ]);
+
+        const publishedWebsites = Array.isArray(publishedList) ? publishedList.length : 0;
+        const pendingWebsites = Math.max(0, (totalProjects || 0) - publishedWebsites);
+
+        const responseData = {
+            success: true,
+            summary: {
+                activeUsers: userStats?.online || 0,
+                revenue: Math.round((userStats?.revenue || 0) * 100) / 100,
+                publishedWebsites,
+                pendingWebsites,
+                activeDomains: publishedWebsites,
+                users: {
+                    total: userStats?.total || 0,
+                    byRole: userStats?.byRole || {},
+                    byPlan: userStats?.byPlan || {}
+                },
+                content: {
+                    pages: pagesCount,
+                    posts: postsCount,
+                    products: productsCount,
+                    orders: ordersCount
+                }
+            },
+            recentActivity: recentAudit.map(log => ({
+                id: log.id,
+                action: log.action,
+                userName: log.user_name,
+                timestamp: log.timestamp?.toDate?.() || log.timestamp,
+                details: log.details
+            }))
+        };
+
+        cache.set(cacheKey, responseData, 300); // 5 min cache
+        res.status(200).json(responseData);
+    } catch (error) {
+        res.status(500).json({ success: false, message: 'Server error', error: error.message });
+    }
+};
 
 // @desc    Get dashboard stats (users, pages, posts, products, orders)
 // @route   GET /api/dashboard/stats
@@ -48,9 +115,15 @@ exports.getStats = async (req, res) => {
 // @access  Private/Admin
 exports.getAnalytics = async (req, res) => {
   console.log('📊 [DashboardController] getAnalytics called with fallback resilience active.');
-  try {
-    const period = req.query.period || '7days';
+  const period = req.query.period || '7days';
+  const cacheKey = `analytics_${period}`;
+  
+  const cachedData = cache.get(cacheKey);
+  if (cachedData) {
+      return res.status(200).json({ ...cachedData, fromCache: true });
+  }
 
+  try {
     // Helper to run a task and return default if it fails (e.g. missing index)
     const run = async (task, defaultValue, name) => {
       try {
@@ -139,6 +212,7 @@ exports.getAnalytics = async (req, res) => {
       }
     };
 
+    cache.set(cacheKey, responseData, 60); // 1 min cache for detailed analytics
     res.status(200).json(responseData);
   } catch (error) {
     console.error('getAnalytics Critical Error:', error);
