@@ -265,38 +265,43 @@ export function AdminDashboard() {
 
     const loadRealtimeData = async () => {
         try {
-            const [notifRes, analyticsRes] = await Promise.all([
-                Promise.resolve(getNotifications()),
-                getAnalytics('7days')
-            ]);
-
+            // Load notifications (critical for dashboard)
+            const notifRes = await getNotifications();
             setNotifications(notifRes.slice(0, 5));
             
-            if (analyticsRes.success && analyticsRes.analytics) {
-                const s = analyticsRes.analytics.summary || {};
-                const t = analyticsRes.analytics.trends || {};
+            // Load analytics (non-blocking - if it fails, dashboard still works)
+            try {
+                const analyticsRes = await getAnalytics('7days');
                 
-                // Final safety: normalize strings/numbers from backend
-                const uCount = Number(s.activeUsers || 0);
-                const wCount = Number(s.publishedWebsites || 0);
-                const dCount = Number(s.activeDomains || 0);
-                const pCount = Number(s.pendingWebsites || 0);
+                if (analyticsRes.success && analyticsRes.analytics) {
+                    const s = analyticsRes.analytics.summary || {};
+                    const t = analyticsRes.analytics.trends || {};
+                    
+                    // Final safety: normalize strings/numbers from backend
+                    const uCount = Number(s.activeUsers || 0);
+                    const wCount = Number(s.publishedWebsites || 0);
+                    const dCount = Number(s.activeDomains || 0);
+                    const pCount = Number(s.pendingWebsites || 0);
 
-                setStats({
-                    activeUsers: uCount,
-                    publishedWebsites: wCount,
-                    activeDomains: dCount,
-                    pendingWebsites: pCount,
-                    trends: {
-                        users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : new Array(7).fill(uCount),
-                        websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : new Array(7).fill(wCount),
-                        domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : new Array(7).fill(dCount),
-                        pending: new Array(7).fill(pCount),
-                    }
-                });
+                    setStats({
+                        activeUsers: uCount,
+                        publishedWebsites: wCount,
+                        activeDomains: dCount,
+                        pendingWebsites: pCount,
+                        trends: {
+                            users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : new Array(7).fill(uCount),
+                            websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : new Array(7).fill(wCount),
+                            domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : new Array(7).fill(dCount),
+                            pending: new Array(7).fill(pCount),
+                        }
+                    });
+                }
+            } catch (analyticsError) {
+                console.warn('[Dashboard] Analytics failed (non-critical):', analyticsError);
+                // Analytics optional - dashboard shows with zeros/defaults
             }
         } catch (error) {
-            console.error('[Dashboard] Failed to load realtime data:', error);
+            console.error('[Dashboard] Failed to load notifications:', error);
             // Non-fatal error: dashboard will just show zeros/fallbacks
         } finally {
             setLoading(false);
@@ -421,4 +426,4 @@ export function AdminDashboard() {
     );
 }
 
-export default AdminDashboard;
+export default AdminDashboard;

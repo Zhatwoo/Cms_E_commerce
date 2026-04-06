@@ -234,16 +234,16 @@ export function UserManagement() {
   useEffect(() => { loadClients(); }, [loadClients]);
 
   useEffect(() => {
-    // Auto-refresh user list every 20 seconds for real-time presence/status
+    // Auto-refresh user list every 5 seconds for real-time presence/status (faster logout detection)
     const interval = setInterval(() => {
       loadClients(true);
-    }, 20000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [loadClients]);
 
   useEffect(() => {
-    // Keep relative last-active labels updating even when no new data arrives.
-    const clock = setInterval(() => setClockMs(Date.now()), 15000);
+    // Keep relative last-active labels updating every 3 seconds (synced with 5s polling)
+    const clock = setInterval(() => setClockMs(Date.now()), 3000);
     return () => clearInterval(clock);
   }, []);
   
@@ -308,6 +308,16 @@ export function UserManagement() {
     const online = clients.filter((c) => isClientActive(c) && isUserOnline(c.lastSeen, c.isOnline, clockMs)).length;
     const suspended = clients.filter((c) => (c.status || '').toLowerCase() === 'suspended').length;
     const restricted = clients.filter((c) => (c.status || '').toLowerCase() === 'restricted').length;
+    
+    // Debug: Log online status breakdown for each active client
+    if (process.env.NODE_ENV === 'development') {
+      const onlineUsers = clients.filter((c) => isClientActive(c) && isUserOnline(c.lastSeen, c.isOnline, clockMs)).map(c => ({
+        name: c.displayName || c.email,
+        isOnline: c.isOnline,
+        lastSeen: c.lastSeen
+      }));
+      console.log('[Stats] Online users:', onlineUsers);
+    }
     return { total, free, basic, pro, active, online, suspended, restricted };
   }, [clients, clockMs]);
 
