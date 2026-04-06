@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
+import { Users, DollarSign, Globe, Link, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getAnalytics, type AnalyticsResponse } from '@/lib/api';
 
 const AdminSidebar = dynamic(() => import('../../components/sidebar'), { ssr: false });
@@ -81,6 +82,25 @@ export default function AnalyticsPageContent() {
     const summary = analytics?.summary;
     const workspace = analytics?.workspace;
 
+    const calculateChange = (pts: number[] | undefined) => {
+        if (!pts || pts.length < 2) return { value: '0.0%', isIncrease: true, isNeutral: true };
+        const curr = pts[pts.length - 1];
+        const prev = pts[pts.length - 2];
+        if (prev === 0) return { value: curr > 0 ? '+100%' : '0.0%', isIncrease: curr > 0, isNeutral: curr === 0 };
+        const pct = ((curr - prev) / prev) * 100;
+        return {
+            value: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
+            isIncrease: pct >= 0,
+            isNeutral: pct === 0
+        };
+    };
+
+    const periodLabels = {
+        '7days': 'last week',
+        '30days': 'last month',
+        '3months': 'last quarter'
+    };
+
     return (
         <div className="admin-dashboard-shell flex h-screen w-full overflow-hidden">
             <AdminSidebar />
@@ -124,56 +144,63 @@ export default function AnalyticsPageContent() {
                                 { 
                                     label: 'Active Users', 
                                     value: loading ? '—' : (summary?.activeUsers?.toLocaleString() || '0'), 
-                                    change: (() => {
-                                        const pts = analytics?.trends?.users || [];
-                                        if (pts.length < 2) return '+0%';
-                                        const prev = pts[pts.length - 2];
-                                        const curr = pts[pts.length - 1];
-                                        if (!prev) return '+0%';
-                                        const pct = ((curr - prev) / prev) * 100;
-                                        return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
-                                    })(),
-                                    icon: 'Users', 
+                                    change: calculateChange(analytics?.trends?.users),
+                                    icon: Users, 
                                     color: '#B13BFF' 
                                 },
                                 { 
                                     label: 'System Revenue', 
                                     value: loading ? '—' : ('₱' + (summary?.revenue?.toLocaleString() || '0')), 
-                                    change: '+18.2%', 
-                                    icon: 'Dollar', 
+                                    change: calculateChange(analytics?.revenueOverTime?.data), 
+                                    icon: DollarSign, 
                                     color: '#FFB800' 
                                 },
                                 { 
                                     label: 'Live Websites', 
                                     value: loading ? '—' : (summary?.publishedWebsites?.toLocaleString() || '0'), 
-                                    change: summary?.pendingWebsites ? `${summary.pendingWebsites} pending` : '0 pending', 
-                                    icon: 'Globe', 
+                                    change: calculateChange(analytics?.trends?.websites), 
+                                    icon: Globe, 
                                     color: '#10B981' 
                                 },
                                 { 
                                     label: 'Custom Domains', 
                                     value: loading ? '—' : (summary?.activeDomains?.toLocaleString() || '0'), 
-                                    change: workspace?.customDomains ? `${workspace.customDomains} configured` : '0 configured', 
-                                    icon: 'Link', 
+                                    change: calculateChange(analytics?.trends?.domains), 
+                                    icon: Link, 
                                     color: '#8A78FF' 
                                 },
                             ].map((stat) => (
                                 <motion.div
                                     key={stat.label}
                                     variants={cardVariants}
-                                    className="admin-dashboard-panel p-6"
-                                    whileHover={{ y: -4, transition: { duration: 0.2 } }}
+                                    className="admin-dashboard-panel p-6 group"
+                                    whileHover={{ y: -6, transition: { duration: 0.3, ease: 'easeOut' } }}
                                 >
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="p-3 rounded-2xl" style={{ backgroundColor: `${stat.color}15`, color: stat.color }}>
-                                            <span className="w-6 h-6 flex items-center justify-center font-bold">●</span>
+                                    <div className="flex items-center justify-between mb-5">
+                                        <div className="p-3.5 rounded-2xl transition-all duration-300 group-hover:scale-110 shadow-sm" style={{ backgroundColor: `${stat.color}15`, color: stat.color }}>
+                                            <stat.icon className="w-6 h-6 stroke-[2.5]" />
                                         </div>
-                                        <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${stat.change.startsWith('+') ? 'bg-emerald-50 text-emerald-600' : stat.change.includes('pending') || stat.change.includes('configured') ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>
-                                            {stat.change}
-                                        </span>
+                                        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black tracking-wider transition-colors ${
+                                            stat.change.isNeutral 
+                                                ? 'bg-gray-100 text-gray-500' 
+                                                : stat.change.isIncrease 
+                                                    ? 'bg-emerald-50 text-emerald-600 shadow-[0_2px_8px_-2px_rgba(16,185,129,0.2)]' 
+                                                    : 'bg-rose-50 text-rose-600 shadow-[0_2px_8px_-2px_rgba(244,63,94,0.2)]'
+                                        }`}>
+                                            {stat.change.isNeutral ? null : stat.change.isIncrease ? <ArrowUpRight size={14} strokeWidth={3} /> : <ArrowDownRight size={14} strokeWidth={3} />}
+                                            {stat.change.value}
+                                        </div>
                                     </div>
-                                    <h3 className="admin-dashboard-soft-text text-[13px] font-bold uppercase tracking-widest">{stat.label}</h3>
-                                    <p className="admin-dashboard-purple text-[2.1rem] font-bold mt-1 leading-tight">{stat.value}</p>
+                                    
+                                    <div className="space-y-1">
+                                        <h3 className="admin-dashboard-soft-text text-[13px] font-bold uppercase tracking-[0.15em] opacity-80">{stat.label}</h3>
+                                        <p className="admin-dashboard-purple text-[2.25rem] font-black tracking-tight leading-tight">{stat.value}</p>
+                                    </div>
+
+                                    <div className="mt-4 pt-4 border-t border-[rgba(166,61,255,0.06)] flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-[#A78BFA] uppercase tracking-widest">Growth Factor</span>
+                                        <span className="text-[11px] font-bold text-[#471396] opacity-60">vs {periodLabels[period]}</span>
+                                    </div>
                                 </motion.div>
                             ))}
                         </div>
