@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useId } from "react";
 import ReactDOM from "react-dom";
-import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video, Eye, EyeOff, Loader2, X } from "lucide-react";
 import { useDesignProject } from "@/app/design/_context/DesignProjectContext";
 import { addFileToMediaLibrary } from "@/app/design/_lib/mediaActions";
 
@@ -334,7 +334,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 }) => {
     const popoverRef = useRef<HTMLDivElement>(null);
     const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 10, left: 10 });
-    const [popoverWidth, setPopoverWidth] = useState(enableFillModes ? 280 : 240);
+    const [popoverWidth, setPopoverWidth] = useState(320);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [hasManualPosition, setHasManualPosition] = useState(false);
@@ -487,57 +487,74 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
     React.useLayoutEffect(() => {
         const updatePosition = () => {
-            if (!anchorRef.current) return;
+            if (!anchorRef.current || !popoverRef.current) return;
 
             // Try to load saved position first
             const savedPosStr = typeof window !== 'undefined' ? window.localStorage?.getItem(savedPositionKeyRef.current) : null;
             
-            if (savedPosStr) {
+            if (savedPosStr && hasManualPosition) {
                 try {
                     const saved = JSON.parse(savedPosStr);
                     if (saved && typeof saved.top === 'number' && typeof saved.left === 'number') {
                         setCoords(saved);
-                        setHasManualPosition(true);
                         return;
                     }
                 } catch (e) {
-                    // Invalid saved position, continue to calculate default
-                    if (typeof window !== 'undefined') {
-                        window.localStorage?.removeItem(savedPositionKeyRef.current);
-                    }
+                    // ignore
                 }
             }
 
-            // Keep a user-dragged position stable while popup stays open.
-            if (hasManualPosition) return;
-
-            // Calculate default position (viewport-based)
+            // Calculate default position
             const rect = anchorRef.current.getBoundingClientRect();
-            const viewportPadding = 8;
-            // Keep width stable across mode switches to avoid popover jumping.
-            const desiredWidth = enableFillModes ? 320 : 240;
+            const viewportPadding = 12;
+            const desiredWidth = 320;
             const nextWidth = Math.min(desiredWidth, Math.max(220, window.innerWidth - viewportPadding * 2));
-            const popHeight = popoverRef.current?.offsetHeight || 336;
+            
+            // Get actual height or use a safe estimate
+            const popHeight = popoverRef.current.offsetHeight || 420;
 
-            let left = rect.right - nextWidth;
+            const configsPanel = document.querySelector('[data-panel="configs"]');
+            let left;
+            if (configsPanel) {
+                const panelRect = configsPanel.getBoundingClientRect();
+                left = panelRect.left - nextWidth - 12;
+            } else {
+                left = rect.right - nextWidth;
+            }
+            
             const maxLeft = window.innerWidth - nextWidth - viewportPadding;
             left = Math.max(viewportPadding, Math.min(left, maxLeft));
 
-            let top = rect.bottom + 8;
+            // Align top with the swatch button initially
+            let top = rect.top;
+            
+            // Constraint: Ensure it doesn't go off-screen at the bottom
             if (top + popHeight > window.innerHeight - viewportPadding) {
-                top = rect.top - popHeight - 8;
+                top = window.innerHeight - popHeight - viewportPadding;
             }
+            // Constraint: Ensure it doesn't go off-screen at the top
             top = Math.max(viewportPadding, top);
 
             setPopoverWidth(nextWidth);
             setCoords({ top, left });
         };
 
+        const resizeObserver = new ResizeObserver(() => {
+            if (!hasManualPosition) {
+                updatePosition();
+            }
+        });
+
+        if (popoverRef.current) {
+            resizeObserver.observe(popoverRef.current);
+        }
+
         updatePosition();
         window.addEventListener("resize", updatePosition);
         window.addEventListener("scroll", updatePosition, true);
 
         return () => {
+            resizeObserver.disconnect();
             window.removeEventListener("resize", updatePosition);
             window.removeEventListener("scroll", updatePosition, true);
         };
@@ -817,13 +834,23 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             }}
             onMouseDown={(e) => e.stopPropagation()}
         >
-            {/* Drag Handle Header */}
-            <div
-                onMouseDown={handleDragStart}
-                className="flex items-center justify-center py-1.5 mb-1 cursor-grab active:cursor-grabbing rounded-lg hover:bg-[var(--builder-surface-2)] transition-colors"
-                title="Drag to move"
-            >
-                <div className="h-1 w-12 rounded-full bg-[var(--builder-border-mid)]" />
+            {/* Popover Header with Drag Handle and Close button */}
+            <div className="flex items-center relative gap-2 mb-1">
+                <div
+                    onMouseDown={handleDragStart}
+                    className="flex-1 flex items-center justify-center py-1.5 cursor-grab active:cursor-grabbing rounded-lg hover:bg-[var(--builder-surface-2)] transition-colors"
+                    title="Drag to move"
+                >
+                    <div className="h-1 w-12 rounded-full bg-[var(--builder-border-mid)]" />
+                </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg hover:bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors flex-shrink-0"
+                    title="Close color picker"
+                >
+                    <X size={14} />
+                </button>
             </div>
 
             {enableFillModes && (
