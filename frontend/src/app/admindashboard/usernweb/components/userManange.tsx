@@ -1349,7 +1349,7 @@ function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: {
               {(client.displayName || client.email).charAt(0).toUpperCase()}
             </div>
             <h3 className="text-xl font-black text-[#26155E] text-center mb-1">{client.displayName || 'Unnamed User'}</h3>
-            <p className="text-sm font-bold text-[#8E47D8]/60 mb-6">{client.email}</p>
+            <p className="text-sm font-extrabold text-[#7C3AED] mb-6">{client.email}</p>
             
             <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest mb-8 ${statusCls}`}>
               {active ? 'Active Account' : 'Inactive / Suspended'}
@@ -1405,8 +1405,8 @@ function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: {
         <div className="flex-1 flex flex-col">
           <div className="p-8 pb-4 flex items-center justify-between">
             <div>
-              <h4 className="text-2xl font-black text-[#26155E] tracking-tight">Activity Logs</h4>
-              <p className="text-sm font-bold text-[#8E47D8]/50 uppercase tracking-widest">Recent System Interaction</p>
+              <h4 className="text-2xl font-black text-[#1F1147] tracking-tight">Activity Logs</h4>
+              <p className="text-[13px] font-extrabold text-[#7C3AED] uppercase tracking-[0.12em]">Recent System Interaction</p>
             </div>
             <button onClick={onClose} className="p-2.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-all">
               <X className="h-6 w-6" />
@@ -1425,9 +1425,9 @@ function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: {
                       <log.icon className="h-5 w-5" />
                     </div>
                     <div className="pt-1">
-                      <p className="text-[15px] font-black text-[#26155E] tracking-tight">{log.action}</p>
-                      <div className="flex items-center gap-2 mt-1 opacity-50 font-bold text-[11px] uppercase tracking-wider">
-                        <Clock className="h-3 w-3" />
+                      <p className="text-[16px] font-black text-[#1F1147] tracking-tight leading-tight">{log.action}</p>
+                      <div className="flex items-center gap-2 mt-1.5 text-[#6C40B5] font-bold text-[12px] uppercase tracking-wider">
+                        <Clock className="h-3.5 w-3.5" />
                         <span>{log.time}</span>
                       </div>
                     </div>
@@ -1445,12 +1445,12 @@ function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: {
                </div>
                <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <p className="text-[10px] font-black text-[#8E47D8]/60 uppercase tracking-widest mb-1">User ID</p>
-                    <p className="text-xs font-mono font-bold text-[#26155E] break-all">{client.id}</p>
+                    <p className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest mb-1.5 opacity-90">User ID</p>
+                    <p className="text-[13px] font-mono font-bold text-[#1F1147] break-all">{client.id}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-[#8E47D8]/60 uppercase tracking-widest mb-1">Last Seen</p>
-                    <p className="text-xs font-bold text-[#26155E]">{client.lastSeen ? formatToPHTime(client.lastSeen) : 'Never'}</p>
+                    <p className="text-[10px] font-black text-[#7C3AED] uppercase tracking-widest mb-1.5 opacity-90">Last Seen</p>
+                    <p className="text-[13px] font-bold text-[#1F1147]">{client.lastSeen ? formatToPHTime(client.lastSeen) : 'Never'}</p>
                   </div>
                </div>
             </div>
