@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getApiBase } from '@/lib/apiBase';
 
-const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
 
 /** Proxy POST /api/domains/admin/update-subdomain to backend (same-origin so cookies are sent). */
 export async function POST(request: NextRequest) {

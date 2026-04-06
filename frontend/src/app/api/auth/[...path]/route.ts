@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getApiBase } from '@/lib/apiBase';
 
-const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
 
 function buildBackendUrl(path: string[]) {
   const safePath = Array.isArray(path) ? path.map((part) => encodeURIComponent(part)).join('/') : '';

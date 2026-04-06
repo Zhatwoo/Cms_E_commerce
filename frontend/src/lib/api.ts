@@ -3,8 +3,10 @@
  * User profile is kept in memory only; fetched via GET /api/auth/me when needed.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-let activeApiBase = API_URL.replace(/\/$/, '');
+import { getApiBase, parseApiBaseList } from "./apiBase";
+
+const DEFAULT_API_BASE = "http://localhost:5000";
+let activeApiBase = getApiBase(process.env.NEXT_PUBLIC_API_URL, DEFAULT_API_BASE);
 let activeProjectId: string | null = null;
 const PUBLISHED_SITE_USER_PREFIX = 'mercato_published_site_user_';
 const RESERVED_PUBLISHED_SITE_SEGMENTS = new Set([
@@ -233,14 +235,15 @@ export function getApiUrl(): string {
 }
 
 function getApiCandidates(): string[] {
-  const envApi = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const envApis = parseApiBaseList(process.env.NEXT_PUBLIC_API_URL);
   const candidates = new Set<string>();
 
-  if (envApi) candidates.add(envApi);
+  envApis.forEach((v) => candidates.add(v));
   candidates.add(activeApiBase);
 
   // Local DX fallback: backend may auto-switch to 5001 when 5000 is busy.
-  if (!envApi || /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(envApi)) {
+  const hasLocal5000 = envApis.some((v) => /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(v));
+  if (envApis.length === 0 || hasLocal5000) {
     candidates.add('http://localhost:5000');
     candidates.add('http://127.0.0.1:5000');
     candidates.add('http://localhost:5001');
