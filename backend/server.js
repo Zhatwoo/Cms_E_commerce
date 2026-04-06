@@ -65,6 +65,7 @@ const { validateEnv } = require('./config/env');
 validateEnv();
 
 const http = require('http');
+const os = require('os');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -75,6 +76,7 @@ const { db, auth } = require('./config/firebase');
 const { resolveProjectOwner } = require('./utils/resolveProjectOwner');
 
 const app = express();
+const HOST = (process.env.HOST || '').trim(); // e.g. "0.0.0.0" for LAN access
 
 // Initialize Firebase (import ensures env is valid)
 void auth;
@@ -86,19 +88,25 @@ app.use(helmet());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 
 // Middleware – CORS with credentials so browser sends cookies (frontend port may differ)
+const envOrigins = [process.env.FRONTEND_URL, process.env.CORS_ORIGIN]
+  .filter(Boolean)
+  .flatMap((v) => String(v).split(',').map((s) => s.trim()).filter(Boolean));
 const allowedOrigins = [
   'http://localhost:3000',
   'http://127.0.0.1:3000',
-  process.env.FRONTEND_URL,
-  process.env.CORS_ORIGIN
+  ...envOrigins,
 ].filter(Boolean);
 // Allow subdomain.localhost (e.g. mystore.localhost:3000) for subdomain-based site URLs
 const subdomainLocalhostRegex = /^https?:\/\/[a-z0-9-]+\.localhost(:\d+)?$/;
+// Dev convenience: allow private LAN IP origins so you can open the builder from another device on the same Wi-Fi.
+const allowLanOrigins = process.env.NODE_ENV !== 'production' && String(process.env.ALLOW_LAN_ORIGINS ?? 'true').toLowerCase() !== 'false';
+const lanOriginRegex = /^https?:\/\/(?:(?:10|127)\.\d{1,3}\.\d{1,3}\.\d{1,3}|(?:192\.168)\.\d{1,3}\.\d{1,3}|(?:172\.(?:1[6-9]|2\d|3[0-1]))\.\d{1,3}\.\d{1,3})(?::\d+)?$/;
 app.use(cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
     if (subdomainLocalhostRegex.test(origin)) return cb(null, true);
+    if (allowLanOrigins && lanOriginRegex.test(origin)) return cb(null, true);
     return cb(null, false);
   },
   credentials: true,
@@ -305,6 +313,23 @@ app.use((req, res) => {
 const PORT = process.env.PORT || 5000;
 
 function onListenSuccess(port) {
+  // Helpful when you open the app from another device on the same network (LAN).
+  if (!HOST || HOST === '0.0.0.0' || HOST === '::') {
+    try {
+      const nets = os.networkInterfaces();
+      const ips = Object.values(nets)
+        .flatMap((arr) => (arr ?? []))
+        .filter((n) => n && n.family === 'IPv4' && !n.internal)
+        .map((n) => n.address);
+      const uniqueIps = Array.from(new Set(ips));
+      if (uniqueIps.length > 0) {
+        console.log(`Network: ${uniqueIps.map((ip) => `http://${ip}:${port}`).join(' | ')}`);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   console.log('========================================');
   console.log('🚀 CMS E-commerce API with Firebase');
   console.log('========================================');
@@ -487,7 +512,7 @@ function tryListen(port) {
       throw err;
     }
   });
-  server.listen(port, () => {
+  server.listen(port, HOST || undefined, () => {
     onListenSuccess(port);
     // Run scheduled publishes every minute (edits set for a date go live automatically)
     setInterval(async () => {

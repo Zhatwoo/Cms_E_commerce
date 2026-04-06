@@ -13,6 +13,13 @@ export function CanvasDropGuide() {
   const badgeRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    const getNodeContentHost = (element: HTMLElement | null): HTMLElement | null => {
+      if (!element) return null;
+      const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+      const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+      return host ?? element;
+    };
+
     const ensureElements = () => {
       if (!boxRef.current) {
         const box = document.createElement("div");
@@ -78,15 +85,36 @@ export function CanvasDropGuide() {
 
       try {
         const state = query.getState();
-        const node = state.nodes[nodeId];
-        const displayName = (node?.data?.displayName as string | undefined) ?? "";
-        const isCanvas = node?.data?.isCanvas === true;
-        if (!isCanvas && !CANDIDATE_CANVAS_TYPES.has(displayName)) return null;
+        const nodes = state.nodes as Record<string, any>;
+
+        const resolveCanvasAncestor = (startId: string | null): string | null => {
+          let current = startId;
+          const visited = new Set<string>();
+          while (current && !visited.has(current)) {
+            visited.add(current);
+            if (current === "ROOT") return null;
+            const node = nodes[current];
+            const displayName = String(node?.data?.displayName ?? "");
+            const isCanvas = node?.data?.isCanvas === true;
+            if (isCanvas || (displayName && CANDIDATE_CANVAS_TYPES.has(displayName))) {
+              return current;
+            }
+            const parentId = node?.data?.parent as string | undefined;
+            current = typeof parentId === "string" ? parentId : null;
+          }
+          return null;
+        };
+
+        const canvasId = resolveCanvasAncestor(nodeId);
+        if (!canvasId) return null;
+        const canvasDom = query.node(canvasId).get()?.dom ?? null;
+        const domEl = (canvasDom as HTMLElement | null) ?? null;
+        const host = getNodeContentHost(domEl);
+        if (!host) return null;
+        return host;
       } catch {
         return null;
       }
-
-      return nodeEl;
     };
 
     const showGuideFor = (targetEl: HTMLElement, clientY: number, clientX: number) => {

@@ -2,7 +2,9 @@
  * API service for page auto-save operations
  */
 
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+import { getApiBase } from "@/lib/apiBase";
+
+const BASE = getApiBase(process.env.NEXT_PUBLIC_API_URL);
 const API_BASE_URL = `${BASE.replace(/\/$/, '')}/api`;
 const REQUEST_TIMEOUT_MS = 10000;
 const DRAFT_CACHE_TTL_MS = 15000;

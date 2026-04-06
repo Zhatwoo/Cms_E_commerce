@@ -175,7 +175,7 @@ export function PanelDropFreePlacementHandler() {
       try {
         const elems = document.elementsFromPoint(pointerRef.current.x, pointerRef.current.y) as HTMLElement[];
         const latestState = query.getState();
-        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { displayName?: string } }>;
+        const latestNodes = (latestState?.nodes ?? {}) as Record<string, { data?: { parent?: string; isCanvas?: boolean; displayName?: string } }>;
         const resolveDisplayName = (id: string | null): string => {
           if (!id) return "";
           return String(latestNodes[id]?.data?.displayName ?? "");
@@ -200,34 +200,44 @@ export function PanelDropFreePlacementHandler() {
           const pageId = Object.keys(latestNodes).find((id) => latestNodes[id]?.data?.displayName === "Page");
           if (pageId) fallbackPageId = pageId;
         }
-        const findPageUnderCursor = () => {
-          for (const el of elems) {
-            const withNode = el.closest("[data-node-id]") as HTMLElement | null;
-            if (!withNode) continue;
-            const id = withNode.getAttribute("data-node-id");
-            if (!id || newSet.has(id)) continue;
-            if (resolveDisplayName(id) === "Page") return id;
+
+        const resolveCanvasAncestor = (startId: string | null): string | null => {
+          let current = startId;
+          const visited = new Set<string>();
+          while (current && !visited.has(current)) {
+            visited.add(current);
+            if (current === "ROOT") return null;
+            const node = latestNodes[current];
+            if (!node) return null;
+            const displayName = node.data?.displayName;
+            const isCanvas = node.data?.isCanvas === true;
+            if (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName))) {
+              return current;
+            }
+            const parentId = node.data?.parent;
+            current = typeof parentId === "string" ? parentId : null;
           }
           return null;
         };
 
-        const pageUnderCursor = findPageUnderCursor();
-        if (pageUnderCursor) {
-          forcedDropTargetId = pageUnderCursor;
-        }
-
         for (const el of elems) {
+          if (el.closest?.("[data-panel]")) continue;
           const withNode = el.closest("[data-node-id]") as HTMLElement | null;
           if (!withNode) continue;
           const id = withNode.getAttribute("data-node-id");
           if (!id || newSet.has(id)) continue;
-          const node = (query.getState()?.nodes ?? {})[id] as { data?: { isCanvas?: boolean; displayName?: string } } | undefined;
-          const displayName = node?.data?.displayName;
-          const isCanvas = node?.data?.isCanvas === true;
-          if (!forcedDropTargetId && (isCanvas || (displayName && DROP_TARGET_CANVAS_TYPES.has(displayName)) || displayName === "Tab Content" || displayName === "TabContent")) {
-            forcedDropTargetId = id;
+
+          const candidate = resolveCanvasAncestor(id);
+          if (!candidate || newSet.has(candidate)) continue;
+          const name = resolveDisplayName(candidate);
+          if (name && BLOCKED_DROP_TYPES.has(name)) continue;
+
+          // Prefer the most specific container under the cursor; fall back to Page only if nothing else matches.
+          if (name !== "Page") {
+            forcedDropTargetId = candidate;
             break;
           }
+          if (!forcedDropTargetId) forcedDropTargetId = candidate;
         }
       } catch {
         forcedDropTargetId = null;

@@ -171,18 +171,42 @@ function getDropTargetAt(
   const exclude = new Set(excludeIds);
   const draggedRoots = doms.filter((dom) => !!dom);
   const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+
+  const resolveCanvasAncestor = (startId: string | null): string | null => {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      if (current === "ROOT") return null;
+      if (exclude.has(current)) return null;
+      const node = nodes[current];
+      if (!node?.data) return null;
+      if (node.data.isCanvas) return current;
+      const displayName = String(node.data.displayName ?? "");
+      if (displayName && CANVAS_DISPLAY_NAMES.has(displayName)) return current;
+      const parentId = node.data.parent as string | undefined;
+      current = typeof parentId === "string" ? parentId : null;
+    }
+    return null;
+  };
+
+  let pageFallback: string | null = null;
   for (const el of elements) {
+    if (el.closest?.("[data-panel]")) continue;
     const withNode = el.closest("[data-node-id]") as HTMLElement | null;
     if (!withNode) continue;
     if (draggedRoots.some((root) => root.contains(withNode))) continue;
     const id = withNode.getAttribute("data-node-id");
     if (!id || exclude.has(id)) continue;
-    const node = nodes[id];
-    if (!node?.data) continue;
-    if (node.data.isCanvas) return id;
-    if (node.data.displayName && CANVAS_DISPLAY_NAMES.has(node.data.displayName)) return id;
+
+    const candidate = resolveCanvasAncestor(id);
+    if (!candidate) continue;
+
+    const name = String(nodes[candidate]?.data?.displayName ?? "");
+    if (name !== "Page") return candidate;
+    if (!pageFallback) pageFallback = candidate;
   }
-  return null;
+  return pageFallback;
 }
 
 function findPageTargetAt(
