@@ -6,11 +6,11 @@ import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
 import { getStoredUser, setStoredUser, updateProfile, uploadAvatarApi, type User } from "@/lib/api";
 import { addNotification } from "@/lib/notifications";
+import { ProfileForm, type ProfileData } from "../components/ProfileForm";
 
 export default function ProfilePage() {
-
 	const storedUser = getStoredUser();
-	const [profile, setProfile] = useState({
+	const [profile, setProfile] = useState<ProfileData>({
 		displayName: storedUser?.name || "John Lloyd Gatal",
 		email: storedUser?.email || "redemptrixlloyd906@gmail.com",
 		username: (storedUser as any)?.username || "kurohara",
@@ -24,8 +24,8 @@ export default function ProfilePage() {
 	const [isEditing, setIsEditing] = useState(false);
 	const [savedProfile, setSavedProfile] = useState(profile);
 	const [showCancelConfirmation, setShowCancelConfirmation] = useState(false);
-	const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
+	const [isSaving, setIsSaving] = useState(false);
 
 	// Sync with stored user on mount or when storedUser changes
 	useEffect(() => {
@@ -51,6 +51,12 @@ export default function ProfilePage() {
 	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const file = e.target.files?.[0];
 		if (file) {
+			// Validate file type
+			if (!['image/jpeg', 'image/png'].includes(file.type)) {
+				addNotification("Invalid File", "Only JPG and PNG images are allowed.", 'error');
+				return;
+			}
+			
 			setSelectedFile(file);
 			const reader = new FileReader();
 			reader.onloadend = () => {
@@ -60,13 +66,69 @@ export default function ProfilePage() {
 		}
 	};
 
+	const handleSave = async (formData: typeof profile) => {
+		setIsSaving(true);
+		
+		// Optimistic Update
+		const previousProfile = { ...profile };
+		const updatedProfile = { ...formData, avatar: profile.avatar };
+		
+		// Update UI immediately
+		setSavedProfile(updatedProfile);
+		setProfile(updatedProfile);
+		setIsEditing(false);
+		
+		try {
+			let finalAvatarUrl = updatedProfile.avatar;
+
+			// If there's a new file, upload it first
+			if (selectedFile) {
+				const uploadRes = await uploadAvatarApi(selectedFile);
+				if (uploadRes.success && uploadRes.url) {
+					finalAvatarUrl = uploadRes.url;
+				} else {
+					throw new Error(uploadRes.message || "Failed to upload image");
+				}
+			}
+
+			// API update
+			const res = await updateProfile({
+				name: updatedProfile.displayName,
+				username: updatedProfile.username,
+				avatar: finalAvatarUrl,
+				website: updatedProfile.website,
+				bio: updatedProfile.bio
+			});
+			
+			if (res.success && res.user) {
+				const finalUser = res.user;
+				setProfile(prev => ({ ...prev, avatar: finalUser.avatar || prev.avatar }));
+				setSavedProfile({ ...updatedProfile, avatar: finalUser.avatar || finalAvatarUrl });
+				setStoredUser(finalUser);
+				setSelectedFile(null); 
+				
+				addNotification("Profile Updated", `Your profile settings were successfully saved.`, 'success');
+				window.dispatchEvent(new Event('userUpdate'));
+			} else {
+				throw new Error(res.message || "Failed to update profile");
+			}
+		} catch (error) {
+			console.error("Failed to update profile", error);
+			addNotification("Update Failed", "We couldn't save your changes. Reverting...", 'error');
+			
+			// Revert on error
+			setProfile(previousProfile);
+			setSavedProfile(previousProfile);
+			setIsEditing(true); // Go back to editing so user can fix or retry
+		} finally {
+			setIsSaving(false);
+		}
+	};
+
 	const hasProfileChanges = useMemo(
 		() => JSON.stringify(profile) !== JSON.stringify(savedProfile),
 		[profile, savedProfile]
 	);
-
-	const charLimit = 250;
-	const charsLeft = charLimit - profile.bio.length;
 
 	return (
 		<UserAccountShell activePath="Profile">
@@ -98,14 +160,14 @@ export default function ProfilePage() {
 										type="file"
 										ref={fileInputRef}
 										className="hidden"
-										accept="image/*"
+										accept=".jpg,.jpeg,.png"
 										onChange={handleFileChange}
 									/>
 									<input
 										type="file"
 										ref={cameraInputRef}
 										className="hidden"
-										accept="image/*"
+										accept=".jpg,.jpeg,.png"
 										capture="user"
 										onChange={handleFileChange}
 									/>
@@ -164,200 +226,48 @@ export default function ProfilePage() {
 						</div>
 
 						{/* Form Grid */}
-						<div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
-							<div className="space-y-2">
-								<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">FULL NAME</label>
-								<input
-									type="text"
-									readOnly={!isEditing}
-									value={profile.displayName}
-									onChange={(e) => setProfile(prev => ({ ...prev, displayName: e.target.value }))}
-									className={`w-full rounded-xl border-none px-4 py-3 text-sm font-medium outline-none transition-all ${isEditing
-										? "bg-[#F9FAFB] text-[#374151] focus:ring-2 focus:ring-[#4a1a8a]/20"
-										: "bg-transparent text-[#7a6aa0] cursor-default"
-										}`}
-								/>
-							</div>
-							<div className="space-y-2">
-								<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">EMAIL</label>
-								<input
-									type="email"
-									readOnly={!isEditing}
-									value={profile.email}
-									onChange={(e) => setProfile(prev => ({ ...prev, email: e.target.value }))}
-									className={`w-full rounded-xl border-none px-4 py-3 text-sm font-medium outline-none transition-all ${isEditing
-										? "bg-[#F9FAFB] text-[#374151] focus:ring-2 focus:ring-[#4a1a8a]/20"
-										: "bg-transparent text-[#7a6aa0] cursor-default"
-										}`}
-								/>
-							</div>
-							<div className="space-y-2">
-								<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">USERNAME</label>
-								<div className="relative">
-									<span className={`absolute left-4 top-1/2 -translate-y-1/2 ${isEditing ? "text-[#9CA3AF]" : "text-[#D1D5DB]"}`}>@</span>
-									<input
-										type="text"
-										readOnly={!isEditing}
-										value={profile.username}
-										onChange={(e) => setProfile(prev => ({ ...prev, username: e.target.value }))}
-										className={`w-full rounded-xl border-none pl-8 pr-4 py-3 text-sm font-medium outline-none transition-all ${isEditing
-											? "bg-[#F9FAFB] text-[#374151] focus:ring-2 focus:ring-[#4a1a8a]/20"
-											: "bg-transparent text-[#7a6aa0] cursor-default"
-											}`}
-									/>
+						{isEditing ? (
+							<ProfileForm
+								initialData={profile}
+								isSaving={isSaving}
+								onSave={handleSave}
+								onCancel={() => {
+									if (hasProfileChanges) {
+										setShowCancelConfirmation(true);
+									} else {
+										setIsEditing(false);
+									}
+								}}
+							/>
+						) : (
+							<div className="grid grid-cols-1 gap-x-8 gap-y-6 md:grid-cols-2">
+								<div className="space-y-2">
+									<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">FULL NAME</label>
+									<p className="px-4 py-3 text-sm font-medium text-[#7a6aa0]">{profile.displayName}</p>
+								</div>
+								<div className="space-y-2">
+									<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">EMAIL</label>
+									<p className="px-4 py-3 text-sm font-medium text-[#7a6aa0]">{profile.email}</p>
+								</div>
+								<div className="space-y-2">
+									<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">USERNAME</label>
+									<p className="px-4 py-3 text-sm font-medium text-[#7a6aa0]">@{profile.username}</p>
+								</div>
+								<div className="space-y-2">
+									<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">WEBSITE</label>
+									<p className="px-4 py-3 text-sm font-medium text-[#7a6aa0]">{profile.website || "Not set"}</p>
+								</div>
+								<div className="col-span-full space-y-2">
+									<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">BIO</label>
+									<p className="px-4 py-3 text-sm font-medium text-[#7a6aa0] whitespace-pre-wrap">{profile.bio || "No bio yet."}</p>
 								</div>
 							</div>
-							<div className="space-y-2">
-								<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">WEBSITE</label>
-								<input
-									type="text"
-									readOnly={!isEditing}
-									value={profile.website}
-									onChange={(e) => setProfile(prev => ({ ...prev, website: e.target.value }))}
-									className={`w-full rounded-xl border-none px-4 py-3 text-sm font-medium outline-none transition-all ${isEditing
-										? "bg-[#F9FAFB] text-[#374151] focus:ring-2 focus:ring-[#4a1a8a]/20"
-										: "bg-transparent text-[#7a6aa0] cursor-default"
-										}`}
-								/>
-							</div>
-							<div className="col-span-full space-y-2">
-								<label className="text-[10px] font-bold tracking-wider text-[#9CA3AF] uppercase">BIO</label>
-								<textarea
-									value={profile.bio}
-									readOnly={!isEditing}
-									rows={4}
-									onChange={(e) => setProfile(prev => ({ ...prev, bio: e.target.value.slice(0, charLimit) }))}
-									className={`w-full resize-none rounded-xl border-none px-4 py-3 text-sm font-medium outline-none transition-all ${isEditing
-										? "bg-[#F9FAFB] text-[#374151] focus:ring-2 focus:ring-[#4a1a8a]/20"
-										: "bg-transparent text-[#7a6aa0] cursor-default"
-										}`}
-								/>
-								{isEditing && (
-									<div className="text-right">
-										<span className="text-xs text-[#9CA3AF]">{charsLeft} characters left</span>
-									</div>
-								)}
-							</div>
-						</div>
-
-						{/* Actions (visible only when editing) */}
-						<AnimatePresence>
-							{isEditing && (
-								<motion.div
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-									exit={{ opacity: 0, y: 10 }}
-								>
-									<div className="my-8 border-t border-[#F3F4F6]" />
-									<div className="flex items-center justify-end gap-6">
-										<button
-											type="button"
-											onClick={() => {
-												if (hasProfileChanges) {
-													setShowCancelConfirmation(true);
-												} else {
-													setIsEditing(false);
-												}
-											}}
-											className="text-sm font-semibold text-[#8A86A4] hover:text-[#4a1a8a] transition-colors"
-										>
-											Cancel
-										</button>
-										<button
-											type="button"
-											onClick={() => setShowSaveConfirmation(true)}
-											disabled={!hasProfileChanges}
-											className={`flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold shadow-sm transition-all ${hasProfileChanges
-												? "bg-[#4a1a8a] text-white hover:opacity-90 active:scale-95"
-												: "bg-gray-100 text-gray-400 cursor-not-allowed"
-												}`}
-										>
-											<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-												<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-											</svg>
-											Save Changes
-										</button>
-									</div>
-								</motion.div>
-							)}
-						</AnimatePresence>
+						)}
 					</motion.div>
 				</div>
 			</div>
 
 			<AnimatePresence>
-				{showSaveConfirmation && (
-					<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(200,185,245,0.35)] px-4 backdrop-blur-[4px]"
-					>
-						<motion.div initial={{ y: 12, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 8, opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }} className="w-full max-w-md rounded-[24px] bg-white p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)]">
-							<h3 className="text-xl font-bold text-[#4a1a8a]">Confirm changes</h3>
-							<p className="mt-2 text-[#7a6aa0]">Are you sure you want to update your profile information?</p>
-							<div className="mt-8 flex items-center justify-end gap-4">
-								<button type="button" onClick={() => setShowSaveConfirmation(false)} className="px-4 py-2 text-sm font-semibold text-[#7a6aa0] hover:text-[#4a1a8a]">Cancel</button>
-								<button
-									type="button"
-									onClick={async () => {
-										try {
-											let finalAvatarUrl = profile.avatar;
-
-											// If there's a new file, upload it first to get a Storage URL
-											if (selectedFile) {
-												const uploadRes = await uploadAvatarApi(selectedFile);
-												if (uploadRes.success && uploadRes.url) {
-													finalAvatarUrl = uploadRes.url;
-												} else {
-													throw new Error(uploadRes.message || "Failed to upload image");
-												}
-											}
-
-											// Official API update to the backend with a real storage URL
-											const res = await updateProfile({
-												name: profile.displayName,
-												username: profile.username,
-												avatar: finalAvatarUrl,
-												website: profile.website,
-												bio: profile.bio
-											});
-											
-											if (res.success && res.user) {
-												setProfile(prev => ({ ...prev, avatar: res.user!.avatar || prev.avatar }));
-												setSavedProfile({ ...profile, avatar: res.user.avatar || finalAvatarUrl });
-												setStoredUser(res.user);
-												setSelectedFile(null); // Clear selected file after success
-												
-												// Add Audit Notification
-												addNotification("Profile Updated", `Your profile settings (username: ${profile.username}) were successfully saved.`, 'success');
-
-												// Notify header and others
-												window.dispatchEvent(new Event('userUpdate'));
-											}
-										} catch (error) {
-											console.error("Failed to update profile", error);
-											// fallback to session storage if backend fails
-											setSavedProfile(profile);
-											setStoredUser({
-												...storedUser!,
-												name: profile.displayName,
-												username: profile.username,
-												avatar: profile.avatar,
-												website: profile.website,
-												bio: profile.bio
-											} as any);
-											window.dispatchEvent(new Event('userUpdate'));
-										}
-
-										setShowSaveConfirmation(false);
-										setIsEditing(false);
-									}}
-									className="rounded-xl bg-[#4a1a8a] px-6 py-2 text-sm font-semibold text-white hover:opacity-90"
-								>
-									Confirm
-								</button>
-							</div>
-						</motion.div>
-					</motion.div>
-				)}
-
 				{showCancelConfirmation && (
 					<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(200,185,245,0.35)] px-4 backdrop-blur-[4px]">
 						<motion.div initial={{ y: 12, opacity: 0, scale: 0.98 }} animate={{ y: 0, opacity: 1, scale: 1 }} exit={{ y: 8, opacity: 0, scale: 0.98 }} transition={{ duration: 0.2 }} className="w-full max-w-md rounded-[24px] bg-white p-8 shadow-[0_20px_50px_rgba(0,0,0,0.15)]">

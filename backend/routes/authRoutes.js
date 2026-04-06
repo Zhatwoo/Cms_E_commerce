@@ -109,7 +109,11 @@ router.post('/avatar', protect, (req, res, next) => {
 }, uploadAvatar);
 router.put('/change-password', protect, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
-  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+  body('newPassword')
+    .isLength({ min: 8 }).withMessage('New password must be at least 8 characters')
+    .matches(/[a-z]/).withMessage('New password must contain a lowercase letter')
+    .matches(/[A-Z]/).withMessage('New password must contain an uppercase letter')
+    .matches(/[0-9]/).withMessage('New password must contain a number')
 ], validate, changePassword);
 
 // Billing / Payment Method routes

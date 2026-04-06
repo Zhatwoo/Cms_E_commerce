@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -18,19 +18,18 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
     const trafficChartRef = useRef<HTMLCanvasElement>(null);
     const chartInstanceRef = useRef<Chart | null>(null);
 
-    const labels = signupsOverTime?.labels ?? [];
-    const signups = signupsOverTime?.signups ?? [];
+    const labels = useMemo(() => signupsOverTime?.labels ?? [], [signupsOverTime?.labels]);
+    const signups = useMemo(() => signupsOverTime?.signups ?? [], [signupsOverTime?.signups]);
 
     useEffect(() => {
         if (!trafficChartRef.current) return;
 
-        if (chartInstanceRef.current) {
-            chartInstanceRef.current.destroy();
-            chartInstanceRef.current = null;
-        }
-
         const ctx = trafficChartRef.current.getContext('2d');
         if (!ctx) return;
+
+        if (chartInstanceRef.current) {
+            chartInstanceRef.current.destroy();
+        }
 
         chartInstanceRef.current = new Chart(ctx, {
             type: 'line',
@@ -43,7 +42,7 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                         borderColor: '#8A78FF',
                         backgroundColor: 'rgba(138, 120, 255, 0.12)',
                         borderWidth: 2.2,
-                        pointRadius: 2.5,
+                        pointRadius: labels.length > 31 ? 0 : 2.5, // Remove points for large datasets
                         pointHoverRadius: 4,
                         pointBackgroundColor: '#FFFFFF',
                         pointBorderColor: '#8A78FF',
@@ -56,6 +55,12 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false, // Performance optimization
+                elements: {
+                    line: {
+                        capBezierPoints: false // Performance optimization for large datasets
+                    }
+                },
                 interaction: {
                     mode: 'index',
                     intersect: false,
@@ -72,6 +77,10 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                             boxHeight: 4,
                         },
                     },
+                    tooltip: {
+                        enabled: true,
+                        animation: { duration: 0 } // Disable tooltip animation for speed
+                    }
                 },
                 scales: {
                     y: {
@@ -89,6 +98,9 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                         },
                         ticks: {
                             color: 'rgba(71, 19, 150, 0.58)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: period === '7days' ? 7 : 12
                         },
                     },
                 },
@@ -98,9 +110,10 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
         return () => {
             if (chartInstanceRef.current) {
                 chartInstanceRef.current.destroy();
+                chartInstanceRef.current = null;
             }
         };
-    }, [labels, signups]);
+    }, [labels, signups, period]);
 
     return (
         <motion.div
