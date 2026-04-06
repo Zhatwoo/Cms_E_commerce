@@ -14,7 +14,7 @@ export const ArrowRightIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "arrow-right",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

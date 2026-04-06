@@ -14,7 +14,7 @@ export const SettingsIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "settings",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

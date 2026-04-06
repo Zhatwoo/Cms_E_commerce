@@ -14,7 +14,7 @@ export const HomeIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "home",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

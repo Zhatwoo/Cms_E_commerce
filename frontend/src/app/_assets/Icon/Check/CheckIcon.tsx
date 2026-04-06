@@ -14,7 +14,7 @@ export const CheckIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "check",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };
