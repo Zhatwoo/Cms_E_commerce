@@ -46,7 +46,7 @@ async function findAll(filters = {}, pagination = {}) {
   const limit = Math.max(1, parseInt(pagination.limit) || 20);
   const page = Math.max(1, parseInt(pagination.page) || 1);
 
-  let ref = db.collection(COLLECTION).orderBy('created_at', 'desc');
+  let ref = db.collectionGroup(COLLECTION).orderBy('created_at', 'desc');
   if (filters.status) ref = ref.where('status', '==', filters.status);
   if (filters.userId) ref = ref.where('user_id', '==', filters.userId);
 
@@ -81,14 +81,14 @@ async function deleteById(id) {
 }
 
 async function count(filters = {}) {
-  let ref = db.collection(COLLECTION);
+  let ref = db.collectionGroup(COLLECTION);
   if (filters.status) ref = ref.where('status', '==', filters.status);
   const snap = await ref.get();
   return snap.size;
 }
 
 async function getTotalRevenue() {
-  const snap = await db.collection(COLLECTION).get();
+  const snap = await db.collectionGroup(COLLECTION).get();
   let total = 0;
   snap.docs.forEach((d) => {
     const data = d.data();
@@ -110,7 +110,7 @@ function getStartDate(period) {
 
 async function getRevenueByPeriod(period) {
   const start = getStartDate(period);
-  const snap = await db.collection(COLLECTION)
+  const snap = await db.collectionGroup(COLLECTION)
     .where('status', '==', 'Paid') // Optimized: only count paid revenue
     .where('created_at', '>=', start)
     .orderBy('created_at', 'asc')
