@@ -2,7 +2,8 @@ const nodemailer = require('nodemailer');
 
 const gmailUser = (process.env.GMAIL_USER || '').trim();
 const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || '').trim();
-const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+const { getFirstUrl } = require('./urlBase');
+const frontendUrl = getFirstUrl(process.env.FRONTEND_URL, 'http://localhost:3000');
 
 let transporter = null;
 if (gmailUser && gmailAppPassword) {

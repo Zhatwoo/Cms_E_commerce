@@ -3,6 +3,7 @@ const router = express.Router();
 const unionbankService = require('../services/unionbankService');
 const { protect } = require('../middleware/auth');
 const User = require('../models/User');
+const { getFirstUrl } = require('../utils/urlBase');
 
 // GET /api/payments/unionbank/link - Redirect to UnionBank login
 router.get('/unionbank/link', protect, (req, res) => {
@@ -35,10 +36,12 @@ router.get('/unionbank/callback', async (req, res) => {
     await User.update(userId, { paymentMethods: updatedMethods });
 
     // Redirect back to frontend settings
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/m_dashboard/settings?tab=billing&success=true`);
+    const frontendBase = getFirstUrl(process.env.FRONTEND_URL, 'http://localhost:3000');
+    res.redirect(`${frontendBase}/m_dashboard/settings?tab=billing&success=true`);
   } catch (error) {
     console.error('UnionBank Callback Error:', error);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:3000'}/m_dashboard/settings?tab=billing&error=unionbank_failed`);
+    const frontendBase = getFirstUrl(process.env.FRONTEND_URL, 'http://localhost:3000');
+    res.redirect(`${frontendBase}/m_dashboard/settings?tab=billing&error=unionbank_failed`);
   }
 });
 
