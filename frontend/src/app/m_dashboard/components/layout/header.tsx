@@ -337,13 +337,13 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                                         >
                                             <Link
-                                                href="/m_dashboard/profile"
+                                                href="/m_dashboard/settings"
                                                 className="flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
                                                 style={{ color: colors.text.primary }}
                                                 onClick={() => setShowMenu(false)}
                                             >
                                                 <ProfileMenuIcon />
-                                                Profile
+                                                Settings
                                             </Link>
                                             <button
                                                 type="button"
