@@ -284,9 +284,11 @@ export const AssetLivePreview = ({
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center text-[var(--builder-text-muted)] pointer-events-none group-hover:bg-[var(--builder-surface-3)] transition-colors">
         <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
-          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
-            <Frame>{item.element}</Frame>
-          </Editor>
+          {item.preview ?? (
+            <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+              <Frame>{item.element}</Frame>
+            </Editor>
+          )}
         </AssetPreviewErrorBoundary>
       </div>
     );
@@ -434,7 +436,15 @@ export const AssetsPanel = () => {
                       data-asset-category={item.category}
                       data-asset-label={item.label}
                       ref={(ref) => {
-                        if (ref && item?.element) connectors.create(ref, item.element);
+                        if (!ref || !item?.element) return;
+
+                        const dragElement = iconFolder
+                          ? React.cloneElement(item.element as React.ReactElement<any>, {
+                              color: "#000000",
+                            })
+                          : item.element;
+
+                        connectors.create(ref, dragElement);
                       }}
                       onDragStart={() => {
                         if (typeof document !== "undefined") {

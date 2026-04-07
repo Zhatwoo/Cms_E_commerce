@@ -126,6 +126,8 @@ export interface LayerProps {
 export interface PositionProps extends LayerProps {
   position?: "static" | "relative" | "absolute" | "fixed" | "sticky";
   display?: "flex" | "inline-flex" | "grid" | "block" | "inline-block" | "none";
+  /** Align this element within a flex parent (overrides parent's alignItems). */
+  alignSelf?: "auto" | "flex-start" | "center" | "flex-end" | "stretch";
   /** Editor-only free-placement mode for page/section-like parents. */
   isFreeform?: boolean;
   zIndex?: number;

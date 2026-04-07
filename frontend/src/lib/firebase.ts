@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import { getDatabase, ref, onValue, type Database, type Unsubscribe } from 'firebase/database';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
+import { getApiBase } from "./apiBase";
 
 const config = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '',
@@ -89,7 +90,7 @@ export function isFirebaseStorageConfigured(): boolean {
   return !!app;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+const API_URL = getApiBase(process.env.NEXT_PUBLIC_API_URL);
 
 /**
  * If you're logged in to the backend (cookie) but not to Firebase Auth, signs in to Firebase using

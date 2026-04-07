@@ -20,6 +20,7 @@ export const Divider = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
+  alignSelf = "auto",
   display,
 }: DividerProps & { height?: string; marginLeft?: number; marginRight?: number }) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -47,6 +48,7 @@ export const Divider = ({
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
+        alignSelf,
         display: display ?? undefined,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}

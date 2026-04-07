@@ -60,8 +60,10 @@ export const Badge = ({
 	bottom = "auto",
 	left = "auto",
 	zIndex = 0,
+	alignSelf = "auto",
 	customClassName = "",
 	textDecoration = "none",
+	editorVisibility = "auto",
 	children,
 }: BadgeProps) => {
 	const {
@@ -130,6 +132,13 @@ export const Badge = ({
 	const resolvedText = typeof text === "string" ? text : "Badge";
 	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
 	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
+	const effectiveDisplay =
+		editorVisibility === "hide"
+			? "none"
+			: editorVisibility === "show" && display === "none"
+				? "flex"
+				: display;
+	const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
 
 	useEffect(() => {
 		if (hasLegacyChildren && isEditing) {
@@ -247,25 +256,26 @@ export const Badge = ({
 				boxSizing: "border-box",
 				maxWidth: "100%",
 				minWidth: badgeMinWidth,
-				borderRadius: `${borderRadius}px`,
-				...(strokePlacement === "outside" && borderWidth > 0
-					? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
-					: { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-				display,
-				containerType: "inline-size",
-				flexDirection,
-				flexWrap,
-				alignItems,
-				justifyContent,
-				columnGap: fluidSpace(gap, 0),
-				rowGap: fluidSpace(gap, 0),
-				boxShadow,
-				opacity,
-				overflow,
-				position,
-				top: position !== "static" ? top : undefined,
-				right: position !== "static" ? right : undefined,
-				bottom: position !== "static" ? bottom : undefined,
+			borderRadius: `${borderRadius}px`,
+			...(strokePlacement === "outside" && borderWidth > 0
+				? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
+				: { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
+			display: effectiveDisplay,
+			containerType: "inline-size",
+			flexDirection: isFlexDisplay ? flexDirection : undefined,
+			flexWrap: isFlexDisplay ? flexWrap : undefined,
+			alignItems: isFlexDisplay ? alignItems : undefined,
+			justifyContent: isFlexDisplay ? justifyContent : undefined,
+			columnGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
+			rowGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
+			boxShadow,
+			opacity,
+			overflow,
+			position,
+			alignSelf,
+			top: position !== "static" ? top : undefined,
+			right: position !== "static" ? right : undefined,
+			bottom: position !== "static" ? bottom : undefined,
 				left: position !== "static" ? left : undefined,
 				zIndex: zIndex !== 0 ? zIndex : undefined,
 				transform: rotation ? `rotate(${rotation}deg)` : undefined,

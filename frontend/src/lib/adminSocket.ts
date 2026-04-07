@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import { fetchSharedNotifications } from './notifications';
+import { getApiBase } from "./apiBase";
 
 let socket: Socket | null = null;
 
@@ -11,7 +12,7 @@ function dispatchAdminDataChanged(detail?: unknown) {
 export function getAdminSocket(): Socket {
   if (socket) return socket;
 
-  const BACKEND = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000').replace(/\/api$/, '');
+  const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL).replace(/\/api$/, '');
   
   socket = io(BACKEND, {
     path: '/socket.io',

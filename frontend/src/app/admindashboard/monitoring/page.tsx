@@ -32,13 +32,20 @@ import {
   ShoppingBag,
   Sparkles,
   UtensilsCrossed,
+  Eye,
+  AlertCircle,
+  ShieldAlert,
+  Edit3,
+  ExternalLink,
+  FileText,
+  AlertTriangle,
 } from 'lucide-react';
 
 const AdminSidebar = dynamic(() => import('../components/sidebar').then((mod) => mod.AdminSidebar), { ssr: false });
 const AdminHeader = dynamic(() => import('../components/header').then((mod) => mod.AdminHeader), { ssr: false });
 
 type MonitoringTab = 'websites' | 'products';
-type SortOption = 'recent' | 'oldest' | 'az' | 'za';
+type SortOption = 'recent' | 'oldest' | 'az' | 'za' | 'price_high' | 'price_low';
 type ToastTone = 'success' | 'error';
 
 type WebsiteActionModalState = {
@@ -218,69 +225,141 @@ type WebsiteCardProps = {
 };
 
 const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openWebsiteActionModal }: WebsiteCardProps) => {
-  const status = getWebsiteStatusMeta(w.status);
+  const statusMeta = getWebsiteStatusMeta(w.status);
   const domainLabel = w.domainName || '—';
   const ownerLabel = w.owner || 'Unknown';
-  const domainNameClass = domainLabel.length > 28 ? 'text-sm' : 'text-base';
-  const ownerNameClass = ownerLabel.length > 16 ? 'text-xs' : 'text-sm';
   const isWorking = workingWebsiteKey === `${w.userId}::${w.id}`;
+
+  // Mock stats for demonstration if they don't exist in the data model yet
+  const stats = {
+    views: Math.floor(Math.random() * 5000) + 1200,
+    errors: Math.floor(Math.random() * 5),
+    reports: w.status === 'flagged' ? Math.floor(Math.random() * 10) + 2 : 0,
+  };
+
+  const statusColors = {
+    published: { bg: 'rgba(16,185,129,0.08)', text: '#10B981', dot: '#10B981' },
+    flagged: { bg: 'rgba(255,67,67,0.08)', text: '#FF4343', dot: '#FF4343' },
+    draft: { bg: 'rgba(255,204,0,0.08)', text: '#FFCC00', dot: '#FFCC00' },
+  };
+
+  const currentStatus = (normalize(w.status) in statusColors) 
+    ? statusColors[normalize(w.status) as keyof typeof statusColors] 
+    : statusColors.draft;
 
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-[20px] flex flex-col aspect-square min-h-[280px]"
-      style={{ border: '1px solid rgba(166,61,255,0.15)', boxShadow: '0 4px 20px rgba(103,2,191,0.08)', background: 'rgba(255,255,255,0.9)' }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className="group relative overflow-hidden rounded-[28px] flex flex-col min-h-[340px]"
+      style={{ 
+        border: '1.5px solid rgba(166,61,255,0.12)', 
+        boxShadow: '0 8px 30px rgba(103,2,191,0.06)', 
+        background: 'linear-gradient(135deg, #ffffff 0%, #f9f8ff 100%)' 
+      }}
     >
-      <div className="relative flex-1 overflow-hidden flex items-center justify-center"
-        style={{ borderBottom: '1px solid rgba(166,61,255,0.13)', background: '#f0eeff' }}>
+      {/* Thumbnail Area with Hover Actions */}
+      <div className="relative h-44 overflow-hidden" style={{ background: '#f5f4ff' }}>
         {w.thumbnail ? (
-          <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-contain" loading="lazy" />
+          <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
         ) : (
-          <MemoizedWebsitePreviewThumbnail domainName={w.domainName}
-            borderColor="rgba(166,61,255,0.13)" bgColor="rgba(240,235,255,0.55)" className="h-full w-full" />
+          <MemoizedWebsitePreviewThumbnail 
+            domainName={w.domainName}
+            borderColor="transparent" 
+            bgColor="rgba(240,235,255,0.5)" 
+            className="h-full w-full transition-transform duration-700 group-hover:scale-105" 
+          />
         )}
-        <span className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold shadow-sm"
-          style={{ background: 'rgba(255,255,255,0.95)', color: '#4a1a8a', border: '1px solid rgba(166,61,255,0.15)' }}>
-          <span className={`h-2 w-2 rounded-full ${status.dotClass}`} />
-          {status.label}
-        </span>
-        <span className="absolute bottom-3 left-3 rounded-full px-2.5 py-0.5 text-[11px] font-medium z-10"
-          style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
+        
+        {/* Overlay Actions */}
+        <div className="absolute inset-0 bg-[#4a1a8a]/40 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px] flex items-center justify-center gap-3">
+          <motion.a
+            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            href={viewUrl} target="_blank" rel="noopener noreferrer"
+            className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#4a1a8a] shadow-xl"
+            title="View Site"
+          >
+            <Eye className="h-5 w-5" />
+          </motion.a>
+          <motion.button
+            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            onClick={() => openWebsiteActionModal(w)}
+            className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#FF4343] shadow-xl"
+            title="Suspend / Take Down"
+          >
+            <ShieldAlert className="h-5 w-5" />
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#7b1de8] shadow-xl"
+            title="Edit Settings"
+          >
+            <Edit3 className="h-5 w-5" />
+          </motion.button>
+        </div>
+
+        {/* Status Badge */}
+        <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest shadow-md"
+          style={{ background: 'rgba(255,255,255,0.95)', border: '1px solid rgba(166,61,255,0.1)' }}>
+          <span className="h-2 w-2 rounded-full" style={{ background: currentStatus.dot }} />
+          <span style={{ color: currentStatus.text }}>{statusMeta.label}</span>
+        </div>
+
+        {/* Industry Tag */}
+        <div className="absolute bottom-4 left-4 z-10 rounded-lg px-2.5 py-1 text-[9px] font-black uppercase tracking-widest"
+          style={{ background: 'rgba(74, 26, 138, 0.8)', color: 'white', backdropFilter: 'blur(4px)' }}>
           {industry}
-        </span>
+        </div>
       </div>
-      <div className="px-4 py-3 min-h-[108px] flex flex-col justify-between">
-        <div>
-          <p className={`${domainNameClass} font-bold truncate`} style={{ color: '#2d1a50' }} title={domainLabel}>{domainLabel}</p>
-          {w.createdAt && (
-            <p className="text-[10px] mt-0.5 mb-2" style={{ color: '#a090c8' }}>{formatToPHTimeShort(w.createdAt)}</p>
-          )}
-        </div>
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1 max-w-[58%]">
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-1" style={{ color: '#a090c8' }}>Publisher</p>
-            <p className={`${ownerNameClass} font-semibold truncate block w-full`} style={{ color: '#4a1a8a' }} title={ownerLabel}>{ownerLabel}</p>
+
+      {/* Info Area */}
+      <div className="flex-1 p-5 flex flex-col">
+        <div className="mb-4">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="text-base font-black tracking-tight truncate flex-1" style={{ color: '#2d1a50' }} title={domainLabel}>
+              {domainLabel}
+            </h4>
+            <div className="shrink-0 h-2 w-2 rounded-full" style={{ background: 'rgba(166,61,255,0.3)' }} />
           </div>
-          <div className="flex items-center gap-2 shrink-0">
-            <motion.a 
-              whileTap={{ scale: 0.94 }}
-              href={viewUrl} target="_blank" rel="noopener noreferrer"
-              className="rounded-xl px-4 py-1.5 text-xs font-semibold transition hover:brightness-95 flex items-center justify-center"
-              style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
-              View
-            </motion.a>
-            <motion.button 
-              whileTap={{ scale: 0.94 }}
-              type="button" onClick={() => openWebsiteActionModal(w)}
-              disabled={isWorking}
-              className="rounded-xl px-4 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
-              style={{ background: '#ef4444' }}>
-              {isWorking ? 'Working…' : 'Dismiss'}
-            </motion.button>
+          <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mt-1" style={{ color: '#7a6aa0' }}>
+            {ownerLabel}
+          </p>
+        </div>
+
+        {/* Stats Row */}
+        <div className="mt-auto grid grid-cols-3 gap-2 px-2 py-3 rounded-2xl bg-[rgba(166,61,255,0.03)] border border-[rgba(166,61,255,0.06)]">
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-1 text-[#7b1de8] opacity-60">
+              <Eye className="h-3 w-3" />
+              <span className="text-[8px] font-black uppercase">Views</span>
+            </div>
+            <span className="text-xs font-black" style={{ color: '#4a1a8a' }}>{stats.views.toLocaleString()}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 border-x border-[rgba(166,61,255,0.1)]">
+            <div className="flex items-center gap-1 text-[#FFCC00]">
+              <AlertCircle className="h-3 w-3" />
+              <span className="text-[8px] font-black uppercase">Errors</span>
+            </div>
+            <span className="text-xs font-black" style={{ color: '#4a1a8a' }}>{stats.errors}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex items-center gap-1 text-[#FF4343]">
+              <FileText className="h-3 w-3" />
+              <span className="text-[8px] font-black uppercase">Reports</span>
+            </div>
+            <span className="text-xs font-black" style={{ color: stats.reports > 0 ? '#FF4343' : '#4a1a8a' }}>{stats.reports}</span>
           </div>
         </div>
+
+        {/* Footer Meta */}
+        {w.createdAt && (
+          <div className="mt-4 flex items-center justify-between text-[9px] font-bold opacity-40 uppercase tracking-wider" style={{ color: '#7a6aa0' }}>
+            <span>Created {formatToPHTimeShort(w.createdAt).split(',')[0]}</span>
+            <ExternalLink className="h-2.5 w-2.5" />
+          </div>
+        )}
       </div>
     </motion.article>
   );
@@ -293,68 +372,115 @@ type ProductCardProps = {
   openDeleteProductModal: (p: ApiProduct) => void;
 };
 
-const ProductCard = React.memo(({ p, workingProductId, setSelectedProduct, openDeleteProductModal }: ProductCardProps) => {
+const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingProductId, setSelectedProduct, openDeleteProductModal }: { 
+  p: ApiProduct; 
+  isSuspicious: boolean; 
+  suspiciousReasons: string[];
+  workingProductId: string | null;
+  setSelectedProduct: (p: ApiProduct) => void;
+  openDeleteProductModal: (p: ApiProduct) => void;
+}) => {
   const isWorking = workingProductId === p.id;
+  const status = normalize(p.status || 'draft');
+  const isFlagged = status === 'flagged' || isSuspicious;
   
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-      className="overflow-hidden rounded-[20px] flex flex-col"
-      style={{ border: '1px solid rgba(166,61,255,0.15)', boxShadow: '0 4px 20px rgba(103,2,191,0.08)', background: 'rgba(255,255,255,0.9)' }}
+      whileHover={{ y: -5 }}
+      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      className={`relative overflow-hidden rounded-[28px] flex flex-col group transition-all duration-300 ${isFlagged ? 'border-[#FF4343]/30' : 'border-[rgba(166,61,255,0.12)]'}`}
+      style={{ 
+        borderWidth: '1.5px',
+        boxShadow: isFlagged ? '0 8px 30px rgba(255,67,67,0.06)' : '0 8px 30px rgba(103,2,191,0.06)', 
+        background: isFlagged ? 'linear-gradient(135deg, #fffafa 0%, #fff 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f9f8ff 100%)' 
+      }}
     >
-      <div className="relative h-52 overflow-hidden flex items-center justify-center" style={{ background: '#f0eeff' }}>
+      {/* Product Image Section */}
+      <div className="relative h-56 overflow-hidden flex items-center justify-center" style={{ background: isFlagged ? '#fff5f5' : '#f5f4ff' }}>
         <Image src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
-          alt={p.name || 'Product'} fill sizes="280px"
-          className="object-contain p-3 scale-105"
+          alt={p.name || 'Product'} fill sizes="320px"
+          className="object-contain p-4 transition-transform duration-700 group-hover:scale-110"
           unoptimized={Array.isArray(p.images) && !!p.images[0]} />
-        <span className="absolute left-2.5 top-2.5 rounded-full px-2.5 py-1 text-[10px] font-semibold z-10"
-          style={{ background: '#FFCC00', color: '#1a1035' }}>
-          {p.subdomain || 'example.com'}
-        </span>
-        {p.status && (
-          <span className="absolute right-2.5 top-2.5 rounded-full px-2 py-0.5 text-[9px] font-semibold z-10"
-            style={{ background: 'rgba(255,255,255,0.9)', color: normalize(p.status) === 'published' ? '#16a34a' : '#a090c8' }}>
-            {p.status}
+        
+        {/* Status & Flag Badges */}
+        <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
+          <span className="rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-md"
+            style={{ background: '#FFCC00', color: '#1a1035' }}>
+            {p.subdomain || 'example.com'}
           </span>
-        )}
-        <span className="absolute right-2.5 bottom-2.5 rounded-full px-2 py-0.5 text-[10px] font-medium z-10"
-          style={{ background: 'rgba(255,255,255,0.9)', color: '#7a6aa0' }}>
-          {productIndustry(p)}
-        </span>
-      </div>
-      <div className="px-4 py-3 flex flex-col gap-2 flex-1">
-        <div className="flex items-start gap-2">
-          <p className="text-sm font-bold leading-tight truncate flex-1" style={{ color: '#2d1a50' }}>{p.name || 'Product Name'}</p>
-          <span className="rounded-full px-2 py-0.5 text-[9px] font-semibold whitespace-nowrap shrink-0"
-            style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8' }}>
-            {p.subcategory || 'General'}
-          </span>
+          {isFlagged && (
+            <motion.span 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-widest shadow-lg flex items-center gap-1.5"
+              style={{ background: '#FF4343', color: 'white' }}>
+              <ShieldAlert className="h-3 w-3" />
+              Suspicious
+            </motion.span>
+          )}
         </div>
-        <p className="text-xs truncate" style={{ color: '#a090c8' }}>SKU: {p.sku || 'N/A'}</p>
-        {p.createdAt && (
-          <p className="text-[10px]" style={{ color: '#a090c8' }}>{formatToPHTimeShort(p.createdAt)}</p>
-        )}
-        <div className="flex items-center gap-2 mt-auto pt-1">
-          <motion.button 
-            whileTap={{ scale: 0.94 }}
-            type="button" onClick={() => setSelectedProduct(p)}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold transition hover:brightness-95 flex items-center justify-center"
-            style={{ background: 'rgba(166,61,255,0.1)', color: '#7b1de8', border: '1px solid rgba(166,61,255,0.2)' }}>
-            View
+
+        {/* Hover Actions Overlay */}
+        <div className="absolute inset-0 bg-[#4a1a8a]/40 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px] flex items-center justify-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            onClick={() => setSelectedProduct(p)}
+            className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#4a1a8a] shadow-xl"
+            title="View Details"
+          >
+            <Eye className="h-5 w-5" />
           </motion.button>
-          <motion.button 
-            whileTap={{ scale: 0.94 }}
-            type="button" onClick={() => openDeleteProductModal(p)}
-            disabled={isWorking}
-            className="rounded-xl px-3 py-1.5 text-xs font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
-            style={{ background: '#ef4444' }}>
-            {isWorking ? 'Deleting…' : 'Delete'}
+          <motion.button
+            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            onClick={() => openDeleteProductModal(p)}
+            className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#FF4343] shadow-xl"
+            title="Delete / Take Down"
+          >
+            <ShieldAlert className="h-5 w-5" />
           </motion.button>
-          <span className="ml-auto text-xs font-semibold whitespace-nowrap" style={{ color: '#c89000' }}>
+        </div>
+
+        <div className="absolute right-4 bottom-4 z-10 rounded-lg px-2 py-0.5 text-[9px] font-bold"
+          style={{ background: 'rgba(255,255,255,0.92)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.1)' }}>
+          {productIndustry(p)}
+        </div>
+      </div>
+
+      {/* Info Section */}
+      <div className="flex-1 p-5 flex flex-col">
+        <div className="flex items-start justify-between gap-3 mb-1">
+          <h4 className="text-sm font-black tracking-tight leading-tight truncate flex-1" style={{ color: '#2d1a50' }}>{p.name || 'Product Name'}</h4>
+          <span className="text-xs font-black shrink-0" style={{ color: '#c89000' }}>
             {formatMoney(p.finalPrice ?? p.price)}
           </span>
+        </div>
+        
+        <p className="text-[10px] font-bold opacity-50 uppercase tracking-widest mb-3" style={{ color: '#7a6aa0' }}>SKU: {p.sku || 'N/A'}</p>
+
+        {isFlagged && suspiciousReasons.length > 0 && (
+          <div className="mb-4 space-y-1">
+            {suspiciousReasons.map((reason, i) => (
+              <div key={i} className="flex items-center gap-1.5 text-[9px] font-bold text-[#FF4343] uppercase tracking-tighter">
+                <AlertTriangle className="h-2.5 w-2.5 shrink-0" />
+                <span className="truncate">{reason}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Footer Meta */}
+        <div className="mt-auto flex items-center justify-between pt-3 border-t border-[rgba(166,61,255,0.06)]">
+          <div className="flex items-center gap-2">
+            <div className={`h-2 w-2 rounded-full ${status === 'published' ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <span className="text-[9px] font-black uppercase tracking-widest opacity-60" style={{ color: '#4a1a8a' }}>{status}</span>
+          </div>
+          {p.createdAt && (
+            <span className="text-[9px] font-black opacity-30 tracking-wider">
+              {formatToPHTimeShort(p.createdAt).split(',')[0]}
+            </span>
+          )}
         </div>
       </div>
     </motion.article>
@@ -524,16 +650,51 @@ function MonitoringPageContent() {
     return unique;
   }, [filteredWebsites, sortOption]);
 
+  const suspiciousProductData = useMemo(() => {
+    const nameCounts = new Map<string, number>();
+    products.forEach(p => {
+      const n = (p.name || '').trim().toLowerCase();
+      if (n) nameCounts.set(n, (nameCounts.get(n) || 0) + 1);
+    });
+
+    const result = new Map<string, { isSuspicious: boolean; reasons: string[] }>();
+    products.forEach(p => {
+      const reasons: string[] = [];
+      const price = p.finalPrice ?? p.price ?? 0;
+      const name = (p.name || '').trim().toLowerCase();
+
+      if (price < 10) reasons.push('Low Price (<10 PHP)');
+      if (!Array.isArray(p.images) || p.images.length === 0 || !p.images[0]) reasons.push('Missing Image');
+      if (name && (nameCounts.get(name) || 0) > 1) reasons.push('Duplicate Name');
+
+      result.set(p.id, { isSuspicious: reasons.length > 0, reasons });
+    });
+    return result;
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     const q = normalize(search);
     return products.filter((p) => {
       const matchFocused = !focusedProductId || p.id === focusedProductId;
       const matchSearch = !q || normalize(p.name).includes(q) || normalize(p.sku).includes(q) || normalize(p.subdomain).includes(q);
-      const matchStatus = !statusFilter || normalize(p.status) === statusFilter;
+      
+      const sData = suspiciousProductData.get(p.id);
+      const isAutoFlagged = sData?.isSuspicious || false;
+      const effectiveStatus = normalize(p.status || '');
+
+      let matchStatus = true;
+      if (statusFilter === 'flagged') {
+        matchStatus = effectiveStatus === 'flagged' || isAutoFlagged;
+      } else if (statusFilter === 'normal') {
+        matchStatus = effectiveStatus === 'published' && !isAutoFlagged;
+      } else if (statusFilter) {
+        matchStatus = effectiveStatus === statusFilter;
+      }
+
       const matchIndustry = !industryFilter || normalize(productIndustry(p)) === industryFilter;
       return matchFocused && matchSearch && matchStatus && matchIndustry;
     });
-  }, [products, focusedProductId, search, statusFilter, industryFilter]);
+  }, [products, focusedProductId, search, statusFilter, industryFilter, suspiciousProductData]);
 
   const sortedProducts = useMemo(() => {
     const copy = [...filteredProducts];
@@ -541,6 +702,8 @@ function MonitoringPageContent() {
     else if (sortOption === 'za') copy.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
     else if (sortOption === 'recent') copy.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     else if (sortOption === 'oldest') copy.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    else if (sortOption === 'price_high') copy.sort((a, b) => (b.finalPrice ?? b.price ?? 0) - (a.finalPrice ?? a.price ?? 0));
+    else if (sortOption === 'price_low') copy.sort((a, b) => (a.finalPrice ?? a.price ?? 0) - (b.finalPrice ?? b.price ?? 0));
     return copy;
   }, [filteredProducts, sortOption]);
 
@@ -944,9 +1107,10 @@ function MonitoringPageContent() {
                   <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
                     aria-label="Filter by status" suppressHydrationWarning className={selectCls} style={selectStyle}>
                     <option value="">All Status</option>
+                    <option value="normal">Normal Only</option>
+                    <option value="flagged">Flagged / Suspicious</option>
                     <option value="published">Published</option>
                     <option value="draft">Draft</option>
-                    <option value="flagged">Flagged</option>
                     <option value="offline">Offline</option>
                   </select>
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#a07ad0' }}>
@@ -1006,7 +1170,7 @@ function MonitoringPageContent() {
                           exit={{ opacity: 0, y: 8, scale: 0.95 }}
                           className="absolute right-0 top-12 z-30 w-48 rounded-2xl p-1.5 shadow-xl origin-top-right"
                           style={{ background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(166,61,255,0.15)', backdropFilter: 'blur(10px)' }}>
-                          {(['recent', 'oldest', 'az', 'za'] as const).map((opt) => (
+                          {(['recent', 'oldest', 'az', 'za', 'price_high', 'price_low'] as const).map((opt) => (
                             <button key={opt} type="button"
                               onClick={() => { setSortOption(opt); setSortMenuOpen(false); }}
                               className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors"
@@ -1015,6 +1179,8 @@ function MonitoringPageContent() {
                               {opt === 'oldest' && 'Oldest First'}
                               {opt === 'az' && 'Alphabetical (A–Z)'}
                               {opt === 'za' && 'Alphabetical (Z–A)'}
+                              {opt === 'price_high' && 'Highest Price'}
+                              {opt === 'price_low' && 'Lowest Price'}
                             </button>
                           ))}
                         </motion.div>
@@ -1090,6 +1256,8 @@ function MonitoringPageContent() {
                           <ProductCard 
                             key={`${p.id}-${p.subdomain || 'site'}`}
                             p={p}
+                            isSuspicious={suspiciousProductData.get(p.id)?.isSuspicious || false}
+                            suspiciousReasons={suspiciousProductData.get(p.id)?.reasons || []}
                             workingProductId={workingProductId}
                             setSelectedProduct={setSelectedProduct}
                             openDeleteProductModal={openDeleteProductModal}

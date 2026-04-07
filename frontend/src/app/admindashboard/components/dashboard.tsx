@@ -10,6 +10,7 @@ import {
     getAnalytics,
     type User 
 } from '@/lib/api';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
     ADMIN_CHART_SERIES,
     ADMIN_STATS,
@@ -122,21 +123,59 @@ function DashboardStatCard({
 }: {
     title: string; value: string; liveLabel: string; series: readonly ChartSeriesItem[]; index: number;
 }) {
+    const points = series[0]?.points || [];
+    const calculateChange = (pts: readonly number[]) => {
+        if (pts.length < 2) return { value: '0.0%', isIncrease: true, isNeutral: true };
+        const curr = pts[pts.length - 1];
+        const prev = pts[pts.length - 2];
+        if (prev === 0) return { value: curr > 0 ? '+100%' : '0.0%', isIncrease: curr > 0, isNeutral: curr === 0 };
+        const pct = ((curr - prev) / prev) * 100;
+        return {
+            value: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
+            isIncrease: pct >= 0,
+            isNeutral: pct === 0
+        };
+    };
+    const change = calculateChange(points);
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 22 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.38, delay: 0.08 * index, ease: [0.22, 0.84, 0.25, 1] }}
         >
-            <DashboardPanel className="p-5 sm:p-6">
+            <DashboardPanel className="p-5 sm:p-6 overflow-hidden group">
                 <div className="flex items-start justify-between gap-4">
-                    <div>
-                        <p className="text-[2.5rem] font-bold leading-none" style={{ color: '#c89000' }}>{value}</p>
-                        <p className="mt-2 text-xs font-bold tracking-[0.04em]" style={{ color: '#4a1a8a' }}>{title}</p>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                            <p className="text-[2.25rem] font-black leading-none tracking-tight" style={{ color: '#4a1a8a' }}>{value}</p>
+                            {!change.isNeutral && (
+                                <div className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                    change.isIncrease 
+                                        ? 'bg-emerald-50 text-emerald-600' 
+                                        : 'bg-rose-50 text-rose-600'
+                                } shadow-sm`}>
+                                    {change.isIncrease ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
+                                    {change.value}
+                                </div>
+                            )}
+                        </div>
+                        <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.15em] opacity-60" style={{ color: '#4a1a8a' }}>{title}</p>
                     </div>
-                    <span className="text-[10px]" style={{ color: '#a090c8' }}>{liveLabel}</span>
+                    <div className="flex flex-col items-end gap-1">
+                        <span className="flex items-center gap-1.5 text-[10px] font-bold" style={{ color: '#10B981' }}>
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                            {liveLabel}
+                        </span>
+                    </div>
                 </div>
+                
                 <DashboardLineChart series={series} />
+
+                <div className="mt-4 pt-4 border-t border-[rgba(166,61,255,0.06)] flex items-center justify-between">
+                    <span className="text-[9px] font-bold text-[#A78BFA] uppercase tracking-widest whitespace-nowrap">Weekly Momentum</span>
+                    <span className="text-[9px] font-bold text-[#471396] opacity-50 whitespace-nowrap">Compared to last week</span>
+                </div>
             </DashboardPanel>
         </motion.div>
     );
@@ -265,43 +304,38 @@ export function AdminDashboard() {
 
     const loadRealtimeData = async () => {
         try {
-            // Load notifications (critical for dashboard)
-            const notifRes = await getNotifications();
+            const [notifRes, analyticsRes] = await Promise.all([
+                Promise.resolve(getNotifications()),
+                getAnalytics('7days')
+            ]);
+
             setNotifications(notifRes.slice(0, 5));
             
-            // Load analytics (non-blocking - if it fails, dashboard still works)
-            try {
-                const analyticsRes = await getAnalytics('7days');
+            if (analyticsRes.success && analyticsRes.analytics) {
+                const s = analyticsRes.analytics.summary || {};
+                const t = analyticsRes.analytics.trends || {};
                 
-                if (analyticsRes.success && analyticsRes.analytics) {
-                    const s = analyticsRes.analytics.summary || {};
-                    const t = analyticsRes.analytics.trends || {};
-                    
-                    // Final safety: normalize strings/numbers from backend
-                    const uCount = Number(s.activeUsers || 0);
-                    const wCount = Number(s.publishedWebsites || 0);
-                    const dCount = Number(s.activeDomains || 0);
-                    const pCount = Number(s.pendingWebsites || 0);
+                // Final safety: normalize strings/numbers from backend
+                const uCount = Number(s.activeUsers || 0);
+                const wCount = Number(s.publishedWebsites || 0);
+                const dCount = Number(s.activeDomains || 0);
+                const pCount = Number(s.pendingWebsites || 0);
 
-                    setStats({
-                        activeUsers: uCount,
-                        publishedWebsites: wCount,
-                        activeDomains: dCount,
-                        pendingWebsites: pCount,
-                        trends: {
-                            users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : new Array(7).fill(uCount),
-                            websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : new Array(7).fill(wCount),
-                            domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : new Array(7).fill(dCount),
-                            pending: new Array(7).fill(pCount),
-                        }
-                    });
-                }
-            } catch (analyticsError) {
-                console.warn('[Dashboard] Analytics failed (non-critical):', analyticsError);
-                // Analytics optional - dashboard shows with zeros/defaults
+                setStats({
+                    activeUsers: uCount,
+                    publishedWebsites: wCount,
+                    activeDomains: dCount,
+                    pendingWebsites: pCount,
+                    trends: {
+                        users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : new Array(7).fill(uCount),
+                        websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : new Array(7).fill(wCount),
+                        domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : new Array(7).fill(dCount),
+                        pending: new Array(7).fill(pCount),
+                    }
+                });
             }
         } catch (error) {
-            console.error('[Dashboard] Failed to load notifications:', error);
+            console.error('[Dashboard] Failed to load realtime data:', error);
             // Non-fatal error: dashboard will just show zeros/fallbacks
         } finally {
             setLoading(false);

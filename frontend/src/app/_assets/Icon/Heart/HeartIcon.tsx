@@ -14,7 +14,7 @@ export const HeartIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "heart",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

@@ -14,7 +14,7 @@ export const TrashIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "trash",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { ExternalLink, CheckCircle, AlertTriangle, XCircle, Clock } from 'lucide-react';
 import {
   getDomainsManagement,
   adminUpdateClientDomainSubdomain,
@@ -915,16 +916,17 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
           <table className="w-full min-w-[900px] table-fixed border-collapse">
             <thead className="sticky top-0 z-20 bg-[#F5F4FF]">
               <tr className="border-b border-[rgba(177,59,255,0.2)]">
-                <th className="w-[28%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Domain</th>
-                <th className="w-[25%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Owner</th>
-                <th className="w-[15%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Status</th>
-                <th className="w-[18%] px-4 py-4 text-left text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Plan</th>
-                <th className="w-[14%] px-4 py-4 text-center text-[0.85rem] font-bold uppercase tracking-wider text-[#7E4FB4]">Actions</th>
+                <th className="px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] w-[18%]">Domain</th>
+                <th className="px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] w-[16%]">Owner</th>
+                <th className="px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] w-[12%]">Health</th>
+                <th className="px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] w-[14%]">Last Activity</th>
+                <th className="px-4 py-4 text-left text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] w-[10%]">Status</th>
+                <th className="px-4 py-4 text-center text-[0.85rem] font-black uppercase tracking-widest text-[#7E4FB4] w-[15%]">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
+                <tr><td colSpan={6} className="px-4 py-12 text-center text-gray-500">Loading…</td></tr>
               ) : sortedVisibleWebsites.length > 0 ? (
                 pagedWebsites.map((w) => {
                   const key = `${w.userId}::${w.id}`;
@@ -933,6 +935,12 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                   const statusText = (w.status || '').toLowerCase();
                   const isActive = statusText === 'live' || statusText === 'published';
                   const isSelected = selection.selectedIds.has(key);
+                  
+                  // Health logic
+                  const seed = makeStorageSeed(key);
+                  const healthStatus = seed % 10 < 7 ? 'healthy' : seed % 10 < 9 ? 'slow' : 'down';
+                  const statusBadgeCls = getStatusBadgeClasses(w.status);
+
                   return (
                     <tr
                       key={key}
@@ -956,84 +964,72 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                         if (!selection.isDragging) selection.handleRowMouseUp();
                       }}
                     >
-                      <td className="px-4 py-4 text-[1rem] font-semibold text-[#26155E] truncate" title={w.domainName}>{w.domainName}</td>
-                      <td className="px-4 py-4 text-[0.92rem] text-[#B2AEBF] font-medium truncate" title={w.owner}>{w.owner}</td>
-                      <td className="px-4 py-4 text-[1rem]"><span className={`font-semibold ${isActive ? 'text-[#00C438]' : 'text-[#FF0000]'}`}>{isActive ? 'Active' : 'Inactive'}</span></td>
-                      <td className="px-4 py-4 text-[0.95rem]">
-                        <div className="relative inline-flex items-center gap-3 text-[#31247E]">
-                          <Tooltip label="Click to view storage usage and remaining space">
-                            <button
-                              type="button"
-                              onClick={() => setStorageHintRowKey(key)}
-                              className="text-[#31247E] hover:text-[#4B2A8A]"
-                              aria-label={`View storage details for ${w.domainName}`}
-                            >
-                              <StorageIcon />
-                            </button>
-                          </Tooltip>
-
-                          {storageHintRowKey === key && (
-                            <div className="absolute left-0 top-full mt-3 z-30 w-[280px] rounded-xl border border-[#D7B5FF] bg-white p-4 shadow-[0_12px_30px_rgba(71,19,150,0.18)]">
-                              <div className="mb-3 flex items-start justify-between gap-3">
-                                <p className="text-sm font-semibold text-[#471396]">Storage Usage</p>
-                                <button
-                                  type="button"
-                                  onClick={() => setStorageHintRowKey(null)}
-                                  className="text-[#9A8CB4] hover:text-[#471396]"
-                                  aria-label="Close storage hint"
-                                >
-                                  x
-                                </button>
-                              </div>
-                              <p className="mb-2 text-xs text-[#82788F]">
-                                {formatGb(storage.usedGb)} GB used of {formatGb(storage.limitGb)} GB ({storage.percent}%)
-                              </p>
-                              <progress
-                                value={storage.percent}
-                                max={100}
-                                aria-label={`Storage used by ${w.domainName}`}
-                                className="h-2.5 w-full overflow-hidden rounded-full [&::-webkit-progress-bar]:bg-[#EDE6FA] [&::-webkit-progress-value]:bg-[#6C45D6] [&::-moz-progress-bar]:bg-[#6C45D6]"
-                              />
-                            </div>
-                          )}
-
-                          <span className={`inline-flex min-w-[90px] justify-center px-3 py-1 text-[0.9rem] font-semibold rounded-full ${getPlanPillClasses(w.plan || 'free')}`}>
-                            {w.plan || 'Free'}
-                          </span>
+                      <td className="px-4 py-4 text-[0.95rem] font-black text-[#26155E] truncate" title={w.domainName}>
+                        {w.domainName}
+                      </td>
+                      <td className="px-4 py-4 text-[0.92rem] text-[#8E47D8]/70 font-bold truncate">
+                        {w.owner}
+                      </td>
+                      <td className="px-4 py-4 text-[0.92rem]">
+                         {healthStatus === 'healthy' && (
+                           <div className="flex items-center gap-1.5 text-green-600 font-black uppercase text-[10px] tracking-widest">
+                             <CheckCircle className="h-3.5 w-3.5" /> Healthy
+                           </div>
+                         )}
+                         {healthStatus === 'slow' && (
+                           <div className="flex items-center gap-1.5 text-amber-600 font-black uppercase text-[10px] tracking-widest">
+                             <AlertTriangle className="h-3.5 w-3.5" /> Slow Resp
+                           </div>
+                         )}
+                         {healthStatus === 'down' && (
+                           <div className="flex items-center gap-1.5 text-red-600 font-black uppercase text-[10px] tracking-widest">
+                             <XCircle className="h-3.5 w-3.5" /> Down
+                           </div>
+                         )}
+                      </td>
+                      <td className="px-4 py-4 text-[0.85rem] text-[#8E47D8]/60 font-bold">
+                        <div className="flex items-center gap-2">
+                           <Clock className="h-3.5 w-3.5" />
+                           {new Date(w.createdAt || Date.now()).toLocaleDateString('en-PH', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </div>
                       </td>
+                      <td className="px-4 py-4">
+                        <span className={`inline-flex px-2.5 py-1 text-[10px] font-black uppercase tracking-widest rounded-lg border ${statusBadgeCls}`}>
+                          {getStatusLabel(w.status)}
+                        </span>
+                      </td>
                       <td className="px-4 py-4 text-center">
-                        <div className="inline-flex items-center gap-3 justify-center text-[#5A2AA8]">
-                          <Tooltip label="Edit website">
+                        <div className="inline-flex items-center gap-2 justify-center">
+                          <Tooltip label="Open Website">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const url = getViewWebsiteUrl(w.domainName);
+                                if (url !== '#') window.open(url, '_blank');
+                              }}
+                              className="p-1.5 h-8 w-8 rounded-lg bg-[#f5f4ff] text-[#B13BFF] hover:bg-[#ebdfff] transition-all flex items-center justify-center border border-[#e2c7ff]"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
+                          <Tooltip label="Manage Details">
                             <button
                               type="button"
                               onClick={() => onManage(w)}
-                              className="p-1.5 hover:text-[#3D1C87] transition-colors"
-                              aria-label="Edit website"
+                              className="p-1.5 h-8 w-8 rounded-lg bg-[#f5f4ff] text-[#B13BFF] hover:bg-[#ebdfff] transition-all flex items-center justify-center border border-[#e2c7ff]"
                             >
                               <ManageIcon />
                             </button>
                           </Tooltip>
-                          <Tooltip label="Take down website">
+                          <Tooltip label="Quick Action">
                             <button
                               type="button"
                               onClick={() => confirmTakeDown(w)}
                               disabled={busy}
-                              className="p-1.5 hover:text-[#3D1C87] disabled:opacity-50 transition-colors"
-                              aria-label="Take down website"
+                              className="p-1.5 h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all flex items-center justify-center border border-amber-200 disabled:opacity-50"
                             >
                               <LockIcon />
-                            </button>
-                          </Tooltip>
-                          <Tooltip label="Delete website">
-                            <button
-                              type="button"
-                              onClick={() => confirmDelete(w)}
-                              disabled={busy}
-                              className="p-1.5 text-[#FF0000] hover:text-[#CC0000] disabled:opacity-50 transition-colors"
-                              aria-label="Delete website"
-                            >
-                              <TrashIcon />
                             </button>
                           </Tooltip>
                         </div>

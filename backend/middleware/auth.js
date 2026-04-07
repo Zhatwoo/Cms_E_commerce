@@ -40,7 +40,8 @@ exports.protect = async (req, res, next) => {
       id: user.id,
       email: user.email,
       name: user.displayName || user.email || 'Administrator',
-      role: user.role
+      role: user.role,
+      subscriptionPlan: user.subscriptionPlan || 'free'
     };
 
     // Update presence - at most once every minute for lastSeen, but immediately recover isOnline when needed.

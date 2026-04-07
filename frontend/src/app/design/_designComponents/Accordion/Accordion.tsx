@@ -77,6 +77,7 @@ export const Accordion = ({
   zIndex = 0,
   display,
   editorVisibility = "auto",
+  alignSelf = "auto",
 }: AccordionProps) => {
   const { id, connectors: { connect } } = useNode();
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -202,7 +203,7 @@ export const Accordion = ({
         width,
         height: "auto",
         minHeight: minHeight > 0 ? `${minHeight}px` : undefined,
-        alignSelf: "flex-start",
+        alignSelf,
         backgroundColor,
         marginTop: fluidSpace(marginTop),
         marginRight: fluidSpace(marginRight),

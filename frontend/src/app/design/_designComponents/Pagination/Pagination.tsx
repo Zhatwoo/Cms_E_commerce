@@ -58,6 +58,7 @@ export const Pagination = ({
     bottom = "auto",
     left = "auto",
     zIndex = 0,
+    alignSelf = "auto",
     display,
     editorVisibility = "auto",
     rotation = 0,
@@ -223,6 +224,7 @@ export const Pagination = ({
                 bottom: position !== "static" ? bottom : undefined,
                 left: position !== "static" ? left : undefined,
                 zIndex: zIndex !== 0 ? zIndex : undefined,
+                alignSelf,
                 display: effectiveDisplay,
             }}
         >

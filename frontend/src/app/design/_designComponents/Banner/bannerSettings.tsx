@@ -1,7 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -11,6 +11,7 @@ import type { BannerProps } from "./banner";
 
 export const BannerSettings = () => {
   const {
+    id,
     text,
     fontFamily,
     fontWeight,
@@ -47,11 +48,21 @@ export const BannerSettings = () => {
     alignItems,
     justifyContent,
     gap,
+    position,
+    display,
+    alignSelf,
+    zIndex,
+    top,
+    right,
+    bottom,
+    left,
+    editorVisibility,
     boxShadow,
     opacity,
     overflow,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     text: node.data.props.text,
     fontFamily: node.data.props.fontFamily,
     fontWeight: node.data.props.fontWeight,
@@ -88,6 +99,15 @@ export const BannerSettings = () => {
     alignItems: node.data.props.alignItems,
     justifyContent: node.data.props.justifyContent,
     gap: node.data.props.gap,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
@@ -109,14 +129,24 @@ export const BannerSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Auto Layout">
-        <AutoLayoutGroup
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <LayoutLayerGroup
+          nodeId={id}
+          position={position}
+          display={display}
+          alignSelf={alignSelf}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
           flexDirection={flexDirection}
           flexWrap={flexWrap}
           alignItems={alignItems}
           justifyContent={justifyContent}
           gap={gap}
-          setProp={typedSetProp}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 

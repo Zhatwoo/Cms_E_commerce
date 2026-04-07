@@ -14,7 +14,7 @@ export const MenuIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "menu",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

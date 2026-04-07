@@ -46,6 +46,7 @@ export const Row = ({
   display = "flex",
   position = "static",
   zIndex = 0,
+  alignSelf = "auto",
   top = "auto",
   right: posRight = "auto",
   bottom = "auto",
@@ -92,6 +93,8 @@ export const Row = ({
         ? "flex"
         : display;
 
+  const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
+
   const transformStyle =
     [
       rotation ? `rotate(${rotation}deg)` : null,
@@ -106,7 +109,7 @@ export const Row = ({
       data-node-id={id}
       data-fluid-space="true"
       {...(isHeaderAsset ? { "data-header": "true" } : {})}
-      data-layout={effectiveDisplay === "flex" ? (flexDirection === "row" ? "row" : "column") : undefined}
+      data-layout={isFlexDisplay ? (flexDirection === "row" ? "row" : "column") : undefined}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -136,18 +139,19 @@ export const Row = ({
         position,
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
+        alignSelf,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
         containerType: "inline-size",
         contain: "layout",
-        flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
-        flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
-        alignItems: effectiveDisplay === "flex" ? effectiveAlignItems : undefined,
-        justifyContent: effectiveDisplay === "flex" ? justifyContent : undefined,
-        columnGap: effectiveDisplay === "flex" ? fluidSpace(gap, 0) : undefined,
-        rowGap: effectiveDisplay === "flex" ? fluidSpace(gap, 0) : undefined,
+        flexDirection: isFlexDisplay ? flexDirection : undefined,
+        flexWrap: isFlexDisplay ? flexWrap : undefined,
+        alignItems: isFlexDisplay ? effectiveAlignItems : undefined,
+        justifyContent: isFlexDisplay ? justifyContent : undefined,
+        columnGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
+        rowGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
         boxShadow,
         opacity,
         overflow,
