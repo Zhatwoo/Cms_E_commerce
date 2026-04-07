@@ -12,13 +12,14 @@ import { SearchBar } from '../components/ui/searchbar';
 import { EmptyState, type EmptyStateTone } from '../components/ui/emptyState';
 import ProductAddModal from './components/productAddModal';
 import ProductEditModal from './components/productEditModal';
-import { ProductsDropdown } from './components/productsDropdown';
+import { CustomDropdown } from '../components/ui/customDropdown';
 import { ProductCard } from './components/productContainer';
 import { ProductDetailsModal } from './components/viewProductDetails';
 import { PaginationControls } from './components/paginationControls';
 import { ProductListView } from './components/productListView';
 import { AddProductButton } from './components/button';
-import { StatusFilterButton, ViewModeToggleButton } from './components/subbuttons';
+import { StatusFilterButton } from './components/subbuttons';
+import { ViewModeToggle } from '../components/buttons/viewModeToggle';
 
 type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
@@ -460,7 +461,6 @@ export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'tile' | 'list'>('tile');
-  const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [showStatusFilterMenu, setShowStatusFilterMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -500,17 +500,16 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    if (!showStatusFilterMenu && !showCategoryFilterMenu) return;
+    if (!showStatusFilterMenu) return;
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
       if (statusMenuRef.current?.contains(target)) return;
-      setShowCategoryFilterMenu(false);
       setShowStatusFilterMenu(false);
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [showStatusFilterMenu, showCategoryFilterMenu]);
+  }, [showStatusFilterMenu]);
 
   useEffect(() => {
     if (!openMenuProductId) return;
@@ -884,15 +883,15 @@ export default function ProductsPage() {
           <div id="inventory-section" className="max-w-[1090px] mx-auto mb-5">
             <div className="flex items-center justify-between gap-[10px] flex-wrap">
               <div className="flex items-center gap-2 justify-start">
-                <ProductsDropdown
-                  selectedCategory={selectedCategory}
-                  onCategoryChange={(category) => {
+                <CustomDropdown
+                  value={selectedCategory}
+                  onChange={(category) => {
                     setSelectedCategory(category);
                     setCurrentPage(1);
                   }}
-                  filterOptions={filterOptions}
-                  showMenu={showCategoryFilterMenu}
-                  onMenuToggle={setShowCategoryFilterMenu}
+                  options={filterOptions.map((option) => ({ id: option.value, label: option.label }))}
+                  title="Category"
+                  className="md:w-40 lg:w-45"
                 />
 
                 <AddProductButton
@@ -918,11 +917,10 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                <ViewModeToggleButton
-                  viewMode={viewMode}
-                  onToggle={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  theme={theme}
-                  colors={colors}
+                <ViewModeToggle
+                  value={viewMode === 'tile' ? 'grid' : 'list'}
+                  onChange={(mode) => setViewMode(mode === 'grid' ? 'tile' : 'list')}
+                  theme={theme as 'light' | 'dark'}
                 />
               </div>
             </div>

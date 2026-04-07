@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { type Product, type ProductVariant } from '@/app/m_dashboard/lib/productsData';
+import { PopMenuButton } from '@/app/m_dashboard/components/buttons/PopMenuButton';
 import { StatusBadge } from './statusBadge';
 import ProductEditModal from './productEditModal';
 
@@ -103,6 +104,7 @@ function getLowStockThreshold(product: Product): number {
 export function ProductCard({
   product,
   colors,
+  theme,
   onView,
   onEdit,
   onDelete,
@@ -113,6 +115,7 @@ export function ProductCard({
 }: {
   product: Product;
   colors: ThemeColors;
+  theme: 'light' | 'dark';
   onView: (product: Product) => void;
   onEdit: (product: Product) => void;
   onDelete: (product: Product) => void;
@@ -171,136 +174,129 @@ export function ProductCard({
 
   return (
     <>
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.12, ease: 'easeOut' }}
-      onClick={() => onView(product)}
-      className="group border overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 flex w-full max-w-[324px] h-[365px] mx-auto flex-col cursor-pointer"
-      style={{
-        backgroundColor: '#141446',
-        borderColor: '#2D3A90',
-        borderRadius: '20px',
-      }}
-    >
-      <div className="relative w-full h-44 md:h-48 overflow-hidden flex items-center justify-center border-b" style={{ borderColor: '#2D3A90', backgroundColor: '#1A1F66' }}>
-        <span className="absolute left-2.5 top-2.5 z-10">
-          <StatusBadge status={product.status} />
-        </span>
-        <button
-          data-product-menu-root="true"
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            onToggleMenu();
-          }}
-          className="absolute right-2.5 top-2.5 z-20 flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
-          style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
-          title="Product actions"
-        >
-          <svg className="h-4.5 w-4.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <circle cx="6" cy="12" r="2.2" />
-            <circle cx="12" cy="12" r="2.2" />
-            <circle cx="18" cy="12" r="2.2" />
-          </svg>
-        </button>
-        {menuOpen && (
-          <div
-            data-product-menu-root="true"
-            className="absolute right-2.5 top-10 z-30 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button type="button" onClick={() => { onCloseMenu(); onView(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">View</button>
-            <button type="button" onClick={() => { onCloseMenu(); setShowEditModal(true); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5">Edit</button>
-            <button type="button" onClick={() => { onCloseMenu(); onDelete(product); }} className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10">Delete</button>
-          </div>
-        )}
-        {showImage ? (
-          <img
-            src={imageValue}
-            alt={product.name}
-            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center text-center p-3">
-            <svg className="w-12 h-12 mb-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: colors.border.faint }}>
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-            <span className="text-xs" style={{ color: colors.text.muted }}>No image</span>
-          </div>
-        )}
-      </div>
+   <motion.div
+  initial={{ opacity: 0, y: 10 }}
+  animate={{ opacity: 1, y: 0 }}
+  className={`group relative flex w-full h-120 flex-col cursor-pointer transition-all duration-500 rounded-[2.5rem] overflow-hidden [font-family:var(--font-outfit),sans-serif] ${
+    theme === 'dark' 
+      ? 'bg-[#0F0F2D] border border-white/5 shadow-2xl' 
+      : 'bg-white border border-[#14034A]/5 shadow-[0_20px_50px_rgba(0,0,0,0.02)]'
+  }`}
+>
+  {/* TOP SECTION: Edge-to-Edge Visuals */}
+  <div className="relative w-full h-60 overflow-hidden bg-[#F9F9FB]">
+    {/* Pinned Actions: Truly at the edges */}
+    <div data-product-menu-root="true" className="absolute right-0 top-0 z-30">
+      <PopMenuButton
+        theme={theme}
+        isOpen={menuOpen}
+        onToggle={onToggleMenu}
+        options={[
+          {
+            key: 'view',
+            label: 'View',
+            onSelect: () => {
+              onCloseMenu();
+              onView(product);
+            },
+          },
+          {
+            key: 'edit',
+            label: 'Edit',
+            onSelect: () => {
+              onCloseMenu();
+              setShowEditModal(true);
+            },
+          },
+          {
+            key: 'delete',
+            label: 'Delete',
+            onSelect: () => {
+              onCloseMenu();
+              onDelete(product);
+            },
+            className: 'text-red-400',
+          },
+        ]}
+      />
+    </div>
 
-      <div className="p-3.5 md:p-4 flex-1 flex flex-col" style={{ backgroundColor: '#141446' }}>
-        <h3 className="font-semibold text-[18px] leading-tight line-clamp-2" style={{ color: '#F2ECFF' }}>
+    <div className="absolute right-6 bottom-6 z-20">
+      <StatusBadge 
+        status={product.status || 'draft'} 
+      />
+    </div>
+
+    {showImage ? (
+      <img 
+        src={imageValue} 
+        alt={product.name} 
+        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+      />
+    ) : (
+      <div className="flex items-center justify-center h-full opacity-5">
+         <span className="text-[10px] font-black uppercase tracking-[0.4em]">No Image</span>
+      </div>
+    )}
+  </div>
+
+  {/* BOTTOM SECTION: Minimalist Ledger */}
+  <div className="px-9 py-8 flex-1 flex flex-col justify-between">
+    
+    {/* Identity Row: Typography-led */}
+    <div className="flex justify-between items-baseline">
+      <div className="flex flex-col min-w-0">
+        <h3 className={`font-black text-2xl tracking-tighter leading-none mb-2 truncate ${
+          theme === 'dark' ? 'text-white' : 'text-[#14034A]'
+        }`}>
           {product.name}
         </h3>
-        <div className="mt-auto">
-          {subcategoryLabel && (
-            <p className="mt-1 text-[10px] uppercase tracking-[0.08em]" style={{ color: '#8A8FC4' }}>
-              {subcategoryLabel}
-            </p>
-          )}
-          <p className={`${subcategoryLabel ? 'mt-0.5' : 'mt-1'} text-xs`} style={{ color: '#A78BFA' }}>
-            {product.sku || '-'}
-          </p>
-
-          {variantGroups.length > 1 && hasColorVariant && (
-            <p className="mt-2 text-[11px] mb-2.5" style={{ color: '#D2D6F7' }}>
-              Color Variants: {colorVariantCount}
-            </p>
-          )}
-
-          {isSingleVariantGroup && singleVariantOptions.length > 0 && (
-            <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
-              {visibleVariantOptions.map((option: any) => (
-                <span
-                  key={`${product.id}-${singleVariantId}-${option.id}`}
-                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
-                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
-                >
-                  {option.name}
-                </span>
-              ))}
-              {hiddenVariantCount > 0 && (
-                <span
-                  className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
-                  style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
-                >
-                  +{hiddenVariantCount}
-                </span>
-              )}
-            </div>
-          )}
-
-          {variantGroups.length === 0 && (
-            <div className="mt-2.5 mb-3 flex flex-wrap gap-1">
-              <span
-                className="px-1.5 py-0.5 text-[9px] border text-white rounded-sm"
-                style={{ borderColor: '#6C72B2', backgroundColor: 'transparent' }}
-              >
-                NO VARIANT
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="mt-3 pt-3 flex items-end justify-between border-t" style={{ borderColor: '#2D3A90' }}>
-          <div className="flex flex-col">
-            {formattedOriginalPrice && (
-              <p className="text-[11px] leading-none line-through" style={{ color: '#8f94b8' }}>
-                {formattedOriginalPrice}
-              </p>
-            )}
-            <p className="text-[15px] font-medium leading-none mt-1" style={{ color: '#A78BFA' }}>{formattedPrice}</p>
-          </div>
-          <p className={`text-[15px] font-semibold ${overallStock === 0 ? 'text-red-400' : lowStock ? 'text-orange-300' : 'text-white'}`}>
-            Stock: {overallStock}
-          </p>
-        </div>
+        <p className="text-[11px] font-mono font-bold tracking-[0.2em] text-[#8B5CF6] uppercase opacity-60">
+          {product.sku || 'SKU-PENDING'}
+        </p>
       </div>
-    </motion.div>
+      <p className="text-[22px] font-black tracking-tighter" style={{ color: '#8B5CF6' }}>
+        {formattedPrice}
+      </p>
+    </div>
+
+    {/* Metadata Grid: No borders, just clean alignment */}
+    <div className="grid grid-cols-2 gap-8 mt-6">
+      <div className="flex flex-col gap-1">
+        <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-20" style={{ color: theme === 'dark' ? '#FFF' : '#14034A' }}>Category</span>
+        <span className={`text-[12px] font-bold truncate ${theme === 'dark' ? 'text-white/80' : 'text-[#14034A]/80'}`}>
+          {subcategoryLabel || 'General'}
+        </span>
+      </div>
+      
+      <div className="flex flex-col gap-1 text-right">
+        <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-20" style={{ color: theme === 'dark' ? '#FFF' : '#14034A' }}>Variants</span>
+        <span className="text-[12px] font-bold text-violet-400">
+          {variantGroups.length > 1 ? `${colorVariantCount} Colors` : 'Standard'}
+        </span>
+      </div>
+    </div>
+
+    {/* Footer: Vital Status Only */}
+    <div className="mt-auto pt-6 flex items-center justify-between">
+      <div className="flex items-center gap-2.5">
+        <div className={`w-2 h-2 rounded-full ${
+          overallStock === 0 ? 'bg-red-500 shadow-[0_0_10px_#EF4444]' : lowStock ? 'bg-amber-500 shadow-[0_0_8px_#F59E0B]' : 'bg-emerald-400'
+        } ${overallStock <= 10 && 'animate-pulse'}`} />
+        <span className={`text-[12px] font-black uppercase tracking-[0.15em] ${
+          overallStock === 0 ? 'text-red-500' : 'opacity-40'
+        }`} style={{ color: overallStock === 0 ? undefined : (theme === 'dark' ? '#FFF' : '#14034A') }}>
+          {overallStock} in stock
+        </span>
+      </div>
+
+      {/* Subtle indicator for dark/light contrast */}
+      <div className="h-px flex-1 mx-6 bg-[#14034A]/5" />
+      
+      <span className="text-[10px] font-black text-[#8B5CF6] opacity-30 italic">Registry Entry</span>
+    </div>
+  </div>
+</motion.div>
 
     <ProductEditModal
       isOpen={showEditModal}
