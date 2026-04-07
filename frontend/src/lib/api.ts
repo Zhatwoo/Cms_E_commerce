@@ -310,6 +310,18 @@ export async function apiFetch<T>(
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
+  // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
+  if (typeof window !== 'undefined' && normalizedPath.startsWith('/api/')) {
+    const res = await fetch(normalizedPath, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+    return handleResponse<T>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -755,8 +767,10 @@ export async function uploadMediaApi(
   file: File,
   options?: { onProgress?: (percent: number) => void; folder?: 'images' | 'videos' | 'files' }
 ): Promise<{ url: string }> {
-  const base = getApiUrl().replace(/\/$/, '');
-  const url = `${base}/api/projects/${projectId}/media`;
+  const url =
+    typeof window !== 'undefined'
+      ? `/api/projects/${projectId}/media`
+      : `${getApiUrl().replace(/\/$/, '')}/api/projects/${projectId}/media`;
 
   if (options?.onProgress) {
     return new Promise((resolve, reject) => {
@@ -1048,6 +1062,19 @@ export async function uploadProductImageApi(
   file: File,
   subdomain?: string
 ): Promise<{ success: boolean; message?: string; url?: string }> {
+  if (typeof window !== 'undefined') {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (subdomain) formData.append('subdomain', subdomain);
+
+    const res = await fetch(`/api/products/upload-image`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    return handleResponse<{ success: boolean; message?: string; url?: string }>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -1608,6 +1635,10 @@ export type WebsiteManagementRow = {
   domainType: string;
   createdAt?: string;
   updatedAt?: string;
+  views?: number;
+  errors?: number;
+  reports?: number;
+  analyticsKey?: string;
 };
 
 export type WebsiteManagementStats = {
@@ -1627,6 +1658,49 @@ export async function getDomainsManagement(): Promise<{
     data?: WebsiteManagementRow[];
     stats?: WebsiteManagementStats;
   }>('/api/domains/admin/management');
+}
+
+export type WebsiteAnalyticsData = {
+  domainId: string;
+  views: number;
+  errors: number;
+  reports: number;
+  lastViewedAt?: string;
+  lastErrorAt?: string;
+  lastReportedAt?: string;
+};
+
+export async function getWebsiteAnalytics(domainIds: string[]): Promise<{
+  success: boolean;
+  analytics?: Record<string, WebsiteAnalyticsData>;
+}> {
+  if (!domainIds || domainIds.length === 0) {
+    return { success: true, analytics: {} };
+  }
+
+  const queryString = domainIds.map(id => `domainIds=${encodeURIComponent(id)}`).join('&');
+  return apiFetch<{ success: boolean; analytics?: Record<string, WebsiteAnalyticsData> }>(
+    `/api/dashboard/website-analytics?${queryString}`
+  );
+}
+
+export async function trackWebsiteView(subdomain: string): Promise<{ success: boolean }> {
+  try {
+    // The backend will detect the subdomain from the Host header via middleware,
+    // but we send it in the body as backup
+    return await apiFetch<{ success: boolean }>(
+      '/api/analytics/track-view',
+      {
+        method: 'POST',
+        body: JSON.stringify({ subdomain }),
+        headers: { 'x-skip-active-project-scope': '1' } // Don't add project ID header for public tracking
+      }
+    );
+  } catch (error) {
+    // Silently fail - don't block the site
+    console.error('Failed to track view:', error);
+    return { success: false };
+  }
 }
 
 export type ClientRow = {

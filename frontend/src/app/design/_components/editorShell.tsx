@@ -57,6 +57,20 @@ import { useThemeOptional } from "@/app/m_dashboard/components/context/theme-con
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
+import { Rectangle } from "../../_assets/shapes/rectangle/rectangle";
+import {
+  Diamond,
+  Heart,
+  Trapezoid,
+  Pentagon,
+  Hexagon,
+  Heptagon,
+  Octagon,
+  Nonagon,
+  Decagon,
+  Parallelogram,
+  Kite
+} from "../../_assets/shapes/additional_shapes";
 import { buildCraftResolver, CRAFT_RESOLVER } from "./craftResolver";
 
 import {
@@ -2732,9 +2746,33 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       Circle: asComponent(Circle),
       Square: asComponent(Square),
       Triangle: asComponent(Triangle),
+      Rectangle: asComponent(Rectangle),
+      Diamond: asComponent(Diamond),
+      Heart: asComponent(Heart),
+      Trapezoid: asComponent(Trapezoid),
+      Pentagon: asComponent(Pentagon),
+      Hexagon: asComponent(Hexagon),
+      Heptagon: asComponent(Heptagon),
+      Octagon: asComponent(Octagon),
+      Nonagon: asComponent(Nonagon),
+      Decagon: asComponent(Decagon),
+      Parallelogram: asComponent(Parallelogram),
+      Kite: asComponent(Kite),
       circle: asComponent(Circle),
       square: asComponent(Square),
       triangle: asComponent(Triangle),
+      rectangle: asComponent(Rectangle),
+      diamond: asComponent(Diamond),
+      heart: asComponent(Heart),
+      trapezoid: asComponent(Trapezoid),
+      pentagon: asComponent(Pentagon),
+      hexagon: asComponent(Hexagon),
+      heptagon: asComponent(Heptagon),
+      octagon: asComponent(Octagon),
+      nonagon: asComponent(Nonagon),
+      decagon: asComponent(Decagon),
+      parallelogram: asComponent(Parallelogram),
+      kite: asComponent(Kite),
       BooleanField: asComponent(BooleanField),
       booleanfield: asComponent(BooleanField),
       BOOLEANFIELD: asComponent(BooleanField),

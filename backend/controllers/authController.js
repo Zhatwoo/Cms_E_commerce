@@ -2,6 +2,7 @@
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
+const { getFirstUrl } = require('../utils/urlBase');
 const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
@@ -668,7 +669,8 @@ exports.forgotPassword = async (req, res) => {
     let resetUrl = null;
     if (user) {
       const { token } = await PasswordReset.create(user.id, user.email);
-      resetUrl = `${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`;
+      const frontendBase = getFirstUrl(process.env.FRONTEND_URL, 'http://localhost:3000');
+      resetUrl = `${frontendBase}/auth/reset-password?token=${encodeURIComponent(token)}`;
 
       const { sent, error: sendError } = await sendPasswordResetEmail(
         user.email,

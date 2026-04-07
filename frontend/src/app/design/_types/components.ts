@@ -329,6 +329,7 @@ export interface CircleProps
 
 export interface SquareProps extends CircleProps { }
 export interface TriangleProps extends CircleProps { }
+export interface RectangleProps extends CircleProps { }
 
 
 /** Tabs component props — dynamic tabs with content areas. */

@@ -2011,8 +2011,9 @@ function RenderNode({
       ? layoutReferenceWidth
       : undefined;
   void layoutReferenceHeight;
-  // Normalize legacy lowercase node types so published and preview payloads render identically.
-  const rawType = typeof node.type === "string" && node.type.trim() ? node.type : "Container";
+  // Normalize legacy and object-based node types so published and preview payloads render identically.
+  const nodeType = typeof node.type === "string" ? node.type : (node.type as any)?.resolvedName;
+  const rawType = String(nodeType || "").trim() || "Container";
   const normalizedTypeMap: Record<string, ComponentType> = {
     text: "Text",
     container: "Container",
@@ -2040,8 +2041,27 @@ function RenderNode({
     "tab content": "TabContent",
     importedblock: "ImportedBlock",
     booleanfield: "BooleanField",
+    diamond: "Diamond",
+    heart: "Heart",
+    trapezoid: "Trapezoid",
+    pentagon: "Pentagon",
+    hexagon: "Hexagon",
+    heptagon: "Heptagon",
+    octagon: "Octagon",
+    nonagon: "Nonagon",
+    decagon: "Decagon",
+    parallelogram: "Parallelogram",
+    kite: "Kite",
   };
-  const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
+  const type = (() => {
+    const lowerRaw = rawType.toLowerCase();
+    const shapes = ["circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite"];
+    const foundShape = shapes.find(s => lowerRaw.includes(s));
+    if (foundShape) {
+      return (foundShape.charAt(0).toUpperCase() + foundShape.slice(1)) as ComponentType;
+    }
+    return (normalizedTypeMap[lowerRaw] ?? rawType) as ComponentType;
+  })();
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   const useFixedPx = Boolean(builderParityMode);
   const isNarrowPreview = isNarrowResponsivePreview(
@@ -3905,7 +3925,18 @@ function RenderNode({
 
     case "Circle":
     case "Square":
-    case "Triangle": {
+    case "Triangle":
+    case "Diamond":
+    case "Heart":
+    case "Trapezoid":
+    case "Pentagon":
+    case "Hexagon":
+    case "Heptagon":
+    case "Octagon":
+    case "Nonagon":
+    case "Decagon":
+    case "Parallelogram":
+    case "Kite": {
       const m = toNumber(props.margin, 0);
       const mt = toNumber(props.marginTop ?? m, 0);
       const mr = toNumber(props.marginRight ?? m, 0);
@@ -3964,29 +3995,24 @@ function RenderNode({
               return parts.length ? parts.join(" ") : undefined;
             })(),
             transformOrigin: "center center",
-            backgroundColor: type === "Triangle" ? undefined : fill,
-            backgroundImage:
-              type !== "Triangle" && bgImage
-                ? overlay
-                  ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
-                  : `url(${bgImage})`
-                : undefined,
-            backgroundSize: type !== "Triangle" && bgImage ? (props.backgroundSize as string) : undefined,
-            backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
-            backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
+            backgroundColor: "transparent",
+            backgroundImage: "none",
+            backgroundSize: undefined,
+            backgroundPosition: undefined,
+            backgroundRepeat: undefined,
             borderRadius:
               type === "Circle"
                 ? "50%"
                 : type === "Square"
                   ? `${shapeTopLeftRadius}px ${shapeTopRightRadius}px ${shapeBottomRightRadius}px ${shapeBottomLeftRadius}px`
                   : undefined,
-            ...(type !== "Triangle" && bw > 0
+            clipPath: undefined,
+            WebkitClipPath: undefined,
+            ...(bw > 0
               ? useOutline
                 ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
-                : { border: triangleStroke }
-              : type === "Triangle"
-                ? {}
-                : {}),
+                : { border: type === "Circle" || type === "Square" ? triangleStroke : "none" }
+              : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -3998,7 +4024,7 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {type === "Triangle" ? (
+          {type !== "Circle" && type !== "Square" ? (
             <svg
               width="100%"
               height="100%"
@@ -4012,21 +4038,43 @@ function RenderNode({
                 pointerEvents: "none",
                 display: "block",
               }}
-              preserveAspectRatio="xMidYMid slice"
+              preserveAspectRatio="none"
             >
-              <polygon
-                points="0,100 50,0 100,100"
-                fill={fill}
-                stroke={props.borderColor as string}
-                strokeWidth={toNumber(props.borderWidth, 0)}
-                strokeDasharray={
-                  props.borderStyle === "dashed"
-                    ? "6,6"
-                    : props.borderStyle === "dotted"
-                      ? "3,3"
-                      : undefined
-                }
-              />
+              {type === "Heart" ? (
+                <path
+                  d="M 50 90 C 20 70 5 55 5 35 C 5 20 20 10 32 10 C 40 10 47 15 50 22 C 53 15 60 10 68 10 C 80 10 95 20 95 35 C 95 55 80 70 50 90 Z"
+                  fill={fill}
+                  stroke={props.borderColor as string}
+                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) : undefined}
+                />
+              ) : (
+                <polygon
+                  points={(() => {
+                    if (type === "Triangle") return "0,100 50,0 100,100";
+                    if (type === "Diamond") return "50,0 100,50 50,100 0,50";
+                    if (type === "Trapezoid") return "20,0 80,0 100,100 0,100";
+                    if (type === "Pentagon") return "50,0 100,38 82,100 18,100 0,38";
+                    if (type === "Hexagon") return "25,0 75,0 100,50 75,100 25,100 0,50";
+                    if (type === "Heptagon") return "50,0 90,20 100,60 75,100 25,100 0,60 10,20";
+                    if (type === "Octagon") return "30,0 70,0 100,30 100,70 70,100 30,100 0,70 0,30";
+                    if (type === "Nonagon") return "50,0 83,12 100,43 94,78 68,100 32,100 6,78 0,43 17,12";
+                    if (type === "Decagon") return "50,0 80,10 100,35 100,65 80,90 50,100 20,90 0,65 0,35 20,10";
+                    if (type === "Parallelogram") return "25,0 100,0 75,100 0,100";
+                    if (type === "Kite") return "50,0 100,45 50,100 0,45";
+                    return "";
+                  })()}
+                  fill={fill}
+                  stroke={props.borderColor as string}
+                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) * 2 : undefined}
+                  strokeDasharray={
+                    props.borderStyle === "dashed"
+                      ? "6,6"
+                      : props.borderStyle === "dotted"
+                        ? "3,3"
+                        : undefined
+                  }
+                />
+              )}
             </svg>
           ) : null}
           {children}
