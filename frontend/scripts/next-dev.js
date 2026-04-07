@@ -16,15 +16,15 @@ function getLanIpv4() {
       let score = 0;
       const lowerName = name.toLowerCase();
       
-      // Prioritize common physical interface names
-      if (lowerName.includes('wi-fi') || lowerName.includes('wifi') || lowerName.includes('wlan')) score += 10;
-      if (lowerName.includes('ethernet')) score += 5;
+      // Prioritize Wi-Fi/Ethernet as the main 'base' address
+      if (lowerName.includes('wi-fi') || lowerName.includes('wifi') || lowerName.includes('wlan')) score += 50;
+      if (lowerName.includes('ethernet')) score += 40;
       
-      // Windows Hotspot often shows up as "Local Area Connection* X"
-      if (lowerName.includes('local area connection')) score += 15;
+      // Windows Hotspot often shows up as "Local Area Connection* X" - give it lower priority than main Wi-Fi
+      if (lowerName.includes('local area connection')) score += 10;
       
-      // Windows default Hotspot subnet is often 192.168.137.x
-      if (info.address.startsWith('192.168.137.')) score += 20;
+      // Windows default Hotspot subnet is often 192.168.137.x - lower priority
+      if (info.address.startsWith('192.168.137.')) score += 5;
 
       // Deprioritize virtual/tunnel interfaces
       if (lowerName.includes('virtual') || lowerName.includes('vbox') || 
