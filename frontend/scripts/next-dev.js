@@ -57,7 +57,11 @@ const child = spawn(process.execPath, args, {
   // Use pipes so we can rewrite the displayed Network URL (0.0.0.0 -> LAN IP),
   // but force color so output stays colored even though it's not a TTY.
   stdio: ['inherit', 'pipe', 'pipe'],
-  env: { ...process.env, FORCE_COLOR: process.env.FORCE_COLOR || '1' },
+  env: { 
+    ...process.env, 
+    NEXT_PUBLIC_DEV_LAN_IP: lanIp || '',
+    FORCE_COLOR: process.env.FORCE_COLOR || '1' 
+  },
 });
 
 function pipeWithNetworkRewrite(stream, targetStream) {
