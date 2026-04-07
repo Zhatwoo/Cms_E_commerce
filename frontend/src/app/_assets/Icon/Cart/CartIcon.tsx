@@ -14,7 +14,7 @@ export const CartIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "cart",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

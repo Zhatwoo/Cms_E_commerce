@@ -74,6 +74,7 @@ export const Container = ({
   display = "flex",
   position = "static",
   zIndex = 0,
+  alignSelf = "auto",
   top = "auto",
   right: posRight = "auto",
   bottom = "auto",
@@ -197,6 +198,9 @@ export const Container = ({
         ? "flex"
         : display;
 
+  const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
+  const isGridDisplay = effectiveDisplay === "grid";
+
   const shouldFlexFill = width === "100%" && isFlexRowParent;
   const resolvedPosition = position === "static" ? "relative" : position;
 
@@ -204,7 +208,7 @@ export const Container = ({
     <div
       data-node-id={id}
       data-fluid-space="true"
-      data-layout={effectiveDisplay === "flex" ? (flexDirection === "row" ? "row" : "column") : undefined}
+      data-layout={isFlexDisplay ? (flexDirection === "row" ? "row" : "column") : undefined}
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
@@ -231,30 +235,31 @@ export const Container = ({
         contain: "layout",
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
+        alignSelf,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
         // Flex properties
-        flexDirection: effectiveDisplay === "flex" ? flexDirection : undefined,
-        flexWrap: effectiveDisplay === "flex" ? flexWrap : undefined,
-        alignItems: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? alignItems : undefined,
-        justifyContent: effectiveDisplay === "flex" || effectiveDisplay === "grid" ? justifyContent : undefined,
-        columnGap: effectiveDisplay === "flex"
+        flexDirection: isFlexDisplay ? flexDirection : undefined,
+        flexWrap: isFlexDisplay ? flexWrap : undefined,
+        alignItems: isFlexDisplay || isGridDisplay ? alignItems : undefined,
+        justifyContent: isFlexDisplay || isGridDisplay ? justifyContent : undefined,
+        columnGap: isFlexDisplay
           ? fluidSpace(gap, 0)
-          : effectiveDisplay === "grid"
+          : isGridDisplay
             ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
-        rowGap: effectiveDisplay === "flex"
+        rowGap: isFlexDisplay
           ? fluidSpace(gap, 0)
-          : effectiveDisplay === "grid"
+          : isGridDisplay
             ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
         // Grid properties
-        gridTemplateColumns: effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
-        gridTemplateRows: effectiveDisplay === "grid" ? gridTemplateRows : undefined,
-        gridAutoRows: effectiveDisplay === "grid" ? gridAutoRows : undefined,
-        gridAutoFlow: effectiveDisplay === "grid" ? gridAutoFlow : undefined,
+        gridTemplateColumns: isGridDisplay ? gridTemplateColumns : undefined,
+        gridTemplateRows: isGridDisplay ? gridTemplateRows : undefined,
+        gridAutoRows: isGridDisplay ? gridAutoRows : undefined,
+        gridAutoFlow: isGridDisplay ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
         overflow,

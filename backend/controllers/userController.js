@@ -3,6 +3,8 @@ const User = require('../models/User');
 const { auth } = require('../config/firebase');
 const { sendAdminActionEmail } = require('../utils/emailService');
 
+const cache = require('../utils/cache');
+
 // No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
   if (!user) return user;
@@ -16,26 +18,35 @@ const stripPassword = (user) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const { search, role, status, page = 1, limit = 10 } = req.query;
-    const filters = {};
-    if (role) filters.role = role;
-    if (status) filters.status = status;
-    if (search) filters.search = search;
+    const cacheKey = `users_${search || ''}_${role || ''}_${status || ''}_${page}_${limit}`;
+    
+    // Attempt cache retrieval
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json({ ...cachedData, fromCache: true });
+    }
 
-    const allUsers = await User.findAll(filters);
-    const total = allUsers.length;
-    const limitNum = Math.max(1, parseInt(limit) || 10);
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const skip = (pageNum - 1) * limitNum;
-    const users = allUsers.slice(skip, skip + limitNum).map(stripPassword);
+    const { users, total, totalPages } = await User.findPaged({
+      search,
+      role,
+      status,
+      page,
+      limit
+    });
 
-    res.status(200).json({
+    const responseData = {
       success: true,
       count: users.length,
       total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
-      users
-    });
+      page: parseInt(page),
+      totalPages,
+      users: users.map(stripPassword)
+    };
+
+    // Cache for 2 minutes to handle bursts
+    cache.set(cacheKey, responseData, 120);
+
+    res.status(200).json(responseData);
   } catch (error) {
     res.status(500).json({
       success: false,

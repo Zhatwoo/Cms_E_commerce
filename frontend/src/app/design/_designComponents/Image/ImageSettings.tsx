@@ -21,7 +21,7 @@ export const ImageSettings = () => {
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
-    position, display, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     actions: { setProp }
   } = useNode(node => ({
     src: node.data.props.src,
@@ -51,6 +51,7 @@ export const ImageSettings = () => {
     flipVertical: node.data.props.flipVertical,
     position: node.data.props.position,
     display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
     right: node.data.props.right,
@@ -242,6 +243,7 @@ export const ImageSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

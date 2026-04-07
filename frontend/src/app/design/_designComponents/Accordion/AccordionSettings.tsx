@@ -31,6 +31,7 @@ export const AccordionSettings = () => {
     marginLeft,
     position,
     display,
+    alignSelf,
     zIndex,
     top,
     right,
@@ -72,6 +73,7 @@ export const AccordionSettings = () => {
     marginLeft: node.data.props.marginLeft as number,
     position: node.data.props.position as AccordionProps["position"],
     display: node.data.props.display as AccordionProps["display"],
+    alignSelf: node.data.props.alignSelf as AccordionProps["alignSelf"],
     zIndex: node.data.props.zIndex as number,
     top: node.data.props.top as string,
     right: node.data.props.right as string,
@@ -389,6 +391,7 @@ export const AccordionSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

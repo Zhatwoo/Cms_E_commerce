@@ -11,6 +11,19 @@ import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT, PREVIEW_MOBILE_VIEWPORT_WIDTH, PREVIEW_TABLET_VIEWPORT_WIDTH } from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
+import {
+  Diamond,
+  Heart,
+  Trapezoid,
+  Pentagon,
+  Hexagon,
+  Heptagon,
+  Octagon,
+  Nonagon,
+  Decagon,
+  Parallelogram,
+  Kite,
+} from "../../_assets/shapes/additional_shapes";
 import { templateService } from "@/lib/templateService";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
@@ -87,6 +100,8 @@ const asComponent = (value: unknown): React.ComponentType<any> =>
   typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_PREVIEW_CONTAINER;
 
 function withResolverFallback<T extends Record<string, React.ComponentType<any>>>(base: T): T {
+  const shapes = ["circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite"];
+
   return new Proxy(base, {
     get(target, prop, receiver) {
       const direct = Reflect.get(target, prop, receiver);
@@ -94,6 +109,15 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
       if (typeof prop !== "string") return direct;
 
       const normalized = prop.trim().toLowerCase();
+
+      // Fuzzy shape match for numbered names (e.g. "Heart 1" -> "Heart")
+      const fuzzyShape = shapes.find(s => normalized.includes(s));
+      if (fuzzyShape) {
+        const canonical = fuzzyShape.charAt(0).toUpperCase() + fuzzyShape.slice(1);
+        const shapeComp = Reflect.get(target, canonical, receiver) || Reflect.get(target, fuzzyShape, receiver);
+        if (shapeComp) return shapeComp;
+      }
+
       const resolved =
         Reflect.get(target, prop.trim(), receiver) ||
         Reflect.get(target, normalized, receiver) ||
@@ -109,6 +133,8 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 
       const normalized = prop.trim().toLowerCase();
       if (Reflect.has(target, normalized)) return true;
+      
+      if (shapes.some(s => normalized.includes(s))) return true;
 
       const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
       if (Reflect.has(target, canonical)) return true;
@@ -135,6 +161,17 @@ const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   CheckBox: asComponent((CRAFT_RESOLVER as Record<string, unknown>).CheckBox),
   Radio: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Radio),
   radio: asComponent((CRAFT_RESOLVER as Record<string, unknown>).radio),
+  Diamond: asComponent(Diamond),
+  Heart: asComponent(Heart),
+  Trapezoid: asComponent(Trapezoid),
+  Pentagon: asComponent(Pentagon),
+  Hexagon: asComponent(Hexagon),
+  Heptagon: asComponent(Heptagon),
+  Octagon: asComponent(Octagon),
+  Nonagon: asComponent(Nonagon),
+  Decagon: asComponent(Decagon),
+  Parallelogram: asComponent(Parallelogram),
+  Kite: asComponent(Kite),
   PreviewRoot: asComponent(PreviewRoot),
   previewroot: asComponent(PreviewRoot),
   PREVIEWROOT: asComponent(PreviewRoot),
@@ -186,6 +223,18 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered.includes("accordion")) return "Accordion";
   if (lowered.includes("viewport")) return "Viewport";
   if (lowered.includes("page")) return "Page";
+  if (lowered.includes("rectangle")) return "Rectangle";
+  if (lowered.includes("diamond")) return "Diamond";
+  if (lowered.includes("heart")) return "Heart";
+  if (lowered.includes("trapezoid")) return "Trapezoid";
+  if (lowered.includes("pentagon")) return "Pentagon";
+  if (lowered.includes("hexagon")) return "Hexagon";
+  if (lowered.includes("heptagon")) return "Heptagon";
+  if (lowered.includes("octagon")) return "Octagon";
+  if (lowered.includes("nonagon")) return "Nonagon";
+  if (lowered.includes("decagon")) return "Decagon";
+  if (lowered.includes("parallelogram")) return "Parallelogram";
+  if (lowered.includes("kite")) return "Kite";
   return "Container";
 }
 
@@ -1342,7 +1391,7 @@ function PreviewContent() {
                       initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                       mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                       enableFormInputs
-                      builderParityMode={false}
+                      builderParityMode={true}
                       fillViewport={false}
                       storeContext={previewStoreContext}
                     />
@@ -1375,7 +1424,7 @@ function PreviewContent() {
                           initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                           mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
                           enableFormInputs
-                          builderParityMode={false}
+                          builderParityMode={true}
                           fillViewport
                           storeContext={previewStoreContext}
                           simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
@@ -1403,7 +1452,7 @@ function PreviewContent() {
                           initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                           mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                           enableFormInputs
-                          builderParityMode={false}
+                          builderParityMode={true}
                           fillViewport
                           storeContext={previewStoreContext}
                           simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}

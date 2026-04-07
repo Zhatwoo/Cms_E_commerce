@@ -46,14 +46,22 @@ export const Section = ({
   borderStyle = "solid",
   strokePlacement = "mid",
   flexDirection = "column",
-  flexWrap: _flexWrap = "nowrap",
-  alignItems: _alignItems = "flex-start",
-  justifyContent: _justifyContent = "flex-start",
-  gap: _gap = 0,
+  flexWrap = "nowrap",
+  alignItems = "flex-start",
+  justifyContent = "flex-start",
+  gap = 0,
+  gridTemplateColumns,
+  gridTemplateRows,
+  gridGap,
+  gridColumnGap,
+  gridRowGap,
+  gridAutoRows,
+  gridAutoFlow,
   display = "block",
   isFreeform = true,
   position = "relative",
   zIndex = 0,
+  alignSelf = "auto",
   top = "auto",
   right: posRight = "auto",
   bottom = "auto",
@@ -90,10 +98,6 @@ export const Section = ({
   const resolvedHeight = String(height ?? "auto").trim() || "auto";
   const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
   void _contentWidth;
-  void _flexWrap;
-  void _alignItems;
-  void _justifyContent;
-  void _gap;
 
   const transformStyle = React.useMemo(
     () =>
@@ -120,6 +124,9 @@ export const Section = ({
       : editorVisibility === "show" && display === "none"
         ? "block"
         : (display ?? "block");
+
+  const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
+  const isGridDisplay = effectiveDisplay === "grid";
 
 
   const sectionStyle = React.useMemo<React.CSSProperties>(
@@ -161,6 +168,7 @@ export const Section = ({
         : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
       position: position === "static" ? "relative" : position,
       zIndex: zIndex !== 0 ? zIndex : undefined,
+      alignSelf,
       top: position !== "static" ? top : undefined,
       right: position !== "static" ? posRight : undefined,
       bottom: position !== "static" ? bottom : undefined,
@@ -172,6 +180,24 @@ export const Section = ({
       transformOrigin: "center center",
       display: isFreeform ? "block" : effectiveDisplay,
       containerType: "inline-size",
+      flexDirection: !isFreeform && isFlexDisplay ? flexDirection : undefined,
+      flexWrap: !isFreeform && isFlexDisplay ? flexWrap : undefined,
+      alignItems: !isFreeform && (isFlexDisplay || isGridDisplay) ? alignItems : undefined,
+      justifyContent: !isFreeform && (isFlexDisplay || isGridDisplay) ? justifyContent : undefined,
+      columnGap: !isFreeform && isFlexDisplay
+        ? fluidSpace(gap, 0)
+        : !isFreeform && isGridDisplay
+          ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
+          : undefined,
+      rowGap: !isFreeform && isFlexDisplay
+        ? fluidSpace(gap, 0)
+        : !isFreeform && isGridDisplay
+          ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
+          : undefined,
+      gridTemplateColumns: !isFreeform && isGridDisplay ? gridTemplateColumns : undefined,
+      gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
+      gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
+      gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
     }),
     [
       background,
@@ -188,6 +214,18 @@ export const Section = ({
       borderWidth,
       bottom,
       boxShadow,
+      flexDirection,
+      flexWrap,
+      alignItems,
+      justifyContent,
+      gap,
+      gridTemplateColumns,
+      gridTemplateRows,
+      gridGap,
+      gridColumnGap,
+      gridRowGap,
+      gridAutoRows,
+      gridAutoFlow,
       mb,
       ml,
       mr,
@@ -207,10 +245,13 @@ export const Section = ({
       top,
       width,
       zIndex,
+      alignSelf,
       effectiveDisplay,
       isFreeform,
       editorVisibility,
       display,
+      isFlexDisplay,
+      isGridDisplay,
     ]
   );
 

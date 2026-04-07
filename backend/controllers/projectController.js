@@ -61,21 +61,23 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Check subscription limits
-    const user = await User.findById(userId);
-    const limits = getLimits(user?.subscriptionPlan);
-    const currentProjects = await Project.list(userId);
+    // Fetch owned projects to check limits
+    const ownedProjects = await Project.list(userId);
+    
+    const plan = req.user.subscriptionPlan || 'free';
+    const limits = getLimits(plan);
+    const ownedCount = ownedProjects.length;
 
-    if (currentProjects.length >= limits.projects) {
+    if (ownedCount >= limits.projects) {
       return res.status(403).json({
         success: false,
-        message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${user?.subscriptionPlan || 'free'} plan allows up to ${limits.projects} projects.`,
+        message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${plan} plan allows up to ${limits.projects} projects.`,
       });
     }
 
     // If providing a subdomain during creation, check domain limits too
     if (subdomain) {
-      const currentDomains = await Project.countWithSubdomain(userId);
+      const currentDomains = ownedProjects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
       if (currentDomains >= limits.domains) {
         return res.status(403).json({
           success: false,

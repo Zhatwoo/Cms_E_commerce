@@ -14,7 +14,7 @@ export const StarIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "star",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

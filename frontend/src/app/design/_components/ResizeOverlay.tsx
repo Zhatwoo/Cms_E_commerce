@@ -1063,8 +1063,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           return;
         }
 
-        const bMT = typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0;
-        const bML = typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0;
+        const isOffset = (d.moveMode ?? "margin") === "offset";
+        const bMT = isOffset ? parsePxOrAuto(d.startProps.top) : (typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0);
+        const bML = isOffset ? parsePxOrAuto(d.startProps.left) : (typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0);
         const nextMarginTopRaw = extraMT !== 0 ? bMT + extraMT : bMT;
         const nextMarginLeftRaw = extraML !== 0 ? bML + extraML : bML;
         const isMarginFlowResize = (d.moveMode ?? "margin") === "margin";
@@ -1115,10 +1116,18 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           dom.style.height = `${newH}px`;
         }
         if (extraMT !== 0) {
-          dom.style.marginTop = `${nextMarginTop}px`;
+          if ((d.moveMode ?? "margin") === "offset") {
+            dom.style.top = `${nextMarginTop}px`;
+          } else {
+            dom.style.marginTop = `${nextMarginTop}px`;
+          }
         }
         if (extraML !== 0) {
-          dom.style.marginLeft = `${nextMarginLeft}px`;
+          if ((d.moveMode ?? "margin") === "offset") {
+            dom.style.left = `${nextMarginLeft}px`;
+          } else {
+            dom.style.marginLeft = `${nextMarginLeft}px`;
+          }
         }
         if (isTextNode && nextFontSize != null) {
           dom.style.fontSize = `${Math.round(nextFontSize * 10) / 10}px`;
@@ -1390,14 +1399,26 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               props.fontSize = Math.round(nextFontSize * 10) / 10;
             }
             if (extraMT !== 0) {
-              const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-              const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
-              props.marginTop = Math.round(nextMT);
+              const isOffset = (d.moveMode ?? "margin") === "offset";
+              if (isOffset) {
+                const bTop = parsePxOrAuto(d.startProps.top);
+                props.top = `${Math.round(bTop + extraMT)}px`;
+              } else {
+                const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
+                const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
+                props.marginTop = Math.round(nextMT);
+              }
             }
             if (extraML !== 0) {
-              const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-              const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
-              props.marginLeft = Math.round(nextML);
+              const isOffset = (d.moveMode ?? "margin") === "offset";
+              if (isOffset) {
+                const bLeft = parsePxOrAuto(d.startProps.left);
+                props.left = `${Math.round(bLeft + extraML)}px`;
+              } else {
+                const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
+                const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
+                props.marginLeft = Math.round(nextML);
+              }
             }
             if (isImageNode) {
               props._autoFitInTabs = false;

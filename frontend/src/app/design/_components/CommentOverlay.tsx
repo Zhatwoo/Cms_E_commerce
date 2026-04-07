@@ -72,8 +72,7 @@ export const CommentOverlay: React.FC<{ scale?: number }> = ({ scale = 1 }) => {
             className="absolute inset-0 z-[100000] pointer-events-auto"
             style={{
                 cursor: 'crosshair',
-                backgroundColor: 'rgba(59, 130, 246, 0.04)', // Slightly stronger tint to see it's active
-                outline: '2px solid rgba(59, 130, 246, 0.2)', // Border to see visibility
+                backgroundColor: 'transparent',
             }}
             onClick={handleCanvasClick}
             data-active-tool={activeTool}

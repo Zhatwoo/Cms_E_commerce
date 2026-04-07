@@ -10,6 +10,7 @@ import React, {
 } from "react";
 import { io, Socket } from "socket.io-client";
 import { getStoredUser } from "@/lib/api";
+import { getApiBase } from "@/lib/apiBase";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type Permission = "editor" | "viewer";
@@ -114,7 +115,7 @@ export function CollaborationProvider({ projectId, permission = "editor", childr
     const myPermission = permission;
 
     useEffect(() => {
-        const BACKEND = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000").replace(/\/api$/, "");
+        const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL).replace(/\/api$/, "");
 
         console.log("[Collab] Connecting to", BACKEND, "for project", projectId);
 

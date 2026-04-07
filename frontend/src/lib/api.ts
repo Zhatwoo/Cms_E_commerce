@@ -3,8 +3,10 @@
  * User profile is kept in memory only; fetched via GET /api/auth/me when needed.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-let activeApiBase = API_URL.replace(/\/$/, '');
+import { getApiBase, parseApiBaseList } from "./apiBase";
+
+const DEFAULT_API_BASE = "http://localhost:5000";
+let activeApiBase = getApiBase(process.env.NEXT_PUBLIC_API_URL, DEFAULT_API_BASE);
 let activeProjectId: string | null = null;
 const PUBLISHED_SITE_USER_PREFIX = 'mercato_published_site_user_';
 const RESERVED_PUBLISHED_SITE_SEGMENTS = new Set([
@@ -233,14 +235,15 @@ export function getApiUrl(): string {
 }
 
 function getApiCandidates(): string[] {
-  const envApi = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const envApis = parseApiBaseList(process.env.NEXT_PUBLIC_API_URL);
   const candidates = new Set<string>();
 
-  if (envApi) candidates.add(envApi);
+  envApis.forEach((v) => candidates.add(v));
   candidates.add(activeApiBase);
 
   // Local DX fallback: backend may auto-switch to 5001 when 5000 is busy.
-  if (!envApi || /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(envApi)) {
+  const hasLocal5000 = envApis.some((v) => /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(v));
+  if (envApis.length === 0 || hasLocal5000) {
     candidates.add('http://localhost:5000');
     candidates.add('http://127.0.0.1:5000');
     candidates.add('http://localhost:5001');
@@ -307,6 +310,18 @@ export async function apiFetch<T>(
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
+  // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
+  if (typeof window !== 'undefined' && normalizedPath.startsWith('/api/')) {
+    const res = await fetch(normalizedPath, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+    return handleResponse<T>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -752,8 +767,10 @@ export async function uploadMediaApi(
   file: File,
   options?: { onProgress?: (percent: number) => void; folder?: 'images' | 'videos' | 'files' }
 ): Promise<{ url: string }> {
-  const base = getApiUrl().replace(/\/$/, '');
-  const url = `${base}/api/projects/${projectId}/media`;
+  const url =
+    typeof window !== 'undefined'
+      ? `/api/projects/${projectId}/media`
+      : `${getApiUrl().replace(/\/$/, '')}/api/projects/${projectId}/media`;
 
   if (options?.onProgress) {
     return new Promise((resolve, reject) => {
@@ -1045,6 +1062,19 @@ export async function uploadProductImageApi(
   file: File,
   subdomain?: string
 ): Promise<{ success: boolean; message?: string; url?: string }> {
+  if (typeof window !== 'undefined') {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (subdomain) formData.append('subdomain', subdomain);
+
+    const res = await fetch(`/api/products/upload-image`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    return handleResponse<{ success: boolean; message?: string; url?: string }>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -1605,6 +1635,10 @@ export type WebsiteManagementRow = {
   domainType: string;
   createdAt?: string;
   updatedAt?: string;
+  views?: number;
+  errors?: number;
+  reports?: number;
+  analyticsKey?: string;
 };
 
 export type WebsiteManagementStats = {
@@ -1624,6 +1658,49 @@ export async function getDomainsManagement(): Promise<{
     data?: WebsiteManagementRow[];
     stats?: WebsiteManagementStats;
   }>('/api/domains/admin/management');
+}
+
+export type WebsiteAnalyticsData = {
+  domainId: string;
+  views: number;
+  errors: number;
+  reports: number;
+  lastViewedAt?: string;
+  lastErrorAt?: string;
+  lastReportedAt?: string;
+};
+
+export async function getWebsiteAnalytics(domainIds: string[]): Promise<{
+  success: boolean;
+  analytics?: Record<string, WebsiteAnalyticsData>;
+}> {
+  if (!domainIds || domainIds.length === 0) {
+    return { success: true, analytics: {} };
+  }
+
+  const queryString = domainIds.map(id => `domainIds=${encodeURIComponent(id)}`).join('&');
+  return apiFetch<{ success: boolean; analytics?: Record<string, WebsiteAnalyticsData> }>(
+    `/api/dashboard/website-analytics?${queryString}`
+  );
+}
+
+export async function trackWebsiteView(subdomain: string): Promise<{ success: boolean }> {
+  try {
+    // The backend will detect the subdomain from the Host header via middleware,
+    // but we send it in the body as backup
+    return await apiFetch<{ success: boolean }>(
+      '/api/analytics/track-view',
+      {
+        method: 'POST',
+        body: JSON.stringify({ subdomain }),
+        headers: { 'x-skip-active-project-scope': '1' } // Don't add project ID header for public tracking
+      }
+    );
+  } catch (error) {
+    // Silently fail - don't block the site
+    console.error('Failed to track view:', error);
+    return { success: false };
+  }
 }
 
 export type ClientRow = {

@@ -48,6 +48,7 @@ export const PaginationSettings = () => {
     cursor,
     position,
     display,
+    alignSelf,
     zIndex,
     top,
     right,
@@ -94,6 +95,7 @@ export const PaginationSettings = () => {
     cursor: node.data.props.cursor ?? "default",
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
+    alignSelf: node.data.props.alignSelf ?? "auto",
     zIndex: node.data.props.zIndex ?? 0,
     top: node.data.props.top ?? "auto",
     right: node.data.props.right ?? "auto",
@@ -186,6 +188,7 @@ export const PaginationSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

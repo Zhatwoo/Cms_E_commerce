@@ -22,6 +22,20 @@ import { Column } from "../../_designComponents/Column/Column";
 import { Icon } from "../../_designComponents/Icon/Icon";
 import { Rating } from "../../_designComponents/Rating/Rating";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
+import { Rectangle } from "../../../_assets/shapes/rectangle/rectangle";
+import {
+  Diamond,
+  Heart,
+  Trapezoid,
+  Pentagon,
+  Hexagon,
+  Heptagon,
+  Octagon,
+  Nonagon,
+  Decagon,
+  Parallelogram,
+  Kite
+} from "../../../_assets/shapes/additional_shapes";
 
 // Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
 // Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
@@ -239,6 +253,30 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   ProductDescriptionCard: ProductDescriptionCardPreviewStub,
   productdescriptioncard: ProductDescriptionCardPreviewStub,
   "Product Description Card": ProductDescriptionCardPreviewStub,
+  Rectangle: asComponent(Rectangle),
+  rectangle: asComponent(Rectangle),
+  Diamond: asComponent(Diamond),
+  diamond: asComponent(Diamond),
+  Heart: asComponent(Heart),
+  heart: asComponent(Heart),
+  Trapezoid: asComponent(Trapezoid),
+  trapezoid: asComponent(Trapezoid),
+  Pentagon: asComponent(Pentagon),
+  pentagon: asComponent(Pentagon),
+  Hexagon: asComponent(Hexagon),
+  hexagon: asComponent(Hexagon),
+  Heptagon: asComponent(Heptagon),
+  heptagon: asComponent(Heptagon),
+  Octagon: asComponent(Octagon),
+  octagon: asComponent(Octagon),
+  Nonagon: asComponent(Nonagon),
+  nonagon: asComponent(Nonagon),
+  Decagon: asComponent(Decagon),
+  decagon: asComponent(Decagon),
+  Parallelogram: asComponent(Parallelogram),
+  parallelogram: asComponent(Parallelogram),
+  Kite: asComponent(Kite),
+  kite: asComponent(Kite),
 });
 
 export const AssetLivePreview = ({
@@ -284,9 +322,11 @@ export const AssetLivePreview = ({
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center text-[var(--builder-text-muted)] pointer-events-none group-hover:bg-[var(--builder-surface-3)] transition-colors">
         <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
-          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
-            <Frame>{item.element}</Frame>
-          </Editor>
+          {item.preview ?? (
+            <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+              <Frame>{item.element}</Frame>
+            </Editor>
+          )}
         </AssetPreviewErrorBoundary>
       </div>
     );
@@ -295,8 +335,8 @@ export const AssetLivePreview = ({
   if (previewMode === "shape") {
     const shapePreviewElement = React.cloneElement(item.element as React.ReactElement<any>, {
       isPreview: true,
-      width: 48,
-      height: 48,
+      width: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 64 : (item.label.toLowerCase() === "kite" ? 36 : 48),
+      height: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 32 : (item.label.toLowerCase() === "kite" ? 64 : 48),
       margin: 0,
       padding: 0,
       position: "static",
@@ -434,7 +474,15 @@ export const AssetsPanel = () => {
                       data-asset-category={item.category}
                       data-asset-label={item.label}
                       ref={(ref) => {
-                        if (ref && item?.element) connectors.create(ref, item.element);
+                        if (!ref || !item?.element) return;
+
+                        const dragElement = iconFolder
+                          ? React.cloneElement(item.element as React.ReactElement<any>, {
+                              color: "#000000",
+                            })
+                          : item.element;
+
+                        connectors.create(ref, dragElement);
                       }}
                       onDragStart={() => {
                         if (typeof document !== "undefined") {

@@ -24,6 +24,20 @@ import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { Circle } from "../../_assets/shapes/circle/circle";
 import { Square } from "../../_assets/shapes/square/square";
 import { Triangle } from "../../_assets/shapes/triangle/triangle";
+import { Rectangle } from "../../_assets/shapes/rectangle/rectangle";
+import {
+  Diamond,
+  Heart,
+  Trapezoid,
+  Pentagon,
+  Hexagon,
+  Heptagon,
+  Octagon,
+  Nonagon,
+  Decagon,
+  Parallelogram,
+  Kite
+} from "../../_assets/shapes/additional_shapes";
 import { ImportedBlock } from "../_designComponents/ImportedBlock/ImportedBlock";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-login";
@@ -38,6 +52,8 @@ function asComponent(value: unknown, fallback: React.ComponentType<any>): React.
 }
 
 function withResolverFallback<T extends Resolver>(base: T): T {
+  const shapes = ["circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite"];
+
   return new Proxy(base, {
     get(target, prop, receiver) {
       const direct = Reflect.get(target, prop, receiver);
@@ -45,6 +61,15 @@ function withResolverFallback<T extends Resolver>(base: T): T {
       if (typeof prop !== "string") return direct;
 
       const normalized = prop.trim().toLowerCase();
+      
+      // Fuzzy shape match for numbered names (e.g. "Heart 1" -> "Heart")
+      const fuzzyShape = shapes.find(s => normalized.includes(s));
+      if (fuzzyShape) {
+        const canonical = fuzzyShape.charAt(0).toUpperCase() + fuzzyShape.slice(1);
+        const shapeComp = Reflect.get(target, canonical, receiver) || Reflect.get(target, fuzzyShape, receiver);
+        if (shapeComp) return shapeComp;
+      }
+
       const resolved =
         Reflect.get(target, prop.trim(), receiver) ||
         Reflect.get(target, normalized, receiver) ||
@@ -60,6 +85,8 @@ function withResolverFallback<T extends Resolver>(base: T): T {
 
       const normalized = prop.trim().toLowerCase();
       if (Reflect.has(target, normalized)) return true;
+      
+      if (shapes.some(s => normalized.includes(s))) return true;
 
       const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
       if (Reflect.has(target, canonical)) return true;
@@ -111,6 +138,18 @@ export function buildCraftResolver(): Resolver {
   const CircleComp = asComponent(Circle, ContainerComp);
   const SquareComp = asComponent(Square, ContainerComp);
   const TriangleComp = asComponent(Triangle, ContainerComp);
+  const RectangleComp = asComponent(Rectangle, ContainerComp);
+  const DiamondComp = asComponent(Diamond, ContainerComp);
+  const HeartComp = asComponent(Heart, ContainerComp);
+  const TrapezoidComp = asComponent(Trapezoid, ContainerComp);
+  const PentagonComp = asComponent(Pentagon, ContainerComp);
+  const HexagonComp = asComponent(Hexagon, ContainerComp);
+  const HeptagonComp = asComponent(Heptagon, ContainerComp);
+  const OctagonComp = asComponent(Octagon, ContainerComp);
+  const NonagonComp = asComponent(Nonagon, ContainerComp);
+  const DecagonComp = asComponent(Decagon, ContainerComp);
+  const ParallelogramComp = asComponent(Parallelogram, ContainerComp);
+  const KiteComp = asComponent(Kite, ContainerComp);
   const ImportedBlockComp = asComponent(ImportedBlock, ContainerComp);
   const SpacerComp = asComponent(Spacer, ContainerComp);
   const PaginationComp = asComponent(Pagination, ContainerComp);
@@ -173,9 +212,33 @@ export function buildCraftResolver(): Resolver {
     Circle: CircleComp,
     Square: SquareComp,
     Triangle: TriangleComp,
+    Rectangle: RectangleComp,
+    Diamond: DiamondComp,
+    Heart: HeartComp,
+    Trapezoid: TrapezoidComp,
+    Pentagon: PentagonComp,
+    Hexagon: HexagonComp,
+    Heptagon: HeptagonComp,
+    Octagon: OctagonComp,
+    Nonagon: NonagonComp,
+    Decagon: DecagonComp,
+    Parallelogram: ParallelogramComp,
+    Kite: KiteComp,
     circle: CircleComp,
     square: SquareComp,
     triangle: TriangleComp,
+    rectangle: RectangleComp,
+    diamond: DiamondComp,
+    heart: HeartComp,
+    trapezoid: TrapezoidComp,
+    pentagon: PentagonComp,
+    hexagon: HexagonComp,
+    heptagon: HeptagonComp,
+    octagon: OctagonComp,
+    nonagon: NonagonComp,
+    decagon: DecagonComp,
+    parallelogram: ParallelogramComp,
+    kite: KiteComp,
     ImportedBlock: ImportedBlockComp,
     importedblock: ImportedBlockComp,
     Accordion: asComponent(Accordion, ContainerComp),

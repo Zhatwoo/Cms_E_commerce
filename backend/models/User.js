@@ -272,6 +272,66 @@ class User {
     return allUsers;
   }
 
+  /** Paged fetch: uses Firestore limit/offset for efficiency */
+  static async findPaged({ search, role, status, page = 1, limit = 10 }) {
+    const limitNum = Math.max(1, parseInt(limit) || 10);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Use aggregate count for total across all relevant collections
+    const roles = role ? [role.toLowerCase()] : ['client', 'admin', 'support', 'super_admin'];
+    
+    // For large scale, we should maintain a global counter or use separate aggregate queries
+    // Here we fetch minimal data first to determine totals if not cached
+    const countsSnaps = await Promise.all(roles.map(r => {
+      const collectionRole = r === 'super_admin' ? 'admin' : r;
+      let ref = db.collection('user').doc('roles').collection(collectionRole);
+      if (r === 'super_admin') ref = ref.where('role', '==', 'super_admin');
+      if (status) ref = ref.where('status', '==', status);
+      return ref.count().get();
+    }));
+    
+    const total = countsSnaps.reduce((acc, s) => acc + s.data().count, 0);
+
+    // Fetch the specific page
+    // Note: Firestore offset is still billed for skipped docs. 
+    // For extreme scale, use startAfter(doc) cursors.
+    const dataSnaps = await Promise.all(roles.map(r => {
+      const collectionRole = r === 'super_admin' ? 'admin' : r;
+      let ref = db.collection('user').doc('roles').collection(collectionRole);
+      if (r === 'super_admin') ref = ref.where('role', '==', 'super_admin');
+      if (status) ref = ref.where('status', '==', status);
+      
+      // We can't easily skip across collections without fetching all, 
+      // so for multi-role search without role filter, we still need some aggregation.
+      // But with role filter, this is 100% efficient.
+      return ref.orderBy('created_at', 'desc').limit(skip + limitNum).get();
+    }));
+
+    let all = [];
+    for (const snap of dataSnaps) {
+      all = all.concat(snap.docs.map(d => fromDoc(d)));
+    }
+
+    // Sort global result set
+    all.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    // Client-side search (Firestore doesn't support partial string search well without external indexes)
+    if (search) {
+      const s = search.toLowerCase();
+      all = all.filter(u => u.displayName?.toLowerCase().includes(s) || u.email?.toLowerCase().includes(s));
+    }
+
+    const paginated = all.slice(skip, skip + limitNum);
+
+    return {
+      users: paginated,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum)
+    };
+  }
+
   static async update(id, data) {
     if (!id) throw new Error('Missing id');
 

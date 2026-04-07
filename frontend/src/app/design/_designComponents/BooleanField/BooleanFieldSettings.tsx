@@ -46,6 +46,7 @@ export const BooleanFieldSettings = () => {
     marginLeft,
     position,
     display,
+    alignSelf,
     zIndex,
     top,
     right,
@@ -88,6 +89,7 @@ export const BooleanFieldSettings = () => {
     marginLeft: node.data.props.marginLeft ?? 0,
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
+    alignSelf: node.data.props.alignSelf ?? "auto",
     zIndex: node.data.props.zIndex ?? 0,
     top: node.data.props.top ?? "auto",
     right: node.data.props.right ?? "auto",
@@ -294,6 +296,7 @@ export const BooleanFieldSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

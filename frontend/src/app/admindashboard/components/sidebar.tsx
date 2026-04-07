@@ -476,3 +476,5 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
         </motion.aside>
     );
 }
+
+export default AdminSidebar;

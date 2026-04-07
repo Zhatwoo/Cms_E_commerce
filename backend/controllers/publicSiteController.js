@@ -1,6 +1,15 @@
 // Public (no auth): get published site content by subdomain for live site viewer
 const Domain = require('../models/Domain');
 const Product = require('../models/Product');
+const WebsiteAnalytics = require('../models/WebsiteAnalytics');
+
+function buildAnalyticsKeys(domain, canonicalSubdomain) {
+  return Array.from(new Set([
+    String(domain?.id || '').trim(),
+    String(domain?.projectId || '').trim(),
+    String(canonicalSubdomain || '').trim(),
+  ].filter(Boolean)));
+}
 
 const MIGRATIONS = [
   ['Create Beautiful Websites', 'Welcome to Our Website'],
@@ -49,6 +58,37 @@ exports.getBySubdomain = async (req, res) => {
 
     if (!domain || !domain.userId || !domain.projectId) {
       return res.status(404).json({ success: false, message: 'Site not found. Publish from Preview or sync domains in Dashboard.' });
+    }
+
+    // Server-side view tracking fallback so visits are counted even if client-side tracking fails.
+    // Resolve a canonical analytics key from published_subdomains to match admin dashboard IDs.
+    const canonicalSubdomain = String(domain.subdomain || (!req.isCustomDomain ? identifier : '') || '').trim().toLowerCase();
+    let analyticsDomainId = domain.id || null;
+    if (canonicalSubdomain) {
+      try {
+        const publishedDomain = await Domain.findByPublishedSubdomain(canonicalSubdomain);
+        if (publishedDomain?.id) analyticsDomainId = publishedDomain.id;
+      } catch (e) {
+        // Best effort only; keep fallback analyticsDomainId.
+      }
+    }
+
+    if (analyticsDomainId) {
+      const viewData = {
+        ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || '',
+        userAgent: req.headers['user-agent'] || '',
+        referer: req.headers['referer'] || ''
+      };
+
+      const keys = new Set([
+        ...buildAnalyticsKeys(domain, canonicalSubdomain),
+        String(analyticsDomainId || '').trim(),
+      ]);
+
+      console.log(`[Analytics] Server-side track for subdomain "${canonicalSubdomain || domain.subdomain || 'unknown'}" using keys: ${Array.from(keys).join(', ')}`);
+
+      Promise.all(Array.from(keys).map((key) => WebsiteAnalytics.trackView(key, viewData)))
+        .catch((err) => console.error('getBySubdomain trackView error:', err.message));
     }
 
     // Serve the published snapshot with migration for old default template text
