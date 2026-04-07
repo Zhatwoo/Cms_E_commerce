@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Scan, Plus, SquareRoundCorner, Eye, EyeOff, Minus } from "lucide-react";
+import { Scan, SquareRoundCorner, Eye, EyeOff } from "lucide-react";
 import { NumericInput } from "./inputs/NumericInput";
 import { ColorPicker } from "./inputs/ColorPicker";
 import type { AppearanceProps, SetProp } from "../../../_types/components";
@@ -141,22 +141,6 @@ export const AppearanceGroup = ({
     });
   };
 
-  const addFill = () => {
-    if (background === "transparent" || !background) {
-      applySolidFill(lastVisibleFillRef.current || "#A54C4C");
-    }
-  };
-
-  const removeFill = () => {
-    setIsFillVisible(false);
-    setProp((props) => {
-      props.background = "transparent";
-      props.backgroundImage = "";
-      props.backgroundVideo = "";
-      props.backgroundOverlay = "";
-    });
-  };
-
   const handleRadiusChange = (corner: string, val: number) => {
     setProp((props) => {
       if (corner === "all") {
@@ -201,14 +185,6 @@ export const AppearanceGroup = ({
                 <span className="h-1 w-1 rounded-full bg-current" />
               </span>
             </button>
-            <button
-              type="button"
-              onClick={addFill}
-              className="p-0.5 rounded text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"
-              title="Add fill"
-            >
-              <Plus size={12} />
-            </button>
           </div>
         </div>
 
@@ -231,20 +207,12 @@ export const AppearanceGroup = ({
           >
             {isFillVisible || hasMedia ? <Eye size={12} /> : <EyeOff size={12} />}
           </button>
-          <button
-            type="button"
-            onClick={removeFill}
-            className="h-8 w-8 rounded-lg bg-[var(--builder-surface-2)] border border-[var(--builder-border)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] flex items-center justify-center"
-            title="Remove fill"
-          >
-            <Minus size={12} />
-          </button>
         </div>
       </div>
 
-      {/* Stroke / Border */}
+      {/* Border */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">Stroke</label>
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Border</label>
         <div className="flex gap-2">
           {/* Color Picker */}
           <ColorPicker
@@ -275,7 +243,7 @@ export const AppearanceGroup = ({
             value={strokePlacement}
             onChange={(e) => setProp((props) => { props.strokePlacement = e.target.value as "mid" | "inside" | "outside"; })}
             className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
-            title="Stroke placement"
+            title="Border placement"
           >
             <option value="mid">Mid</option>
             <option value="inside">Inside</option>
@@ -303,14 +271,14 @@ export const AppearanceGroup = ({
               <NumericInput
                 value={radiusTopLeft}
                 onChange={(val) => handleRadiusChange("tl", val)}
-                icon={<div className="w-2 h-2 border-t border-l border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-2 h-2 border-t border-l border-[var(--builder-text)] mr-2" />}
               />
             </div>
             <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusTopRight}
                 onChange={(val) => handleRadiusChange("tr", val)}
-                icon={<div className="w-2 h-2 border-t border-r border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-2 h-2 border-t border-r border-[var(--builder-text)] mr-2" />}
               />
             </div>
 
@@ -318,14 +286,14 @@ export const AppearanceGroup = ({
               <NumericInput
                 value={radiusBottomLeft}
                 onChange={(val) => handleRadiusChange("bl", val)}
-                icon={<div className="w-2 h-2 border-b border-l border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-2 h-2 border-b border-l border-[var(--builder-text)] mr-2" />}
               />
             </div>
             <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusBottomRight}
                 onChange={(val) => handleRadiusChange("br", val)}
-                icon={<div className="w-2 h-2 border-b border-r border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-2 h-2 border-b border-r border-[var(--builder-text)] mr-2" />}
               />
             </div>
           </div>

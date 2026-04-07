@@ -3,8 +3,10 @@
  * User profile is kept in memory only; fetched via GET /api/auth/me when needed.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-let activeApiBase = API_URL.replace(/\/$/, '');
+import { getApiBase, parseApiBaseList } from "./apiBase";
+
+const DEFAULT_API_BASE = "http://localhost:5000";
+let activeApiBase = getApiBase(process.env.NEXT_PUBLIC_API_URL, DEFAULT_API_BASE);
 let activeProjectId: string | null = null;
 const PUBLISHED_SITE_USER_PREFIX = 'mercato_published_site_user_';
 const RESERVED_PUBLISHED_SITE_SEGMENTS = new Set([
@@ -39,6 +41,14 @@ export type User = {
   website?: string;
   paymentMethods?: any[];
   paymentMethod?: any; // kept for compatibility
+  emailVerified?: boolean;
+  lastPasswordChange?: string;
+  lastSeen?: string;
+  notificationPreferences?: {
+    securityAlerts: boolean;
+    sessionNotifications: boolean;
+    accountUpdates: boolean;
+  };
 };
 
 export type AuthResponse = {
@@ -50,6 +60,18 @@ export type AuthResponse = {
 };
 
 export type ApiError = { success: false; message: string; error?: string };
+
+export type ApiMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  message: string;
+  type: 'support' | 'internal' | 'request';
+  status: 'unread' | 'read';
+  websiteId: string | null;
+  createdAt: string;
+};
 
 export function getApiErrorMessage(error: unknown): string {
   if (error instanceof Error) return error.message || '';
@@ -213,14 +235,15 @@ export function getApiUrl(): string {
 }
 
 function getApiCandidates(): string[] {
-  const envApi = (process.env.NEXT_PUBLIC_API_URL || '').trim().replace(/\/$/, '');
+  const envApis = parseApiBaseList(process.env.NEXT_PUBLIC_API_URL);
   const candidates = new Set<string>();
 
-  if (envApi) candidates.add(envApi);
+  envApis.forEach((v) => candidates.add(v));
   candidates.add(activeApiBase);
 
   // Local DX fallback: backend may auto-switch to 5001 when 5000 is busy.
-  if (!envApi || /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(envApi)) {
+  const hasLocal5000 = envApis.some((v) => /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(v));
+  if (envApis.length === 0 || hasLocal5000) {
     candidates.add('http://localhost:5000');
     candidates.add('http://127.0.0.1:5000');
     candidates.add('http://localhost:5001');
@@ -287,6 +310,18 @@ export async function apiFetch<T>(
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
+  // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
+  if (typeof window !== 'undefined' && normalizedPath.startsWith('/api/')) {
+    const res = await fetch(normalizedPath, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+    return handleResponse<T>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -474,11 +509,7 @@ export async function resendVerificationEmail(email: string): Promise<{ success:
 /** Logout: clear cookie on backend and clear local user data */
 export async function logout(): Promise<void> {
   try {
-    if (typeof window === 'undefined') {
-      await fetch(`${getApiUrl()}/api/auth/logout`, { method: 'POST', credentials: 'include' });
-    } else {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    }
+    await apiFetch<{ success: boolean; message?: string }>('/api/auth/logout', { method: 'POST' });
   } catch {
     // ignore
   }
@@ -493,7 +524,9 @@ export async function logout(): Promise<void> {
 
 /** Get current user from backend (uses cookie). Use to restore session when only cookie is present. */
 export async function getMe(): Promise<{ success: boolean; user?: User }> {
-  return authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  const res = await authFetch<{ success: boolean; user?: User }>('/api/auth/me');
+  if (res.success && res.user) setStoredUser(res.user);
+  return res;
 }
 
 export async function registerPublishedSiteUser(params: {
@@ -569,12 +602,27 @@ export async function updateProfile(data: {
   username?: string;
   website?: string;
   bio?: string;
+  phone?: string;
   paymentMethods?: any[];
   paymentMethod?: any;
+  notificationPreferences?: {
+    securityAlerts: boolean;
+    sessionNotifications: boolean;
+    accountUpdates: boolean;
+  };
 }): Promise<{ success: boolean; message?: string; user?: User }> {
-  return authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
+  const res = await authFetch<{ success: boolean; message?: string; user?: User }>('/api/auth/profile', {
     method: 'PUT',
     body: JSON.stringify(data),
+  });
+  if (res.success && res.user) setStoredUser(res.user);
+  return res;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; message?: string; token?: string }> {
+  return authFetch<{ success: boolean; message?: string; token?: string }>('/api/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
 }
 
@@ -719,8 +767,10 @@ export async function uploadMediaApi(
   file: File,
   options?: { onProgress?: (percent: number) => void; folder?: 'images' | 'videos' | 'files' }
 ): Promise<{ url: string }> {
-  const base = getApiUrl().replace(/\/$/, '');
-  const url = `${base}/api/projects/${projectId}/media`;
+  const url =
+    typeof window !== 'undefined'
+      ? `/api/projects/${projectId}/media`
+      : `${getApiUrl().replace(/\/$/, '')}/api/projects/${projectId}/media`;
 
   if (options?.onProgress) {
     return new Promise((resolve, reject) => {
@@ -1012,6 +1062,19 @@ export async function uploadProductImageApi(
   file: File,
   subdomain?: string
 ): Promise<{ success: boolean; message?: string; url?: string }> {
+  if (typeof window !== 'undefined') {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (subdomain) formData.append('subdomain', subdomain);
+
+    const res = await fetch(`/api/products/upload-image`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    return handleResponse<{ success: boolean; message?: string; url?: string }>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -1565,12 +1628,17 @@ export type WebsiteManagementRow = {
   userId: string;
   domainName: string;
   thumbnail?: string;
+  industry?: string | null;
   owner: string;
   status: string;
   plan: string;
   domainType: string;
   createdAt?: string;
   updatedAt?: string;
+  views?: number;
+  errors?: number;
+  reports?: number;
+  analyticsKey?: string;
 };
 
 export type WebsiteManagementStats = {
@@ -1592,7 +1660,49 @@ export async function getDomainsManagement(): Promise<{
   }>('/api/domains/admin/management');
 }
 
-/** Admin: list all clients from user/roles/client with subscription_plan. */
+export type WebsiteAnalyticsData = {
+  domainId: string;
+  views: number;
+  errors: number;
+  reports: number;
+  lastViewedAt?: string;
+  lastErrorAt?: string;
+  lastReportedAt?: string;
+};
+
+export async function getWebsiteAnalytics(domainIds: string[]): Promise<{
+  success: boolean;
+  analytics?: Record<string, WebsiteAnalyticsData>;
+}> {
+  if (!domainIds || domainIds.length === 0) {
+    return { success: true, analytics: {} };
+  }
+
+  const queryString = domainIds.map(id => `domainIds=${encodeURIComponent(id)}`).join('&');
+  return apiFetch<{ success: boolean; analytics?: Record<string, WebsiteAnalyticsData> }>(
+    `/api/dashboard/website-analytics?${queryString}`
+  );
+}
+
+export async function trackWebsiteView(subdomain: string): Promise<{ success: boolean }> {
+  try {
+    // The backend will detect the subdomain from the Host header via middleware,
+    // but we send it in the body as backup
+    return await apiFetch<{ success: boolean }>(
+      '/api/analytics/track-view',
+      {
+        method: 'POST',
+        body: JSON.stringify({ subdomain }),
+        headers: { 'x-skip-active-project-scope': '1' } // Don't add project ID header for public tracking
+      }
+    );
+  } catch (error) {
+    // Silently fail - don't block the site
+    console.error('Failed to track view:', error);
+    return { success: false };
+  }
+}
+
 export type ClientRow = {
   id: string;
   email: string;
@@ -1606,6 +1716,10 @@ export type ClientRow = {
   storageLimitBytes?: number;
   storageUsedGb?: number;
   storageLimitGb?: number;
+  phone?: string;
+  bio?: string;
+  lastSeen?: string;
+  isOnline?: boolean;
 };
 
 export async function getClients(): Promise<{
@@ -1648,6 +1762,17 @@ export async function deleteClient(userId: string): Promise<{ success: boolean; 
   });
 }
 
+/** Admin: update a client's profile details (name, email, password, etc.). */
+export async function updateClientDetails(
+  userId: string,
+  data: { name?: string; email?: string; phone?: string; bio?: string; password?: string }
+): Promise<{ success: boolean; message?: string; user?: ClientRow }> {
+  return apiFetch<{ success: boolean; message?: string; user?: ClientRow }>(
+    `/api/users/${userId}`,
+    { method: 'PUT', body: JSON.stringify(data) }
+  );
+}
+
 /** Admin: set client domain status (published | suspended | flagged | draft). Uses same-origin proxy so cookies are sent. */
 export async function setClientDomainStatus(
   userId: string,
@@ -1659,6 +1784,26 @@ export async function setClientDomainStatus(
     {
       method: 'POST',
       body: JSON.stringify({ userId, domainId, status })
+    }
+  );
+}
+
+/** Admin: update a client's website subdomain by project/domain context. */
+export async function adminUpdateClientDomainSubdomain(
+  userId: string,
+  subdomain: string,
+  options?: { projectId?: string; domainId?: string }
+): Promise<{ success: boolean; message?: string; data?: { subdomain?: string } }> {
+  return apiFetch<{ success: boolean; message?: string; data?: { subdomain?: string } }>(
+    '/api/domains/admin/update-subdomain',
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        userId,
+        subdomain,
+        projectId: options?.projectId,
+        domainId: options?.domainId,
+      }),
     }
   );
 }
@@ -1705,7 +1850,7 @@ export async function getSharedNotifications(): Promise<{ success: boolean; noti
   return apiFetch<{ success: boolean; notifications: any[] }>('/api/notifications');
 }
 
-export async function addSharedNotification(data: { title: string; message: string; type?: string }): Promise<{ success: boolean; notification: any }> {
+export async function addSharedNotification(data: { title: string; message: string; type?: string; [key: string]: any }): Promise<{ success: boolean; notification: any }> {
   return apiFetch<{ success: boolean; notification: any }>('/api/notifications', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -1716,8 +1861,97 @@ export async function markSharedNotificationRead(id: string): Promise<{ success:
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}/read`, { method: 'PUT' });
 }
 
+export async function markAllSharedNotificationsRead(): Promise<{ success: boolean }> {
+  return apiFetch<{ success: boolean }>('/api/notifications/mark-all-read', { method: 'PUT' });
+}
+
 export async function deleteSharedNotification(id: string): Promise<{ success: boolean }> {
   return apiFetch<{ success: boolean }>(`/api/notifications/${id}`, { method: 'DELETE' });
 }
+
+/**
+ * MESSAGING API
+ */
+
+export async function getMessages(filters: { type?: string; status?: string; limit?: number } = {}): Promise<{ success: boolean; data: ApiMessage[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (filters.type) params.append('type', filters.type);
+    if (filters.status) params.append('status', filters.status);
+    if (filters.limit) params.append('limit', filters.limit.toString());
+    
+    return await authFetch(`/api/messages?${params.toString()}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
+export async function sendMessage(data: { message: string; type: 'support' | 'internal' | 'request'; senderName?: string; senderAvatar?: string; websiteId?: string }): Promise<{ success: boolean; data?: ApiMessage }> {
+  try {
+    return await authFetch('/api/messages', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  } catch {
+    return { success: false };
+  }
+}
+
+export async function markMessageRead(id: string): Promise<{ success: boolean }> {
+  try {
+    return await authFetch(`/api/messages/${id}/read`, { method: 'PATCH' });
+  } catch {
+    return { success: false };
+  }
+}
+
+/* ── Chat/Conversation API ────────────────────────────────────── */
+
+export type Conversation = {
+  conversationId: string;
+  otherUserId: string;
+  otherUserName: string;
+  otherUserAvatar: string | null;
+  otherUserUsername?: string;
+  otherUserEmail?: string;
+  otherUserRole?: string;
+  lastMessage: string;
+  lastMessageType: string;
+  lastMessageTime: string;
+  unreadCount: number;
+};
+
+export type ChatMessage = {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string | null;
+  recipientId: string | null;
+  conversationId: string | null;
+  message: string;
+  type: string;
+  status: string;
+  createdAt: string;
+};
+
+export type AdminUser = {
+  id: string;
+  name: string;
+  username?: string;
+  email: string;
+  avatar: string | null;
+};
+
+export async function getAdmins(search?: string): Promise<{ success: boolean; data: AdminUser[] }> {
+  try {
+    const params = new URLSearchParams();
+    if (search) params.append('search', search);
+    const qs = params.toString();
+    return await authFetch(`/api/users/admins/list${qs ? '?' + qs : ''}`);
+  } catch {
+    return { success: false, data: [] };
+  }
+}
+
 
 const api = { getMe, updateProfile }; export default api;

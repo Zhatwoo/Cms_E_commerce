@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNode, useEditor, Element } from "@craftjs/core";
 import { TabsSettings } from "./TabsSettings";
 import { TabContent } from "./TabContent";
 import type { TabsProps, TabItem } from "../../_types/components";
+
+const genId = () => Math.random().toString(36).substring(2, 9);
 
 function parsePx(value: string | undefined): number | null {
   if (value == null) return null;
@@ -67,6 +69,7 @@ export const Tabs = ({
   display = "flex",
   position = "relative",
   zIndex = 0,
+  alignSelf = "auto",
   top = "auto",
   right: posRight = "auto",
   bottom = "auto",
@@ -80,6 +83,15 @@ export const Tabs = ({
   flipHorizontal = false,
   flipVertical = false,
   customClassName = "",
+  fontSize = 14,
+  fontWeight = "600",
+  fontFamily = "Outfit",
+  fontStyle = "normal",
+  lineHeight = 1.2,
+  letterSpacing = 0,
+  textAlign = "center",
+  textTransform = "none",
+  textDecoration = "none",
   children,
 }: TabsProps & { children?: React.ReactNode }) => {
   const {
@@ -95,6 +107,23 @@ export const Tabs = ({
   const { enabled } = useEditor((state) => ({
     enabled: state.options.enabled
   }));
+
+  // On first mount, regenerate any default/duplicate tab IDs so that placing
+  // the same block multiple times doesn't produce duplicate CraftJS node keys.
+  const idsMigratedRef = useRef(false);
+  useEffect(() => {
+    if (idsMigratedRef.current) return;
+    idsMigratedRef.current = true;
+    // Only regenerate if tabs still carry the static default ID
+    if (tabs.length === 1 && tabs[0].id === "tab-1") {
+      const freshId = `tab-${genId()}`;
+      setProp((props: any) => {
+        props.tabs = [{ id: freshId, title: tabs[0].title ?? "Tab 1", content: `tab-content-${freshId}` }];
+        props.activeTabId = freshId;
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle local state vs builder props for active tab functionality
   // In preview mode, we need local state because setProp won't trigger re-renders or updates.
@@ -177,7 +206,7 @@ export const Tabs = ({
       data-node-id={id}
       className={`tabs-component w-full flex flex-col ${customClassName}`}
       style={{
-        backgroundColor: background,
+        background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
@@ -200,6 +229,7 @@ export const Tabs = ({
         position,
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
+        alignSelf,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
@@ -247,7 +277,16 @@ export const Tabs = ({
                 color: isActive ? activeTabTextColor : tabHeaderTextColor,
                 borderBottomColor: isActive ? (activeTabTextColor || "#3b82f6") : "transparent",
                 transform: isActive ? "scale(1.02)" : "scale(1)",
-                zIndex: isActive ? 1 : 0
+                zIndex: isActive ? 1 : 0,
+                fontSize,
+                fontWeight,
+                fontFamily,
+                fontStyle,
+                lineHeight,
+                letterSpacing,
+                textAlign,
+                textTransform,
+                textDecoration,
               }}
             >
               {tab.title}

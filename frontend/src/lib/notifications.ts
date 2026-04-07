@@ -2,7 +2,9 @@ import {
   getSharedNotifications,
   addSharedNotification,
   markSharedNotificationRead,
-  deleteSharedNotification
+  markAllSharedNotificationsRead,
+  deleteSharedNotification,
+  getStoredUser
 } from './api';
 
 function isMissingNotificationsRoute(error: unknown): boolean {
@@ -80,8 +82,10 @@ export async function addNotification(
   options?: { details?: string; metadata?: Record<string, string> }
 ) {
   try {
+    const admin = getStoredUser();
+    const adminName = admin ? (admin.name || admin.username || 'Admin') : 'Admin';
     // Try backend first
-    await addSharedNotification({ title, message, type, ...options });
+    await addSharedNotification({ title, message, type, adminName, ...options });
     await fetchSharedNotifications();
   } catch (e) {
     if (!isMissingNotificationsRoute(e)) {
@@ -112,6 +116,20 @@ export async function markAsRead(id: string) {
     saveNotifications(list);
     if (!isMissingNotificationsRoute(e)) {
       console.warn('Failed to sync mark-as-read remotely; updated local cache only.');
+    }
+  }
+}
+
+export async function markAllAsRead() {
+  try {
+    await markAllSharedNotificationsRead();
+    const list = getNotifications().map(n => ({ ...n, read: true }));
+    saveNotifications(list);
+  } catch (e) {
+    const list = getNotifications().map(n => ({ ...n, read: true }));
+    saveNotifications(list);
+    if (!isMissingNotificationsRoute(e)) {
+      console.warn('Failed to sync bulk mark-as-read remotely; updated local cache only.');
     }
   }
 }

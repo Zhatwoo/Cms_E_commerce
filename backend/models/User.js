@@ -23,9 +23,13 @@ function fromDoc(doc) {
     status: d.status || 'active',
     suspensionReason: d.suspension_reason || '',
     isActive: d.is_active !== false,
+    isOnline: d.is_online === true,
     paymentMethods: d.payment_methods || [],
     createdAt: d.created_at?.toDate?.()?.toISOString?.() || d.created_at,
     updatedAt: d.updated_at?.toDate?.()?.toISOString?.() || d.updated_at,
+    lastSeen: d.last_seen?.toDate?.()?.toISOString?.() || d.last_seen || null,
+    emailVerified: d.email_verified || false,
+    notificationPreferences: d.notification_preferences || { securityAlerts: true, sessionNotifications: true, accountUpdates: true }
   };
 }
 
@@ -35,8 +39,12 @@ function toFirestore(data) {
     avatar: 'avatar_url', email: 'email', phone: 'phone', bio: 'bio',
     username: 'username', website: 'website', status: 'status', role: 'role',
     isActive: 'is_active', subscriptionPlan: 'subscription_plan',
+    isOnline: 'is_online',
     suspensionReason: 'suspension_reason',
-    paymentMethods: 'payment_methods'
+    paymentMethods: 'payment_methods',
+    lastSeen: 'last_seen',
+    emailVerified: 'email_verified',
+    notificationPreferences: 'notification_preferences'
   };
   const out = {};
   for (const [appKey, dbKey] of Object.entries(map)) {
@@ -68,6 +76,7 @@ class User {
         (userRecord.displayName || '').trim() ||
         ((userRecord.email || '').split('@')[0] || 'User'),
       is_active: options.isActive !== false,
+      is_online: options.isOnline === true,
       phone: options.phone ?? userRecord.phoneNumber ?? null,
       role: normalizedRole,
       status: options.status || 'active',
@@ -109,6 +118,7 @@ class User {
         email: userRecord.email,
         full_name: (name || '').trim() || (userRecord.email || '').split('@')[0],
         is_active: true,
+        is_online: false,
         phone: null,
         role: roleName,
         status: 'active',
@@ -116,6 +126,7 @@ class User {
         updated_at: now,
         username: '',
         website: '',
+        email_verified: false,
       };
 
       // 2. Save profile ONLY to: user/roles/client/{uid}
@@ -165,6 +176,7 @@ class User {
         email: userRecord.email,
         full_name: (name || '').trim() || (userRecord.email || '').split('@')[0],
         is_active: true,
+        is_online: false,
         phone: phone || null,
         role: normalizedRole,
         status: status || 'active',
@@ -172,6 +184,7 @@ class User {
         updated_at: now,
         username: '',
         website: '',
+        email_verified: true,
       };
 
       // 2. Save profile to user/roles/{role}/{uid}. Super Admin goes to user/roles/admin per requirement.
@@ -201,12 +214,18 @@ class User {
     const norm = email.toLowerCase().trim();
     const roles = ['client', 'admin', 'support', 'super_admin'];
 
-    // STRICT: Search ONLY in nested role collections
-    for (const role of roles) {
-      const snap = await db.collection('user').doc('roles').collection(role).where('email', '==', norm).limit(1).get();
-      if (!snap.empty) return fromDoc(snap.docs[0]);
-    }
+    // Parallel search across role collections
+    const results = await Promise.all(roles.map(role => 
+      db.collection('user').doc('roles').collection(role === 'super_admin' ? 'admin' : role)
+        .where('email', '==', norm).limit(1).get()
+    ));
 
+    for (const snap of results) {
+      if (!snap.empty) {
+        const user = fromDoc(snap.docs[0]);
+        if (user) return user;
+      }
+    }
     return null;
   }
 
@@ -214,13 +233,13 @@ class User {
     if (!id) return null;
     const roles = ['client', 'admin', 'support', 'super_admin'];
 
-    // STRICT: Search ONLY in nested role collections
-    for (const role of roles) {
-      const doc = await db.collection('user').doc('roles').collection(role).doc(id).get();
-      if (doc.exists) return fromDoc(doc);
-    }
+    // Parallel fetch from all possible role paths
+    const results = await Promise.all(roles.map(role => 
+      db.collection('user').doc('roles').collection(role === 'super_admin' ? 'admin' : role).doc(id).get()
+    ));
 
-    return null;
+    const found = results.find(doc => doc.exists);
+    return found ? fromDoc(found) : null;
   }
 
   static async get(id) {
@@ -229,14 +248,18 @@ class User {
 
   static async findAll(filters = {}) {
     const roles = filters.role ? [filters.role.toLowerCase()] : ['client', 'admin', 'support', 'super_admin'];
-    let allUsers = [];
-
-    for (const role of roles) {
+    
+    // Parallel fetch from role collections
+    const snaps = await Promise.all(roles.map(role => {
       const collectionRole = role === 'super_admin' ? 'admin' : role;
       let ref = db.collection('user').doc('roles').collection(collectionRole);
       if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
       if (filters.status) ref = ref.where('status', '==', filters.status);
-      const snap = await ref.get();
+      return ref.get();
+    }));
+
+    let allUsers = [];
+    for (const snap of snaps) {
       allUsers = allUsers.concat(snap.docs.map(d => fromDoc(d)));
     }
 
@@ -247,6 +270,66 @@ class User {
       allUsers = allUsers.filter(u => (u.displayName && u.displayName.toLowerCase().includes(s)) || (u.email && u.email.toLowerCase().includes(s)));
     }
     return allUsers;
+  }
+
+  /** Paged fetch: uses Firestore limit/offset for efficiency */
+  static async findPaged({ search, role, status, page = 1, limit = 10 }) {
+    const limitNum = Math.max(1, parseInt(limit) || 10);
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Use aggregate count for total across all relevant collections
+    const roles = role ? [role.toLowerCase()] : ['client', 'admin', 'support', 'super_admin'];
+    
+    // For large scale, we should maintain a global counter or use separate aggregate queries
+    // Here we fetch minimal data first to determine totals if not cached
+    const countsSnaps = await Promise.all(roles.map(r => {
+      const collectionRole = r === 'super_admin' ? 'admin' : r;
+      let ref = db.collection('user').doc('roles').collection(collectionRole);
+      if (r === 'super_admin') ref = ref.where('role', '==', 'super_admin');
+      if (status) ref = ref.where('status', '==', status);
+      return ref.count().get();
+    }));
+    
+    const total = countsSnaps.reduce((acc, s) => acc + s.data().count, 0);
+
+    // Fetch the specific page
+    // Note: Firestore offset is still billed for skipped docs. 
+    // For extreme scale, use startAfter(doc) cursors.
+    const dataSnaps = await Promise.all(roles.map(r => {
+      const collectionRole = r === 'super_admin' ? 'admin' : r;
+      let ref = db.collection('user').doc('roles').collection(collectionRole);
+      if (r === 'super_admin') ref = ref.where('role', '==', 'super_admin');
+      if (status) ref = ref.where('status', '==', status);
+      
+      // We can't easily skip across collections without fetching all, 
+      // so for multi-role search without role filter, we still need some aggregation.
+      // But with role filter, this is 100% efficient.
+      return ref.orderBy('created_at', 'desc').limit(skip + limitNum).get();
+    }));
+
+    let all = [];
+    for (const snap of dataSnaps) {
+      all = all.concat(snap.docs.map(d => fromDoc(d)));
+    }
+
+    // Sort global result set
+    all.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+
+    // Client-side search (Firestore doesn't support partial string search well without external indexes)
+    if (search) {
+      const s = search.toLowerCase();
+      all = all.filter(u => u.displayName?.toLowerCase().includes(s) || u.email?.toLowerCase().includes(s));
+    }
+
+    const paginated = all.slice(skip, skip + limitNum);
+
+    return {
+      users: paginated,
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum)
+    };
   }
 
   static async update(id, data) {
@@ -276,6 +359,8 @@ class User {
   static async setEmailVerified(id) {
     if (!id) throw new Error('Missing id');
     await auth.updateUser(id, { emailVerified: true });
+    // Also update in Firestore
+    await this.update(id, { emailVerified: true });
   }
 
   static async verifyPassword(email, password) {
@@ -327,81 +412,123 @@ class User {
   }
 
   static async getStats() {
-    const roles = ['admin', 'support', 'client', 'super_admin'];
+    const rolesToCheck = ['admin', 'support', 'client'];
+    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
+    
+    // 1. Parallel collection of data/counts
+    const results = await Promise.all(rolesToCheck.map(async (coll) => {
+      const collRef = db.collection('user').doc('roles').collection(coll);
+      
+      // Get all users in this role (still needed for byStatus/byPlan unless we do many more parallel counts)
+      // For large datasets, this should be replaced entirely with aggregate queries.
+      const snap = await collRef.get();
+      const docs = snap.docs.map(d => {
+        const data = d.data();
+        let lastSeenDate = null;
+        if (data.last_seen) {
+          lastSeenDate = data.last_seen.toDate ? data.last_seen.toDate() : new Date(data.last_seen);
+        }
+        return { ...data, id: d.id, last_seen_date: lastSeenDate };
+      });
+
+      const onlineCountInColl = docs.filter(u => u.last_seen_date && u.last_seen_date > threeMinsAgo).length;
+
+      return { docs, onlineCount: onlineCountInColl };
+    }));
+
     let all = [];
-    for (const role of roles) {
-      const coll = role === 'super_admin' ? 'admin' : role;
-      let ref = db.collection('user').doc('roles').collection(coll);
-      if (role === 'super_admin') ref = ref.where('role', '==', 'super_admin');
-      const snap = await ref.get();
-      all = all.concat(snap.docs.map(d => ({ ...d.data(), id: d.id })));
+    let onlineCount = 0;
+    for (const res of results) {
+      all = all.concat(res.docs);
+      onlineCount += res.onlineCount;
     }
 
-    const clients = all.filter(u => u.role === 'client' || u.role === 'super_admin');
-    const byPlan = { free: 0, basic: 0, pro: 0 };
-    clients.forEach((u) => {
-      const p = (u.subscription_plan || 'free').toLowerCase();
-      if (p === 'basic') byPlan.basic++;
-      else if (p === 'pro') byPlan.pro++;
-      else byPlan.free++;
-    });
+    const byRole = {
+      admin: all.filter(u => u.role === 'admin' || u.role === 'super_admin' || u.role === 'super admin').length,
+      support: all.filter(u => u.role === 'support').length,
+      client: all.filter(u => u.role === 'client' || u.role === 'user').length
+    };
+
+    const byStatus = {
+      active: all.filter(u => !u.status || u.status === 'Active' || u.status === 'Published').length,
+      suspended: all.filter(u => u.status === 'Suspended' || u.status === 'Banned').length
+    };
+
+    const byPlan = {
+      free: all.filter(u => (u.subscription_plan || u.subscriptionPlan || 'free') === 'free').length,
+      basic: all.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'basic').length,
+      pro: all.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'pro').length
+    };
+
+    // If no real data, provide some mock distribution for visual clarity in dashboard
+    if (all.length === 0) {
+      byPlan.free = 0; byPlan.basic = 0; byPlan.pro = 0;
+    }
 
     return {
       total: all.length,
-      byStatus: {
-        active: all.filter(u => u.status === 'active').length,
-        published: all.filter(u => u.status === 'Published').length,
-        restricted: all.filter(u => u.status === 'Restricted').length,
-        suspended: all.filter(u => u.status === 'Suspended').length,
-      },
-      byRole: {
-        admin: all.filter(u => u.role === 'admin').length,
-        support: all.filter(u => u.role === 'support').length,
-        client: all.filter(u => u.role === 'client').length,
-        super_admin: all.filter(u => (u.role === 'super_admin' || u.role === 'super admin')).length,
-      },
+      online: onlineCount,
+      byRole,
+      byStatus,
       byPlan,
+      lastUpdated: new Date().toISOString()
     };
+
   }
 
-  /** Signups over time (client role only) for analytics. Returns { labels, signups }. */
-  static async getSignupsOverTime(period) {
-    const snap = await db.collection('user').doc('roles').collection('client').get();
-    const clients = snap.docs.map(d => {
-      const data = d.data();
-      const created = data.created_at?.toDate?.() || new Date(data.created_at);
-      return { created };
-    });
+  /** Signups trend across all roles. Returns { signups: counts, labels, period }. */
+  static async getSignupsOverTime(period = '7days') {
     const now = new Date();
-    let start;
-    let buckets;
+    let start = new Date(now);
+    let buckets = 7;
+
     if (period === '7days') {
-      start = new Date(now);
-      start.setDate(start.getDate() - 7);
+      start.setDate(now.getDate() - 7);
       buckets = 7;
     } else if (period === '30days') {
-      start = new Date(now);
-      start.setDate(start.getDate() - 30);
+      start.setDate(now.getDate() - 30);
       buckets = 4;
     } else {
-      start = new Date(now);
-      start.setMonth(start.getMonth() - 3);
+      start.setMonth(now.getMonth() - 3);
       buckets = 3;
     }
+
     const bucketMs = (now.getTime() - start.getTime()) / buckets;
     const counts = new Array(buckets).fill(0);
     const labels = [];
+
     for (let i = 0; i < buckets; i++) {
       const t = new Date(start.getTime() + (i + 1) * bucketMs);
-      labels.push(period === '7days' ? t.toLocaleDateString('en-US', { weekday: 'short' }) : period === '30days' ? `Week ${i + 1}` : t.toLocaleDateString('en-US', { month: 'short' }));
+      labels.push(
+        period === '7days'
+          ? t.toLocaleDateString('en-US', { weekday: 'short' })
+          : period === '30days'
+          ? `Week ${i + 1}`
+          : t.toLocaleDateString('en-US', { month: 'short' })
+      );
     }
-    clients.forEach(({ created }) => {
-      if (created < start) return;
-      const idx = Math.min(Math.floor((created - start) / bucketMs), buckets - 1);
-      if (idx >= 0) counts[idx]++;
-    });
-    return { labels, signups: counts };
+
+    const rolesToCheck = ['admin', 'support', 'client'];
+    const snaps = await Promise.all(rolesToCheck.map(coll => 
+      db.collection('user').doc('roles').collection(coll)
+        .where('created_at', '>=', start)
+        .get()
+    ));
+
+    for (const snap of snaps) {
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const created = data.created_at?.toDate?.() || (data.created_at ? new Date(data.created_at) : null);
+        if (created) {
+          const idx = Math.min(Math.floor((created.getTime() - start.getTime()) / bucketMs), buckets - 1);
+          if (idx >= 0) counts[idx]++;
+        }
+      });
+    }
+
+    return { signups: counts, labels, period };
   }
+
 }
 
 module.exports = User;

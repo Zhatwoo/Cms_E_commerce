@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getMe, logout, setStoredUser } from '@/lib/api';
 
+import { LoadingProvider } from './components/LoadingProvider';
+
 function isAdminRole(role?: string): boolean {
   const normalized = (role || '').toLowerCase();
   return normalized === 'admin' || normalized === 'super_admin';
@@ -28,6 +30,9 @@ export default function AdminDashboardLayout({
     const loginWithNext = `/adminauth/login?next=${encodeURIComponent(safeNextPath)}`;
 
     const verifyAdminAccess = async () => {
+      // If already authorized, don't block navigation again unless it's a full page reload
+      if (isAuthorized) return;
+
       try {
         const res = await getMe();
         if (!isMounted) return;
@@ -35,16 +40,13 @@ export default function AdminDashboardLayout({
         if (res.success && res.user && isAdminRole(res.user.role)) {
           setStoredUser(res.user);
           setIsAuthorized(true);
-          return;
+        } else {
+          await logout();
+          router.replace(loginWithNext);
         }
-
-        await logout();
-        if (!isMounted) return;
-        router.replace(loginWithNext);
       } catch {
         await logout();
-        if (!isMounted) return;
-        router.replace(loginWithNext);
+        if (isMounted) router.replace(loginWithNext);
       } finally {
         if (isMounted) {
           setIsChecking(false);
@@ -57,7 +59,20 @@ export default function AdminDashboardLayout({
     return () => {
       isMounted = false;
     };
-  }, [pathname, router, searchParams]);
+  }, [router]); // Only re-run if router changes (which is rare) or on mount
+
+
+  // Real-time presence heartbeat
+  useEffect(() => {
+    if (!isAuthorized) return;
+    
+    // Heartbeat to keep lastSeen updated in backend every 60s
+    const heartbeat = setInterval(() => {
+      getMe().catch(() => {});
+    }, 60000);
+    
+    return () => clearInterval(heartbeat);
+  }, [isAuthorized]);
 
   // Real-time notifications connection
   useEffect(() => {
@@ -75,13 +90,10 @@ export default function AdminDashboardLayout({
     }
   }, [isAuthorized]);
 
-  if (isChecking || !isAuthorized) {
-    return (
-      <div className="admin-dashboard-shell flex min-h-screen items-center justify-center">
-        <p className="admin-dashboard-soft-text text-sm">Checking admin access...</p>
-      </div>
-    );
-  }
 
-  return <>{children}</>;
-}
+  return (
+    <LoadingProvider forceLoading={isChecking}>
+      {isAuthorized ? children : null}
+    </LoadingProvider>
+  );
+}

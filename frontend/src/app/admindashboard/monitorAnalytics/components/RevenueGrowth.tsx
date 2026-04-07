@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Chart, registerables } from 'chart.js';
 Chart.register(...registerables);
@@ -18,19 +18,18 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
     const revenueChartRef = useRef<HTMLCanvasElement>(null);
     const revenueChartInstanceRef = useRef<Chart | null>(null);
 
-    const labels = revenueOverTime?.labels ?? [];
-    const data = revenueOverTime?.data ?? [];
+    const labels = useMemo(() => revenueOverTime?.labels ?? [], [revenueOverTime?.labels]);
+    const data = useMemo(() => revenueOverTime?.data ?? [], [revenueOverTime?.data]);
 
     useEffect(() => {
         if (!revenueChartRef.current) return;
 
-        if (revenueChartInstanceRef.current) {
-            revenueChartInstanceRef.current.destroy();
-            revenueChartInstanceRef.current = null;
-        }
-
         const ctx = revenueChartRef.current.getContext('2d');
         if (!ctx) return;
+
+        if (revenueChartInstanceRef.current) {
+            revenueChartInstanceRef.current.destroy();
+        }
 
         revenueChartInstanceRef.current = new Chart(ctx, {
             type: 'bar',
@@ -50,6 +49,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                animation: false, // Performance optimization
                 interaction: {
                     mode: 'index',
                     intersect: false,
@@ -65,6 +65,10 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                             boxHeight: 6,
                         },
                     },
+                    tooltip: {
+                        enabled: true,
+                        animation: { duration: 0 } // Performance optimization
+                    }
                 },
                 scales: {
                     y: {
@@ -85,6 +89,9 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                         },
                         ticks: {
                             color: 'rgba(71, 19, 150, 0.64)',
+                            maxRotation: 0,
+                            autoSkip: true,
+                            maxTicksLimit: period === '7days' ? 7 : 12
                         },
                     },
                 },
@@ -94,9 +101,10 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
         return () => {
             if (revenueChartInstanceRef.current) {
                 revenueChartInstanceRef.current.destroy();
+                revenueChartInstanceRef.current = null;
             }
         };
-    }, [labels, data]);
+    }, [labels, data, period]);
 
     return (
         <motion.div
@@ -111,7 +119,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                         <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Revenue Growth</h2>
                         <p className="admin-dashboard-soft-text mt-1 text-sm">Revenue over time (orders)</p>
                     </div>
-                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1">
+                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1 relative">
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -121,14 +129,19 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                                 key={p.id}
                                 onClick={() => onPeriodChange(p.id)}
                                 disabled={loading}
-                                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
-                                    period === p.id
-                                        ? 'admin-dashboard-yellow-fill admin-dashboard-purple shadow-sm'
-                                        : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
+                                className={`relative z-10 rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-200 ${
+                                    period === p.id ? 'admin-dashboard-purple' : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
                                 } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
-                                {p.label}
+                                {period === p.id && (
+                                    <motion.div
+                                        layoutId="periodTabBackgroundRec"
+                                        className="absolute inset-0 rounded-lg admin-dashboard-yellow-fill shadow-sm"
+                                        transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                )}
+                                <span className="relative z-10">{p.label}</span>
                             </button>
                         ))}
                     </div>

@@ -9,6 +9,7 @@ import { AuthProvider, useAuth } from './components/context/auth-context';
 import { AlertProvider } from './components/context/alert-context';
 import { ProjectProvider, useProject } from './components/context/project-context';
 import { DashboardBackground } from './components/layout/DashboardBackground';
+// Removed FloatingSupport import
 
 
 function DashboardLayoutContent({
@@ -174,6 +175,8 @@ function DashboardLayoutContent({
                     </div>
                 </div>
             )}
+            
+            {/* Support Widget Removed */}
         </div>
     );
 }

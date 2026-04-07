@@ -42,7 +42,22 @@ function rectChanged(prev: DOMRect | null, next: DOMRect): boolean {
   );
 }
 
+function getNodeContentHost(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+  const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+  return host ?? element;
+}
+
 function getEffectiveZoom(el: HTMLElement): number {
+  const cssZoom = getCssZoomOnly(el);
+  const ancestorScale = getAncestorTransformScale(el);
+  const transformScale = (ancestorScale.x + ancestorScale.y) / 2;
+  const effective = cssZoom * (transformScale > 0.01 ? transformScale : 1);
+  return effective > 0.01 ? effective : 1;
+}
+
+function getCssZoomOnly(el: HTMLElement): number {
   let cssZoom = 1;
   let current: HTMLElement | null = el;
   while (current) {
@@ -53,14 +68,69 @@ function getEffectiveZoom(el: HTMLElement): number {
     }
     current = current.parentElement;
   }
+  return cssZoom > 0.01 ? cssZoom : 1;
+}
 
-  const rect = el.getBoundingClientRect();
-  const sx = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
-  const sy = el.offsetHeight > 0 ? rect.height / el.offsetHeight : 1;
-  const transformScale = Number.isFinite(sx) && Number.isFinite(sy) ? (sx + sy) / 2 : 1;
+function getAncestorTransformScale(el: HTMLElement): { x: number; y: number } {
+  let scaleX = 1;
+  let scaleY = 1;
+  let current: HTMLElement | null = el.parentElement;
 
-  const effective = cssZoom * transformScale;
-  return effective > 0.01 ? effective : 1;
+  while (current) {
+    const transform = window.getComputedStyle(current).transform;
+    if (transform && transform !== "none") {
+      const matrixMatch = transform.match(/^matrix\(([^)]+)\)$/i);
+      if (matrixMatch) {
+        const parts = matrixMatch[1].split(",").map((v) => Number.parseFloat(v.trim()));
+        if (parts.length >= 4) {
+          const a = parts[0];
+          const b = parts[1];
+          const c = parts[2];
+          const d = parts[3];
+          if ([a, b, c, d].every(Number.isFinite)) {
+            const sx = Math.hypot(a, b);
+            const sy = Math.hypot(c, d);
+            if (sx > 0.01) scaleX *= sx;
+            if (sy > 0.01) scaleY *= sy;
+          }
+        }
+      } else {
+        const matrix3dMatch = transform.match(/^matrix3d\(([^)]+)\)$/i);
+        if (matrix3dMatch) {
+          const parts = matrix3dMatch[1].split(",").map((v) => Number.parseFloat(v.trim()));
+          if (parts.length >= 16) {
+            const sx = Math.hypot(parts[0], parts[1], parts[2]);
+            const sy = Math.hypot(parts[4], parts[5], parts[6]);
+            if (Number.isFinite(sx) && sx > 0.01) scaleX *= sx;
+            if (Number.isFinite(sy) && sy > 0.01) scaleY *= sy;
+          }
+        }
+      }
+    }
+    current = current.parentElement;
+  }
+
+  return { x: scaleX, y: scaleY };
+}
+
+function getOverlayFrameRect(el: HTMLElement, boundsRect: DOMRect) {
+  const centerX = boundsRect.left + boundsRect.width / 2;
+  const centerY = boundsRect.top + boundsRect.height / 2;
+  const cssZoom = getCssZoomOnly(el);
+  const ancestorScale = getAncestorTransformScale(el);
+  const rawWidth = Number.isFinite(el.offsetWidth) ? el.offsetWidth : 0;
+  const rawHeight = Number.isFinite(el.offsetHeight) ? el.offsetHeight : 0;
+  const frameWidth = Math.max(1, rawWidth * cssZoom * ancestorScale.x);
+  const frameHeight = Math.max(1, rawHeight * cssZoom * ancestorScale.y);
+
+  return {
+    left: centerX - frameWidth / 2,
+    top: centerY - frameHeight / 2,
+    width: frameWidth,
+    height: frameHeight,
+    centerX,
+    centerY,
+  };
 }
 
 function getOverlayRect(el: HTMLElement): DOMRect {
@@ -104,6 +174,8 @@ type DragState = {
   accumulatedAngleDeg?: number;
   previewX?: number;
   previewY?: number;
+  moveLastX?: number;
+  moveLastY?: number;
   previousTransition?: string;
   previousWillChange?: string;
   dirty: boolean;
@@ -138,6 +210,39 @@ function parsePxOrAuto(value: unknown): number {
     return Number.isFinite(n) ? n : 0;
   }
   return 0;
+}
+
+function parseRotation(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+}
+
+function getRotationFromTransformMatrix(transform: string): number | null {
+  const raw = transform.trim();
+  if (!raw || raw === "none") return null;
+
+  const matrixMatch = raw.match(/^matrix\(([^)]+)\)$/i);
+  if (matrixMatch) {
+    const parts = matrixMatch[1].split(",").map((v) => Number.parseFloat(v.trim()));
+    if (parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+      return (Math.atan2(parts[1], parts[0]) * 180) / Math.PI;
+    }
+    return null;
+  }
+
+  const matrix3dMatch = raw.match(/^matrix3d\(([^)]+)\)$/i);
+  if (matrix3dMatch) {
+    const parts = matrix3dMatch[1].split(",").map((v) => Number.parseFloat(v.trim()));
+    if (parts.length >= 2 && Number.isFinite(parts[0]) && Number.isFinite(parts[1])) {
+      return (Math.atan2(parts[1], parts[0]) * 180) / Math.PI;
+    }
+  }
+
+  return null;
 }
 
 function computeTextFontSizeForResize(
@@ -335,11 +440,12 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
   const applyOverlayRect = useCallback((nextRect: DOMRect) => {
     const el = overlayRef.current;
     if (!el) return;
-    el.style.left = `${nextRect.left}px`;
-    el.style.top = `${nextRect.top}px`;
-    el.style.width = `${nextRect.width}px`;
-    el.style.height = `${nextRect.height}px`;
-  }, []);
+    const frameRect = getOverlayFrameRect(dom, nextRect);
+    el.style.left = `${frameRect.left}px`;
+    el.style.top = `${frameRect.top}px`;
+    el.style.width = `${frameRect.width}px`;
+    el.style.height = `${frameRect.height}px`;
+  }, [dom]);
 
   // Track DOM rect
   useEffect(() => {
@@ -443,6 +549,12 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
             props.left = "auto";
             props.right = "auto";
             props.bottom = "auto";
+          } else if (dropParentIsFreeform) {
+            props.position = "absolute";
+            props.top = "0px";
+            props.left = "0px";
+            props.right = "auto";
+            props.bottom = "auto";
           } else {
             props.top = "0px";
             props.left = "0px";
@@ -496,6 +608,8 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         accumulatedAngleDeg: type === "rotate" ? 0 : undefined,
         previewX: type === "move" ? 0 : undefined,
         previewY: type === "move" ? 0 : undefined,
+        moveLastX: type === "move" ? e.clientX : undefined,
+        moveLastY: type === "move" ? e.clientY : undefined,
         previousTransition: type === "move" ? dom.style.transition : undefined,
         previousWillChange: type === "resize" ? dom.style.willChange : undefined,
         dirty: false,
@@ -564,7 +678,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
           if (!hasPageCanvasMove) {
             const parentId = state.nodes[nodeId]?.data?.parent;
-            const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+            const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
             const siblingIds = (state.nodes[parentId ?? ""]?.data?.nodes as string[]) ?? [];
             const siblingRects: SiblingRect[] = [];
             for (const sid of siblingIds) {
@@ -609,7 +723,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const childCount = (((state.nodes[nodeId] as any)?.data?.nodes as string[] | undefined) ?? []).length;
           const bypassBoundsForResize = nodeDisplayName === "Section" || (nodeDisplayName === "Container" && childCount > 0);
           const parentId = state.nodes[nodeId]?.data?.parent;
-          const parentDom = parentId ? query.node(parentId).get()?.dom ?? null : null;
+          const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
           if (dragRef.current && parentDom && !bypassBoundsForResize) {
             const parentRect = parentDom.getBoundingClientRect();
             dragRef.current.guideBounds = {
@@ -632,7 +746,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       setDragType(type);
       setGuides(null);
       if (type === "rotate") {
-        const startRot = typeof startProps.rotation === "number" ? startProps.rotation : 0;
+        const startRot = parseRotation(startProps.rotation);
         setRotateAngle(startRot);
       } else {
         setRotateAngle(null);
@@ -705,37 +819,41 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           d.moveStarted = true;
           d.startX = d.lastX;
           d.startY = d.lastY;
+          d.moveLastX = d.lastX;
+          d.moveLastY = d.lastY;
           rafRef.current = 0;
           return;
         }
 
-        let nextLeft = d.moveMode === "offset"
-          ? parsePxOrAuto(p.left) + dx
-          : parsePxOrAuto(p.marginLeft) + dx;
-        let nextTop = d.moveMode === "offset"
-          ? parsePxOrAuto(p.top) + dy
-          : parsePxOrAuto(p.marginTop) + dy;
+        const prevMoveX = d.moveLastX ?? d.startX;
+        const prevMoveY = d.moveLastY ?? d.startY;
+        const stepPxX = d.lastX - prevMoveX;
+        const stepPxY = d.lastY - prevMoveY;
+        const stepDx = stepPxX / zoom;
+        const stepDy = stepPxY / zoom;
 
-        d.previewX = (d.previewX ?? 0) + dx;
-        d.previewY = (d.previewY ?? 0) + dy;
+        d.moveLastX = d.lastX;
+        d.moveLastY = d.lastY;
+
+        let nextLeft = d.moveMode === "offset"
+          ? parsePxOrAuto(p.left) + stepDx
+          : parsePxOrAuto(p.marginLeft) + stepDx;
+        let nextTop = d.moveMode === "offset"
+          ? parsePxOrAuto(p.top) + stepDy
+          : parsePxOrAuto(p.marginTop) + stepDy;
+
+        d.previewX = (d.previewX ?? 0) + stepDx;
+        d.previewY = (d.previewY ?? 0) + stepDy;
         dom.style.setProperty("translate", `${d.previewX}px ${d.previewY}px`);
         for (const item of d.moveItems ?? []) {
-          item.previewX += dx;
-          item.previewY += dy;
+          item.previewX += stepDx;
+          item.previewY += stepDy;
           item.dom.style.setProperty("translate", `${item.previewX}px ${item.previewY}px`);
         }
 
-        const deltaPx = d.lastX - d.startX;
-        const deltaPy = d.lastY - d.startY;
-        if (deltaPx !== 0 || deltaPy !== 0) {
-          d.currentRect = new DOMRect(
-            d.currentRect.left + deltaPx,
-            d.currentRect.top + deltaPy,
-            d.currentRect.width,
-            d.currentRect.height
-          );
-          applyOverlayRect(d.currentRect);
-        }
+        const movedRect = getOverlayRect(dom);
+        d.currentRect = movedRect;
+        applyOverlayRect(movedRect);
 
         if (d.disableSnap) {
           setSnapGuidesRef.current([]);
@@ -823,13 +941,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               item.previewY += snapOffsetY / zoom;
               item.dom.style.setProperty("translate", `${item.previewX}px ${item.previewY}px`);
             }
-            d.currentRect = new DOMRect(
-              d.currentRect.left + snapOffsetX,
-              d.currentRect.top + snapOffsetY,
-              d.currentRect.width,
-              d.currentRect.height
-            );
-            applyOverlayRect(d.currentRect);
+            const snappedRect = getOverlayRect(dom);
+            d.currentRect = snappedRect;
+            applyOverlayRect(snappedRect);
           }
 
           if (d.guideBounds) {
@@ -949,8 +1063,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           return;
         }
 
-        const bMT = typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0;
-        const bML = typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0;
+        const isOffset = (d.moveMode ?? "margin") === "offset";
+        const bMT = isOffset ? parsePxOrAuto(d.startProps.top) : (typeof d.startProps.marginTop === "number" ? (d.startProps.marginTop as number) : 0);
+        const bML = isOffset ? parsePxOrAuto(d.startProps.left) : (typeof d.startProps.marginLeft === "number" ? (d.startProps.marginLeft as number) : 0);
         const nextMarginTopRaw = extraMT !== 0 ? bMT + extraMT : bMT;
         const nextMarginLeftRaw = extraML !== 0 ? bML + extraML : bML;
         const isMarginFlowResize = (d.moveMode ?? "margin") === "margin";
@@ -1001,10 +1116,18 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           dom.style.height = `${newH}px`;
         }
         if (extraMT !== 0) {
-          dom.style.marginTop = `${nextMarginTop}px`;
+          if ((d.moveMode ?? "margin") === "offset") {
+            dom.style.top = `${nextMarginTop}px`;
+          } else {
+            dom.style.marginTop = `${nextMarginTop}px`;
+          }
         }
         if (extraML !== 0) {
-          dom.style.marginLeft = `${nextMarginLeft}px`;
+          if ((d.moveMode ?? "margin") === "offset") {
+            dom.style.left = `${nextMarginLeft}px`;
+          } else {
+            dom.style.marginLeft = `${nextMarginLeft}px`;
+          }
         }
         if (isTextNode && nextFontSize != null) {
           dom.style.fontSize = `${Math.round(nextFontSize * 10) / 10}px`;
@@ -1025,7 +1148,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           return;
         }
 
-        const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
+        const startRot = parseRotation(d.startProps.rotation);
         const accumulated = (d.accumulatedAngleDeg ?? 0) + deltaDeg;
         d.accumulatedAngleDeg = accumulated;
         d.lastPointerAngle = currentAngle;
@@ -1074,8 +1197,14 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
     const handleMouseUp = (e: MouseEvent) => {
       const d = dragRef.current;
       if (d) {
-        const totalDx = (d.previewX ?? 0) + (d.lastX - d.startX) / d.zoom;
-        const totalDy = (d.previewY ?? 0) + (d.lastY - d.startY) / d.zoom;
+        const unprocessedMoveDx = d.type === "move"
+          ? (d.lastX - (d.moveLastX ?? d.startX)) / d.zoom
+          : 0;
+        const unprocessedMoveDy = d.type === "move"
+          ? (d.lastY - (d.moveLastY ?? d.startY)) / d.zoom
+          : 0;
+        const totalDx = (d.previewX ?? 0) + unprocessedMoveDx;
+        const totalDy = (d.previewY ?? 0) + unprocessedMoveDy;
         const clampedMove = d.type === "move"
           ? (d.disableClamp ? { dx: totalDx, dy: totalDy } : clampMoveDeltaToBounds(totalDx, totalDy, d))
           : { dx: totalDx, dy: totalDy };
@@ -1171,15 +1300,23 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               const baseLeft = parsePxOrAuto(itemProps.left);
               const finalTop = baseTop + clampedMove.dy;
               const finalLeft = baseLeft + clampedMove.dx;
+              const latestState = query.getState();
+              const latestParentId = latestState.nodes[item.nodeId]?.data?.parent as string | undefined;
+              const latestParentProps = latestParentId
+                ? (latestState.nodes[latestParentId]?.data?.props ?? {}) as Record<string, unknown>
+                : {};
+              const offsetInsideFreeform = latestParentProps.isFreeform === true;
 
-              if (!item.dom.style.position || item.dom.style.position === "static") {
-                item.dom.style.position = "relative";
-              }
+              item.dom.style.position = offsetInsideFreeform ? "absolute" : ((!item.dom.style.position || item.dom.style.position === "static") ? "relative" : item.dom.style.position);
               item.dom.style.top = `${finalTop}px`;
               item.dom.style.left = `${finalLeft}px`;
 
               actions.setProp(item.nodeId, (props: Record<string, unknown>) => {
-                if (!props.position || props.position === "static") props.position = "relative";
+                if (offsetInsideFreeform) {
+                  props.position = "absolute";
+                } else if (!props.position || props.position === "static") {
+                  props.position = "relative";
+                }
                 props.top = `${finalTop}px`;
                 props.left = `${finalLeft}px`;
               });
@@ -1262,14 +1399,26 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               props.fontSize = Math.round(nextFontSize * 10) / 10;
             }
             if (extraMT !== 0) {
-              const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-              const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
-              props.marginTop = Math.round(nextMT);
+              const isOffset = (d.moveMode ?? "margin") === "offset";
+              if (isOffset) {
+                const bTop = parsePxOrAuto(d.startProps.top);
+                props.top = `${Math.round(bTop + extraMT)}px`;
+              } else {
+                const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
+                const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
+                props.marginTop = Math.round(nextMT);
+              }
             }
             if (extraML !== 0) {
-              const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-              const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
-              props.marginLeft = Math.round(nextML);
+              const isOffset = (d.moveMode ?? "margin") === "offset";
+              if (isOffset) {
+                const bLeft = parsePxOrAuto(d.startProps.left);
+                props.left = `${Math.round(bLeft + extraML)}px`;
+              } else {
+                const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
+                const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
+                props.marginLeft = Math.round(nextML);
+              }
             }
             if (isImageNode) {
               props._autoFitInTabs = false;
@@ -1293,7 +1442,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
             dom.style.height = `${Math.round(newH)}px`;
           }
         } else if (d.type === "rotate") {
-          const startRot = typeof d.startProps.rotation === "number" ? d.startProps.rotation : 0;
+          const startRot = parseRotation(d.startProps.rotation);
           const finalRot = startRot + (d.accumulatedAngleDeg ?? 0);
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
             props.rotation = Math.round(finalRot * 10) / 10;
@@ -1346,11 +1495,20 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
   const handles = disableResize
     ? []
     : (isSectionNode ? allHandles.filter((h) => h.key === "n" || h.key === "s") : allHandles);
-  const centerX = rect.left + rect.width / 2;
-  const centerY = rect.top + rect.height / 2;
+  const frameRect = getOverlayFrameRect(dom, rect);
+  const centerX = frameRect.centerX;
+  const centerY = frameRect.centerY;
   const currentRotation = (() => {
     const props = getProps();
-    return typeof props.rotation === "number" ? props.rotation : 0;
+    const propRotation = parseRotation(props.rotation);
+    const hasFlip = props.flipHorizontal === true || props.flipVertical === true;
+    if (!hasFlip && Math.abs(propRotation) < 0.01) {
+      const domRotation = getRotationFromTransformMatrix(window.getComputedStyle(dom).transform);
+      if (domRotation != null && Number.isFinite(domRotation) && Math.abs(domRotation) >= 0.01) {
+        return domRotation;
+      }
+    }
+    return propRotation;
   })();
   const displayAngle = rotateAngle ?? currentRotation;
 
@@ -1360,10 +1518,10 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       data-panel="resize-overlay"
       style={{
         position: "fixed",
-        left: rect.left,
-        top: rect.top,
-        width: rect.width,
-        height: rect.height,
+        left: frameRect.left,
+        top: frameRect.top,
+        width: frameRect.width,
+        height: frameRect.height,
         zIndex: 40,
         pointerEvents: "none",
         willChange: isDragging ? "left, top, width, height" : undefined,
@@ -1417,7 +1575,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
               position: "fixed",
               left: centerX,
               top: centerY,
-              width: Math.max(rect.width, rect.height) * 0.65,
+              width: Math.max(frameRect.width, frameRect.height) * 0.65,
               height: 2,
               backgroundColor: "#38bdf8",
               transformOrigin: "0 50%",

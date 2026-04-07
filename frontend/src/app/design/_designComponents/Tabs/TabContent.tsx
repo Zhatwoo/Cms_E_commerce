@@ -111,6 +111,9 @@ export const TabContent = ({
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
 
+  const isFlexDisplay = display === "flex" || display === "inline-flex";
+  const isGridDisplay = display === "grid";
+
   return (
     <div
       ref={(ref) => {
@@ -120,7 +123,7 @@ export const TabContent = ({
       data-tab-content-canvas="true"
       className="w-full min-h-[100px] relative transition-all duration-200"
       style={{
-        backgroundColor: background,
+        background,
         backgroundImage: backgroundImage
           ? backgroundOverlay
             ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), url(${backgroundImage})`
@@ -147,24 +150,24 @@ export const TabContent = ({
         right: position !== "static" ? posRight : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? posLeft : undefined,
-        flexDirection: display === "flex" ? flexDirection : undefined,
-        flexWrap: display === "flex" ? flexWrap : undefined,
-        alignItems: (display === "flex" || display === "grid") ? alignItems : undefined,
-        justifyContent: (display === "flex" || display === "grid") ? justifyContent : undefined,
-        columnGap: display === "flex"
+        flexDirection: isFlexDisplay ? flexDirection : undefined,
+        flexWrap: isFlexDisplay ? flexWrap : undefined,
+        alignItems: (isFlexDisplay || isGridDisplay) ? alignItems : undefined,
+        justifyContent: (isFlexDisplay || isGridDisplay) ? justifyContent : undefined,
+        columnGap: isFlexDisplay
           ? fluidSpace(gap, 0)
-          : display === "grid"
+          : isGridDisplay
             ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
-        rowGap: display === "flex"
+        rowGap: isFlexDisplay
           ? fluidSpace(gap, 0)
-          : display === "grid"
+          : isGridDisplay
             ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
-        gridTemplateColumns: display === "grid" ? gridTemplateColumns : undefined,
-        gridTemplateRows: display === "grid" ? gridTemplateRows : undefined,
-        gridAutoRows: display === "grid" ? gridAutoRows : undefined,
-        gridAutoFlow: display === "grid" ? gridAutoFlow : undefined,
+        gridTemplateColumns: isGridDisplay ? gridTemplateColumns : undefined,
+        gridTemplateRows: isGridDisplay ? gridTemplateRows : undefined,
+        gridAutoRows: isGridDisplay ? gridAutoRows : undefined,
+        gridAutoFlow: isGridDisplay ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
         overflow,

@@ -67,7 +67,8 @@ async function findByPublishedSubdomain(subdomain) {
   }
 
   return {
-    id: data.domainId,
+    // Keep ID consistent with admin management list fallback logic.
+    id: data.domainId || data.domain_id || data.id || normalized,
     projectId: data.projectId,
     userId: data.userId,
     subdomain: normalized,
@@ -761,13 +762,6 @@ async function applyScheduledPublishes() {
 }
 
 async function getTrendOverTime(period = '7days') {
-  const snap = await getPublishedSubdomainsRef().get();
-  const list = snap.docs.map(d => {
-    const data = d.data();
-    const date = data.updated_at?.toDate?.() || new Date(data.updated_at || data.created_at);
-    return { date };
-  });
-
   const now = new Date();
   let start;
   let buckets;
@@ -785,6 +779,14 @@ async function getTrendOverTime(period = '7days') {
     buckets = 3;
   }
 
+  // Optimize: query only recent updates instead of listAllFromPublishedSubdomains()
+  const snap = await getPublishedSubdomainsRef().where('updated_at', '>=', start).get();
+  const list = snap.docs.map(d => {
+    const data = d.data();
+    const date = data.updated_at?.toDate?.() || new Date(data.updated_at || data.created_at);
+    return { date };
+  });
+
   const bucketMs = (now.getTime() - start.getTime()) / buckets;
   const counts = new Array(buckets).fill(0);
   const labels = [];
@@ -801,6 +803,7 @@ async function getTrendOverTime(period = '7days') {
 
   return { labels, data: counts };
 }
+
 
 module.exports = {
   create,

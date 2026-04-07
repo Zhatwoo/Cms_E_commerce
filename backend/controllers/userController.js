@@ -3,6 +3,8 @@ const User = require('../models/User');
 const { auth } = require('../config/firebase');
 const { sendAdminActionEmail } = require('../utils/emailService');
 
+const cache = require('../utils/cache');
+
 // No password in profiles, but strip passwordHash if present
 const stripPassword = (user) => {
   if (!user) return user;
@@ -16,26 +18,35 @@ const stripPassword = (user) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const { search, role, status, page = 1, limit = 10 } = req.query;
-    const filters = {};
-    if (role) filters.role = role;
-    if (status) filters.status = status;
-    if (search) filters.search = search;
+    const cacheKey = `users_${search || ''}_${role || ''}_${status || ''}_${page}_${limit}`;
+    
+    // Attempt cache retrieval
+    const cachedData = cache.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json({ ...cachedData, fromCache: true });
+    }
 
-    const allUsers = await User.findAll(filters);
-    const total = allUsers.length;
-    const limitNum = Math.max(1, parseInt(limit) || 10);
-    const pageNum = Math.max(1, parseInt(page) || 1);
-    const skip = (pageNum - 1) * limitNum;
-    const users = allUsers.slice(skip, skip + limitNum).map(stripPassword);
+    const { users, total, totalPages } = await User.findPaged({
+      search,
+      role,
+      status,
+      page,
+      limit
+    });
 
-    res.status(200).json({
+    const responseData = {
       success: true,
       count: users.length,
       total,
-      page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
-      users
-    });
+      page: parseInt(page),
+      totalPages,
+      users: users.map(stripPassword)
+    };
+
+    // Cache for 2 minutes to handle bursts
+    cache.set(cacheKey, responseData, 120);
+
+    res.status(200).json(responseData);
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -107,18 +118,6 @@ exports.createUser = async (req, res) => {
       avatar
     });
 
-    // Real-time notification
-    try {
-      const notif = await Notification.create({
-        title: 'New User Created',
-        message: `Admin created user: ${name} (${email})`,
-        type: 'info',
-        adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
-      });
-      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
-    } catch (e) { console.warn('User creation notification failed:', e.message); }
-
     res.status(201).json({
       success: true,
       message: 'User created successfully',
@@ -139,6 +138,7 @@ exports.createUser = async (req, res) => {
 exports.updateUser = async (req, res) => {
   try {
     const { name, email, role, status, phone, bio, avatar, isActive, subscriptionPlan } = req.body;
+    const nextPassword = typeof req.body.password === 'string' ? req.body.password.trim() : '';
     const user = await User.findById(req.params.id);
     if (!user) {
       return res.status(404).json({
@@ -158,19 +158,21 @@ exports.updateUser = async (req, res) => {
     if (isActive !== undefined) updates.isActive = isActive;
     if (subscriptionPlan !== undefined) updates.subscriptionPlan = subscriptionPlan;
 
-    const updated = await User.update(req.params.id, updates);
-
-    // Real-time notification
-    try {
-      const notif = await Notification.create({
-        title: 'User Updated',
-        message: `Admin updated profile for: ${updated.name || updated.email}`,
-        type: 'info',
-        adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
+    if (nextPassword && nextPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters'
       });
-      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
-    } catch (e) { console.warn('User update notification failed:', e.message); }
+    }
+
+    const authUpdates = {};
+    if (email !== undefined) authUpdates.email = email.toLowerCase();
+    if (nextPassword) authUpdates.password = nextPassword;
+    if (Object.keys(authUpdates).length > 0) {
+      await auth.updateUser(req.params.id, authUpdates);
+    }
+
+    const updated = await User.update(req.params.id, updates);
 
     res.status(200).json({
       success: true,
@@ -229,18 +231,6 @@ exports.deleteUser = async (req, res) => {
 
     await User.delete(req.params.id);
 
-    // Real-time notification
-    try {
-      const notif = await Notification.create({
-        title: 'User Deleted',
-        message: `Admin removed user: ${user.name || user.email}`,
-        type: 'error',
-        adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
-      });
-      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
-    } catch (e) { console.warn('User deletion notification failed:', e.message); }
-
     res.status(200).json({
       success: true,
       message: 'User deleted successfully'
@@ -277,18 +267,6 @@ exports.updateUserRole = async (req, res) => {
     }
 
     const updated = await User.update(req.params.id, { role });
-
-    // Real-time notification
-    try {
-      const notif = await Notification.create({
-        title: 'Role Updated',
-        message: `User ${updated.name || updated.email} role changed to ${role}`,
-        type: 'info',
-        adminId: req.user?.id || 'admin',
-        adminName: req.user?.name || 'Admin'
-      });
-      if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
-    } catch (e) { console.warn('Role update notification failed:', e.message); }
 
     res.status(200).json({
       success: true,
@@ -384,6 +362,55 @@ exports.getUserStats = async (req, res) => {
     res.status(200).json({
       success: true,
       stats
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all admins for chat
+// @route   GET /api/users/admins/list
+// @access  Private/Admin
+exports.getAdmins = async (req, res) => {
+  try {
+    const { search } = req.query;
+    // Get both admin and super_admin types
+    const adminsList = await User.findAll({ role: 'admin' });
+    const superAdminsList = await User.findAll({ role: 'super_admin' });
+    const allUsers = [...adminsList, ...superAdminsList];
+    
+    let admins = allUsers.map(u => ({
+      id: u.id,
+      name: u.displayName || u.username || u.email || 'Unknown',
+      username: u.username || '',
+      email: u.email || '',
+      avatar: u.avatar || null
+    }));
+
+    // Filter by search term if provided
+    if (search) {
+      const searchLower = search.toLowerCase();
+      admins = admins.filter(a => {
+        const name = (a.name || '').toLowerCase();
+        const username = (a.username || '').toLowerCase();
+        const email = (a.email || '').toLowerCase();
+        return name.includes(searchLower) || username.includes(searchLower) || email.includes(searchLower);
+      });
+    }
+
+    // Optionally exclude current user
+    const currentUserId = req.user?.id;
+    if (currentUserId) {
+      admins = admins.filter(a => a.id !== currentUserId);
+    }
+
+    res.status(200).json({
+      success: true,
+      data: admins
     });
   } catch (error) {
     res.status(500).json({

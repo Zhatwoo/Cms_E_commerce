@@ -1,9 +1,12 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserAccountShell } from "../page";
 import { UserAccountSidebar } from "../components/ua_sidebar";
+import { getMe, updateProfile } from "@/lib/api";
+import { addNotification } from "@/lib/notifications";
+import { AlertCircle, Check, Loader2, Phone, Mail, ShieldAlert } from "lucide-react";
 
 const normalizePhoneNumber = (value: string) => {
 	const digitsOnly = value.replace(/\D/g, "");
@@ -26,25 +29,50 @@ const normalizePhoneNumber = (value: string) => {
 };
 
 export default function RecoveryPage() {
-	const initialRecovery = {
-		email: "recovery@cmd.com",
-		phoneNumber: "+639171234567",
-	};
+	const [recovery, setRecovery] = useState({
+		email: "",
+		phoneNumber: "",
+	});
+	const [savedRecovery, setSavedRecovery] = useState({
+		email: "",
+		phoneNumber: "",
+	});
+	const [initialLoading, setInitialLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
 
-	const [recovery, setRecovery] = useState(initialRecovery);
-	const [savedRecovery, setSavedRecovery] = useState(initialRecovery);
-	const [lastUpdatedRecovery, setLastUpdatedRecovery] = useState("2 days ago");
+	useEffect(() => {
+		const fetchUser = async () => {
+			try {
+				const res = await getMe();
+				if (res.success && res.user) {
+					const initial = {
+						email: res.user.email || "",
+						phoneNumber: res.user.phone || "+63",
+					};
+					setRecovery(initial);
+					setSavedRecovery(initial);
+				}
+			} finally {
+				setInitialLoading(false);
+			}
+		};
+		fetchUser();
+	}, []);
+
+	const [lastUpdatedRecovery, setLastUpdatedRecovery] = useState("Checking...");
 	const [showRecoverySaveConfirmation, setShowRecoverySaveConfirmation] = useState(false);
 	const [recoveryPhoneError, setRecoveryPhoneError] = useState("");
 
 	const validatePhoneNumber = (phone: string) => {
 		const digitsOnly = phone.replace(/\D/g, "");
+		if (digitsOnly.length === 0 || digitsOnly === "63") return ""; // Allow empty/prefix starting state
+		
 		if (digitsOnly.length < 12 || !digitsOnly.startsWith("63")) {
-			return "Please enter a valid Philippine phone number (+639XXXXXXXXX)";
+			return "Invalid format (+639XXXXXXXXX)";
 		}
 		const localNumber = digitsOnly.slice(2);
 		if (localNumber.length !== 10) {
-			return "Phone number must be 10 digits after +63";
+			return "Must be 10 digits after prefix";
 		}
 		return "";
 	};
@@ -53,6 +81,8 @@ export default function RecoveryPage() {
 		() => JSON.stringify(recovery) !== JSON.stringify(savedRecovery),
 		[recovery, savedRecovery]
 	);
+
+	const isPhoneValid = recovery.phoneNumber.length === 13 && !recoveryPhoneError;
 
 	return (
 		<UserAccountShell activePath="Recovery">
@@ -66,81 +96,134 @@ export default function RecoveryPage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className="admin-dashboard-panel rounded-[32px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-8 shadow-[0_10px_26px_rgba(123,78,192,0.15)]"
+						className="admin-dashboard-panel space-y-8 rounded-[32px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-10 shadow-[0_10px_26px_rgba(123,78,192,0.15)]"
 					>
 						<motion.div
 							initial={{ opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							transition={{ duration: 0.3 }}
 						>
-							<div className="mb-6">
+							<div className="flex items-center justify-between mb-8">
 								<div>
-									<h2 className="text-2xl font-semibold text-[#471396]">Recovery Options</h2>
-									<p className="text-sm text-[#8A86A4]">Fail-safe access if this account is locked.</p>
+									<h2 className="text-3xl font-bold text-[#471396] tracking-tight">Recovery Options</h2>
+									<p className="mt-1 text-sm font-medium text-[#8A86A4]">Fail-safe access methods if your account is ever locked.</p>
+								</div>
+								<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white shadow-sm border border-[rgba(177,59,255,0.1)]">
+									<ShieldAlert className="text-[#4a1a8a]" size={24} />
 								</div>
 							</div>
 
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-								<div className="space-y-2">
-									<label htmlFor="recoveryEmail" className="block text-xs font-medium text-[#A78BFA]">Recovery email</label>
-									<input
-										id="recoveryEmail"
-										type="email"
-										value={recovery.email}
-										readOnly
-										className="admin-dashboard-panel-soft h-11 w-full rounded-2xl border border-[rgba(177,59,255,0.22)] bg-white/70 px-4 text-sm text-[#8A86A4] outline-none"
-									/>
-								</div>
-								<div className="space-y-2">
-									<label htmlFor="recoveryPhone" className="block text-xs font-medium text-[#A78BFA]">Recovery phone number</label>
-									<input
-										id="recoveryPhone"
-										type="tel"
-										value={recovery.phoneNumber}
-									onChange={(event) => {
-										const normalized = normalizePhoneNumber(event.target.value);
-										setRecovery((prev) => ({
-											...prev,
-											phoneNumber: normalized,
-										}));
-										const error = validatePhoneNumber(normalized);
-										setRecoveryPhoneError(error);
-									}}
-									onBlur={() => {
-										const error = validatePhoneNumber(recovery.phoneNumber);
-										setRecoveryPhoneError(error);
-									}}
-									className={`admin-dashboard-panel-soft h-11 w-full rounded-2xl border px-4 text-sm outline-none ${
-										recoveryPhoneError
-											? "border-red-400 bg-red-50 text-red-700"
-											: "border-[rgba(177,59,255,0.22)] bg-white/80 text-[#471396]"
-									}`}
-								/>
-								{recoveryPhoneError && (
-									<p className="mt-1 text-xs text-red-600">{recoveryPhoneError}</p>
-								)}
-								</div>
-								<div className="md:col-span-2 flex flex-wrap items-center justify-between gap-3">
-									<div className="text-xs text-[#8A86A4]">Last updated {lastUpdatedRecovery}</div>
-									<button
-										onClick={() => setShowRecoverySaveConfirmation(true)}
-									disabled={!hasRecoveryChanges || !!recoveryPhoneError}
-									className={`rounded-xl px-8 py-3 text-sm font-semibold shadow transition-colors ${
-										hasRecoveryChanges && !recoveryPhoneError
-												? "bg-[#FFCC00] text-[#232323] hover:opacity-90"
-												: "bg-gray-200 text-gray-500 cursor-not-allowed"
-										}`}
-									>
-										Save Changes
-									</button>
-								</div>
-								<div className="admin-dashboard-inset-panel md:col-span-2 flex flex-col gap-3 rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-white/40 p-6 md:flex-row md:items-center md:justify-between">
-									<div>
-										<div className="text-lg font-semibold text-[#471396]">Reset account access</div>
-										<p className="text-sm text-[#8A86A4]">Emergency reset for locked-out scenarios.</p>
+							<div className="grid grid-cols-1 xl:grid-cols-2 gap-10">
+								<div className="space-y-8">
+									<div className="space-y-6">
+										<div className="space-y-2.5">
+											<div className="flex items-center justify-between">
+												<label htmlFor="recoveryEmail" className="text-[10px] font-black tracking-[0.1em] text-[#9CA3AF] uppercase">RECOVERY EMAIL</label>
+												<span className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-500 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
+													<Check size={10} strokeWidth={3} />
+													Verified
+												</span>
+											</div>
+											<div className="relative group">
+												<div className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9CA3AF]">
+													<Mail size={18} />
+												</div>
+												<input
+													id="recoveryEmail"
+													type="email"
+													value={recovery.email}
+													readOnly
+													className="w-full rounded-2xl border-2 border-emerald-100/50 bg-emerald-50/20 pl-11 pr-4 py-3.5 text-sm font-bold text-[#4a1a8a] outline-none cursor-default shadow-sm shadow-emerald-100/10"
+												/>
+											</div>
+										</div>
+
+										<div className="space-y-2.5">
+											<label htmlFor="recoveryPhone" className="text-[10px] font-black tracking-[0.1em] text-[#9CA3AF] uppercase">RECOVERY PHONE NUMBER</label>
+											<div className="relative group">
+												<div className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${recoveryPhoneError ? "text-red-400" : isPhoneValid ? "text-emerald-500" : "text-[#4a1a8a]"}`}>
+													<Phone size={18} />
+												</div>
+												<input
+													id="recoveryPhone"
+													type="tel"
+													value={recovery.phoneNumber}
+													onChange={(event) => {
+														const normalized = normalizePhoneNumber(event.target.value);
+														setRecovery((prev) => ({
+															...prev,
+															phoneNumber: normalized,
+														}));
+														const error = validatePhoneNumber(normalized);
+														setRecoveryPhoneError(error);
+													}}
+													placeholder="+63 9XX XXX XXXX"
+													className={`w-full rounded-2xl border-2 pl-11 pr-12 py-3.5 text-sm font-bold transition-all outline-none focus:ring-4 ${
+														recoveryPhoneError
+															? "border-red-200 bg-red-50/30 text-red-700 focus:ring-red-100/50"
+															: isPhoneValid
+															? "border-emerald-200 bg-emerald-50/30 text-[#374151] focus:ring-emerald-100/50"
+															: "border-[rgba(166,61,255,0.12)] bg-white text-[#374151] focus:border-[#4a1a8a] focus:ring-[#4a1a8a]/5"
+													}`}
+												/>
+												<div className="absolute right-4 top-1/2 -translate-y-1/2">
+													{recoveryPhoneError ? (
+														<AlertCircle size={18} className="text-red-400" />
+													) : isPhoneValid ? (
+														<div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white animate-in zoom-in-50">
+															<Check size={12} strokeWidth={4} />
+														</div>
+													) : null}
+												</div>
+											</div>
+											{recoveryPhoneError && (
+												<p className="flex items-center gap-1.5 px-1 text-[10px] font-bold text-red-500 uppercase tracking-tight animate-in slide-in-from-top-1">
+													<AlertCircle size={12} />
+													{recoveryPhoneError}
+												</p>
+											)}
+										</div>
 									</div>
-									<button className="rounded-xl bg-[#FF4343] px-8 py-3 text-sm font-semibold text-white hover:opacity-90">
-										Reset access
+
+									<div className="flex items-center justify-between bg-white/40 p-4 rounded-2xl border border-white/60">
+										<div className="flex items-center gap-3">
+											{initialLoading || saving ? (
+												<Loader2 size={14} className="text-[#4a1a8a] animate-spin" />
+											) : (
+												<div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+											)}
+											<span className="text-[10px] font-black tracking-widest text-[#9CA3AF] uppercase">
+												STATUS: {saving ? "UPDATING..." : "PROTECTED"}
+											</span>
+										</div>
+										<button
+											onClick={() => setShowRecoverySaveConfirmation(true)}
+											disabled={!hasRecoveryChanges || !!recoveryPhoneError || saving}
+											className={`rounded-xl px-6 py-2.5 text-[11px] font-black uppercase tracking-[0.12em] shadow-lg transition-all active:scale-95 ${
+												hasRecoveryChanges && !recoveryPhoneError
+													? "bg-[#4a1a8a] text-white hover:shadow-[#4a1a8a]/30 hover:-translate-y-0.5 active:translate-y-0"
+													: "bg-gray-100 text-[#D1D5DB] cursor-not-allowed shadow-none"
+											}`}
+										>
+											{saving ? "Saving..." : "Apply Changes"}
+										</button>
+									</div>
+									<p className="text-[10px] font-bold text-[#8A86A4] uppercase tracking-widest text-center">Last Updated: {lastUpdatedRecovery}</p>
+								</div>
+
+								<div className="admin-dashboard-inset-panel group relative flex flex-col justify-between overflow-hidden rounded-[28px] border border-red-100 bg-white/40 p-10 shadow-sm transition-all duration-300 hover:bg-white/60 hover:shadow-xl hover:shadow-red-500/5 hover:-translate-y-1">
+									<div className="absolute top-0 right-0 p-8 opacity-5 transition-transform duration-500 group-hover:scale-110 group-hover:opacity-10">
+										<AlertCircle size={120} className="text-red-600" />
+									</div>
+									<div className="relative z-10 space-y-4">
+										<div className="flex items-center gap-3 text-red-600">
+											<AlertCircle size={22} strokeWidth={2.5} />
+											<h3 className="text-xl font-black uppercase tracking-tight">Emergency Reset</h3>
+										</div>
+										<p className="text-[13px] leading-relaxed font-semibold text-red-600/60 max-w-sm">DANGER ZONE: Use this only if your primary recovery methods are compromised. This initiates a full identity re-verification.</p>
+									</div>
+									<button className="relative z-10 mt-8 w-full overflow-hidden rounded-2xl bg-red-500 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-xl shadow-red-200/50 transition-all hover:bg-red-600 hover:shadow-red-300 active:scale-95 active:translate-y-0.5">
+										<span className="relative z-10">Initiate System Reset</span>
 									</button>
 								</div>
 							</div>
@@ -170,20 +253,34 @@ export default function RecoveryPage() {
 								<button
 									type="button"
 									onClick={() => setShowRecoverySaveConfirmation(false)}
-									className="rounded-xl border border-[rgba(177,59,255,0.18)] px-4 py-2 text-sm font-semibold text-[#8A86A4] hover:bg-white/60"
+									className="rounded-xl border border-[rgba(177,59,255,0.18)] px-4 py-2 text-sm font-semibold text-[#8A86A4] hover:bg-white/60 active:scale-95"
 								>
 									Cancel
 								</button>
 								<button
 									type="button"
-									onClick={() => {
-										setSavedRecovery(recovery);
-										setLastUpdatedRecovery("Just now");
-										setShowRecoverySaveConfirmation(false);
+									disabled={saving}
+									onClick={async () => {
+										setSaving(true);
+										try {
+											const res = await updateProfile({ phone: recovery.phoneNumber });
+											if (res.success) {
+												setSavedRecovery(recovery);
+												setLastUpdatedRecovery("Just now");
+												setShowRecoverySaveConfirmation(false);
+												addNotification("Recovery Updated", "Your recovery phone number has been saved.", "success");
+											} else {
+												throw new Error(res.message || "Failed to save");
+											}
+										} catch (err) {
+											addNotification("Save Failed", err instanceof Error ? err.message : "Could not update recovery phone", "error");
+										} finally {
+											setSaving(false);
+										}
 									}}
-									className="rounded-xl bg-[#FFCC00] px-4 py-2 text-sm font-semibold text-[#232323] hover:opacity-90"
+									className={`rounded-xl bg-[#FFCC00] px-4 py-2 text-sm font-semibold text-[#232323] hover:opacity-90 active:scale-95 ${saving ? "opacity-50 cursor-wait" : ""}`}
 								>
-									Confirm
+									{saving ? "Saving..." : "Confirm"}
 								</button>
 							</div>
 						</motion.div>

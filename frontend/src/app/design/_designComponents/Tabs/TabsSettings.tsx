@@ -5,9 +5,10 @@ import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePos
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
-import type { TabsProps, SetProp, TabItem } from "../../_types/components";
+import type { TabsProps, SetProp, TabItem, TypographyProps } from "../../_types/components";
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
@@ -27,10 +28,13 @@ export const TabsSettings = () => {
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
-    position, display, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
+    fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration,
+    node, // <-- add this
     actions: { setProp }
   } = useNode(node => ({
+    node, // <-- and this
     tabs: node.data.props.tabs || [],
     activeTabId: node.data.props.activeTabId,
     tabHeaderBackgroundColor: node.data.props.tabHeaderBackgroundColor,
@@ -65,6 +69,7 @@ export const TabsSettings = () => {
     strokePlacement: node.data.props.strokePlacement,
     position: node.data.props.position,
     display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
     right: node.data.props.right,
@@ -75,6 +80,15 @@ export const TabsSettings = () => {
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
     cursor: node.data.props.cursor,
+    fontSize: node.data.props.fontSize,
+    fontWeight: node.data.props.fontWeight,
+    fontFamily: node.data.props.fontFamily,
+    fontStyle: node.data.props.fontStyle,
+    lineHeight: node.data.props.lineHeight,
+    letterSpacing: node.data.props.letterSpacing,
+    textAlign: node.data.props.textAlign,
+    textTransform: node.data.props.textTransform,
+    textDecoration: node.data.props.textDecoration,
   }));
 
   const typedSetProp = setProp as SetProp<TabsProps>;
@@ -244,7 +258,7 @@ export const TabsSettings = () => {
               <label className="text-[12px] text-[var(--builder-text)] font-base">Active Tab Text</label>
               <ColorPicker
                 value={activeTabTextColor || "#000000"}
-                onChange={(val) => typedSetProp(p => { p.activeTabTextColor = val; })}
+                onChange={(val) => typedSetProp(p => { p.activeTabTextColor = val; p.color = val; })}
               />
             </div>
           </div>
@@ -256,6 +270,7 @@ export const TabsSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}
@@ -299,6 +314,46 @@ export const TabsSettings = () => {
           radiusBottomRight={radiusBottomRight}
           radiusBottomLeft={radiusBottomLeft}
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Typography" defaultOpen={false}>
+        <TypographyGroup
+          fontSize={node.data.props.fontSize}
+          fontWeight={node.data.props.fontWeight}
+          fontFamily={node.data.props.fontFamily}
+          fontStyle={node.data.props.fontStyle}
+          lineHeight={node.data.props.lineHeight}
+          letterSpacing={node.data.props.letterSpacing}
+          textAlign={node.data.props.textAlign}
+          textTransform={node.data.props.textTransform}
+          textDecoration={node.data.props.textDecoration}
+          color={activeTabTextColor || "#000000"}
+          setProp={(cb) => setProp((props: any) => {
+            const fake: TypographyProps = {
+              fontSize: props.fontSize,
+              fontWeight: props.fontWeight,
+              fontFamily: props.fontFamily,
+              fontStyle: props.fontStyle,
+              lineHeight: props.lineHeight,
+              letterSpacing: props.letterSpacing,
+              textAlign: props.textAlign,
+              textTransform: props.textTransform,
+              textDecoration: props.textDecoration,
+              color: props.activeTabTextColor,
+            };
+            cb(fake);
+            props.fontSize = fake.fontSize;
+            props.fontWeight = fake.fontWeight;
+            props.fontFamily = fake.fontFamily;
+            props.fontStyle = fake.fontStyle;
+            props.lineHeight = fake.lineHeight;
+            props.letterSpacing = fake.letterSpacing;
+            props.textAlign = fake.textAlign;
+            props.textTransform = fake.textTransform;
+            props.textDecoration = fake.textDecoration;
+            props.activeTabTextColor = fake.color;
+          })}
         />
       </DesignSection>
 

@@ -1,0 +1,35 @@
+﻿
+> cms-ecommerce-backend@1.0.0 start
+> node server.js
+
+[emailService] Γ£à Nodemailer (Gmail SMTP) ready. Emails FROM: ndelatorre08252002@gmail.com
+node.exe : Port 5000 in use. 
+Trying 5001...
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
+    + CategoryInfo          : 
+    NotSpecified: (Port 5000  
+   in use. Trying 5001...:S   
+ tring) [], RemoteExceptio    
+n
+    + FullyQualifiedErrorId : 
+    NativeCommandError
+ 
+========================================
+≡ƒÜÇ CMS E-commerce API with Firebase
+========================================
+≡ƒôì Environment: development
+≡ƒöù Server: http://localhost:5001
+≡ƒöÑ Database: Firebase (Auth + Firestore)
+≡ƒöæ Login API key: set
+========================================
+≡ƒô¥ API: /api/auth | /api/users | /api/pages | /api/posts
+       /api/dashboard | /api/products | /api/inventory | /api/orders
+       /api/templates | /api/domains | /api/projects
+========================================

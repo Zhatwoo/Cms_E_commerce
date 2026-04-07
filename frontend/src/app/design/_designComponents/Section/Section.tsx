@@ -10,17 +10,6 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
-function normalizeFlexPos(
-  value: unknown,
-  fallback: "flex-start" | "center" | "flex-end"
-): "flex-start" | "center" | "flex-end" {
-  const raw = String(value ?? "").trim().toLowerCase();
-  if (raw === "start" || raw === "flex-start") return "flex-start";
-  if (raw === "end" || raw === "flex-end") return "flex-end";
-  if (raw === "center") return "center";
-  return fallback;
-}
-
 function isColorLike(value: unknown): boolean {
   const v = String(value ?? "").trim().toLowerCase();
   if (!v) return false;
@@ -58,12 +47,21 @@ export const Section = ({
   strokePlacement = "mid",
   flexDirection = "column",
   flexWrap = "nowrap",
-  alignItems = "center",
+  alignItems = "flex-start",
   justifyContent = "flex-start",
   gap = 0,
-  display = "flex",
+  gridTemplateColumns,
+  gridTemplateRows,
+  gridGap,
+  gridColumnGap,
+  gridRowGap,
+  gridAutoRows,
+  gridAutoFlow,
+  display = "block",
+  isFreeform = true,
   position = "relative",
   zIndex = 0,
+  alignSelf = "auto",
   top = "auto",
   right: posRight = "auto",
   bottom = "auto",
@@ -71,23 +69,19 @@ export const Section = ({
   boxShadow = "none",
   opacity = 1,
   overflow = "visible",
-  contentWidth = "constrained",
-  contentMaxWidth = "1200px",
+  rotation = 0,
+  flipHorizontal = false,
+  flipVertical = false,
+  contentWidth: _contentWidth = "constrained",
   customClassName = "",
+  editorVisibility = "auto",
   children,
 }: SectionProps = {}) => {
   const {
     id,
     connectors: { connect },
-    childCount,
-  } = useNode((node) => ({
-    childCount: Array.isArray(node.data.nodes) ? node.data.nodes.length : 0,
-  }));
-
-  const hasChildren = childCount > 0 || React.Children.count(children) > 0;
+  } = useNode();
   const isHeaderAsset = /header/i.test(id ?? "");
-  const resolvedAlignItems = normalizeFlexPos(alignItems, "center");
-  const resolvedJustifyContent = normalizeFlexPos(justifyContent, "flex-start");
 
   const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft ?? p;
@@ -102,8 +96,20 @@ export const Section = ({
   const mb = marginBottom ?? m;
 
   const resolvedHeight = String(height ?? "auto").trim() || "auto";
-  const constrainedContent = contentWidth !== "full";
   const hasBackgroundVideo = Boolean(String(backgroundVideo || "").trim());
+  void _contentWidth;
+
+  const transformStyle = React.useMemo(
+    () =>
+      [
+        rotation ? `rotate(${rotation}deg)` : null,
+        flipHorizontal ? "scaleX(-1)" : null,
+        flipVertical ? "scaleY(-1)" : null,
+      ]
+        .filter(Boolean)
+        .join(" ") || undefined,
+    [rotation, flipHorizontal, flipVertical]
+  );
 
   const setSectionRef = React.useCallback(
     (element: HTMLElement | null) => {
@@ -111,6 +117,16 @@ export const Section = ({
     },
     [connect]
   );
+
+  const effectiveDisplay =
+    editorVisibility === "hide" 
+      ? "none" 
+      : editorVisibility === "show" && display === "none"
+        ? "block"
+        : (display ?? "block");
+
+  const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
+  const isGridDisplay = effectiveDisplay === "grid";
 
 
   const sectionStyle = React.useMemo<React.CSSProperties>(
@@ -152,6 +168,7 @@ export const Section = ({
         : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
       position: position === "static" ? "relative" : position,
       zIndex: zIndex !== 0 ? zIndex : undefined,
+      alignSelf,
       top: position !== "static" ? top : undefined,
       right: position !== "static" ? posRight : undefined,
       bottom: position !== "static" ? bottom : undefined,
@@ -159,7 +176,28 @@ export const Section = ({
       boxShadow,
       opacity,
       overflow,
+      transform: transformStyle,
+      transformOrigin: "center center",
+      display: isFreeform ? "block" : effectiveDisplay,
       containerType: "inline-size",
+      flexDirection: !isFreeform && isFlexDisplay ? flexDirection : undefined,
+      flexWrap: !isFreeform && isFlexDisplay ? flexWrap : undefined,
+      alignItems: !isFreeform && (isFlexDisplay || isGridDisplay) ? alignItems : undefined,
+      justifyContent: !isFreeform && (isFlexDisplay || isGridDisplay) ? justifyContent : undefined,
+      columnGap: !isFreeform && isFlexDisplay
+        ? fluidSpace(gap, 0)
+        : !isFreeform && isGridDisplay
+          ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
+          : undefined,
+      rowGap: !isFreeform && isFlexDisplay
+        ? fluidSpace(gap, 0)
+        : !isFreeform && isGridDisplay
+          ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
+          : undefined,
+      gridTemplateColumns: !isFreeform && isGridDisplay ? gridTemplateColumns : undefined,
+      gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
+      gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
+      gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
     }),
     [
       background,
@@ -176,12 +214,25 @@ export const Section = ({
       borderWidth,
       bottom,
       boxShadow,
+      flexDirection,
+      flexWrap,
+      alignItems,
+      justifyContent,
+      gap,
+      gridTemplateColumns,
+      gridTemplateRows,
+      gridGap,
+      gridColumnGap,
+      gridRowGap,
+      gridAutoRows,
+      gridAutoFlow,
       mb,
       ml,
       mr,
       mt,
       opacity,
       overflow,
+      transformStyle,
       pb,
       pl,
       posLeft,
@@ -194,41 +245,20 @@ export const Section = ({
       top,
       width,
       zIndex,
-    ]
-  );
-
-  const contentShellStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      width: "100%",
-      maxWidth: constrainedContent ? contentMaxWidth : "none",
-      marginInline: constrainedContent ? "auto" : undefined,
-      minWidth: 0,
-      position: "relative",
-      boxSizing: "border-box",
-    }),
-    [constrainedContent, contentMaxWidth]
-  );
-
-  const contentStyle = React.useMemo<React.CSSProperties>(
-    () => ({
-      width: "100%",
-      minWidth: 0,
-      minHeight: !hasChildren ? "80px" : undefined,
-      position: "relative",
-      boxSizing: "border-box",
+      alignSelf,
+      effectiveDisplay,
+      isFreeform,
+      editorVisibility,
       display,
-      flexDirection,
-      flexWrap,
-      alignItems: resolvedAlignItems,
-      justifyContent: resolvedJustifyContent,
-      gap: fluidSpace(gap, 0),
-    }),
-    [display, flexDirection, flexWrap, gap, hasChildren, resolvedAlignItems, resolvedJustifyContent]
+      isFlexDisplay,
+      isGridDisplay,
+    ]
   );
 
   return (
     <section
       data-node-id={id}
+      data-node-content-host="true"
       data-fluid-space="true"
       data-layout={flexDirection === "row" ? "row" : "column"}
       {...(isHeaderAsset ? { "data-header": "true" } : {})}
@@ -259,11 +289,7 @@ export const Section = ({
           ) : null}
         </div>
       ) : null}
-      <div style={contentShellStyle}>
-        <div style={contentStyle}>
-          {children}
-        </div>
-      </div>
+      {children}
     </section>
   );
 };
@@ -295,10 +321,11 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   strokePlacement: "mid",
   flexDirection: "column",
   flexWrap: "nowrap",
-  alignItems: "center",
+  alignItems: "flex-start",
   justifyContent: "flex-start",
   gap: 0,
-  display: "flex",
+  display: "block",
+  isFreeform: true,
   position: "relative",
   zIndex: 0,
   top: "auto",
@@ -308,8 +335,11 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
-  contentWidth: "constrained",
-  contentMaxWidth: "1200px",
+  rotation: 0,
+  flipHorizontal: false,
+  flipVertical: false,
+  contentWidth: "full",
+  contentMaxWidth: "none",
 };
 
 Section.craft = {

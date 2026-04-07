@@ -11,13 +11,13 @@ import type { TextProps, SetProp } from "../../_types/components";
 export const TextSettings = () => {
   const {
     text,
-    fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color,
+    fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color, textDecoration,
     width, height,
     marginTop, marginBottom, marginLeft, marginRight,
     paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    position, display, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     previewEditable,
     isCodeBlock,
     codeLanguage,
@@ -32,6 +32,7 @@ export const TextSettings = () => {
     letterSpacing: node.data.props.letterSpacing,
     textAlign: node.data.props.textAlign,
     textTransform: node.data.props.textTransform,
+    textDecoration: node.data.props.textDecoration,
     color: node.data.props.color,
     width: node.data.props.width,
     height: node.data.props.height,
@@ -52,6 +53,7 @@ export const TextSettings = () => {
     flipVertical: node.data.props.flipVertical,
     position: node.data.props.position,
     display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
     right: node.data.props.right,
@@ -105,6 +107,7 @@ export const TextSettings = () => {
             textAlign={textAlign}
             textTransform={textTransform}
             color={color}
+            textDecoration={textDecoration}
             setProp={typedSetProp}
           />
         </div>
@@ -123,6 +126,7 @@ export const TextSettings = () => {
         <PositionGroup
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}

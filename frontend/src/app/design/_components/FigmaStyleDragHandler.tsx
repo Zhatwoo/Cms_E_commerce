@@ -29,7 +29,7 @@ const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
 const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
-const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Circle", "Square", "Triangle"]);
+const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Badge", "Circle", "Square", "Triangle"]);
 
 
 type MoveMode = "margin" | "offset";
@@ -79,6 +79,13 @@ function parsePxOrAuto(value: unknown): number {
     return Number.isFinite(n) ? n : 0;
   }
   return 0;
+}
+
+function getNodeContentHost(element: HTMLElement | null): HTMLElement | null {
+  if (!element) return null;
+  const shell = element.querySelector(":scope > [data-node-content-shell='true']") as HTMLElement | null;
+  const host = shell?.querySelector(":scope > [data-node-content-host='true']") as HTMLElement | null;
+  return host ?? element;
 }
 
 function parseNumberOrZero(value: unknown): number {
@@ -164,18 +171,42 @@ function getDropTargetAt(
   const exclude = new Set(excludeIds);
   const draggedRoots = doms.filter((dom) => !!dom);
   const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+
+  const resolveCanvasAncestor = (startId: string | null): string | null => {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+      visited.add(current);
+      if (current === "ROOT") return null;
+      if (exclude.has(current)) return null;
+      const node = nodes[current];
+      if (!node?.data) return null;
+      if (node.data.isCanvas) return current;
+      const displayName = String(node.data.displayName ?? "");
+      if (displayName && CANVAS_DISPLAY_NAMES.has(displayName)) return current;
+      const parentId = node.data.parent as string | undefined;
+      current = typeof parentId === "string" ? parentId : null;
+    }
+    return null;
+  };
+
+  let pageFallback: string | null = null;
   for (const el of elements) {
+    if (el.closest?.("[data-panel]")) continue;
     const withNode = el.closest("[data-node-id]") as HTMLElement | null;
     if (!withNode) continue;
     if (draggedRoots.some((root) => root.contains(withNode))) continue;
     const id = withNode.getAttribute("data-node-id");
     if (!id || exclude.has(id)) continue;
-    const node = nodes[id];
-    if (!node?.data) continue;
-    if (node.data.isCanvas) return id;
-    if (node.data.displayName && CANVAS_DISPLAY_NAMES.has(node.data.displayName)) return id;
+
+    const candidate = resolveCanvasAncestor(id);
+    if (!candidate) continue;
+
+    const name = String(nodes[candidate]?.data?.displayName ?? "");
+    if (name !== "Page") return candidate;
+    if (!pageFallback) pageFallback = candidate;
   }
-  return null;
+  return pageFallback;
 }
 
 function findPageTargetAt(
@@ -272,7 +303,7 @@ function computeInsertIndex(
 ): number {
   try {
     const targetNode = nodes[targetId] as any;
-    const targetDom = queryNode(targetId).get()?.dom;
+    const targetDom = getNodeContentHost(queryNode(targetId).get()?.dom ?? null);
     if (!targetDom) return 0;
 
     const computedStyle = window.getComputedStyle(targetDom);
@@ -360,6 +391,10 @@ export const FigmaStyleDragHandler = () => {
     dirty: boolean;
     targetRects: Rect[];
     initialSelectionRect: Rect | null;
+
+    // Real-time drop target tracking
+    currentDropTargetId: string | null;
+    currentInsertIndex: number;
   } | null>(null);
 
   const sectionDragRef = useRef<{
@@ -370,6 +405,14 @@ export const FigmaStyleDragHandler = () => {
     lastY: number;
     committed: boolean;
   } | null>(null);
+
+  const clearInjectedStyles = () => {
+    const targets = document.querySelectorAll(".component-drop-target");
+    targets.forEach((el) => el.classList.remove("component-drop-target"));
+    if (insertIndicatorRef.current) {
+      insertIndicatorRef.current.style.display = "none";
+    }
+  };
 
   useEffect(() => {
     actionsRef.current = actions;
@@ -385,6 +428,10 @@ export const FigmaStyleDragHandler = () => {
       const baseDx = (d.lastX - d.startX) / d.zoom;
       const baseDy = (d.lastY - d.startY) / d.zoom;
 
+      // 1. Update Preview Transform (Visual follow cursor)
+      let finalDx = baseDx;
+      let finalDy = baseDy;
+
       if (d.initialSelectionRect) {
         const movingRect: Rect = {
           ...d.initialSelectionRect,
@@ -398,9 +445,6 @@ export const FigmaStyleDragHandler = () => {
 
         const { snappedX, snappedY, guides } = getSnapGuides(movingRect, d.targetRects);
 
-        let finalDx = baseDx;
-        let finalDy = baseDy;
-
         if (snappedX !== null) {
           finalDx = (snappedX - d.initialSelectionRect.left) / d.zoom;
         }
@@ -413,7 +457,113 @@ export const FigmaStyleDragHandler = () => {
       } else {
         setDragPreview(draggedDomsRef.current, baseDx, baseDy);
       }
-      
+
+      // 2. REAL-TIME DROP TARGET DETECTION
+      try {
+        const state = queryRef.current.getState();
+        const nodes = state.nodes as NodesMap;
+        const ids = d.nodeMargins.map((n) => n.id);
+        const doms = getDraggedDoms(ids, queryRef.current.node);
+        const currentPrimaryParentId = nodes[ids[0]]?.data?.parent ?? null;
+
+        // Find potential drop target under cursor
+        let dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
+        if (!dropTargetId && isPointerInsideCanvas(d.lastX, d.lastY)) {
+          dropTargetId = findPageTargetAt(d.lastX, d.lastY, nodes, ids);
+        }
+
+        // Clean up previous highlights
+        const previousDropId = d.currentDropTargetId;
+        if (previousDropId && previousDropId !== dropTargetId) {
+          try {
+            const el = getNodeContentHost(queryRef.current.node(previousDropId).get()?.dom ?? null);
+            if (el) el.classList.remove("component-drop-target");
+          } catch { /* skip */ }
+        }
+
+        // Update target tracking
+        d.currentDropTargetId = dropTargetId;
+
+        if (dropTargetId) {
+          try {
+            const targetDom = getNodeContentHost(queryRef.current.node(dropTargetId).get()?.dom ?? null);
+            if (targetDom) {
+              targetDom.classList.add("component-drop-target");
+
+              // Show insertion indicator for non-absolute layouts
+              const targetDisplayName = String(nodes[dropTargetId]?.data?.displayName ?? "");
+              const targetProps = (nodes[dropTargetId]?.data?.props ?? {}) as Record<string, unknown>;
+              const isFreeform = targetDisplayName === "Viewport" || targetDisplayName === "Page" || targetProps.isFreeform === true;
+
+              if (!isFreeform && dropTargetId !== "ROOT") {
+                const insertIdx = computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
+                d.currentInsertIndex = insertIdx;
+
+                // Position indicator
+                const targetNode = nodes[dropTargetId] as any;
+                const siblings = ((targetNode?.data?.nodes ?? targetNode?.nodes) as string[] | undefined) ?? [];
+                const validSiblings = siblings.filter(sid => !ids.includes(sid));
+
+                const computedStyle = window.getComputedStyle(targetDom);
+                const isRow = computedStyle.display.includes("flex") && computedStyle.flexDirection === "row";
+
+                let indicator = insertIndicatorRef.current;
+                if (!indicator) {
+                  indicator = document.createElement("div");
+                  indicator.style.cssText = "position:fixed;background:#10b981;pointer-events:none;z-index:99999;border-radius:2px;";
+                  document.body.appendChild(indicator);
+                  insertIndicatorRef.current = indicator;
+                }
+
+                if (validSiblings.length > 0) {
+                  const refIdx = Math.min(insertIdx, validSiblings.length - 1);
+                  const refDom = queryRef.current.node(validSiblings[refIdx]).get()?.dom;
+                  if (refDom) {
+                    const rect = refDom.getBoundingClientRect();
+                    if (isRow) {
+                      const x = insertIdx >= validSiblings.length ? rect.right : rect.left;
+                      indicator.style.left = `${x - 1.5}px`;
+                      indicator.style.top = `${rect.top}px`;
+                      indicator.style.width = "3px";
+                      indicator.style.height = `${rect.height}px`;
+                    } else {
+                      const y = insertIdx >= validSiblings.length ? rect.bottom : rect.top;
+                      indicator.style.left = `${rect.left}px`;
+                      indicator.style.top = `${y - 1.5}px`;
+                      indicator.style.width = `${rect.width}px`;
+                      indicator.style.height = "3px";
+                    }
+                    indicator.style.display = "block";
+                  }
+                } else {
+                  // Empty container
+                  const rect = targetDom.getBoundingClientRect();
+                  const PADDING = 8;
+                  if (isRow) {
+                    indicator.style.left = `${rect.left + PADDING}px`;
+                    indicator.style.top = `${rect.top + PADDING}px`;
+                    indicator.style.width = "2px";
+                    indicator.style.height = `${rect.height - PADDING * 2}px`;
+                  } else {
+                    indicator.style.left = `${rect.left + PADDING}px`;
+                    indicator.style.top = `${rect.top + PADDING}px`;
+                    indicator.style.width = `${rect.width - PADDING * 2}px`;
+                    indicator.style.height = "2px";
+                  }
+                  indicator.style.display = "block";
+                }
+              } else {
+                if (insertIndicatorRef.current) insertIndicatorRef.current.style.display = "none";
+              }
+            }
+          } catch { /* skip */ }
+        } else {
+          if (insertIndicatorRef.current) insertIndicatorRef.current.style.display = "none";
+        }
+      } catch (err) {
+        console.error("Drag feedback error:", err);
+      }
+
       d.dirty = false;
     };
     processDragRef.current = tick;
@@ -504,9 +654,14 @@ export const FigmaStyleDragHandler = () => {
 
         const parentId = entry.parentId;
         const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
-        const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+        const parentProps = parentId ? (queryRef.current.node(parentId).get()?.data?.props ?? {}) as Record<string, unknown> : {};
+        const isFreeformParent =
+          parentProps.isFreeform === true ||
+          parentDisplayName === "Page" ||
+          parentDisplayName === "Viewport";
 
         if (isFreeformParent) {
+          if (!isAbsoluteLike) props.position = "absolute";
           props.top = `${rawTop}px`;
           props.left = `${rawLeft}px`;
           return;
@@ -528,7 +683,11 @@ export const FigmaStyleDragHandler = () => {
       const rawMarginLeft = Math.round(marginLeft + dx);
       const parentId = entry.parentId;
       const parentDisplayName = parentId ? String(queryRef.current.node(parentId).get()?.data?.displayName ?? "") : "";
-      const isFreeformParent = parentDisplayName === "Page" || parentDisplayName === "Viewport";
+      const parentProps = parentId ? (queryRef.current.node(parentId).get()?.data?.props ?? {}) as Record<string, unknown> : {};
+      const isFreeformParent =
+        parentProps.isFreeform === true ||
+        parentDisplayName === "Page" ||
+        parentDisplayName === "Viewport";
 
       if (isFreeformParent) {
         props.marginTop = rawMarginTop;
@@ -690,6 +849,8 @@ export const FigmaStyleDragHandler = () => {
         dirty: false,
         targetRects: [],
         initialSelectionRect: null,
+        currentDropTargetId: null,
+        currentInsertIndex: 0,
       };
     };
 
@@ -701,6 +862,7 @@ export const FigmaStyleDragHandler = () => {
         clearDragPreview(draggedDomsRef.current);
         setDraggingStyle(draggedDomsRef.current, false);
         draggedDomsRef.current = [];
+        clearInjectedStyles();
         return;
       }
 
@@ -711,6 +873,7 @@ export const FigmaStyleDragHandler = () => {
         clearDragPreview(draggedDomsRef.current);
         setDraggingStyle(draggedDomsRef.current, false);
         draggedDomsRef.current = [];
+        clearInjectedStyles();
         return;
       }
 
@@ -753,6 +916,7 @@ export const FigmaStyleDragHandler = () => {
         document.body.style.cursor = "";
         setDraggingStyle(draggedDomsRef.current, false);
         draggedDomsRef.current = [];
+        clearInjectedStyles();
         return;
       }
 
@@ -1010,9 +1174,12 @@ export const FigmaStyleDragHandler = () => {
         let handledSectionReorder = false;
 
         const doms = getDraggedDoms(ids, queryRef.current.node);
-        let dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
-        if (!dropTargetId && isPointerInsideCanvas(d.lastX, d.lastY)) {
-          dropTargetId = findPageTargetAt(d.lastX, d.lastY, nodes, ids);
+        let dropTargetId = d.currentDropTargetId; // Use cached real-time target
+        if (!dropTargetId) {
+          dropTargetId = getDropTargetAt(d.lastX, d.lastY, nodes, ids, doms);
+          if (!dropTargetId && isPointerInsideCanvas(d.lastX, d.lastY)) {
+            dropTargetId = findPageTargetAt(d.lastX, d.lastY, nodes, ids);
+          }
         }
 
         if (isSectionDrag && currentParentId) {
@@ -1053,8 +1220,8 @@ export const FigmaStyleDragHandler = () => {
           ids.every((id) => canAcceptNode(nodes, dropTargetId, id))
         )) {
           try {
-            const insertIndex = computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
-            const dropTargetDom = queryRef.current.node(dropTargetId).get()?.dom ?? null;
+            const insertIndex = d.currentInsertIndex ?? computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
+            const dropTargetDom = getNodeContentHost(queryRef.current.node(dropTargetId).get()?.dom ?? null);
             const dropTargetRect = dropTargetDom?.getBoundingClientRect() ?? null;
             const { scaleX: dropScaleX, scaleY: dropScaleY } = getRenderedScale(dropTargetDom);
             const dxScreen = d.lastX - d.startX;
@@ -1104,8 +1271,12 @@ export const FigmaStyleDragHandler = () => {
                     const isAbsoluteLike = currentPosition === "absolute" || currentPosition === "fixed";
                     if (dropTargetId && nodes[dropTargetId]?.data?.displayName === "Viewport") {
                       props.position = "absolute";
-                    } else if (!isAbsoluteLike) {
+                    } else {
+                      // Force relative position when dropping into non-freeform containers
+                      // so the component participates in the auto-layout flow.
                       props.position = "relative";
+                      props.top = "auto";
+                      props.left = "auto";
                     }
                   }
                 }
@@ -1194,6 +1365,7 @@ export const FigmaStyleDragHandler = () => {
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
       draggedDomsRef.current = [];
+      clearInjectedStyles();
       setSnapGuidesRef.current([]);
       dragRef.current = null;
     };
@@ -1209,6 +1381,7 @@ export const FigmaStyleDragHandler = () => {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
       }
+      clearInjectedStyles();
       clearDragPreview(draggedDomsRef.current);
       setDraggingStyle(draggedDomsRef.current, false);
       draggedDomsRef.current = [];

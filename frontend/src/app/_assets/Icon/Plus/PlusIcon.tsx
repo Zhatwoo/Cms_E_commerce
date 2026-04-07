@@ -14,7 +14,7 @@ export const PlusIcon: TemplateEntry = {
     is: Icon as any,
     iconType: "plus",
     size: 32,
-    color: "#000000",
+    color: "currentColor",
   }),
   category: "icon",
 };

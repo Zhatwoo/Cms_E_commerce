@@ -309,22 +309,23 @@ exports.getDraft = async (req, res) => {
     let resolved = await resolveProjectOwner(userId, projectId, userEmail);
 
     // Admin moderation views may request previews for projects they do not directly own/collaborate on.
-    // In that case, resolve owner directly by project document id.
+    // In that case, resolve owner directly by querying all projects and finding a match.
     if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
-      const { admin } = require('../config/firebase');
-      const FieldPath = admin.firestore.FieldPath;
-      const projectSnap = await db
-        .collectionGroup('projects')
-        .where(FieldPath.documentId(), '==', projectId)
-        .limit(1)
-        .get();
+      try {
+        const projectSnap = await db
+          .collectionGroup('projects')
+          .limit(100)
+          .get();
 
-      if (!projectSnap.empty) {
-        const projectDoc = projectSnap.docs[0];
-        const ownerId = projectDoc.ref.parent?.parent?.id;
-        if (ownerId) {
-          resolved = { ownerId, permission: 'owner' };
+        const projectDoc = projectSnap.docs.find((doc) => doc.id === projectId);
+        if (projectDoc) {
+          const ownerId = projectDoc.ref.parent?.parent?.id;
+          if (ownerId) {
+            resolved = { ownerId, permission: 'admin' };
+          }
         }
+      } catch (err) {
+        console.warn('[pageController.getDraft] admin project lookup failed:', err.message);
       }
     }
 

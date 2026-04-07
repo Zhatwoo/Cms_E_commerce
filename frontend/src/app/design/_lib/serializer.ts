@@ -64,6 +64,17 @@ function normalizeComponentType(rawType: unknown): ComponentType {
   if (lowered === "circle" || lowered.includes("circle")) return "Circle";
   if (lowered === "square" || lowered.includes("square")) return "Square";
   if (lowered === "triangle" || lowered.includes("triangle")) return "Triangle";
+  if (lowered === "diamond" || lowered.includes("diamond")) return "Diamond";
+  if (lowered === "heart" || lowered.includes("heart")) return "Heart";
+  if (lowered === "trapezoid" || lowered.includes("trapezoid")) return "Trapezoid";
+  if (lowered === "pentagon" || lowered.includes("pentagon")) return "Pentagon";
+  if (lowered === "hexagon" || lowered.includes("hexagon")) return "Hexagon";
+  if (lowered === "heptagon" || lowered.includes("heptagon")) return "Heptagon";
+  if (lowered === "octagon" || lowered.includes("octagon")) return "Octagon";
+  if (lowered === "nonagon" || lowered.includes("nonagon")) return "Nonagon";
+  if (lowered === "decagon" || lowered.includes("decagon")) return "Decagon";
+  if (lowered === "parallelogram" || lowered.includes("parallelogram")) return "Parallelogram";
+  if (lowered === "kite" || lowered.includes("kite")) return "Kite";
   if (lowered === "rating" || lowered.includes("rating")) return "Rating";
   if (lowered === "banner" || lowered.includes("banner")) return "Banner";
   if (lowered === "accordion" || lowered.includes("accordion")) return "Accordion";
@@ -275,9 +286,13 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     borderStyle: "solid",
     flexDirection: "column",
     flexWrap: "nowrap",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "flex-start",
     gap: 0,
+    display: "block",
+    isFreeform: true,
+    contentWidth: "full",
+    contentMaxWidth: "none",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -445,13 +460,74 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     bottom: "auto",
     left: "auto",
   },
+  Diamond: {
+    color: "#f43f5e",
+    width: "150px",
+    height: "250px",
+    background: "#f43f5e",
+    borderColor: "transparent",
+    borderWidth: 0,
+  },
+  Heart: {
+    color: "#e11d48",
+    width: "200px",
+    height: "180px",
+    background: "#e11d48",
+    borderColor: "transparent",
+    borderWidth: 0,
+  },
+  Trapezoid: {
+    color: "#f59e0b",
+    width: "200px",
+    height: "150px",
+  },
+  Pentagon: {
+    color: "#14b8a6",
+    width: "200px",
+    height: "200px",
+  },
+  Hexagon: {
+    color: "#6366f1",
+    width: "200px",
+    height: "200px",
+  },
+  Heptagon: {
+    color: "#a855f7",
+    width: "200px",
+    height: "200px",
+  },
+  Octagon: {
+    color: "#d946ef",
+    width: "200px",
+    height: "200px",
+  },
+  Nonagon: {
+    color: "#0ea5e9",
+    width: "200px",
+    height: "200px",
+  },
+  Decagon: {
+    color: "#22c55e",
+    width: "200px",
+    height: "200px",
+  },
+  Parallelogram: {
+    color: "#ec4899",
+    width: "250px",
+    height: "150px",
+  },
+  Kite: {
+    color: "#8b5cf6",
+    width: "180px",
+    height: "240px",
+  },
   Page: {
     width: "1920px",
     height: "1200px",
     background: "#ffffff",
     canvasX: 0,
     canvasY: 0,
-    pageName: "Page Name",
+    pageName: "",
     pageSlug: "page",
   },
   ImportedBlock: {
@@ -533,6 +609,12 @@ function cleanProps(
   for (const [key, value] of Object.entries(rawProps)) {
     // Always strip shorthand props (individual values are the source of truth)
     if (SHORTHAND_PROPS.has(key)) continue;
+
+    // Treat alignSelf="auto" as default to avoid noisy output.
+    if (key === "alignSelf") {
+      const raw = String(value ?? "").trim().toLowerCase();
+      if (!raw || raw === "auto") continue;
+    }
 
     // Deep compare animation objects — only keep if non-default
     if (key === "animation") {
@@ -669,7 +751,8 @@ export function serializeCraftToClean(rawJson: string, files?: CodeFile[]): Buil
     }
 
     const pageProps = pageRaw.props ?? {};
-    const name = (pageProps.pageName as string) ?? `Page ${index + 1}`;
+    // If pageProps.pageName is an empty string, keep it empty
+    const name = typeof pageProps.pageName === 'string' ? pageProps.pageName : `Page ${index + 1}`;
     const slug = (pageProps.pageSlug as string) ?? `page-${index}`;
 
     const pageLinkedChildIds = pageRaw.linkedNodes

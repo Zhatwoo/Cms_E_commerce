@@ -261,28 +261,46 @@ async function findAllGlobal(filters = {}, pagination = {}) {
   return paginate(items, pagination);
 }
 
+async function getAllSubdomains() {
+  try {
+    const snap = await db.collection(ROOT_COLLECTION).get();
+    return snap.docs.map((d) => d.id);
+  } catch (e) {
+    console.warn('[Product.getAllSubdomains] query failed:', e.message);
+    return [];
+  }
+}
+
 async function findByIdGlobal(id) {
   if (!id) return null;
-  const snap = await db
-    .collectionGroup(PRODUCT_COLLECTION)
-    .where(admin.firestore.FieldPath.documentId(), '==', String(id).trim())
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  return docToObject(snap.docs[0]);
+  const trimmedId = String(id).trim();
+  const subdomains = await getAllSubdomains();
+  if (!subdomains.length) return null;
+
+  const snaps = await Promise.all(
+    subdomains.map((sub) => getSubdomainProductsRef(sub).doc(trimmedId).get())
+  );
+  
+  const foundDoc = snaps.find((s) => s.exists);
+  if (!foundDoc) return null;
+  return docToObject(foundDoc);
 }
 
 async function deleteByIdGlobal(id) {
   if (!id) return null;
-  const snap = await db
-    .collectionGroup(PRODUCT_COLLECTION)
-    .where(admin.firestore.FieldPath.documentId(), '==', String(id).trim())
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  const existing = docToObject(doc);
-  await doc.ref.delete();
+  const trimmedId = String(id).trim();
+  const subdomains = await getAllSubdomains();
+  if (!subdomains.length) return null;
+
+  const snaps = await Promise.all(
+    subdomains.map((sub) => getSubdomainProductsRef(sub).doc(trimmedId).get())
+  );
+  
+  const foundSnap = snaps.find((s) => s.exists);
+  if (!foundSnap) return null;
+  
+  const existing = docToObject(foundSnap);
+  await foundSnap.ref.delete();
   return existing;
 }
 

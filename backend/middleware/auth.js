@@ -39,9 +39,18 @@ exports.protect = async (req, res, next) => {
     req.user = {
       id: user.id,
       email: user.email,
-      name: user.displayName || user.email,
-      role: user.role
+      name: user.displayName || user.email || 'Administrator',
+      role: user.role,
+      subscriptionPlan: user.subscriptionPlan || 'free'
     };
+
+    // Update presence - at most once every minute for lastSeen, but immediately recover isOnline when needed.
+    const now = Date.now();
+    const lastSeenMs = user.lastSeen ? new Date(user.lastSeen).getTime() : 0;
+    if (now - lastSeenMs > 60000 || user.isOnline !== true) {
+      User.update(user.id, { lastSeen: new Date().toISOString(), isOnline: true }).catch(() => {});
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Not authorized, invalid token' });

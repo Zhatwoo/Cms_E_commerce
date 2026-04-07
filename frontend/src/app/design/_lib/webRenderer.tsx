@@ -423,7 +423,10 @@ function useContainerWidth(defaultWidth = 1200): {
     if (!el) return;
 
     const updateWidth = () => {
-      setWidth(el.clientWidth || defaultWidth);
+      const w = el.clientWidth;
+      // Tab in background / layout not ready often reports 0 — keep last width to avoid scale/width jumps.
+      if (!Number.isFinite(w) || w <= 0) return;
+      setWidth(w);
     };
 
     updateWidth();
@@ -433,7 +436,9 @@ function useContainerWidth(defaultWidth = 1200): {
       return () => window.removeEventListener("resize", updateWidth);
     }
 
-    const observer = new ResizeObserver(updateWidth);
+    const observer = new ResizeObserver(() => {
+      requestAnimationFrame(updateWidth);
+    });
     observer.observe(el);
     return () => observer.disconnect();
   }, [defaultWidth]);
@@ -527,9 +532,9 @@ const frameResponsiveStyles = (
         max-width: 100% !important;
         width: 100% !important;
       }
-      .is-tablet-view [data-node-id],
-      .is-tablet-view img,
-      .is-tablet-view video {
+      .is-tablet-view [data-node-id]:not([data-animated="true"]),
+      .is-tablet-view img:not([data-animated="true"]),
+      .is-tablet-view video:not([data-animated="true"]) {
         width: 100% !important;
         max-width: 100% !important;
         position: relative !important;
@@ -546,15 +551,21 @@ const frameResponsiveStyles = (
       /* Refined Tablet (Standard iPad) */
       @container (max-width: 768px) {
         [data-layout="row"] {
-          gap: clamp(8px, 1.4cqw, 12px) !important;
+          gap: clamp(10px, 1.6cqw, 14px) !important;
           justify-content: center !important;
+          flex-wrap: wrap !important;
         }
         [data-layout="row"] > * {
-          min-width: 180px !important;
-          flex: 1 1 180px !important;
+          min-width: 200px !important;
+          flex: 1 1 200px !important;
+          max-width: 100% !important;
         }
         [data-fluid-text="true"] {
-          --fluid-font-cqw: 2cqw;
+          --fluid-font-cqw: 2.2cqw;
+        }
+        [data-fluid-space="true"] {
+          padding-left: clamp(12px, 2.2cqw, 20px) !important;
+          padding-right: clamp(12px, 2.2cqw, 20px) !important;
         }
       }
 
@@ -578,7 +589,7 @@ const frameResponsiveStyles = (
         }
         
         .frame-responsive-inner > * + * {
-          margin-top: clamp(10px, 2.8cqw, 16px) !important;
+          margin-top: clamp(12px, 3.2cqw, 18px) !important;
         }
 
         [data-layout="row"],
@@ -589,6 +600,7 @@ const frameResponsiveStyles = (
           min-height: 0 !important;
           width: 100% !important;
           display: flex !important;
+          gap: clamp(12px, 3cqw, 20px) !important;
         }
 
         [data-layout="row"] > *,
@@ -602,8 +614,8 @@ const frameResponsiveStyles = (
         }
 
         [data-fluid-space="true"] {
-          padding-left: clamp(8px, 3cqw, 24px) !important;
-          padding-right: clamp(8px, 3cqw, 24px) !important;
+          padding-left: clamp(10px, 3.5cqw, 28px) !important;
+          padding-right: clamp(10px, 3.5cqw, 28px) !important;
           margin-left: 0 !important;
           margin-right: 0 !important;
           height: auto !important;
@@ -624,19 +636,20 @@ const frameResponsiveStyles = (
 
         [data-fluid-grid="true"] {
           grid-template-columns: 1fr !important;
-          gap: clamp(12px, 2.8cqw, 24px) !important;
+          gap: clamp(14px, 3.2cqw, 26px) !important;
           display: grid !important;
         }
 
         [data-fluid-button="true"] {
           display: flex !important;
           justify-content: center !important;
+          padding: clamp(10px, 2.8cqw, 16px) clamp(20px, 4cqw, 32px) !important;
         }
 
-        .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]),
-        .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]) {
+        .frame-responsive-inner [style*="position: absolute"]:not([data-preserve-position="true"]):not([data-animated="true"]),
+        .frame-responsive-inner [style*="position:absolute"]:not([data-preserve-position="true"]):not([data-animated="true"]),
+        .frame-responsive-inner [style*="position: fixed"]:not([data-preserve-position="true"]):not([data-animated="true"]),
+        .frame-responsive-inner [style*="position:fixed"]:not([data-preserve-position="true"]):not([data-animated="true"]) {
           position: relative !important;
           left: auto !important;
           right: auto !important;
@@ -651,7 +664,13 @@ const frameResponsiveStyles = (
           white-space: pre-wrap !important;
           overflow-wrap: anywhere !important;
           word-break: break-word !important;
-          --fluid-font-cqw: 3.2cqw;
+          --fluid-font-cqw: 3.6cqw;
+          line-height: 1.5 !important;
+        }
+
+        /* Better image scaling on mobile */
+        img, video, iframe {
+          border-radius: clamp(4px, 1.5cqw, 8px) !important;
         }
       }
 
@@ -664,11 +683,11 @@ const frameResponsiveStyles = (
         align-items: stretch !important;
         width: 100% !important;
       }
-      .is-mobile-view [data-node-id],
-      .is-mobile-view [data-node-id] > *,
-      .is-mobile-view [data-fluid-media="true"],
-      .is-mobile-view img,
-      .is-mobile-view video {
+      .is-mobile-view [data-node-id]:not([data-animated="true"]),
+      .is-mobile-view [data-node-id] > *:not([data-animated="true"]),
+      .is-mobile-view [data-fluid-media="true"]:not([data-animated="true"]),
+      .is-mobile-view img:not([data-animated="true"]),
+      .is-mobile-view video:not([data-animated="true"]) {
         width: 100% !important;
         min-width: 100% !important;
         max-width: 100% !important;
@@ -941,7 +960,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     alt: "Image",
     objectFit: "cover",
     width: "100%",
-    height: "auto",
+    height: "300px",
     borderRadius: 0,
     padding: 0,
     margin: 0,
@@ -956,7 +975,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     controls: true,
     objectFit: "cover",
     width: "100%",
-    height: "auto",
+    height: "300px",
     borderRadius: 0,
     padding: 0,
     margin: 0,
@@ -1006,9 +1025,13 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     borderStyle: "solid",
     flexDirection: "column",
     flexWrap: "nowrap",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "flex-start",
     gap: 0,
+    display: "block",
+    isFreeform: true,
+    contentWidth: "full",
+    contentMaxWidth: "none",
     boxShadow: "none",
     opacity: 1,
     overflow: "visible",
@@ -1541,12 +1564,16 @@ function isNarrowResponsivePreview(
   viewportWidth: number,
   builderParityMode?: boolean,
   mobileBreakpoint?: number,
+  layoutReferenceWidth?: number,
 ): boolean {
   if (builderParityMode) return false;
   if (!Number.isFinite(viewportWidth) || viewportWidth <= 0) return false;
-  // Use Tablet breakpoint (950) by default to ensure tablet preview is also responsive/fluid
   const breakpoint = toNumber(mobileBreakpoint, PREVIEW_TABLET_BREAKPOINT);
-  return viewportWidth <= breakpoint;
+  const authoredLayoutWidth =
+    typeof layoutReferenceWidth === "number" && Number.isFinite(layoutReferenceWidth) && layoutReferenceWidth > 0
+      ? layoutReferenceWidth
+      : null;
+  return viewportWidth <= breakpoint || (authoredLayoutWidth !== null && viewportWidth < authoredLayoutWidth);
 }
 
 function parsePixelValue(value: unknown): number | null {
@@ -1979,10 +2006,14 @@ function RenderNode({
   insideTabsContext?: boolean;
 }): React.ReactElement {
   void preserveAuthoredPositioning;
-  void layoutReferenceWidth;
+  const effectiveLayoutReferenceWidth =
+    typeof layoutReferenceWidth === "number" && Number.isFinite(layoutReferenceWidth) && layoutReferenceWidth > 0
+      ? layoutReferenceWidth
+      : undefined;
   void layoutReferenceHeight;
-  // Normalize legacy lowercase node types so published and preview payloads render identically.
-  const rawType = typeof node.type === "string" && node.type.trim() ? node.type : "Container";
+  // Normalize legacy and object-based node types so published and preview payloads render identically.
+  const nodeType = typeof node.type === "string" ? node.type : (node.type as any)?.resolvedName;
+  const rawType = String(nodeType || "").trim() || "Container";
   const normalizedTypeMap: Record<string, ComponentType> = {
     text: "Text",
     container: "Container",
@@ -2010,11 +2041,35 @@ function RenderNode({
     "tab content": "TabContent",
     importedblock: "ImportedBlock",
     booleanfield: "BooleanField",
+    diamond: "Diamond",
+    heart: "Heart",
+    trapezoid: "Trapezoid",
+    pentagon: "Pentagon",
+    hexagon: "Hexagon",
+    heptagon: "Heptagon",
+    octagon: "Octagon",
+    nonagon: "Nonagon",
+    decagon: "Decagon",
+    parallelogram: "Parallelogram",
+    kite: "Kite",
   };
-  const type = (normalizedTypeMap[rawType.toLowerCase()] ?? rawType) as ComponentType;
+  const type = (() => {
+    const lowerRaw = rawType.toLowerCase();
+    const shapes = ["circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite"];
+    const foundShape = shapes.find(s => lowerRaw.includes(s));
+    if (foundShape) {
+      return (foundShape.charAt(0).toUpperCase() + foundShape.slice(1)) as ComponentType;
+    }
+    return (normalizedTypeMap[lowerRaw] ?? rawType) as ComponentType;
+  })();
   const props = mergeProps(type, node.props) as Record<string, unknown>;
   const useFixedPx = Boolean(builderParityMode);
-  const isNarrowPreview = isNarrowResponsivePreview(viewportWidth, builderParityMode, mobileBreakpoint);
+  const isNarrowPreview = isNarrowResponsivePreview(
+    viewportWidth,
+    builderParityMode,
+    mobileBreakpoint,
+    effectiveLayoutReferenceWidth,
+  );
   if (!builderParityMode && !renderAllNodes && !shouldRenderNodeAtWidth(props, viewportWidth, mobileBreakpoint)) {
     return <></>;
   }
@@ -3045,6 +3100,14 @@ function RenderNode({
       const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
       const originalPos = (props.position as string) || "relative";
       const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+      const isTrueMobileWidth = viewportWidth <= toNumber(mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+      const shouldForceMobileButtonWidth =
+        !builderParityMode &&
+        isTrueMobileWidth &&
+        (originalPos === "absolute" || originalPos === "fixed" || isPercentWidth);
+      const resolvedButtonWidth = shouldForceMobileButtonWidth
+        ? "100%"
+        : (isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width);
 
       const content = (
         <span
@@ -3070,20 +3133,20 @@ function RenderNode({
             border: `${borderWidth}px ${resolvedBorderStyle} ${borderColor}`,
             padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
             margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
-            width: isPercentWidth ? "100%" : isAutoWidth ? "fit-content" : width,
+            width: resolvedButtonWidth,
             maxWidth: isNarrowPreview ? "100%" : undefined,
             height: height,
             boxSizing: "border-box",
             opacity: props.opacity as number,
             boxShadow: props.boxShadow as string,
-            display: "inline-flex",
+            display: shouldForceMobileButtonWidth ? "flex" : "inline-flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: interactiveClick ? "pointer" : undefined,
             transform: btnTransform,
             transformOrigin: "center center",
-            minWidth: isPercentWidth ? (isNarrowPreview ? 0 : undefined) : "max-content",
-            flexShrink: isAutoWidth ? 0 : 1,
+            minWidth: shouldForceMobileButtonWidth ? 0 : (isPercentWidth ? (isNarrowPreview ? 0 : undefined) : "max-content"),
+            flexShrink: shouldForceMobileButtonWidth ? 1 : (isAutoWidth ? 0 : 1),
             textTransform: isCta ? "uppercase" : undefined,
             letterSpacing: isCta ? "0.08em" : undefined,
             whiteSpace: isNarrowPreview ? "normal" : "nowrap",
@@ -3120,7 +3183,7 @@ function RenderNode({
             style={{
               all: "unset",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
-              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              width: isPercentWidth || isNarrowPreview ? resolvedButtonWidth : undefined,
               cursor: "pointer",
             }}
           >
@@ -3145,7 +3208,7 @@ function RenderNode({
             style={{
               all: "unset",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
-              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              width: isPercentWidth || isNarrowPreview ? resolvedButtonWidth : undefined,
               cursor: "pointer",
             }}
           >
@@ -3161,7 +3224,7 @@ function RenderNode({
             style={{
               textDecoration: "none",
               display: isPercentWidth || isNarrowPreview ? "block" : "inline-block",
-              width: isPercentWidth || isNarrowPreview ? width : undefined,
+              width: isPercentWidth || isNarrowPreview ? resolvedButtonWidth : undefined,
             }}
           >
             {content}
@@ -3862,7 +3925,18 @@ function RenderNode({
 
     case "Circle":
     case "Square":
-    case "Triangle": {
+    case "Triangle":
+    case "Diamond":
+    case "Heart":
+    case "Trapezoid":
+    case "Pentagon":
+    case "Hexagon":
+    case "Heptagon":
+    case "Octagon":
+    case "Nonagon":
+    case "Decagon":
+    case "Parallelogram":
+    case "Kite": {
       const m = toNumber(props.margin, 0);
       const mt = toNumber(props.marginTop ?? m, 0);
       const mr = toNumber(props.marginRight ?? m, 0);
@@ -3921,29 +3995,24 @@ function RenderNode({
               return parts.length ? parts.join(" ") : undefined;
             })(),
             transformOrigin: "center center",
-            backgroundColor: type === "Triangle" ? undefined : fill,
-            backgroundImage:
-              type !== "Triangle" && bgImage
-                ? overlay
-                  ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
-                  : `url(${bgImage})`
-                : undefined,
-            backgroundSize: type !== "Triangle" && bgImage ? (props.backgroundSize as string) : undefined,
-            backgroundPosition: type !== "Triangle" && bgImage ? (props.backgroundPosition as string) : undefined,
-            backgroundRepeat: type !== "Triangle" && bgImage ? (props.backgroundRepeat as string) : undefined,
+            backgroundColor: "transparent",
+            backgroundImage: "none",
+            backgroundSize: undefined,
+            backgroundPosition: undefined,
+            backgroundRepeat: undefined,
             borderRadius:
               type === "Circle"
                 ? "50%"
                 : type === "Square"
                   ? `${shapeTopLeftRadius}px ${shapeTopRightRadius}px ${shapeBottomRightRadius}px ${shapeBottomLeftRadius}px`
                   : undefined,
-            ...(type !== "Triangle" && bw > 0
+            clipPath: undefined,
+            WebkitClipPath: undefined,
+            ...(bw > 0
               ? useOutline
                 ? { border: "none", outline: triangleStroke, outlineOffset: 0 }
-                : { border: triangleStroke }
-              : type === "Triangle"
-                ? {}
-                : {}),
+                : { border: type === "Circle" || type === "Square" ? triangleStroke : "none" }
+              : {}),
             alignItems: "center",
             justifyContent: "center",
             margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
@@ -3955,7 +4024,7 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {type === "Triangle" ? (
+          {type !== "Circle" && type !== "Square" ? (
             <svg
               width="100%"
               height="100%"
@@ -3969,21 +4038,43 @@ function RenderNode({
                 pointerEvents: "none",
                 display: "block",
               }}
-              preserveAspectRatio="xMidYMid slice"
+              preserveAspectRatio="none"
             >
-              <polygon
-                points="0,100 50,0 100,100"
-                fill={fill}
-                stroke={props.borderColor as string}
-                strokeWidth={toNumber(props.borderWidth, 0)}
-                strokeDasharray={
-                  props.borderStyle === "dashed"
-                    ? "6,6"
-                    : props.borderStyle === "dotted"
-                      ? "3,3"
-                      : undefined
-                }
-              />
+              {type === "Heart" ? (
+                <path
+                  d="M 50 90 C 20 70 5 55 5 35 C 5 20 20 10 32 10 C 40 10 47 15 50 22 C 53 15 60 10 68 10 C 80 10 95 20 95 35 C 95 55 80 70 50 90 Z"
+                  fill={fill}
+                  stroke={props.borderColor as string}
+                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) : undefined}
+                />
+              ) : (
+                <polygon
+                  points={(() => {
+                    if (type === "Triangle") return "0,100 50,0 100,100";
+                    if (type === "Diamond") return "50,0 100,50 50,100 0,50";
+                    if (type === "Trapezoid") return "20,0 80,0 100,100 0,100";
+                    if (type === "Pentagon") return "50,0 100,38 82,100 18,100 0,38";
+                    if (type === "Hexagon") return "25,0 75,0 100,50 75,100 25,100 0,50";
+                    if (type === "Heptagon") return "50,0 90,20 100,60 75,100 25,100 0,60 10,20";
+                    if (type === "Octagon") return "30,0 70,0 100,30 100,70 70,100 30,100 0,70 0,30";
+                    if (type === "Nonagon") return "50,0 83,12 100,43 94,78 68,100 32,100 6,78 0,43 17,12";
+                    if (type === "Decagon") return "50,0 80,10 100,35 100,65 80,90 50,100 20,90 0,65 0,35 20,10";
+                    if (type === "Parallelogram") return "25,0 100,0 75,100 0,100";
+                    if (type === "Kite") return "50,0 100,45 50,100 0,45";
+                    return "";
+                  })()}
+                  fill={fill}
+                  stroke={props.borderColor as string}
+                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) * 2 : undefined}
+                  strokeDasharray={
+                    props.borderStyle === "dashed"
+                      ? "6,6"
+                      : props.borderStyle === "dotted"
+                        ? "3,3"
+                        : undefined
+                  }
+                />
+              )}
             </svg>
           ) : null}
           {children}
@@ -4276,8 +4367,10 @@ export function WebPreview({
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
   const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
-  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const shouldUseResponsiveViewport = !fillViewport && viewportWidth > 0 && viewportWidth < pageWidthPx;
+  const isScaling = !isPhoneSize && !fillViewport && !shouldUseResponsiveViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
   const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+  const shouldStretchDesktopPage = !isPhoneSize && !fillViewport && !isScaling;
 
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -4330,7 +4423,7 @@ export function WebPreview({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
+            viewportWidth={isPhoneSize || shouldUseResponsiveViewport ? viewportWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4347,7 +4440,9 @@ export function WebPreview({
     </>
   );
 
-  return (
+      const isContainedScroller = fillViewport || isPhoneSize || shouldUseResponsiveViewport;
+
+      return (
     <>
       <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
@@ -4359,31 +4454,33 @@ export function WebPreview({
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
+      {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
-        key={currentPageId}
         ref={ref}
-        data-preview-scroll-root="true"
+        data-preview-scroll-root={isContainedScroller ? "true" : undefined}
         style={{
           width: "100%",
           minHeight: "100vh",
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
-          overflowY: "auto",
+          overflowY: isContainedScroller ? "auto" : "visible",
           backgroundColor: background,
         }}
       >
+        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
         <div
+          key={currentPageId}
           style={{
-            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
-            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
+            maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
             height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
             minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight),
             backgroundColor: "transparent",
-            margin: "0 auto",
+            margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
-            transformOrigin: "top center",
+            transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
             position: "relative",
             isolation: "isolate",
             overflow: isScaling ? "visible" : "hidden",
@@ -4394,7 +4491,9 @@ export function WebPreview({
           {isPhoneSize ? (
             <div
               ref={mobileWrapperRef}
-              className={(isPhoneSize || fillViewport) ? "frame-responsive-inner frame-fluid frame-mobile" : "frame-responsive-inner"}
+              className={isPhoneSize
+                ? "frame-responsive-inner frame-fluid frame-mobile is-mobile-view"
+                : (fillViewport ? "frame-responsive-inner frame-fluid" : "frame-responsive-inner")}
               style={{
                 width: isScaling ? pageWidthPx : "100%",
                 minHeight: "100vh",
@@ -4465,8 +4564,11 @@ export function LiveSite({
   const { ref, width: measuredWidth } = useContainerWidth(1200);
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
   const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
-  const isScaling = !isPhoneSize && !fillViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
+  const viewportWidth = measuredWidth;
+  const shouldUseResponsiveViewport = !fillViewport && viewportWidth > 0 && viewportWidth < pageWidthPx;
+  const isScaling = !isPhoneSize && !fillViewport && !shouldUseResponsiveViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
   const scale = isScaling ? measuredWidth / pageWidthPx : 1;
+  const shouldStretchDesktopPage = !isPhoneSize && !fillViewport && !isScaling;
 
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
@@ -4559,7 +4661,7 @@ export function LiveSite({
             nodes={safeNodes}
             pages={pageMeta}
             pageIndex={currentPageIndex >= 0 ? currentPageIndex : 0}
-            viewportWidth={isPhoneSize ? measuredWidth : pageWidthPx}
+            viewportWidth={isPhoneSize || shouldUseResponsiveViewport ? viewportWidth : pageWidthPx}
             interactionState={interactionState}
             availableTriggerTargets={availableTriggerTargets}
             onToggle={handleToggle}
@@ -4590,8 +4692,8 @@ export function LiveSite({
         @keyframes page-move-in { from { opacity: 0; } to { opacity: 1; } }
       `}</style>
       {isPhoneSize && frameResponsiveStyles}
+      {/* Outer wrapper: NO key here so ResizeObserver stays alive across page changes */}
       <div
-        key={currentPageId}
         ref={ref}
         style={{
           width: "100%",
@@ -4599,26 +4701,28 @@ export function LiveSite({
           backgroundColor: background,
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
+          alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
           ...transitionStyle,
         }}
       >
+        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
         <div
+          key={currentPageId}
           style={{
-            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport ? "100%" : width),
-            maxWidth: isPhoneSize || fillViewport ? "100%" : width,
+            width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
+            maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
             height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
             minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
             backgroundColor: "transparent",
-            margin: "0 auto",
+            margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
-            transformOrigin: "top center",
+            transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
           }}
         >
           {isPhoneSize ? (
             <div style={{ width: "100%", boxSizing: "border-box", containerType: "inline-size" }}>
-              <div ref={liveSiteWrapperRef} className="frame-responsive-inner frame-fluid frame-mobile">
+              <div ref={liveSiteWrapperRef} className="frame-responsive-inner frame-fluid frame-mobile is-mobile-view">
                 {pageChildren}
               </div>
             </div>

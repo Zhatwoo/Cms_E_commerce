@@ -47,6 +47,13 @@ export const Button = ({
   marginRight,
   marginBottom,
   marginLeft,
+  fontStyle = "normal",
+  lineHeight = 1.2,
+  letterSpacing = 0,
+  textAlign = "center",
+  textTransform,
+  textDecoration = "none",
+  color,
   opacity = 1,
   boxShadow = "none",
   rotation = 0,
@@ -59,6 +66,7 @@ export const Button = ({
   bottom = "auto",
   left = "auto",
   zIndex = 0,
+  alignSelf = "auto",
   display,
   children,
 }: ButtonProps) => {
@@ -67,7 +75,7 @@ export const Button = ({
   // Resolve variant defaults (user overrides take priority)
   const variantStyle = VARIANT_STYLES[variant ?? "primary"];
   const bg = backgroundColor ?? variantStyle.bg;
-  const txt = textColor ?? variantStyle.text;
+  const txt = color ?? textColor ?? variantStyle.text;
   const bc = borderColor ?? variantStyle.border;
   const bw = borderWidth ?? variantStyle.borderWidth;
   const isCta = variant === "cta";
@@ -101,6 +109,11 @@ export const Button = ({
         fontSize: fluidFontSize,
         fontWeight,
         fontFamily,
+        fontStyle,
+        lineHeight,
+        letterSpacing: letterSpacing === 0 && isCta ? "0.08em" : letterSpacing,
+        textDecoration,
+        textTransform: textTransform ?? (isCta ? "uppercase" : undefined),
         borderRadius: `${isCta ? 0 : borderRadius}px`,
         borderColor: bc,
         borderWidth: `${bw}px`,
@@ -122,6 +135,7 @@ export const Button = ({
         opacity,
         boxShadow,
         position,
+        alignSelf,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
         bottom: position !== "static" ? bottom : undefined,
@@ -132,10 +146,7 @@ export const Button = ({
         display: display ?? "inline-flex",
         alignItems: "center",
         justifyContent: "center",
-        textAlign: "center",
-        lineHeight: 1.2,
-        textTransform: isCta ? "uppercase" : undefined,
-        letterSpacing: isCta ? "0.08em" : undefined,
+        textAlign,
         whiteSpace: "nowrap",
         overflowWrap: "normal",
         wordBreak: "keep-all",

@@ -5,7 +5,7 @@ import { useEditor } from "@craftjs/core";
 import { useImportedComponents, parseImportedCode } from "../_context/ImportedComponentsContext";
 import { FileType, CodeFile } from "../_types/schema";
 import { autoSavePage } from "../_lib/pageApi";
-import { serializeCraftToClean } from "../_lib/serializer";
+import { getComponentDefaults, serializeCraftToClean } from "../_lib/serializer";
 import { getStoredUser } from "@/lib/api";
 import { SUBSCRIPTION_LIMITS } from "@/lib/subscriptionLimits";
 import {
@@ -249,9 +249,12 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   const [importAddFeedback, setImportAddFeedback] = useState<"idle" | "success" | "error">("idle");
   const { addItem } = useImportedComponents();
   const [mounted, setMounted] = useState(false);
+  const codeAreaRef = useRef<HTMLDivElement>(null);
+  const [codeAreaWidth, setCodeAreaWidth] = useState(0);
   const editorRef = useRef<HTMLTextAreaElement>(null);
   const importEditorRef = useRef<HTMLTextAreaElement>(null);
   const highlightRef = useRef<HTMLPreElement>(null);
+  const lineNumbersRef = useRef<HTMLPreElement>(null);
   const lastAppliedContentRef = useRef<string>("");
   const smoothScrollRafRef = useRef<number | null>(null);
   const smoothTargetTopRef = useRef(0);
@@ -263,6 +266,9 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
     if (editorRef.current && highlightRef.current) {
       highlightRef.current.scrollTop = editorRef.current.scrollTop;
       highlightRef.current.scrollLeft = editorRef.current.scrollLeft;
+    }
+    if (editorRef.current && lineNumbersRef.current) {
+      lineNumbersRef.current.scrollTop = editorRef.current.scrollTop;
     }
   };
 
@@ -330,6 +336,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
       editor.scrollLeft = nextLeft;
       highlighter.scrollTop = nextTop;
       highlighter.scrollLeft = nextLeft;
+      if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = nextTop;
 
       const doneTop = Math.abs(nextTargetTop - nextTop) < 0.45 && Math.abs(smoothVelocityTopRef.current) < 0.25;
       const doneLeft = Math.abs(nextTargetLeft - nextLeft) < 0.45 && Math.abs(smoothVelocityLeftRef.current) < 0.25;
@@ -339,6 +346,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
         editor.scrollLeft = nextTargetLeft;
         highlighter.scrollTop = nextTargetTop;
         highlighter.scrollLeft = nextTargetLeft;
+        if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = nextTargetTop;
         smoothVelocityTopRef.current = 0;
         smoothVelocityLeftRef.current = 0;
         smoothScrollRafRef.current = null;
@@ -354,6 +362,24 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const el = codeAreaRef.current;
+    if (!el) return;
+
+    const update = () => setCodeAreaWidth(el.getBoundingClientRect().width);
+    update();
+
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", update);
+      return () => window.removeEventListener("resize", update);
+    }
+
+    const ro = new ResizeObserver(() => update());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [mounted]);
 
   useEffect(() => {
     return () => {
@@ -394,11 +420,53 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
     if (isFocused && activeFileId === "instance-props") return;
 
     if (selectedNode && (activeFileId === "instance-props" || !selectedId)) {
+      const escapeForSingleQuotedAttr = (value: string) => {
+        return value
+          .replace(/&/g, "&amp;")
+          .replace(/'/g, "&#39;");
+      };
+
+      const isDeepEqual = (a: unknown, b: unknown) => {
+        if (a === b) return true;
+        if (!a || !b) return false;
+        if (typeof a !== "object" || typeof b !== "object") return false;
+        try {
+          return JSON.stringify(a) === JSON.stringify(b);
+        } catch {
+          return false;
+        }
+      };
+
+      const buildNecessaryDataProps = (componentType: string, rawProps: Record<string, any>) => {
+        const defaults = getComponentDefaults(componentType);
+        const excluded = new Set([
+          // Keep these explicit/editable in the JSX attrs/content instead.
+          "customClassName",
+          "text",
+          "src",
+          "alt",
+          "label",
+          "variant",
+          "link",
+        ]);
+
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(rawProps)) {
+          if (excluded.has(k)) continue;
+          if (v === undefined || v === null) continue;
+          if (typeof v === "function" || typeof v === "symbol") continue;
+          if (k in defaults && (defaults as any)[k] === v) continue;
+          if (k in defaults && isDeepEqual((defaults as any)[k], v)) continue;
+          out[k] = v;
+        }
+        return out;
+      };
+
       const generateJSX = (nodeId: string, depth = 0): string => {
         const node = (nodes as any)[nodeId];
         if (!node) return "";
 
-        const p = node.data.props;
+        const p = (node.data.props ?? {}) as Record<string, any>;
         let type = (node.data.type as any).resolvedName || node.data.displayName;
         if (!type || type === "undefined") {
           type = nodeId === 'ROOT' ? 'Page' : 'Component';
@@ -407,6 +475,16 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
 
         let content = "";
         let attributes = `data-node-id="${nodeId}"`;
+
+        try {
+          const necessary = buildNecessaryDataProps(type, p);
+          if (Object.keys(necessary).length > 0) {
+            const json = JSON.stringify(necessary);
+            attributes += ` data-props='${escapeForSingleQuotedAttr(json)}'`;
+          }
+        } catch (_) {
+          // Ignore non-serializable props (should be rare in Craft).
+        }
 
         if (p.customClassName) attributes += ` className="${p.customClassName}"`;
 
@@ -419,28 +497,6 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
         } else if (type === "Image") {
           if (p.src) attributes += ` src="${p.src}"`;
           if (p.alt) attributes += ` alt="${p.alt}"`;
-        }
-
-        const styleProps: any = {};
-        const styleFields = [
-          "backgroundColor", "background", "backgroundImage", "color",
-          "padding", "paddingTop", "paddingRight", "paddingBottom", "paddingLeft",
-          "margin", "marginTop", "marginRight", "marginBottom", "marginLeft",
-          "width", "height", "borderRadius", "opacity", "fontSize", "fontWeight", "textAlign"
-        ];
-
-        styleFields.forEach(field => {
-          const val = p[field];
-          if (val !== undefined && val !== null && val !== "" && val !== 0 && val !== "0px" && val !== "0") {
-            styleProps[field] = val;
-          }
-        });
-
-        if (Object.keys(styleProps).length > 0) {
-          const styleStr = JSON.stringify(styleProps)
-            .replace(/"([^"]+)":/g, "$1:") // Remove quotes from keys
-            .replace(/"/g, "'"); // Use single quotes for values
-          attributes += ` style={{${styleStr}}}`;
         }
 
         if (type === "Image") {
@@ -504,6 +560,30 @@ import React from 'react';
       componentBlock: content.slice(idx).trimStart(),
     };
   };
+
+  const displayedContent =
+    activeFileId === "instance-props"
+      ? parseInstanceContent(tailwindContent || "").componentBlock
+      : (activeFile?.content || "");
+
+  const lineCount = Math.max(1, displayedContent.split("\n").length);
+  const lineDigits = String(lineCount).length;
+  const showGutter = codeAreaWidth >= 360;
+  const gutterWidth = showGutter
+    ? `clamp(2.75rem, calc(${lineDigits}ch + 2.5rem), 4.75rem)`
+    : "0px";
+  const contentPaddingLeft = showGutter
+    ? `clamp(4.5rem, calc(${lineDigits}ch + 4rem), 6rem)`
+    : "1.5rem";
+
+  const lineNumberText = (() => {
+    const width = lineDigits;
+    const lines: string[] = [];
+    for (let i = 1; i <= lineCount; i++) {
+      lines.push(String(i).padStart(width, " "));
+    }
+    return lines.join("\n");
+  })();
 
   const handleImportChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     if (activeFileId !== "instance-props") return;
@@ -694,12 +774,21 @@ import React from 'react';
         const nodeId = el.getAttribute("data-node-id");
         if (!nodeId) return;
 
-        const className = el.getAttribute("className") || el.getAttribute("class") || "";
+        const className = el.getAttribute("className") ?? el.getAttribute("class");
         const src = el.getAttribute("src");
         const alt = el.getAttribute("alt");
         const label = el.getAttribute("label");
         const variant = el.getAttribute("variant");
         const link = el.getAttribute("link");
+        const dataPropsRaw = el.getAttribute("data-props");
+        let dataProps: Record<string, unknown> | null = null;
+        if (dataPropsRaw) {
+          try {
+            dataProps = JSON.parse(dataPropsRaw) as Record<string, unknown>;
+          } catch (_) {
+            dataProps = null;
+          }
+        }
 
         let innerText: string | null = null;
         for (let i = 0; i < el.childNodes.length; i++) {
@@ -714,7 +803,14 @@ import React from 'react';
           const latestNode = query.node(nodeId).get();
           if (!latestNode) return;
           let type = (latestNode.data.type as any).resolvedName || latestNode.data.displayName || "";
-          props.customClassName = className;
+
+          if (dataProps) {
+            for (const [k, v] of Object.entries(dataProps)) {
+              props[k] = v;
+            }
+          }
+
+          if (className !== null) props.customClassName = className;
           const isType = (t: string) => type.toLowerCase() === t.toLowerCase();
 
           if (src !== null && isType("Image")) props.src = src;
@@ -956,26 +1052,37 @@ import React from 'react';
               />
             </div>
           )}
-          <div className="flex-1 min-h-0 relative">
-          <pre
-            ref={highlightRef}
-            aria-hidden="true"
-            data-code-editor-scroll="true"
-            className="custom-scrollbar absolute inset-0 w-full h-full p-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words select-none overflow-y-auto overflow-x-hidden"
-            style={{ fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
-            dangerouslySetInnerHTML={{ __html: highlightCode(activeFileId === "instance-props" ? parseInstanceContent(tailwindContent || "").componentBlock : (activeFile?.content || "")) }}
-          />
-          <textarea
-            ref={editorRef}
-            value={activeFileId === "instance-props" ? parseInstanceContent(tailwindContent || "").componentBlock : (activeFile?.content || "")}
-            onChange={activeFileId === "instance-props" ? handleComponentChange : handleContentChange}
-            onScroll={syncScroll}
-            onWheel={handleEditorWheel}
-            data-code-editor-scroll="true"
-            spellCheck={false}
-            className="custom-scrollbar absolute inset-0 w-full h-full bg-transparent text-transparent caret-white p-6 font-mono text-sm resize-none focus:outline-none z-10 whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
-            style={{ fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent", scrollBehavior: "smooth" }}
-          />
+          <div ref={codeAreaRef} className="flex-1 min-h-0 relative">
+            {showGutter && (
+              <pre
+                ref={lineNumbersRef}
+                aria-hidden="true"
+                data-code-editor-scroll="true"
+                className="absolute inset-y-0 left-0 py-6 pl-6 pr-3 font-mono text-sm pointer-events-none select-none overflow-y-auto overflow-x-hidden z-20"
+                style={{ width: gutterWidth, fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, color: "rgba(255,255,255,0.22)", scrollbarWidth: "none", msOverflowStyle: "none" }}
+              >
+                {lineNumberText}
+              </pre>
+            )}
+            <pre
+              ref={highlightRef}
+              aria-hidden="true"
+              data-code-editor-scroll="true"
+              className="custom-scrollbar absolute inset-0 w-full h-full py-6 pr-6 font-mono text-sm pointer-events-none whitespace-pre-wrap break-words select-none overflow-y-auto overflow-x-hidden z-10"
+              style={{ paddingLeft: contentPaddingLeft, fontFamily: "'Fira Code', 'Courier New', monospace", backgroundColor: "#0a0d14", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent" }}
+              dangerouslySetInnerHTML={{ __html: highlightCode(displayedContent) }}
+            />
+            <textarea
+              ref={editorRef}
+              value={displayedContent}
+              onChange={activeFileId === "instance-props" ? handleComponentChange : handleContentChange}
+              onScroll={syncScroll}
+              onWheel={handleEditorWheel}
+              data-code-editor-scroll="true"
+              spellCheck={false}
+              className="custom-scrollbar absolute inset-0 w-full h-full bg-transparent text-transparent caret-white py-6 pr-6 font-mono text-sm resize-none focus:outline-none z-30 whitespace-pre-wrap break-words overflow-y-auto overflow-x-hidden"
+              style={{ paddingLeft: contentPaddingLeft, fontFamily: "'Fira Code', 'Courier New', monospace", boxSizing: "border-box", lineHeight: "1.6", margin: 0, border: "1px solid transparent", scrollBehavior: "smooth" }}
+            />
           </div>
 
           {instanceError && (

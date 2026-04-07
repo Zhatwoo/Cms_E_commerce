@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, useRef, useCallback, useId } from "react";
 import ReactDOM from "react-dom";
-import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video } from "lucide-react";
+import { Pipette, ChevronDown, Square, Blend, Grid3X3, ImageIcon, Video, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { useDesignProject } from "@/app/design/_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "@/app/design/_lib/mediaActions";
 
 type HSVA = { h: number; s: number; v: number; a: number };
 type RGBA = { r: number; g: number; b: number; a: number };
@@ -10,6 +12,8 @@ type PaintMode = "solid" | "gradient" | "pattern" | "image" | "video";
 type GradientType = "linear" | "radial";
 type PatternType = "dots" | "grid" | "diagonal";
 type GradientStop = { id: string; position: number; color: string; alpha: number };
+type SavedColorEntry = { id: string; hex: string; alpha: number; visible: boolean };
+type UsedColorEntry = { id: string; hex: string; alpha: number };
 
 // --- Utils ---
 
@@ -123,6 +127,74 @@ const rgbaCss = (hex: string, alphaPct: number) => {
     return `rgba(${rgba.r}, ${rgba.g}, ${rgba.b}, ${a})`;
 };
 
+const COLOR_TOKEN_REGEX = /#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})\b|rgba?\(([^)]+)\)/g;
+
+const parseRgbChannel = (raw: string): number | null => {
+    const v = raw.trim();
+    if (!v) return null;
+    if (v.endsWith('%')) {
+        const pct = Number(v.slice(0, -1));
+        if (!Number.isFinite(pct)) return null;
+        return clamp(Math.round((pct / 100) * 255), 0, 255);
+    }
+    const n = Number(v);
+    if (!Number.isFinite(n)) return null;
+    return clamp(Math.round(n), 0, 255);
+};
+
+const parseAlphaChannel = (raw: string | undefined): number => {
+    if (!raw) return 100;
+    const v = raw.trim();
+    if (!v) return 100;
+    if (v.endsWith('%')) {
+        const pct = Number(v.slice(0, -1));
+        if (!Number.isFinite(pct)) return 100;
+        return clamp(Math.round(pct), 0, 100);
+    }
+    const n = Number(v);
+    if (!Number.isFinite(n)) return 100;
+    return clamp(Math.round(n * 100), 0, 100);
+};
+
+const tokenToColorEntry = (token: string): { hex: string; alpha: number } | null => {
+    const trimmed = token.trim();
+    if (!trimmed) return null;
+
+    const hex = normalizeHex(trimmed);
+    if (hex) {
+        const rgba = hexToRgba(hex);
+        return {
+            hex: rgbaToHex(rgba.r, rgba.g, rgba.b, 1).slice(0, 7).toUpperCase(),
+            alpha: clamp(Math.round(rgba.a * 100), 0, 100),
+        };
+    }
+
+    const rgbMatch = trimmed.match(/^rgba?\(([^)]+)\)$/i);
+    if (!rgbMatch) return null;
+
+    const parts = rgbMatch[1].split(',').map((part) => part.trim());
+    if (parts.length < 3) return null;
+    const r = parseRgbChannel(parts[0]);
+    const g = parseRgbChannel(parts[1]);
+    const b = parseRgbChannel(parts[2]);
+    if (r === null || g === null || b === null) return null;
+    const alpha = parseAlphaChannel(parts[3]);
+
+    return {
+        hex: rgbaToHex(r, g, b, 1).slice(0, 7).toUpperCase(),
+        alpha,
+    };
+};
+
+const extractColorEntriesFromCssValue = (cssValue: string): Array<{ hex: string; alpha: number }> => {
+    if (!cssValue) return [];
+    const matches = cssValue.match(COLOR_TOKEN_REGEX);
+    if (!matches?.length) return [];
+    return matches
+        .map((token) => tokenToColorEntry(token))
+        .filter((entry): entry is { hex: string; alpha: number } => Boolean(entry));
+};
+
 const buildGradientCss = (type: GradientType, angle: number, stops: GradientStop[]) => {
     const sorted = [...stops].sort((a, b) => a.position - b.position);
     const stopExpr = sorted.map((stop) => `${rgbaCss(stop.color, stop.alpha)} ${clamp(stop.position, 0, 100)}%`).join(", ");
@@ -216,7 +288,11 @@ export const ColorPicker = ({ value, onChange, onMediaChange, label, className =
                     ref={swatchRef}
                     onClick={toggle}
                     className="w-8 h-8 rounded-md border border-transparent relative overflow-hidden flex-shrink-0"
-                    style={{ background: CHECKER_BG, backgroundSize: CHECKER_BG_SIZE, backgroundPosition: CHECKER_BG_POS }}
+                    style={{ 
+                        backgroundImage: CHECKER_BG, 
+                        backgroundSize: CHECKER_BG_SIZE, 
+                        backgroundPosition: CHECKER_BG_POS 
+                    }}
                 >
                     <div className="absolute inset-0" style={{ background: swatchPaint }} />
                 </button>
@@ -258,9 +334,10 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 }) => {
     const popoverRef = useRef<HTMLDivElement>(null);
     const [coords, setCoords] = useState<{ top: number; left: number }>({ top: 10, left: 10 });
-    const [popoverWidth, setPopoverWidth] = useState(enableFillModes ? 280 : 240);
+    const [popoverWidth, setPopoverWidth] = useState(320);
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
+    const [hasManualPosition, setHasManualPosition] = useState(false);
     const dragStartRef = useRef<{ x: number; y: number } | null>(null);
     const coordsAtDragStartRef = useRef<{ top: number; left: number } | null>(null);
     const savedPositionKeyRef = useRef('colorPickerSavedPosition');
@@ -276,6 +353,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
         { id: 's2', position: 47, color: '#ECECEC', alpha: 100 },
         { id: 's3', position: 100, color: '#999999', alpha: 100 },
     ]);
+    const [selectedStopId, setSelectedStopId] = useState<string>('s1');
     const [patternType, setPatternType] = useState<PatternType>('grid');
     const [patternColor, setPatternColor] = useState('#777777');
     const [patternCellSize, setPatternCellSize] = useState(18);
@@ -283,6 +361,118 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const [videoUrl, setVideoUrl] = useState('');
     const imageInputRef = useRef<HTMLInputElement>(null);
     const videoInputRef = useRef<HTMLInputElement>(null);
+    const savedColorsKeyRef = useRef('colorPickerSavedColors');
+    const [savedColors, setSavedColors] = useState<SavedColorEntry[]>([]);
+    const [selectedSavedColorId, setSelectedSavedColorId] = useState<string | null>(null);
+    const [usedColors, setUsedColors] = useState<UsedColorEntry[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const { projectId } = useDesignProject();
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            const raw = window.localStorage?.getItem(savedColorsKeyRef.current);
+            if (!raw) return;
+            const parsed = JSON.parse(raw) as SavedColorEntry[];
+            if (!Array.isArray(parsed)) return;
+            const normalized = parsed
+                .filter((entry) => entry && typeof entry.id === 'string' && typeof entry.hex === 'string')
+                .map((entry) => ({
+                    id: entry.id,
+                    hex: normalizeHex(entry.hex) ?? '#000000',
+                    alpha: clamp(Number(entry.alpha ?? 100), 0, 100),
+                    visible: entry.visible !== false,
+                }));
+            setSavedColors(normalized);
+        } catch {
+            // ignore invalid localStorage payload
+        }
+    }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        try {
+            window.localStorage?.setItem(savedColorsKeyRef.current, JSON.stringify(savedColors));
+        } catch {
+            // ignore storage errors
+        }
+    }, [savedColors]);
+
+    useEffect(() => {
+        if (!savedColors.length) {
+            setSelectedSavedColorId(null);
+            return;
+        }
+        if (!selectedSavedColorId || !savedColors.some((entry) => entry.id === selectedSavedColorId)) {
+            setSelectedSavedColorId(savedColors[0].id);
+        }
+    }, [savedColors, selectedSavedColorId]);
+
+    const selectedSavedColor = selectedSavedColorId
+        ? savedColors.find((entry) => entry.id === selectedSavedColorId) ?? null
+        : null;
+    const gradientTrackRef = useRef<HTMLDivElement>(null);
+
+    const collectUsedColors = useCallback(() => {
+        if (typeof document === 'undefined') return;
+
+        const root = document.querySelector('[data-web-builder-root]') as HTMLElement | null;
+        const searchRoot = root ?? document.body;
+        const targets = searchRoot.querySelectorAll<HTMLElement>('[style]');
+        const map = new Map<string, UsedColorEntry>();
+
+        targets.forEach((el, index) => {
+            const styleText = el.getAttribute('style') ?? '';
+            const entries = extractColorEntriesFromCssValue(styleText);
+            entries.forEach((entry) => {
+                // Ignore fully transparent entries in the used list.
+                if (entry.alpha <= 0) return;
+                const key = `${entry.hex}-${entry.alpha}`;
+                if (!map.has(key)) {
+                    map.set(key, {
+                        id: `u${index}-${key}`,
+                        hex: entry.hex,
+                        alpha: entry.alpha,
+                    });
+                }
+            });
+        });
+
+        const currentEntries = extractColorEntriesFromCssValue(value);
+        currentEntries.forEach((entry) => {
+            if (entry.alpha <= 0) return;
+            const key = `${entry.hex}-${entry.alpha}`;
+            if (!map.has(key)) {
+                map.set(key, {
+                    id: `u-current-${key}`,
+                    hex: entry.hex,
+                    alpha: entry.alpha,
+                });
+            }
+        });
+
+        setUsedColors(Array.from(map.values()).slice(0, 24));
+    }, [value]);
+
+    useEffect(() => {
+        collectUsedColors();
+        if (typeof MutationObserver === 'undefined') return;
+
+        const root = document.querySelector('[data-web-builder-root]') as HTMLElement | null;
+        const observeRoot = root ?? document.body;
+        const observer = new MutationObserver(() => {
+            collectUsedColors();
+        });
+
+        observer.observe(observeRoot, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            attributeFilter: ['style'],
+        });
+
+        return () => observer.disconnect();
+    }, [collectUsedColors]);
 
     useEffect(() => {
         if (!enableMediaFillModes && (paintMode === "image" || paintMode === "video")) {
@@ -297,12 +487,12 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
     React.useLayoutEffect(() => {
         const updatePosition = () => {
-            if (!anchorRef.current) return;
+            if (!anchorRef.current || !popoverRef.current) return;
 
             // Try to load saved position first
             const savedPosStr = typeof window !== 'undefined' ? window.localStorage?.getItem(savedPositionKeyRef.current) : null;
             
-            if (savedPosStr) {
+            if (savedPosStr && hasManualPosition) {
                 try {
                     const saved = JSON.parse(savedPosStr);
                     if (saved && typeof saved.top === 'number' && typeof saved.left === 'number') {
@@ -310,43 +500,65 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         return;
                     }
                 } catch (e) {
-                    // Invalid saved position, continue to calculate default
-                    if (typeof window !== 'undefined') {
-                        window.localStorage?.removeItem(savedPositionKeyRef.current);
-                    }
+                    // ignore
                 }
             }
 
-            // Calculate default position (viewport-based)
+            // Calculate default position
             const rect = anchorRef.current.getBoundingClientRect();
-            const viewportPadding = 8;
-            const desiredWidth = enableFillModes ? 280 : 240;
+            const viewportPadding = 12;
+            const desiredWidth = 320;
             const nextWidth = Math.min(desiredWidth, Math.max(220, window.innerWidth - viewportPadding * 2));
-            const popHeight = popoverRef.current?.offsetHeight || 336;
+            
+            // Get actual height or use a safe estimate
+            const popHeight = popoverRef.current.offsetHeight || 420;
 
-            let left = rect.right - nextWidth;
+            const configsPanel = document.querySelector('[data-panel="configs"]');
+            let left;
+            if (configsPanel) {
+                const panelRect = configsPanel.getBoundingClientRect();
+                left = panelRect.left - nextWidth - 12;
+            } else {
+                left = rect.right - nextWidth;
+            }
+            
             const maxLeft = window.innerWidth - nextWidth - viewportPadding;
             left = Math.max(viewportPadding, Math.min(left, maxLeft));
 
-            let top = rect.bottom + 8;
+            // Align top with the swatch button initially
+            let top = rect.top;
+            
+            // Constraint: Ensure it doesn't go off-screen at the bottom
             if (top + popHeight > window.innerHeight - viewportPadding) {
-                top = rect.top - popHeight - 8;
+                top = window.innerHeight - popHeight - viewportPadding;
             }
+            // Constraint: Ensure it doesn't go off-screen at the top
             top = Math.max(viewportPadding, top);
 
             setPopoverWidth(nextWidth);
             setCoords({ top, left });
         };
 
+        const resizeObserver = new ResizeObserver(() => {
+            if (!hasManualPosition) {
+                updatePosition();
+            }
+        });
+
+        if (popoverRef.current) {
+            resizeObserver.observe(popoverRef.current);
+        }
+
         updatePosition();
         window.addEventListener("resize", updatePosition);
         window.addEventListener("scroll", updatePosition, true);
 
         return () => {
+            resizeObserver.disconnect();
             window.removeEventListener("resize", updatePosition);
             window.removeEventListener("scroll", updatePosition, true);
         };
-    }, [anchorRef, enableFillModes, paintMode, gradientStops.length]);
+    }, [anchorRef, enableFillModes, hasManualPosition]);
 
     const updateColor = (newHsva: Partial<HSVA>) => {
         const updated = { ...hsva, ...newHsva };
@@ -359,6 +571,65 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     const applyGradient = useCallback((nextStops = gradientStops, nextType = gradientType, nextAngle = gradientAngle) => {
         onChange(buildGradientCss(nextType, nextAngle, nextStops));
     }, [gradientStops, gradientType, gradientAngle, onChange]);
+
+    const updateGradientStop = useCallback((stopId: string, patch: Partial<GradientStop>) => {
+        setGradientStops((prev) => {
+            const next = prev
+                .map((stop) => (stop.id === stopId ? { ...stop, ...patch } : stop))
+                .map((stop) => ({ ...stop, position: clamp(stop.position, 0, 100), alpha: clamp(stop.alpha, 0, 100) }));
+            applyGradient(next);
+            return next;
+        });
+    }, [applyGradient]);
+
+    const resolveTrackPosition = useCallback((clientX: number) => {
+        const trackEl = gradientTrackRef.current;
+        if (!trackEl) return 0;
+        const rect = trackEl.getBoundingClientRect();
+        if (rect.width <= 0) return 0;
+        return clamp(Math.round(((clientX - rect.left) / rect.width) * 100), 0, 100);
+    }, []);
+
+    const startGradientStopDrag = useCallback((e: React.MouseEvent, stopId: string) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setSelectedStopId(stopId);
+
+        const handleMove = (ev: MouseEvent) => {
+            const nextPosition = resolveTrackPosition(ev.clientX);
+            updateGradientStop(stopId, { position: nextPosition });
+        };
+
+        const handleUp = () => {
+            window.removeEventListener("mousemove", handleMove);
+            window.removeEventListener("mouseup", handleUp);
+        };
+
+        window.addEventListener("mousemove", handleMove);
+        window.addEventListener("mouseup", handleUp);
+    }, [resolveTrackPosition, updateGradientStop]);
+
+    const handleGradientTrackClick = useCallback((e: React.MouseEvent) => {
+        const nextPosition = resolveTrackPosition(e.clientX);
+        const base =
+            gradientStops.find((stop) => stop.id === selectedStopId) ||
+            gradientStops[gradientStops.length - 1] ||
+            { color: '#FFFFFF', alpha: 100 };
+
+        const nextStop: GradientStop = {
+            id: `s${Date.now()}`,
+            position: nextPosition,
+            color: base.color,
+            alpha: base.alpha,
+        };
+
+        setGradientStops((prev) => {
+            const next = [...prev, nextStop].sort((a, b) => a.position - b.position);
+            applyGradient(next);
+            return next;
+        });
+        setSelectedStopId(nextStop.id);
+    }, [resolveTrackPosition, gradientStops, selectedStopId, applyGradient]);
 
     const applyPattern = useCallback((nextType = patternType, nextColor = patternColor, nextCell = patternCellSize) => {
         onChange(buildPatternCss(nextType, nextColor, nextCell));
@@ -411,6 +682,32 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
         }
     };
 
+    const addCurrentColorToSaved = () => {
+        const rgb = hsvaToRgba(hsva.h, hsva.s, hsva.v, 1);
+        const alpha = clamp(Math.round(hsva.a * 100), 0, 100);
+        const hex = rgbaToHex(rgb.r, rgb.g, rgb.b, 1).slice(0, 7).toUpperCase();
+
+        setSavedColors((prev) => {
+            const duplicateIndex = prev.findIndex((entry) => entry.hex === hex && entry.alpha === alpha);
+            if (duplicateIndex >= 0) {
+                const next = [...prev];
+                const [existing] = next.splice(duplicateIndex, 1);
+                return [{ ...existing, visible: true }, ...next];
+            }
+            return [{ id: `c${Date.now()}`, hex, alpha, visible: true }, ...prev].slice(0, 16);
+        });
+    };
+
+    const applySavedColor = (entry: SavedColorEntry) => {
+        if (!entry.visible) return;
+        const rgb = hexToRgba(entry.hex);
+        const alpha = clamp(entry.alpha, 0, 100) / 100;
+        onChange(rgbaToHex(rgb.r, rgb.g, rgb.b, alpha));
+        if (enableFillModes && paintMode !== 'solid') {
+            setPaintMode('solid');
+        }
+    };
+
     // --- Drag Handlers ---
     const handleDragStart = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -433,6 +730,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                     left: coordsAtDragStartRef.current.left + dragOffset.x,
                 };
                 setCoords(newCoords);
+                setHasManualPosition(true);
                 // Save position to localStorage
                 if (typeof window !== 'undefined') {
                     try {
@@ -526,6 +824,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 width: `${popoverWidth}px`,
                 maxHeight: '85vh',
                 overflowY: 'auto',
+                overflowX: 'hidden',
                 top: `${coords.top + dragOffset.y}px`,
                 left: `${coords.left + dragOffset.x}px`,
                 opacity: 1,
@@ -535,13 +834,23 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             }}
             onMouseDown={(e) => e.stopPropagation()}
         >
-            {/* Drag Handle Header */}
-            <div
-                onMouseDown={handleDragStart}
-                className="flex items-center justify-center py-1.5 mb-1 cursor-grab active:cursor-grabbing rounded-lg hover:bg-[var(--builder-surface-2)] transition-colors"
-                title="Drag to move"
-            >
-                <div className="h-1 w-12 rounded-full bg-[var(--builder-border-mid)]" />
+            {/* Popover Header with Drag Handle and Close button */}
+            <div className="flex items-center relative gap-2 mb-1">
+                <div
+                    onMouseDown={handleDragStart}
+                    className="flex-1 flex items-center justify-center py-1.5 cursor-grab active:cursor-grabbing rounded-lg hover:bg-[var(--builder-surface-2)] transition-colors"
+                    title="Drag to move"
+                >
+                    <div className="h-1 w-12 rounded-full bg-[var(--builder-border-mid)]" />
+                </div>
+                <button
+                    type="button"
+                    onClick={onClose}
+                    className="p-1.5 rounded-lg hover:bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors flex-shrink-0"
+                    title="Close color picker"
+                >
+                    <X size={14} />
+                </button>
             </div>
 
             {enableFillModes && (
@@ -629,9 +938,18 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             </button>
                             <div
                                 className="w-10 h-10 rounded-full border border-transparent shadow-inner relative overflow-hidden"
-                                style={{ background: CHECKER_BG, backgroundSize: CHECKER_BG_SIZE, backgroundPosition: CHECKER_BG_POS }}
+                                style={{ 
+                                    backgroundImage: CHECKER_BG, 
+                                    backgroundSize: CHECKER_BG_SIZE, 
+                                    backgroundPosition: CHECKER_BG_POS 
+                                }}
                             >
-                                <div className="absolute inset-0" style={{ backgroundColor: value }} />
+                                <div 
+                                    className="absolute inset-0" 
+                                    style={{ 
+                                        backgroundColor: value 
+                                    }} 
+                                />
                             </div>
                         </div>
                     </div>
@@ -728,8 +1046,35 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             )}
 
             {enableFillModes && paintMode === "gradient" && (
-                <div className="flex flex-col gap-3">
-                    <div className="h-8 rounded-md border border-[var(--builder-border)]" style={{ background: buildGradientCss(gradientType, gradientAngle, gradientStops) }} />
+                <div className="flex flex-col gap-3 w-full min-w-0">
+                    <div
+                        ref={gradientTrackRef}
+                        onMouseDown={handleGradientTrackClick}
+                        className="relative h-6 rounded-md border border-[var(--builder-border)] cursor-crosshair"
+                        style={{ background: buildGradientCss(gradientType, gradientAngle, gradientStops) }}
+                    >
+                        {gradientStops.map((stop) => {
+                            const isSelected = stop.id === selectedStopId;
+                            return (
+                                <button
+                                    key={stop.id}
+                                    type="button"
+                                    onMouseDown={(e) => startGradientStopDrag(e, stop.id)}
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedStopId(stop.id);
+                                    }}
+                                    className={`absolute top-1/2 h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 ${isSelected ? "border-[#2f8cff]" : "border-white"}`}
+                                    style={{
+                                        left: `clamp(8px, ${stop.position}%, calc(100% - 8px))`,
+                                        background: rgbaCss(stop.color, stop.alpha),
+                                        boxShadow: isSelected ? "0 0 0 2px rgba(47,140,255,0.35)" : "0 0 0 1px rgba(0,0,0,0.35)",
+                                    }}
+                                    title={`Stop ${stop.position}%`}
+                                />
+                            );
+                        })}
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                         <select
                             value={gradientType}
@@ -744,7 +1089,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             <option value="radial">Radial</option>
                         </select>
                         <input
-                            type="number"
+                            type="range"
                             min={0}
                             max={360}
                             value={gradientAngle}
@@ -753,24 +1098,25 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                 setGradientAngle(nextAngle);
                                 applyGradient(gradientStops, gradientType, nextAngle);
                             }}
-                            className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                            className="w-full accent-[#2f8cff]"
                         />
                     </div>
-                    <div className="flex flex-col gap-2">
+                    <div className="w-full bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)] text-center">
+                        Angle: {gradientAngle}deg
+                    </div>
+                    <div className="flex flex-col gap-2 w-full min-w-0">
                         {gradientStops.map((stop, idx) => (
-                            <div key={stop.id} className="grid grid-cols-[52px_1fr_48px_28px] gap-2 items-center">
+                            <div key={stop.id} className="grid w-full min-w-0 grid-cols-[44px_minmax(0,1fr)_44px_24px] gap-2 items-center">
                                 <input
                                     type="number"
                                     min={0}
                                     max={100}
                                     value={stop.position}
                                     onChange={(e) => {
-                                        const next = [...gradientStops];
-                                        next[idx] = { ...stop, position: clamp(parseInt(e.target.value || "0", 10), 0, 100) };
-                                        setGradientStops(next);
-                                        applyGradient(next);
+                                        const nextPosition = clamp(parseInt(e.target.value || "0", 10), 0, 100);
+                                        updateGradientStop(stop.id, { position: nextPosition });
                                     }}
-                                    className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-1.5 py-1.5 text-xs text-[var(--builder-text)]"
                                 />
                                 <input
                                     type="text"
@@ -778,12 +1124,9 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                     onChange={(e) => {
                                         const normalized = normalizeHex(e.target.value);
                                         if (!normalized) return;
-                                        const next = [...gradientStops];
-                                        next[idx] = { ...stop, color: normalized };
-                                        setGradientStops(next);
-                                        applyGradient(next);
+                                        updateGradientStop(stop.id, { color: normalized });
                                     }}
-                                    className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
                                 />
                                 <input
                                     type="number"
@@ -791,12 +1134,10 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                     max={100}
                                     value={stop.alpha}
                                     onChange={(e) => {
-                                        const next = [...gradientStops];
-                                        next[idx] = { ...stop, alpha: clamp(parseInt(e.target.value || "0", 10), 0, 100) };
-                                        setGradientStops(next);
-                                        applyGradient(next);
+                                        const nextAlpha = clamp(parseInt(e.target.value || "0", 10), 0, 100);
+                                        updateGradientStop(stop.id, { alpha: nextAlpha });
                                     }}
-                                    className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-1.5 py-1.5 text-xs text-[var(--builder-text)]"
                                 />
                                 <button
                                     type="button"
@@ -806,8 +1147,11 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                         const next = gradientStops.filter((_, stopIndex) => stopIndex !== idx);
                                         setGradientStops(next);
                                         applyGradient(next);
+                                        if (selectedStopId === stop.id && next[0]) {
+                                            setSelectedStopId(next[0].id);
+                                        }
                                     }}
-                                    className="h-7 w-7 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] disabled:opacity-40"
+                                    className="h-6 w-6 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] disabled:opacity-40"
                                     title="Remove stop"
                                 >
                                     -
@@ -818,14 +1162,17 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                     <button
                         type="button"
                         onClick={() => {
-                            const next: GradientStop[] = [...gradientStops, {
+                            const selected = gradientStops.find((stop) => stop.id === selectedStopId) || gradientStops[gradientStops.length - 1];
+                            const nextStop: GradientStop = {
                                 id: `s${Date.now()}`,
                                 position: clamp(Math.round(100 / (gradientStops.length + 1) * gradientStops.length), 0, 100),
-                                color: '#FFFFFF',
-                                alpha: 100,
-                            }];
+                                color: selected?.color || '#FFFFFF',
+                                alpha: selected?.alpha ?? 100,
+                            };
+                            const next: GradientStop[] = [...gradientStops, nextStop];
                             setGradientStops(next);
                             applyGradient(next);
+                            setSelectedStopId(nextStop.id);
                         }}
                         className="h-8 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text)] text-xs"
                     >
@@ -879,9 +1226,56 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 </div>
             )}
 
+            {(!enableFillModes || paintMode === "solid") && (
+            <div className="flex flex-col gap-2 pt-1 border-t border-[var(--builder-border)]">
+                <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-[var(--builder-text-faint)]">Custom Colors</span>
+                </div>
+
+                <div className="max-h-28 overflow-y-auto pr-1">
+                    {usedColors.length === 0 && (
+                        <div className="text-[11px] text-[var(--builder-text-faint)]/80">No custom colors yet.</div>
+                    )}
+
+                    <div className="grid grid-cols-10 gap-1">
+                        {usedColors.map((entry) => {
+                            return (
+                                <button
+                                    key={entry.id}
+                                    type="button"
+                                    onClick={() => {
+                                        applySavedColor({ id: entry.id, hex: entry.hex, alpha: entry.alpha, visible: true });
+                                    }}
+                                    className="relative h-6 w-6 rounded-md border border-[var(--builder-border)] transition-colors hover:border-[#2f8cff]"
+                                    style={{
+                                        backgroundImage: entry.alpha < 100
+                                            ? `linear-gradient(${rgbaCss(entry.hex, entry.alpha)}, ${rgbaCss(entry.hex, entry.alpha)}), ${CHECKER_BG}`
+                                            : 'none',
+                                        backgroundColor: entry.alpha < 100 ? 'transparent' : rgbaCss(entry.hex, entry.alpha),
+                                        backgroundSize: entry.alpha < 100 ? `100%, ${CHECKER_BG_SIZE}` : 'auto',
+                                        backgroundPosition: entry.alpha < 100 ? `0% 0%, ${CHECKER_BG_POS}` : '0% 0%',
+                                    }}
+                                    title={`${entry.hex} ${entry.alpha}%`}
+                                >
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+            )}
+
             {enableFillModes && enableMediaFillModes && paintMode === "image" && (
                 <div className="flex flex-col gap-3">
-                    <div className="h-[156px] rounded-md border border-[var(--builder-border)]" style={{ background: imageUrl ? `url("${imageUrl}") center / cover no-repeat` : CHECKER_BG, backgroundSize: imageUrl ? 'cover' : CHECKER_BG_SIZE, backgroundPosition: imageUrl ? 'center' : CHECKER_BG_POS }} />
+                    <div 
+                        className="h-[156px] rounded-md border border-[var(--builder-border)]" 
+                        style={{ 
+                            backgroundImage: imageUrl ? `url("${imageUrl}")` : CHECKER_BG, 
+                            backgroundSize: imageUrl ? 'cover' : CHECKER_BG_SIZE, 
+                            backgroundPosition: imageUrl ? 'center' : CHECKER_BG_POS,
+                            backgroundRepeat: 'no-repeat'
+                        }} 
+                    />
                     <input
                         type="text"
                         value={imageUrl}
@@ -894,25 +1288,51 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         ref={imageInputRef}
                         type="file"
                         accept="image/*"
-                        onChange={(e) => {
+                        disabled={isUploading}
+                        onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (!file) return;
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                                const next = String(reader.result || "");
-                                setImageUrl(next);
-                                applyImage(next);
-                            };
-                            reader.readAsDataURL(file);
+                            if (!file || !projectId) return;
+                            
+                            setIsUploading(true);
+                            try {
+                                // 1. Immediate local preview
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                    const next = String(reader.result || "");
+                                    setImageUrl(next);
+                                    applyImage(next);
+                                };
+                                reader.readAsDataURL(file);
+
+                                // 2. Robust upload to media library
+                                const newItem = await addFileToMediaLibrary(projectId, file);
+                                
+                                // 3. Update with final remote URL
+                                setImageUrl(newItem.url);
+                                applyImage(newItem.url);
+                            } catch (error) {
+                                console.error("Image upload to media library failed:", error);
+                            } finally {
+                                setIsUploading(false);
+                                if (imageInputRef.current) imageInputRef.current.value = "";
+                            }
                         }}
                         className="hidden"
                     />
                     <button
                         type="button"
                         onClick={() => imageInputRef.current?.click()}
-                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs"
+                        disabled={isUploading}
+                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        Upload from computer
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={12} />
+                                Uploading...
+                            </>
+                        ) : (
+                            "Upload from computer"
+                        )}
                     </button>
                 </div>
             )}
@@ -934,21 +1354,47 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         ref={videoInputRef}
                         type="file"
                         accept="video/*"
-                        onChange={(e) => {
+                        disabled={isUploading}
+                        onChange={async (e) => {
                             const file = e.target.files?.[0];
-                            if (!file) return;
-                            const objectUrl = URL.createObjectURL(file);
-                            setVideoUrl(objectUrl);
-                            applyVideo(objectUrl);
+                            if (!file || !projectId) return;
+
+                            setIsUploading(true);
+                            try {
+                                // 1. Immediate local preview
+                                const objectUrl = URL.createObjectURL(file);
+                                setVideoUrl(objectUrl);
+                                applyVideo(objectUrl);
+
+                                // 2. Upload to media library
+                                const newItem = await addFileToMediaLibrary(projectId, file);
+                                
+                                // 3. Update with permanent URL
+                                setVideoUrl(newItem.url);
+                                applyVideo(newItem.url);
+                            } catch (error) {
+                                console.error("Video upload failed:", error);
+                            } finally {
+                                setIsUploading(false);
+                                if (videoInputRef.current) videoInputRef.current.value = "";
+                            }
                         }}
                         className="hidden"
                     />
                     <button
                         type="button"
                         onClick={() => videoInputRef.current?.click()}
-                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs"
+                        disabled={isUploading}
+                        className="h-8 rounded-md bg-[#2f8cff] text-white text-xs flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                     >
-                        Upload video
+                        {isUploading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={12} />
+                                Uploading...
+                            </>
+                        ) : (
+                            "Upload video"
+                        )}
                     </button>
                 </div>
             )}

@@ -10,8 +10,6 @@ import {
   CheckCircle,
   Filter,
   Plus,
-  Download,
-  Upload,
   Trash2,
 } from 'lucide-react';
 import {
@@ -32,8 +30,13 @@ import {
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
+import { SearchBar } from '../components/ui/searchbar';
 import { type Product, type ProductVariant } from '../lib/productsData';
 import ProductAddModal from '../products/components/productAddModal';
+import { AddProductButton } from '../products/components/button';
+import { ProductsDropdown } from '../products/components/productsDropdown';
+import { ImportExportButtons, handleExportData, parseCsvToRows } from './components/import_export';
+import { InventoryTable } from './components/inventoryTable';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -60,67 +63,6 @@ const T = {
   radius: 22,
   font: "'DM Sans', 'Segoe UI', sans-serif",
 };
-
-// ─── CSV helpers (unchanged) ──────────────────────────────────────────────────
-const EXPORT_COLUMNS = ['name', 'sku', 'category', 'onHandStock', 'reservedStock', 'lowStockThreshold', 'status'] as const;
-
-function escapeCsvValue(val: string | number | undefined | null): string {
-  const s = String(val ?? '');
-  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-function productsToCsv(items: ApiProduct[]): string {
-  const header = EXPORT_COLUMNS.join(',');
-  const rows = items.map((p) => {
-    const onHand = p.onHandStock ?? p.stock ?? 0;
-    const reserved = p.reservedStock ?? 0;
-    const low = p.lowStockThreshold ?? 5;
-    return [escapeCsvValue(p.name), escapeCsvValue(p.sku), escapeCsvValue(p.category), escapeCsvValue(onHand), escapeCsvValue(reserved), escapeCsvValue(low), escapeCsvValue(p.status)].join(',');
-  });
-  return [header, ...rows].join('\n');
-}
-
-function parseCsvLine(line: string): string[] {
-  const result: string[] = [];
-  let i = 0;
-  while (i < line.length) {
-    if (line[i] === '"') {
-      let cell = ''; i++;
-      while (i < line.length) {
-        if (line[i] === '"') { if (line[i + 1] === '"') { cell += '"'; i += 2; } else { i++; break; } } else { cell += line[i]; i++; }
-      }
-      result.push(cell);
-    } else {
-      let cell = '';
-      while (i < line.length && line[i] !== ',') { cell += line[i]; i++; }
-      result.push(cell.trim());
-      if (line[i] === ',') i++;
-    }
-  }
-  return result;
-}
-
-function parseCsvToRows(text: string): ImportInventoryRow[] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  if (lines.length < 2) return [];
-  const headerCols = parseCsvLine(lines[0]).map((c) => c.trim().toLowerCase().replace(/_/g, ''));
-  const skuIdx = headerCols.findIndex((c) => c === 'sku');
-  const onHandIdx = headerCols.findIndex((c) => ['onhandstock', 'stock'].includes(c));
-  const reservedIdx = headerCols.findIndex((c) => ['reservedstock', 'reserved'].includes(c));
-  const lowIdx = headerCols.findIndex((c) => ['lowstockthreshold', 'lowthreshold'].includes(c));
-  const rows: ImportInventoryRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = parseCsvLine(lines[i]);
-    const sku = skuIdx >= 0 ? (cols[skuIdx] ?? '').trim() : '';
-    if (!sku) continue;
-    const row: ImportInventoryRow = { sku };
-    if (onHandIdx >= 0) { const v = parseInt(String(cols[onHandIdx] ?? '0'), 10); if (Number.isFinite(v)) row.onHandStock = Math.max(0, v); }
-    if (reservedIdx >= 0) { const v = parseInt(String(cols[reservedIdx] ?? '0'), 10); if (Number.isFinite(v)) row.reservedStock = Math.max(0, v); }
-    if (lowIdx >= 0) { const v = parseInt(String(cols[lowIdx] ?? '5'), 10); if (Number.isFinite(v)) row.lowStockThreshold = Math.max(0, v); }
-    rows.push(row);
-  }
-  return rows;
-}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type StockAdjustmentType = 'IN' | 'OUT';
@@ -424,7 +366,6 @@ export default function InventoryPage() {
   const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineSaveLockRef = useRef<string | null>(null);
-  const categoryMenuRef = useRef<HTMLDivElement>(null);
   const localStatusMovementsRef = useRef<InventoryMovement[]>([]);
 
   const movementTimestamp = useCallback((movement: InventoryMovement): number => {
@@ -504,18 +445,6 @@ export default function InventoryPage() {
   }, []);
 
   useEffect(() => () => { if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current); }, []);
-
-  useEffect(() => {
-    if (!showCategoryFilterMenu) return;
-    const onMouseDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (categoryMenuRef.current?.contains(target)) return;
-      setShowCategoryFilterMenu(false);
-    };
-    document.addEventListener('mousedown', onMouseDown);
-    return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [showCategoryFilterMenu]);
 
   useEffect(() => {
     if (!openStatusMenuRowId) return;
@@ -1150,21 +1079,7 @@ export default function InventoryPage() {
     }
   }, [items, loadData, prependLocalMovement, showConfirm, showImportPopup]);
 
-  const handleExport = useCallback(async () => {
-    setExporting(true);
-    try {
-      const res = await listInventory({ subdomain: selectedSubdomain || undefined, limit: 5000, search: search || undefined });
-      const data = Array.isArray(res.items) ? res.items : [];
-      if (data.length === 0) { window.alert('No inventory to export.'); return; }
-      const csv = productsToCsv(data);
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `inventory-export-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) { window.alert(err instanceof Error ? err.message : 'Export failed'); }
-    finally { setExporting(false); }
-  }, [search, selectedSubdomain]);
+  const handleExport = useCallback(handleExportData(search, selectedSubdomain, setExporting), [search, selectedSubdomain]);
 
   const handleImport = useCallback(() => { fileInputRef.current?.click(); }, []);
 
@@ -1246,6 +1161,7 @@ export default function InventoryPage() {
           >
             <input
               type="checkbox"
+              aria-label="Select inventory item"
               checked={Boolean(selected)}
               onChange={() => onToggleSelect?.(m.id)}
               style={{ accentColor: '#a855f7', width: 14, height: 14, cursor: 'pointer' }}
@@ -1344,24 +1260,6 @@ export default function InventoryPage() {
     );
   };
 
-  // ENHANCED: skeleton rows while loading
-  const SkeletonRow = ({ idx }: { idx: number }) => (
-    <div style={{
-      display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
-      gap: 16, padding: '16px 24px', minWidth: 760,
-      borderBottom: '1px solid rgba(255,255,255,0.04)', alignItems: 'center',
-    }}>
-      {[110, 55, 35, 35, 72, 72].map((w, j) => (
-        <motion.div
-          key={j}
-          animate={{ opacity: [0.25, 0.55, 0.25] }}
-          transition={{ duration: 1.5, repeat: Infinity, delay: idx * 0.1 + j * 0.05 }}
-          style={{ height: 11, width: w, background: 'rgba(255,255,255,0.1)', borderRadius: 6 }}
-        />
-      ))}
-    </div>
-  );
-
   return (
     <div
       className="dashboard-landing-light"
@@ -1370,7 +1268,7 @@ export default function InventoryPage() {
       onInputCapture={handleNumberInputCapture}
       onPasteCapture={handleNumberPasteCapture}
     >
-      <input ref={fileInputRef} type="file" accept=".csv" style={{ display: 'none' }} onChange={handleFileChange} />
+      <input ref={fileInputRef} type="file" accept=".csv" title="Import CSV" style={{ display: 'none' }} onChange={handleFileChange} />
 
       {/* Centered success/error popup */}
       {typeof document !== 'undefined' && createPortal(
@@ -1446,159 +1344,51 @@ export default function InventoryPage() {
         </div>
 
         {/* ── Search bar (original) ───────────────────────────────────────── */}
-        <div
-          style={{ position: 'relative', maxWidth: 860, margin: '0 auto 28px' }}
-          className={`m-dashboard-search-shadow rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'admin-dashboard-panel-soft border-0'}`}
-        >
-          <svg
-            viewBox="0 0 20 20"
-            className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`}
-            fill="none"
-          >
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search templates, designs, or actions"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{
-              ...inputStyle,
-              padding: 0,
-              border: 'none',
-              background: 'transparent',
-              boxShadow: 'none',
-              fontSize: 14,
-              color: 'var(--dashboard-light-text, #ffffff)',
-            }}
-            className="placeholder:text-[#6F70A8]"
-          />
-        </div>
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          theme={theme}
+          placeholder="Search templates, designs, or actions"
+          className="mb-7 max-w-[860px] mx-auto"
+        />
 
         {/* ── Toolbar (original layout) ───────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <div ref={categoryMenuRef} style={{ position: 'relative' }}>
-              <button
-                type="button"
-                onClick={() => setShowCategoryFilterMenu((prev) => !prev)}
-                style={{
-                  backgroundColor: theme === 'dark' ? T.card : undefined,
-                  border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
-                  borderRadius: 14,
-                  color: theme === 'dark' ? '#ddd1ff' : '#475569',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  height: 46,
-                  minWidth: 156,
-                  padding: '0 38px 0 16px',
-                  outline: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  position: 'relative',
-                }}
-                aria-label="Subcategory filter"
-                title="Filter by subcategory"
-              >
-                <span style={{ display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{selectedCategoryLabel}</span>
-                <span style={{ position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)', color: '#b6abd6', fontSize: 10, pointerEvents: 'none' }}>▼</span>
-              </button>
-
-              {showCategoryFilterMenu && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    marginTop: 8,
-                    width: 224,
-                    borderRadius: 12,
-                    border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
-                    backgroundColor: theme === 'dark' ? T.card : undefined,
-                    padding: 8,
-                    zIndex: 30,
-                  }}
-                  className={theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}
-                >
-                  {categoryFilterOptions.map((option, optionIndex) => {
-                    const checked = categoryFilter === option.value;
-                    const optionKey = String(option.value || '').trim() || `category-option-${optionIndex}`;
-                    return (
-                      <button
-                        key={optionKey}
-                        type="button"
-                        onClick={() => {
-                          setCategoryFilter(option.value);
-                          setShowCategoryFilterMenu(false);
-                        }}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '8px 12px',
-                          borderRadius: 8,
-                          border: 'none',
-                          background: 'transparent',
-                          color: '#D2D6F7',
-                          fontSize: 14,
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                        }}
-                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; }}
-                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                      >
-                        <span>{option.label}</span>
-                        <span>{checked ? '✓' : ''}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
+            <ProductsDropdown
+              selectedCategory={categoryFilter}
+              onCategoryChange={setCategoryFilter}
+              filterOptions={categoryFilterOptions}
+              showMenu={showCategoryFilterMenu}
+              onMenuToggle={setShowCategoryFilterMenu}
+            />
+            <AddProductButton
               onClick={() => setShowAddModal(true)}
+              disabled={false}
               title="Add Product"
-              style={{
-                height: 46, borderRadius: 12,
-                padding: '0 14px',
-                border: 'none', color: '#ffffff',
-                background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', display: 'inline-flex',
-                alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
-                fontSize: 13, fontWeight: 700,
-              }}
-            >+ Add Product</button>
+            />
           </div>
 
           <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <button
-              type="button" onClick={handleImport} disabled={importing}
-              title={importing ? 'Importing…' : 'Import CSV'}
-              className={theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}
-              style={{
-                width: 40, height: 40, borderRadius: 12,
-                border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
-                color: theme === 'dark' ? '#ddd1ff' : '#64748b',
-                backgroundColor: theme === 'dark' ? T.card : undefined,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                cursor: importing ? 'not-allowed' : 'pointer', opacity: importing ? 0.55 : 1,
+            <ImportExportButtons
+              theme={theme}
+              search={search}
+              selectedSubdomain={selectedSubdomain}
+              importing={importing}
+              exporting={exporting}
+              onImportComplete={(result, success) => {
+                if (success) {
+                  showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success');
+                } else if (result.errors && result.errors.length > 0) {
+                  const s = result.errors.slice(0, 2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
+                  showImportPopup(`Import completed with errors. ${s}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`, 'error');
+                } else {
+                  showImportPopup('Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".', 'error');
+                }
               }}
-            ><Upload size={15} /></button>
-            <button
-              type="button" onClick={handleExport} disabled={exporting}
-              title={exporting ? 'Exporting…' : 'Export CSV'}
-              className={theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}
-              style={{
-                width: 40, height: 40, borderRadius: 12,
-                border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
-                color: theme === 'dark' ? '#ddd1ff' : '#64748b',
-                backgroundColor: theme === 'dark' ? T.card : undefined,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                cursor: exporting ? 'not-allowed' : 'pointer', opacity: exporting ? 0.55 : 1,
-              }}
-            ><Download size={15} /></button>
+              onExportClick={handleExport}
+              T={T}
+            />
           </div>
         </div>
 
@@ -1667,263 +1457,26 @@ export default function InventoryPage() {
         </div>
 
         {/* ── Product table (original layout + skeleton loading) ───────────── */}
-        <Card style={{ overflow: 'hidden', marginBottom: 18, borderRadius: 24 }}>
-          <div style={{ overflowX: 'auto' }}>
-            {/* Header */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
-              gap: 16, padding: '20px 24px', minWidth: 760,
-              background: theme === 'dark' 
-                ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)' 
-                : '#803BED',
-              color: '#FFFFFF',
-              fontSize: 10,
-              fontWeight: 800,
-              letterSpacing: '0.15em',
-              textTransform: 'uppercase',
-              boxShadow: '0 4px 20px rgba(124, 58, 237, 0.15)',
-              borderRadius: '24px 24px 0 0'
-            }}>
-              <span>Product</span><span>SKU</span><span>Stock</span>
-              <span>Pre Orders</span><span>Stock Status</span><span>Product Status</span>
-            </div>
-
-            {/* Rows */}
-            {loading ? (
-              Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} idx={i} />)
-            ) : error ? (
-              <div style={{ padding: '60px 24px', textAlign: 'center', color: T.red, fontSize: 14 }}>{error}</div>
-            ) : filteredItems.length === 0 ? (
-              <div style={{ padding: '60px 24px', textAlign: 'center' }}>
-                <Package size={40} color={T.textMuted} style={{ margin: '0 auto 16px', display: 'block' }} />
-                <p style={{ color: T.text, fontWeight: 600, marginBottom: 6 }}>No inventory items yet</p>
-                <p style={{ color: T.textMuted, fontSize: 13 }}>Add your first product or import a CSV to start tracking stock.</p>
-              </div>
-            ) : (
-              <div
-                style={{
-                  maxHeight: INVENTORY_ROW_HEIGHT_PX * INVENTORY_VISIBLE_ROWS,
-                  overflowY: 'auto',
-                }}
-              >
-                {filteredItems.map((rawProduct, i) => {
-                  const product = rawProduct as InventoryRow;
-                  const { onHand, reserved, lowThreshold } = getStockNumbers(product);
-                  const productKey = String(product.id || '').trim()
-                    || `${String(product._baseProductId || 'product').trim()}-${String(product._variantKey || 'base').trim()}-${i}`;
-                  return (
-                    <div
-                      key={productKey}
-                      style={{
-                        display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
-                        gap: 16, padding: '15px 24px', alignItems: 'center', fontSize: 14, minWidth: 760,
-                        borderBottom: i < filteredItems.length - 1 ? `1px solid ${T.cardBorder}` : 'none',
-                        transition: 'all 0.2s ease',
-                        backgroundColor: 'transparent',
-                        cursor: 'pointer',
-                        borderRadius: '16px',
-                        margin: '0 4px',
-                      }}
-                      onMouseEnter={(e) => {
-                        const target = e.currentTarget as HTMLDivElement;
-                        target.style.backgroundColor = theme === 'dark' ? 'rgba(139, 92, 246, 0.08)' : '#FFFFFF';
-                        target.style.boxShadow = theme === 'dark' 
-                          ? 'none' 
-                          : '0 6px 16px rgba(124, 58, 237, 0.06)';
-                      }}
-                      onMouseLeave={(e) => {
-                        const target = e.currentTarget as HTMLDivElement;
-                        target.style.backgroundColor = 'transparent';
-                        target.style.boxShadow = 'none';
-                      }}
-                    >
-                      <span style={{ color: T.text, fontWeight: 500, display: 'flex', flexDirection: 'column' }}>
-                        {product.name || 'Untitled Product'}
-                        {product._variantLabel && (
-                          <span style={{ color: T.textMuted, fontSize: 12, fontWeight: 400, marginTop: 2 }}>
-                            {product._variantLabel}
-                          </span>
-                        )}
-                      </span>
-                      <span style={{ color: T.textMuted }}>{product.sku || '-'}</span>
-                      <div
-                        onDoubleClick={() => startInlineStockEdit(product, onHand)}
-                        title="Double-click stock to edit, press Enter to save"
-                        style={{
-                          minWidth: 72,
-                          minHeight: 34,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'flex-start',
-                          border: `1px solid ${editingStockId === product.id ? '#5f6bc7' : T.cardBorder}`,
-                          borderRadius: 8,
-                          background: editingStockId === product.id ? 'rgba(95,107,199,0.14)' : 'rgba(255,255,255,0.03)',
-                          cursor: editingStockId === product.id ? 'text' : 'pointer',
-                          transition: 'border-color 0.15s, background 0.15s',
-                          padding: '0 10px',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (editingStockId === product.id) return;
-                          const target = e.currentTarget as HTMLDivElement;
-                          target.style.borderColor = '#5f6bc7';
-                          target.style.background = 'rgba(95,107,199,0.12)';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (editingStockId === product.id) return;
-                          const target = e.currentTarget as HTMLDivElement;
-                          target.style.borderColor = T.cardBorder;
-                          target.style.background = 'rgba(255,255,255,0.03)';
-                        }}
-                      >
-                        {editingStockId === product.id ? (
-                          <input
-                            autoFocus
-                            type="number"
-                            min={0}
-                            value={editingStockValue}
-                            onWheel={(e) => {
-                              e.preventDefault();
-                              (e.currentTarget as HTMLInputElement).blur();
-                            }}
-                            onChange={(e) => setEditingStockValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter') {
-                                e.preventDefault();
-                                void saveInlineStockEdit(product);
-                              }
-                              if (e.key === 'Escape') {
-                                e.preventDefault();
-                                cancelInlineStockEdit();
-                              }
-                            }}
-                            onBlur={() => {
-                              void saveInlineStockEdit(product);
-                            }}
-                            disabled={savingStockId === product.id}
-                            style={{
-                              width: 68,
-                              background: 'transparent',
-                              border: 'none',
-                              borderRadius: 8,
-                              color: T.text,
-                              padding: 0,
-                              fontSize: 13,
-                              outline: 'none',
-                              textAlign: 'left',
-                            }}
-                          />
-                        ) : (
-                          <span style={{ color: T.text }}>{onHand}</span>
-                        )}
-                      </div>
-                      <span style={{ color: T.textMuted }}>{reserved}</span>
-                      <div style={{ justifySelf: 'start' }}>
-                        <StatusPill stock={onHand} lowThreshold={lowThreshold} />
-                      </div>
-                      <div style={{ justifySelf: 'start' }}>
-                        {(() => {
-                          const productStatus = String(product.status || 'active').toLowerCase() === 'inactive' ? 'inactive' : 'active';
-                          const isActive = productStatus === 'active';
-                          const baseProductId = product._baseProductId || product.id;
-                          const rowStatusMenuId = product.id;
-                          const isStatusMenuOpen = openStatusMenuRowId === rowStatusMenuId;
-                          return (
-                            <div data-status-menu-root="true" style={{ position: 'relative' }}>
-                              <button
-                                type="button"
-                                disabled={updatingProductStatusId === baseProductId}
-                                onClick={() => {
-                                  if (updatingProductStatusId === baseProductId) return;
-                                  setOpenStatusMenuRowId((prev) => (prev === rowStatusMenuId ? null : rowStatusMenuId));
-                                }}
-                                style={{
-                                  background: isActive ? T.greenBg : T.redBg,
-                                  border: `1px solid ${isActive ? T.greenBorder : T.redBorder}`,
-                                  color: isActive ? T.green : T.red,
-                                  borderRadius: 999,
-                                  fontSize: 11,
-                                  fontWeight: 700,
-                                  height: 28,
-                                  minWidth: 96,
-                                  padding: '0 10px 0 12px',
-                                  outline: 'none',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  gap: 8,
-                                  cursor: updatingProductStatusId === baseProductId ? 'not-allowed' : 'pointer',
-                                  opacity: updatingProductStatusId === baseProductId ? 0.7 : 1,
-                                }}
-                              >
-                                <span>{isActive ? 'Active' : 'Inactive'}</span>
-                                <span style={{ fontSize: 10 }}>▼</span>
-                              </button>
-
-                              {isStatusMenuOpen && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    top: '100%',
-                                    left: 0,
-                                    marginTop: 8,
-                                    width: 164,
-                                    borderRadius: 12,
-                                    border: `1px solid ${T.cardBorder}`,
-                                    background: T.card,
-                                    padding: 8,
-                                    zIndex: 40,
-                                  }}
-                                >
-                                  {[
-                                    { value: 'active' as const, label: 'Active' },
-                                    { value: 'inactive' as const, label: 'Inactive' },
-                                  ].map((option) => {
-                                    const checked = productStatus === option.value;
-                                    return (
-                                      <button
-                                        key={option.value}
-                                        type="button"
-                                        onClick={() => {
-                                          setOpenStatusMenuRowId(null);
-                                          if (option.value !== productStatus) {
-                                            void updateProductStatus(product, option.value);
-                                          }
-                                        }}
-                                        style={{
-                                          width: '100%',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'space-between',
-                                          padding: '8px 12px',
-                                          borderRadius: 8,
-                                          border: 'none',
-                                          background: 'transparent',
-                                          color: option.value === 'active' ? T.green : T.red,
-                                          fontSize: 14,
-                                          cursor: 'pointer',
-                                          textAlign: 'left',
-                                        }}
-                                        onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)'; }}
-                                        onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-                                      >
-                                        <span>{option.label}</span>
-                                        <span>{checked ? '✓' : ''}</span>
-                                      </button>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </Card>
+        <InventoryTable
+          theme={theme}
+          loading={loading}
+          error={error}
+          filteredItems={filteredItems}
+          editingStockId={editingStockId}
+          editingStockValue={editingStockValue}
+          savingStockId={savingStockId}
+          openStatusMenuRowId={openStatusMenuRowId}
+          updatingProductStatusId={updatingProductStatusId}
+          T={T}
+          onStartInlineStockEdit={startInlineStockEdit}
+          onEditingStockChange={setEditingStockValue}
+          onSaveInlineEdit={saveInlineStockEdit}
+          onCancelInlineEdit={cancelInlineStockEdit}
+          onStatusMenuToggle={setOpenStatusMenuRowId}
+          onUpdateProductStatus={updateProductStatus}
+          getStockNumbers={getStockNumbers}
+          StatusPill={StatusPill}
+        />
 
         {/* ── Recent movements (original layout) ─────────────────────────── */}
         <Card style={{ padding: '22px', borderRadius: 24 }}>
@@ -1980,7 +1533,9 @@ export default function InventoryPage() {
                   <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3 }}>Complete movement history (latest first)</p>
                 </div>
                 <button
+                  type="button"
                   onClick={closeAllMovementsModal}
+                  title="Close movements"
                   style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: 'pointer', padding: 6, display: 'flex' }}
                 >
                   <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -125,6 +125,8 @@ export interface ScrollEffectConfig {
      * - absolute: points are stored as page coordinates.
      */
     mode?: "relative" | "absolute";
+    /** True when points are already normalized to unscaled canvas units. */
+    normalized?: boolean;
     /**
      * Captured start position in page coords (used as reference when mode="relative").
      * Note: runtime uses the element's current layout as the base, so this is only a capture-time reference.
@@ -187,11 +189,11 @@ export const DEFAULT_SCROLL_EFFECT: ScrollEffectConfig = {
   enabled: false,
   type: "none",
   speed: 0.5,
-  intensity: 1,
+  intensity: 0.2, // Snappier, more optimized feel (0.2s lag)
   direction: "vertical",
   scrub: true,
-  start: "top bottom",
-  end: "bottom top",
+  start: "",
+  end: "",
 };
 
 export const DEFAULT_TRIGGER: TriggerConfig = {
@@ -277,7 +279,7 @@ export const SCROLL_EFFECT_LABELS: Record<ScrollEffectType, string> = {
   rotate: "Rotate on Scroll",
   blur: "Blur on Scroll",
   horizontalMove: "Horizontal Move",
-  // freeMove removed
+  freeMove: "Free Move",
   skew: "Skew on Scroll",
   reveal: "Reveal on Scroll",
   zoom: "Zoom on Scroll",

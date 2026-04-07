@@ -220,7 +220,7 @@ ProfileLoginNode.craft = {
 };
 
 export const ProfileLogin: TemplateEntry = {
-  label: "Profile Login",
+  label: "Login Bar",
   description: "Profile login asset with clean single-node layers",
   preview: "👤 Login",
   category: "header",

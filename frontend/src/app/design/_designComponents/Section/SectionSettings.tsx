@@ -1,15 +1,17 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
+import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
+import { ProductBindingGroup } from "../../_components/rightPanel/settings/ProductBindingGroup";
 import type { SectionProps, SetProp } from "../../_types/components";
 
 export const SectionSettings = () => {
   const {
+    id,
     background,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
@@ -18,11 +20,15 @@ export const SectionSettings = () => {
     radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
     flexDirection, flexWrap, alignItems, justifyContent, gap,
-    contentWidth, contentMaxWidth,
+    gridTemplateColumns, gridTemplateRows, gridGap, gridColumnGap, gridRowGap, gridAutoRows, gridAutoFlow,
     boxShadow, opacity, overflow,
-    position, display, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    rotation, flipHorizontal, flipVertical,
+    isFreeform,
+    productId,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     background: node.data.props.background,
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
@@ -53,86 +59,115 @@ export const SectionSettings = () => {
     alignItems: node.data.props.alignItems,
     justifyContent: node.data.props.justifyContent,
     gap: node.data.props.gap,
-    contentWidth: node.data.props.contentWidth,
-    contentMaxWidth: node.data.props.contentMaxWidth,
+    gridTemplateColumns: node.data.props.gridTemplateColumns,
+    gridTemplateRows: node.data.props.gridTemplateRows,
+    gridGap: node.data.props.gridGap,
+    gridColumnGap: node.data.props.gridColumnGap,
+    gridRowGap: node.data.props.gridRowGap,
+    gridAutoRows: node.data.props.gridAutoRows,
+    gridAutoFlow: node.data.props.gridAutoFlow,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
     position: node.data.props.position,
     display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
     editorVisibility: node.data.props.editorVisibility,
+    rotation: node.data.props.rotation,
+    flipHorizontal: node.data.props.flipHorizontal,
+    flipVertical: node.data.props.flipVertical,
+    isFreeform: node.data.props.isFreeform,
+    productId: node.data.props.productId,
   }));
 
   const typedSetProp = setProp as SetProp<SectionProps>;
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Auto Layout">
-        <AutoLayoutGroup
-          flexDirection={flexDirection}
-          flexWrap={flexWrap}
-          alignItems={alignItems}
-          justifyContent={justifyContent}
-          gap={gap}
+      <DesignSection title="Transform" defaultOpen={false}>
+        <TransformGroup
+          rotation={rotation ?? 0}
+          flipHorizontal={flipHorizontal ?? false}
+          flipVertical={flipVertical ?? false}
           setProp={typedSetProp}
         />
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Content Width</label>
-              <select
-                value={contentWidth || "constrained"}
-                onChange={(e) =>
-                  typedSetProp((props) => {
-                    props.contentWidth = e.target.value as SectionProps["contentWidth"];
-                  })
+        <div className="flex items-center gap-1 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5 mb-3">
+          <button
+            type="button"
+            onClick={() => {
+              typedSetProp((props) => {
+                props.isFreeform = true;
+                props.display = "block";
+              });
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform !== false
+              ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)]"
+              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+              }`}
+            title="Freeform (Figma canvas-like)"
+          >
+            Freeform
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              typedSetProp((props) => {
+                props.isFreeform = false;
+                if (!props.display || props.display === "block" || props.display === "none") {
+                  props.display = "flex";
                 }
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
-              >
-                <option value="constrained">Constrained</option>
-                <option value="full">Full Width</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Max Content Width</label>
-              <input
-                type="text"
-                value={contentMaxWidth || "1200px"}
-                onChange={(e) =>
-                  typedSetProp((props) => {
-                    props.contentMaxWidth = e.target.value;
-                  })
-                }
-                placeholder="1200px"
-                disabled={(contentWidth || "constrained") === "full"}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)] disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          <div className="h-px bg-[var(--builder-border)] w-full" />
-
-          <PositionGroup
-            position={position}
-            display={display}
-            zIndex={zIndex}
-            top={top}
-            right={right}
-            bottom={bottom}
-            left={left}
-            editorVisibility={editorVisibility}
-            setProp={typedSetProp as any}
-          />
+              });
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform === false
+              ? "bg-[var(--builder-accent)] text-black"
+              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+              }`}
+            title="Auto Layout (Flex)"
+          >
+            Auto
+          </button>
         </div>
+
+        {isFreeform === false ? null : (
+          <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed mb-3">
+            Auto Layout is disabled in Freeform mode. Switch to{" "}
+            <span className="text-[var(--builder-text)]">Auto</span> to enable alignment and distribution.
+          </div>
+        )}
+
+        <LayoutLayerGroup
+          nodeId={id}
+          position={position}
+          display={display}
+          alignSelf={alignSelf}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          flexDirection={flexDirection}
+          flexWrap={flexWrap}
+          alignItems={alignItems}
+          justifyContent={justifyContent}
+          gap={gap}
+          gridTemplateColumns={gridTemplateColumns}
+          gridTemplateRows={gridTemplateRows}
+          gridGap={gridGap}
+          gridColumnGap={gridColumnGap}
+          gridRowGap={gridRowGap}
+          gridAutoRows={gridAutoRows}
+          gridAutoFlow={gridAutoFlow}
+          setProp={typedSetProp as any}
+        />
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
@@ -170,6 +205,17 @@ export const SectionSettings = () => {
           radiusBottomLeft={radiusBottomLeft}
           enableMediaFillModes
           setProp={typedSetProp}
+        />
+      </DesignSection>
+
+      <DesignSection title="Product Binding" defaultOpen={false}>
+        <ProductBindingGroup
+          productId={productId}
+          onChange={(newId) => {
+            typedSetProp((props) => {
+              props.productId = newId;
+            });
+          }}
         />
       </DesignSection>
 

@@ -265,7 +265,6 @@ async function listShared(userId, userEmail) {
   const t0 = Date.now();
   const normalizedEmail = (userEmail || '').toLowerCase();
   const seen = new Set();
-  const sharedProjects = [];
 
   const runQuery = async (field, value) => {
     if (!value) return [];
@@ -299,53 +298,71 @@ async function listShared(userId, userEmail) {
     return true;
   });
 
-  for (const collabDoc of allCollabDocs) {
+  // Process results in parallel to avoid N+1 sequential awaits
+  const results = await Promise.all(allCollabDocs.map(async (collabDoc) => {
     const data = collabDoc.data();
     const projectRef = collabDoc.ref.parent?.parent;
     const ownerId = projectRef?.parent?.id;
     const projectId = projectRef?.id;
-    if (!ownerId || !projectId || ownerId === userId) continue;
+    if (!ownerId || !projectId || ownerId === userId) return null;
 
     try {
-      const projectSnap = await projectRef.get();
-      if (!projectSnap.exists) continue;
+      // Parallelize project and owner fetches
+      const projectSnapPromise = projectRef.get();
+      const ownerSnapPromise = db.collection('user').doc('roles').collection('client').doc(ownerId).get();
+      
+      const [projectSnap, ownerSnap] = await Promise.all([projectSnapPromise, ownerSnapPromise]);
+      if (!projectSnap.exists) return null;
 
       const role = data.role || data.permission || 'viewer';
       let ownerName = 'Unknown';
-      try {
-        const ownerSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).get();
-        if (ownerSnap.exists) {
-          const o = ownerSnap.data();
-          ownerName = o.full_name || o.displayName || o.username || ownerName;
-        }
-      } catch (_) {}
+      if (ownerSnap.exists) {
+        const o = ownerSnap.data();
+        ownerName = o.full_name || o.displayName || o.username || ownerName;
+      }
 
-      sharedProjects.push({
+      return {
         ...sanitizeProject(docToObject(projectSnap)),
         ownerId,
         ownerName,
         collaboratorRole: role,
         collaboratorPermission: role,
         isShared: true,
-      });
+      };
     } catch (_) {
-      // skip if project fetch fails
+      return null;
     }
-  }
+  }));
+
+  const sharedProjects = results.filter(p => p !== null);
 
   console.log('[READ] Firestore listShared done', { sharedCount: sharedProjects.length, totalMs: Date.now() - t0 });
   return sharedProjects;
 }
 
 async function countAll() {
-  const clientSnap = await db.collection('user').doc('roles').collection('client').get();
-  let total = 0;
-  for (const doc of clientSnap.docs) {
-    const projSnap = await doc.ref.collection('projects').get();
-    total += projSnap.size;
+  try {
+    const t0 = Date.now();
+    // Use collectionGroup to count projects across all users efficiently
+    const snap = await db.collectionGroup('projects').get();
+    console.log('[READ] Project.countAll collectionGroup', { count: snap.size, ms: Date.now() - t0 });
+    return snap.size;
+  } catch (e) {
+    if (/index|indexes/i.test(String(e.message))) {
+      console.warn('[Project.countAll] Fallback: collectionGroup index needed. Run: firebase deploy --only firestore:indexes');
+      // Fallback if index missing (this is slow but safe)
+      const snap = await db.collection('user').doc('roles').collection('client').get();
+      let total = 0;
+      for (const d of snap.docs) {
+        total += (await d.ref.collection('projects').get()).size;
+      }
+      return total;
+    }
+    console.error('[Project.countAll] Error:', e.message);
+    return 0;
   }
-  return total;
 }
+
 
 module.exports = {
   create,

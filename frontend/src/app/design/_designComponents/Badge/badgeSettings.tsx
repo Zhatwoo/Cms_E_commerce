@@ -1,7 +1,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -11,6 +11,7 @@ import type { BadgeProps } from "./badge";
 
 export const BadgeSettings = () => {
   const {
+    id,
     text,
     fontFamily,
     fontWeight,
@@ -20,6 +21,7 @@ export const BadgeSettings = () => {
     letterSpacing,
     textAlign,
     textTransform,
+    textDecoration,
     color,
     background,
     paddingLeft,
@@ -46,11 +48,21 @@ export const BadgeSettings = () => {
     alignItems,
     justifyContent,
     gap,
+    position,
+    display,
+    alignSelf,
+    zIndex,
+    top,
+    right,
+    bottom,
+    left,
+    editorVisibility,
     boxShadow,
     opacity,
     overflow,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     text: node.data.props.text,
     fontFamily: node.data.props.fontFamily,
     fontWeight: node.data.props.fontWeight,
@@ -60,6 +72,7 @@ export const BadgeSettings = () => {
     letterSpacing: node.data.props.letterSpacing,
     textAlign: node.data.props.textAlign,
     textTransform: node.data.props.textTransform,
+    textDecoration: node.data.props.textDecoration,
     color: node.data.props.color,
     background: node.data.props.background,
     paddingLeft: node.data.props.paddingLeft,
@@ -86,6 +99,15 @@ export const BadgeSettings = () => {
     alignItems: node.data.props.alignItems,
     justifyContent: node.data.props.justifyContent,
     gap: node.data.props.gap,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    editorVisibility: node.data.props.editorVisibility,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
@@ -95,31 +117,55 @@ export const BadgeSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      <DesignSection title="Auto Layout">
-        <AutoLayoutGroup
+      <DesignSection title="Badge" defaultOpen={true}>
+        <div className="flex flex-col gap-1">
+          <label className="text-[10px] text-[var(--builder-text)]">Label</label>
+          <input
+            type="text"
+            value={typeof text === "string" ? text : ""}
+            onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
+            className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+          />
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <LayoutLayerGroup
+          nodeId={id}
+          position={position}
+          display={display}
+          alignSelf={alignSelf}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
           flexDirection={flexDirection}
           flexWrap={flexWrap}
           alignItems={alignItems}
           justifyContent={justifyContent}
           gap={gap}
-          setProp={typedSetProp}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
       <DesignSection title="Size & Spacing">
-        <SizePositionGroup
-          width={width}
-          height={height}
-          paddingLeft={paddingLeft}
-          paddingRight={paddingRight}
-          paddingTop={paddingTop}
-          paddingBottom={paddingBottom}
-          marginLeft={marginLeft}
-          marginRight={marginRight}
-          marginTop={marginTop}
-          marginBottom={marginBottom}
-          setProp={typedSetProp}
-        />
+        <div className="flex flex-col gap-3">
+          <SizePositionGroup
+            width={width}
+            height={height}
+            paddingLeft={paddingLeft}
+            paddingRight={paddingRight}
+            paddingTop={paddingTop}
+            paddingBottom={paddingBottom}
+            marginLeft={marginLeft}
+            marginRight={marginRight}
+            marginTop={marginTop}
+            marginBottom={marginBottom}
+            setProp={typedSetProp}
+          />
+        </div>
       </DesignSection>
 
       <DesignSection title="Appearance">
@@ -140,30 +186,19 @@ export const BadgeSettings = () => {
       </DesignSection>
 
       <DesignSection title="Typography">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Label</label>
-            <input
-              type="text"
-              value={typeof text === "string" ? text : ""}
-              onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
-            />
-          </div>
-
-          <TypographyGroup
-            fontFamily={fontFamily}
-            fontWeight={fontWeight}
-            fontStyle={fontStyle}
-            fontSize={fontSize}
-            lineHeight={lineHeight}
-            letterSpacing={letterSpacing}
-            textAlign={textAlign}
-            textTransform={textTransform}
-            color={color}
-            setProp={typedSetProp as unknown as SetProp<TypographyProps>}
-          />
-        </div>
+        <TypographyGroup
+          fontFamily={fontFamily}
+          fontWeight={fontWeight}
+          fontStyle={fontStyle}
+          fontSize={fontSize}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          textDecoration={textDecoration}
+          color={color}
+          setProp={typedSetProp as unknown as SetProp<TypographyProps>}
+        />
       </DesignSection>
 
       <DesignSection title="Effects" defaultOpen={false}>

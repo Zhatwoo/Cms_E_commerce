@@ -18,6 +18,57 @@ gsap.registerPlugin(ScrollTrigger);
 
 // Track which documents already have a scrollerProxy configured.
 const SCROLLER_PROXY_DOCS = new WeakSet<Document>();
+// Track which element scrollers already have scrollerProxy configured.
+const ELEMENT_SCROLLER_PROXIES = new WeakSet<HTMLElement>();
+// Track which element scrollers already have ResizeObserver wired.
+const SCROLLER_RESIZE_OBSERVERS = new WeakMap<HTMLElement, ResizeObserver>();
+
+// Global debounced refresh — prevents N animated elements from each calling refresh on mount,
+// which causes layout thrashing and visual jumps in the preview page.
+let _refreshTimer: ReturnType<typeof setTimeout> | null = null;
+function scheduleScrollTriggerRefresh(delayMs = 200) {
+  if (_refreshTimer !== null) clearTimeout(_refreshTimer); // Always reset to latest
+  _refreshTimer = setTimeout(() => {
+    _refreshTimer = null;
+    ScrollTrigger.refresh();
+  }, delayMs);
+}
+
+function getMaxScrollY(
+  scroller: HTMLElement | null | undefined,
+  view: Window,
+  proxiedParentScroller: HTMLElement | null
+): number {
+  if (proxiedParentScroller) {
+    return Math.max(0, proxiedParentScroller.scrollHeight - proxiedParentScroller.clientHeight);
+  }
+  if (scroller instanceof HTMLElement) {
+    return Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  }
+  const previewRoot = view.document?.querySelector?.(
+    '[data-preview-scroll-root="true"]'
+  ) as HTMLElement | null | undefined;
+  if (previewRoot) return Math.max(0, previewRoot.scrollHeight - previewRoot.clientHeight);
+  const docEl = view.document?.documentElement as HTMLElement | null | undefined;
+  if (docEl) return Math.max(0, docEl.scrollHeight - view.innerHeight);
+  return 0;
+}
+
+/** Decide when to freeze scrubbed scroll effects due to effectively zero scroll range. */
+function shouldFreezeScrubbedScrollEffect(
+  _st: ScrollTrigger,
+  scroller: HTMLElement | null | undefined,
+  view: Window,
+  proxiedParentScroller: HTMLElement | null
+): boolean {
+  const maxY = getMaxScrollY(scroller, view, proxiedParentScroller);
+  // In Web Preview (has explicit preview scroll root), never freeze just because the page is short.
+  const previewRoot = view.document?.querySelector?.(
+    '[data-preview-scroll-root="true"]'
+  ) as HTMLElement | null | undefined;
+  if (previewRoot) return false;
+  return maxY <= 3;
+}
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
@@ -31,6 +82,43 @@ function normalizeTriggerType(raw: unknown): AnimationConfig["trigger"]["type"] 
   if (v === "onhover" || v === "hover") return "onHover";
   if (v === "onclick" || v === "click" || v === "tap") return "onClick";
   return DEFAULT_ANIMATION.trigger.type;
+}
+
+function normalizeBoolean(raw: unknown): boolean | undefined {
+  if (typeof raw === "boolean") return raw;
+  if (typeof raw === "string") {
+    const v = raw.trim().toLowerCase();
+    if (v === "true") return true;
+    if (v === "false") return false;
+  }
+  if (typeof raw === "number") {
+    if (raw === 1) return true;
+    if (raw === 0) return false;
+  }
+  return undefined;
+}
+
+function normalizeScrollEffectType(raw: unknown): ScrollEffectType {
+  if (typeof raw !== "string") return DEFAULT_ANIMATION.scrollEffect.type;
+  const v = raw.trim().toLowerCase().replace(/[\s_-]/g, "");
+
+  const map: Record<string, ScrollEffectType> = {
+    none: "none",
+    parallax: "parallax",
+    fade: "fade",
+    scale: "scale",
+    rotate: "rotate",
+    blur: "blur",
+    horizontalmove: "horizontalMove",
+    freemove: "freeMove",
+    skew: "skew",
+    reveal: "reveal",
+    zoom: "zoom",
+    tilt3d: "tilt3d",
+    "tilt3d3": "tilt3d",
+  };
+
+  return map[v] ?? (DEFAULT_ANIMATION.scrollEffect.type as ScrollEffectType);
 }
 
 function normalizeAnimationConfig(animation: unknown): AnimationConfig {
@@ -52,6 +140,13 @@ function normalizeAnimationConfig(animation: unknown): AnimationConfig {
         scrollEffect.enabled === true ||
         scrollEffect.enabled === "true" ||
         scrollEffect.enabled === 1,
+      type: normalizeScrollEffectType(scrollEffect.type),
+      direction:
+        String(scrollEffect.direction ?? DEFAULT_ANIMATION.scrollEffect.direction).trim().toLowerCase() === "horizontal"
+          ? "horizontal"
+          : "vertical",
+      scrub:
+        normalizeBoolean(scrollEffect.scrub) ?? DEFAULT_ANIMATION.scrollEffect.scrub,
     },
     trigger: {
       ...DEFAULT_ANIMATION.trigger,
@@ -65,9 +160,6 @@ function resolveNearestScrollContainer(
   el: HTMLElement,
   view: Window
 ): HTMLElement | null {
-  const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
-  if (explicitPreviewRoot instanceof HTMLElement) return explicitPreviewRoot;
-
   let cur: HTMLElement | null = el.parentElement;
   let styledScrollableFallback: HTMLElement | null = null;
   while (cur) {
@@ -96,30 +188,73 @@ function isElementScrollable(el: HTMLElement | null): boolean {
   return el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1;
 }
 
-function resolveScrollRoots(
+export function findNearestScrollParent(el: HTMLElement | null): HTMLElement | null {
+  if (!el || typeof window === "undefined") return null;
+  let parent = el.parentElement;
+  while (parent) {
+    const style = window.getComputedStyle(parent);
+    const overflow = style.overflow + style.overflowY + style.overflowX;
+    if (/(auto|scroll)/.test(overflow) && isElementScrollable(parent)) {
+      return parent;
+    }
+    if (parent === document.body || parent === document.documentElement) break;
+    parent = parent.parentElement;
+  }
+  return null;
+}
+
+export function resolveScrollRoots(
   el: HTMLElement,
   view: Window
 ): { primary: HTMLElement | null; fallback: HTMLElement | null } {
-  // Preview page runs in the top window (not iframe). To keep behavior stable across
-  // browser zoom levels, always use window scroll there.
-  if (view.parent === view) {
-    return { primary: null, fallback: null };
-  }
-
+  // 1. Explicit preview scroll root — only trust it if it actually has overflow to scroll
   const explicitPreviewRoot = el.closest('[data-preview-scroll-root="true"]');
-  if (explicitPreviewRoot instanceof HTMLElement) {
-    // Preview root should only be used when it is actually scrollable at current viewport size.
-    // Otherwise, scrolling is happening on the window and we should not force a custom root.
-    if (isElementScrollable(explicitPreviewRoot)) {
-      return { primary: explicitPreviewRoot, fallback: null };
-    }
-    return { primary: null, fallback: null };
+  if (explicitPreviewRoot instanceof HTMLElement && isElementScrollable(explicitPreviewRoot)) {
+    return { primary: explicitPreviewRoot, fallback: null };
   }
 
+  // 2. Builder canvas container
+  const canvasContainer = el.closest('[data-canvas-container]');
+  if (canvasContainer instanceof HTMLElement) {
+    return { primary: canvasContainer, fallback: null };
+  }
+
+  // 3. Fallback for preview page: find the nearest scrolling parent
+  if (view.parent === view) {
+    const nearest = findNearestScrollParent(el);
+    return { primary: nearest, fallback: null };
+  }
+
+  // 4. Inside an iframe (builder canvas)
   const nearest = resolveNearestScrollContainer(el, view);
   const primary = nearest && isElementScrollable(nearest) ? nearest : null;
-  const fallback = null;
-  return { primary, fallback };
+  return { primary, fallback: null };
+}
+
+function getEffectiveZoom(el: HTMLElement | null): number {
+  if (!el) return 1;
+  let zoom = 1;
+  let current: HTMLElement | null = el;
+  while (current) {
+    const zoomText = window.getComputedStyle(current).getPropertyValue("zoom");
+    const parsed = parseFloat(zoomText);
+    if (Number.isFinite(parsed) && parsed > 0) zoom *= parsed;
+    current = current.parentElement;
+  }
+  const rect = el.getBoundingClientRect();
+  const baseWidth = el.offsetWidth || el.clientWidth || 0;
+  const baseHeight = el.offsetHeight || el.clientHeight || 0;
+  const scaleX = baseWidth > 0 ? rect.width / baseWidth : 1;
+  const scaleY = baseHeight > 0 ? rect.height / baseHeight : 1;
+  const transformScale =
+    Number.isFinite(scaleX) && Number.isFinite(scaleY) ? (scaleX + scaleY) / 2 : 1;
+  const effective = zoom * transformScale;
+  return effective > 0.01 ? effective : 1;
+}
+
+function getScrollSpeedMagnitude(speed: unknown): number {
+  if (typeof speed !== "number" || !Number.isFinite(speed)) return 1;
+  return Math.max(0.15, Math.min(2, Math.abs(speed)));
 }
 
 // ─── Easing Map (Framer Motion) ──────────────────────────────────────────────
@@ -326,6 +461,7 @@ function useGsapScrollEffect(
     const view = el.ownerDocument?.defaultView ?? window;
     const doc = el.ownerDocument ?? document;
 
+
     // If we're rendering inside an iframe (builder canvas), the actual scrolling may happen
     // in the parent document on `.canvas-scroll-container` instead of inside the iframe.
     // In that case, proxy the iframe documentElement's scrollTop/Left to the parent scroller.
@@ -392,6 +528,25 @@ function useGsapScrollEffect(
     const { primary: resolvedScroller, fallback: fallbackScroller } = resolveScrollRoots(el, view);
     const scroller = proxyScroller ?? resolvedScroller ?? fallbackScroller;
 
+    // For element-based scrollers (e.g. data-preview-scroll-root), set up:
+    // 1. scroll event bridge so GSAP re-evaluates on every scroll tick
+    let elementScrollHandler: (() => void) | null = null;
+    if (scroller && !proxyScroller) {
+      // Forward scroll events from the element to ScrollTrigger
+      elementScrollHandler = () => ScrollTrigger.update();
+      scroller.addEventListener("scroll", elementScrollHandler, { passive: true });
+
+      // Content/images/fonts can change scroll height after mount; refresh when that happens.
+      if (!SCROLLER_RESIZE_OBSERVERS.has(scroller) && typeof ResizeObserver !== "undefined") {
+        const ro = new ResizeObserver(() => {
+          // Keep this cheap: debounced refresh avoids layout thrashing.
+          scheduleScrollTriggerRefresh();
+        });
+        ro.observe(scroller);
+        SCROLLER_RESIZE_OBSERVERS.set(scroller, ro);
+      }
+    }
+
     const getScrollOffsets = () => {
       if (!scroller) return { x: view.scrollX, y: view.scrollY };
       // If proxied, offsets are the parent scroller's scroll positions.
@@ -451,10 +606,28 @@ function useGsapScrollEffect(
       const end = config.freeMove?.end;
       const mode = config.freeMove?.mode ?? "relative";
       const capturedOrigin = config.freeMove?.origin;
+      const normalized = config.freeMove?.normalized === true;
+      const legacyScaleCompensation = normalized ? 1 : (1 / getEffectiveZoom(el));
 
-      // Always use relative mode for smooth, accurate keyframes
-      // Keyframes are always relative to the captured origin (start position)
-      const origin = capturedOrigin ?? start ?? { x: 0, y: 0 };
+      if (Array.isArray(direct) && direct.length >= 2) {
+        const normalized = [...direct]
+          .filter((kf) =>
+            typeof kf?.t === "number" &&
+            Number.isFinite(kf.t) &&
+            typeof kf?.x === "number" &&
+            Number.isFinite(kf.x) &&
+            typeof kf?.y === "number" &&
+            Number.isFinite(kf.y)
+          )
+          .sort((a, b) => a.t - b.t)
+          .map((kf) => ({
+            at: Math.max(0, Math.min(1, kf.t)),
+            x: kf.x * legacyScaleCompensation,
+            y: kf.y * legacyScaleCompensation,
+          }));
+        if (normalized.length >= 2) return normalized;
+      }
+
       const points: Array<{ x: number; y: number }> = [];
       if (start) points.push({ x: start.x, y: start.y });
       if (Array.isArray(mids)) {
@@ -463,13 +636,15 @@ function useGsapScrollEffect(
       if (end) points.push({ x: end.x, y: end.y });
       if (points.length < 2) return [];
 
-      // Normalize all points relative to the origin (start)
-      const relPoints = points.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
+      const origin = capturedOrigin ?? (mode === "absolute" ? start : { x: 0, y: 0 }) ?? { x: 0, y: 0 };
+      const relPoints = mode === "relative"
+        ? points
+        : points.map((p) => ({ x: p.x - origin.x, y: p.y - origin.y }));
       const last = relPoints.length - 1;
       const frames = relPoints.map((p, idx) => ({
         at: last === 0 ? 0 : idx / last,
-        x: p.x,
-        y: p.y,
+        x: p.x * legacyScaleCompensation,
+        y: p.y * legacyScaleCompensation,
       }));
 
       // Ensure we have distinct progress points
@@ -495,35 +670,174 @@ function useGsapScrollEffect(
         ? Math.max(0, Math.min(2, config.intensity))
         : 1;
 
+    // Use a natural ease for all scroll effects for a clean, smooth feel
+    const naturalEase = config.scrub ? "none" : "power1.inOut";
+
+    // --- Ensure effectiveStart and effectiveEnd are always defined at the top scope ---
+    const rawStart = typeof config.start === "string" ? config.start.trim() : "";
+    const rawEnd = typeof config.end === "string" ? config.end.trim() : "";
+    const hasCustomStart = rawStart.length > 0;
+    const hasCustomEnd = rawEnd.length > 0;
+    const blurViewportDefaults = config.type === "blur" && !hasCustomStart && !hasCustomEnd;
+    const exitFocusDefaults = config.type === "fade" && !hasCustomStart && !hasCustomEnd;
+
+    const effectiveStart = hasCustomStart
+      ? rawStart
+      : blurViewportDefaults
+        ? "top bottom"
+        : exitFocusDefaults
+          ? "top center"
+          : "top top";
+    const effectiveEnd = hasCustomEnd ? rawEnd : "bottom top";
+
+    // Replaced by 3-point enter/steady/exit logic in tlScroll
+
     if (config.type === "freeMove") {
-      // freeMove effect temporarily disabled
-      return;
-    } else {
+      const keyframes = computeFreeMoveKeyframes();
+      if (keyframes.length === 0) return;
+      const firstKeyframe = keyframes[0];
+      const lastKeyframe = keyframes[keyframes.length - 1];
+
       const tl = gsap.timeline({
         scrollTrigger: {
           trigger: el,
-          scroller: scroller ?? undefined,
-          start: config.start,
-          end: config.end,
-          scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
-          immediateRender: false,
+          scroller: scroller || view || undefined,
+          start: effectiveStart,
+          end: effectiveEnd,
+          // FreeMove should stay exact to keyframe distances; avoid lag multipliers.
+          scrub: config.scrub ? true : false,
+          immediateRender: true,
           invalidateOnRefresh: true,
+          onUpdate: (self) => {
+            // Guarantee exact endpoints when user reaches start/end of scroll range.
+            if (self.progress >= 0.999 && lastKeyframe) {
+              gsap.set(el, { x: lastKeyframe.x, y: lastKeyframe.y, force3D: true });
+            } else if (self.progress <= 0.001 && firstKeyframe) {
+              gsap.set(el, { x: firstKeyframe.x, y: firstKeyframe.y, force3D: true });
+            }
+          },
         },
       });
-      const { from, to } = getScrollEffectRange(config);
-      tl.fromTo(el, from, {
-        ...to,
-        ease: "none",
+
+      // Map progress-based keyframes to the scrubbed timeline
+      keyframes.forEach((kf, idx) => {
+        if (idx === 0) {
+          tl.set(el, { x: kf.x, y: kf.y, force3D: true });
+        } else {
+          tl.to(el, {
+            x: kf.x,
+            y: kf.y,
+            ease: "none", // Linear segments since keyframes are sampled/progress-based
+            force3D: true,
+          }, kf.at);
+        }
       });
-      ScrollTrigger.refresh();
-      const settleRefresh = view.setTimeout(() => ScrollTrigger.refresh(), 50);
+
+      // Schedule a single debounced refresh rather than calling refresh immediately
+      // per-component — prevents N simultaneous refreshes causing visual jumps.
+      scheduleScrollTriggerRefresh();
 
       return () => {
         tl.kill();
-        view.clearTimeout(settleRefresh);
         ScrollTrigger.getAll().forEach((t) => {
           if (t.trigger === el) t.kill();
         });
+        if (elementScrollHandler && scroller) {
+          scroller.removeEventListener("scroll", elementScrollHandler);
+        }
+        if (proxiedParentScroller && parentScrollHandler) {
+          proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
+        }
+        if (parentResizeHandler) {
+          try {
+            view.parent?.removeEventListener("resize", parentResizeHandler as EventListener);
+          } catch {
+            // ignore
+          }
+        }
+      };
+    } else {
+      gsap.set(el, { clearProps: "transform,opacity,filter,clip-path" });
+      
+      const tlScroll = gsap.timeline({
+        scrollTrigger: {
+          trigger: el,
+          scroller: scroller || view || undefined,
+          start: "top bottom",
+          end: "bottom top",
+          scrub: config.scrub ? Math.max(0.05, Math.min(2, intensity)) : false,
+          invalidateOnRefresh: true,
+          immediateRender: true,
+        },
+      });
+      const { from, to } = getScrollEffectRange(config);
+      
+      const steady: Record<string, unknown> = {};
+      for (const k in from) {
+        if (k === "opacity" || k === "scale") steady[k] = 1;
+        else if (k === "filter") steady[k] = "blur(0px)";
+        else if (k === "clipPath") steady[k] = "inset(0% 0% 0% 0%)";
+        else steady[k] = 0;
+      }
+      for (const k in to) {
+        if (k === "opacity" || k === "scale") steady[k] = 1;
+        else if (k === "filter") steady[k] = "blur(0px)";
+        else if (k === "clipPath") steady[k] = "inset(0% 0% 0% 0%)";
+        else if (!(k in steady)) steady[k] = 0;
+      }
+
+      // Clamp and round all numeric values for pixel-perfect movement
+      const clampObj = (obj: Record<string, unknown>) => {
+        const out: Record<string, unknown> = {};
+        for (const k in obj) {
+          const v = obj[k];
+          if (typeof v === 'number') out[k] = Math.round(v * 1000) / 1000;
+          else out[k] = v;
+        }
+        return out;
+      };
+
+      const rectHeight = el.offsetHeight || 100;
+      const sh = proxiedParentScroller ? proxiedParentScroller.clientHeight : ((scroller as Element)?.clientHeight || view.innerHeight || 800);
+      const totalDist = rectHeight + sh;
+      
+      const pIn = Math.min(0.4, rectHeight / totalDist);
+      const pOut = Math.min(0.4, rectHeight / totalDist);
+      const pSteady = Math.max(0.01, 1 - pIn - pOut);
+      
+      // If rotate effect, set transformOrigin to center for true rotation
+      if (config.type === "rotate") {
+        gsap.set(el, { transformOrigin: "50% 50%" });
+      }
+
+      tlScroll.fromTo(el, clampObj(from), {
+        ...clampObj(steady),
+        duration: pIn,
+        ease: "power1.out",
+      });
+      tlScroll.to(el, {
+        ...clampObj(steady),
+        duration: pSteady,
+        ease: "none",
+      });
+      tlScroll.to(el, {
+        ...clampObj(to),
+        duration: pOut,
+        ease: "power1.in",
+      });
+      // End of configuration for standard scrollEffect timeline
+
+      // Schedule a single debounced refresh — prevents cascade of refreshes on mount.
+      scheduleScrollTriggerRefresh();
+
+      return () => {
+        tlScroll.kill();
+        ScrollTrigger.getAll().forEach((t) => {
+          if (t.trigger === el) t.kill();
+        });
+        if (elementScrollHandler && scroller) {
+          scroller.removeEventListener("scroll", elementScrollHandler);
+        }
         if (proxiedParentScroller && parentScrollHandler) {
           proxiedParentScroller.removeEventListener("scroll", parentScrollHandler as EventListener);
         }
@@ -552,6 +866,7 @@ function useGsapScrollEffect(
     config.freeMove?.mids,
     config.freeMove?.keyframes,
     config.freeMove?.mode,
+    config.freeMove?.normalized,
     config.intensity,
   ]);
 }
@@ -574,101 +889,93 @@ export function getScrollEffectRange(config: AnimationConfig["scrollEffect"]): {
 
   switch (config.type as ScrollEffectType) {
     case "parallax": {
-      // Parallax: always proportional to scroll, never overshoots
-      const maxDist = 150;
-      const p = speed * maxDist;
+      const dist = speed * 150;
       if (isVertical) {
-        from.y = -Math.abs(p);
-        to.y = Math.abs(p);
+        from.y = dist;
+        to.y = -dist;
       } else {
-        from.x = -Math.abs(p);
-        to.x = Math.abs(p);
+        from.x = dist;
+        to.x = -dist;
       }
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "fade":
-      // Fade: always 0→1 or 1→0
-      from.opacity = speed >= 0 ? 0 : 1;
-      to.opacity = speed >= 0 ? 1 : 0;
+      from.opacity = 0;
+      to.opacity = 0;
+      from.force3D = true; to.force3D = true;
       break;
     case "scale": {
-      // Scale: always from 1 to 1+s or reverse
-      const s = Math.abs(speed) * 0.5;
-      from.scale = speed >= 0 ? 1 : 1 + s;
-      to.scale = speed >= 0 ? 1 + s : 1;
+      const s = Math.abs(speed) * 0.4;
+      const scaleVal = speed >= 0 ? Math.max(0, 1 - s) : 1 + s;
+      from.scale = scaleVal;
+      to.scale = scaleVal;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "rotate": {
-      // Rotate: always -r to r
-      const r = Math.abs(speed) * 180;
-      from.rotation = -r;
-      to.rotation = r;
+      const r = speed * 120;
+      from.rotation = r;
+      to.rotation = -r;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "blur": {
-      // Blur: always from blur to clear
-      const b = Math.abs(speed) * 20;
-      from.filter = `blur(${b}px)`;
-      to.filter = "blur(0px)";
+      const b = Math.abs(speed) * 15;
+      const bStr = `blur(${b}px)`;
+      from.filter = bStr;
+      to.filter = bStr;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "horizontalMove": {
-      // Horizontal move: always -h to h
-      const h = Math.abs(speed) * 300;
-      from.x = -h;
-      to.x = h;
+      const h = speed * 300;
+      from.x = h;
+      to.x = -h;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "freeMove": {
-      // FreeMove fallback: always proportional to scroll, never overshoots
-      const start = config.freeMove?.start;
-      const end = config.freeMove?.end;
-      if (start && end) {
-        const dx = (end.x - start.x);
-        const dy = (end.y - start.y);
-        from.x = 0;
-        from.y = 0;
-        to.x = speed * dx;
-        to.y = speed * dy;
-      }
+      // FreeMove is handled separately in timeline
       break;
     }
     case "skew": {
-      // Skew: always -sk to sk
-      const sk = Math.abs(speed) * 25;
+      const sk = speed * 25;
       if (isVertical) {
-        from.skewY = -sk;
-        to.skewY = sk;
+        from.skewY = sk;
+        to.skewY = -sk;
       } else {
-        from.skewX = -sk;
-        to.skewX = sk;
+        from.skewX = sk;
+        to.skewX = -sk;
       }
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "reveal":
-      // Reveal: always from clipped to revealed
-      from.clipPath = speed >= 0 ? "inset(0% 100% 0% 0%)" : "inset(100% 0% 0% 0%)";
-      to.clipPath = "inset(0% 0% 0% 0%)";
+      from.clipPath = speed >= 0 ? "inset(100% 0% 0% 0%)" : "inset(0% 100% 0% 0%)";
+      to.clipPath = speed >= 0 ? "inset(0% 0% 100% 0%)" : "inset(0% 0% 0% 100%)";
+      from.force3D = true; to.force3D = true;
       break;
     case "zoom": {
-      // Zoom: always from 1 to 1+z
-      const zScale = Math.abs(speed) * 1.5;
-      const zDepth = speed * 200;
-      from.scale = 1;
+      const zScale = Math.abs(speed) * 1.2;
+      const zDepth = speed * 150;
+      const scaleVal = speed >= 0 ? 1 - zScale : 1 + zScale;
+      from.scale = Math.max(0, scaleVal);
       from.z = -zDepth;
-      to.scale = 1 + zScale;
-      to.z = zDepth;
+      to.scale = Math.max(0, scaleVal);
+      to.z = -zDepth;
+      from.force3D = true; to.force3D = true;
       break;
     }
     case "tilt3d": {
-      // Tilt3d: always -t to t
-      const t = Math.abs(speed) * 35;
-      from.rotationX = -t;
-      from.rotationY = isVertical ? 0 : -t;
+      const t = Math.abs(speed) * 30;
+      from.rotationX = speed >= 0 ? t : -t;
+      from.rotationY = isVertical ? 0 : (speed >= 0 ? t : -t);
       from.transformPerspective = 1200;
-      to.rotationX = t;
-      to.rotationY = isVertical ? 0 : t;
+      to.rotationX = speed >= 0 ? -t : t;
+      to.rotationY = isVertical ? 0 : (speed >= 0 ? -t : t);
       to.transformPerspective = 1200;
+      from.force3D = true; to.force3D = true;
       break;
     }
   }
@@ -703,20 +1010,32 @@ export function AnimationWrapper({
   const hasScroll = config.scrollEffect.enabled && config.scrollEffect.type !== "none";
   const hasAny = hasIn || hasOut || hasDuring || hasScroll;
 
-  const ref = useRef<HTMLDivElement>(null);
+  /** Outer: Framer Motion (entrance / during). Inner: GSAP ScrollTrigger only — avoids Motion overwriting x/y/transform every frame. */
+  const outerRef = useRef<HTMLDivElement>(null);
+  const scrollInnerRef = useRef<HTMLDivElement>(null);
   const [inViewRoot, setInViewRoot] = useState<Element | null>(null);
+  const [hasResolvedInViewRoot, setHasResolvedInViewRoot] = useState(false);
 
   useEffect(() => {
-    const el = ref.current;
+    const el = outerRef.current;
     if (!el) return;
 
     const view = el.ownerDocument?.defaultView ?? window;
     const { primary, fallback } = resolveScrollRoots(el, view);
-    setInViewRoot(primary ?? fallback);
+    const explicitPreviewRoot = el.ownerDocument?.querySelector(
+      '[data-preview-scroll-root="true"]'
+    ) as HTMLElement | null;
+
+    setInViewRoot(primary ?? fallback ?? explicitPreviewRoot);
+    setHasResolvedInViewRoot(true);
   }, []);
 
-  const isInView = useInView(ref, {
-    root: inViewRoot,
+  // Root may legitimately be null (window scrolling). We still want onScroll to work.
+  const rootReady = config.trigger.type !== "onScroll" || hasResolvedInViewRoot;
+
+  const isInView = useInView(outerRef, {
+    // Pass the actual Element (not a ref object) so IntersectionObserver uses it as root.
+    root: inViewRoot ?? undefined,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });
@@ -728,18 +1047,24 @@ export function AnimationWrapper({
   useEffect(() => {
     if (config.trigger.type === "onLoad") {
       setHasTriggered(true);
-    } else if (config.trigger.type === "onScroll" && isInView) {
-      setHasTriggered(true);
+    } else if (config.trigger.type === "onScroll" && rootReady) {
+      if (isInView) {
+        setHasTriggered(true);
+      } else if (!config.trigger.once) {
+        setHasTriggered(false);
+      }
     }
-  }, [config.trigger.type, isInView]);
+  }, [config.trigger.type, isInView, rootReady, config.trigger.once]);
 
   useEffect(() => {
-    const el = ref.current;
+    const el = outerRef.current;
     if (!el) return;
-    if (el.ownerDocument !== document) {
+    // Iframe (editor canvas): only auto-fire for non–scroll-into-view triggers.
+    // If we always setHasTriggered for onScroll, entrance runs on load and fights GSAP.
+    if (el.ownerDocument !== document && config.trigger.type !== "onScroll") {
       setHasTriggered(true);
     }
-  }, []);
+  }, [config.trigger.type]);
 
   const shouldAnimate =
     config.trigger.type === "onLoad"
@@ -752,7 +1077,7 @@ export function AnimationWrapper({
             ? isClicked
             : false;
 
-  useGsapScrollEffect(ref, config.scrollEffect);
+  useGsapScrollEffect(hasScroll ? scrollInnerRef : outerRef, config.scrollEffect);
 
   if (!hasAny) {
     return <>{children}</>;
@@ -785,14 +1110,15 @@ export function AnimationWrapper({
 
   // Optimization: Don't use willChange for continuous animations (pulse, float, spin, etc.)
   // These cause excessive paint/layout thrashing, especially during zoom or previews.
-  // Only set willChange for entrance/exit animations which are one-time events.
-  const shouldUseWillChange = hasIn || hasOut;
+  // Only set willChange for entrance/exit transitions or active scroll effects.
+  const shouldUseWillChange = hasIn || hasOut || hasScroll;
 
   return (
     <MotionComponent
-      ref={ref}
+      ref={outerRef}
       className={className}
-      style={{ ...style, willChange: shouldUseWillChange ? "transform, opacity" : undefined }}
+      data-animated={hasAny ? "true" : undefined}
+      style={{ ...style, willChange: shouldUseWillChange ? "transform, opacity, filter" : undefined }}
       initial={combinedInitial as any}
       animate={combinedAnimate as any}
       exit={hasOut ? (outVariants.exit as any) : undefined}
@@ -801,7 +1127,13 @@ export function AnimationWrapper({
       onHoverEnd={config.trigger.type === "onHover" ? () => setIsHovered(false) : undefined}
       onTap={config.trigger.type === "onClick" ? () => setIsClicked((c) => !c) : undefined}
     >
-      {children}
+      {hasScroll ? (
+        <div ref={scrollInnerRef} className="block w-full min-w-0" style={{ minHeight: "min-content" }}>
+          {children}
+        </div>
+      ) : (
+        children
+      )}
     </MotionComponent>
   );
 }

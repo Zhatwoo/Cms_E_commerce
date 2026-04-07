@@ -22,6 +22,80 @@ import { Column } from "../../_designComponents/Column/Column";
 import { Icon } from "../../_designComponents/Icon/Icon";
 import { Rating } from "../../_designComponents/Rating/Rating";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
+import { Rectangle } from "../../../_assets/shapes/rectangle/rectangle";
+import {
+  Diamond,
+  Heart,
+  Trapezoid,
+  Pentagon,
+  Hexagon,
+  Heptagon,
+  Octagon,
+  Nonagon,
+  Decagon,
+  Parallelogram,
+  Kite
+} from "../../../_assets/shapes/additional_shapes";
+
+// Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
+// Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
+// context that isn't available in the isolated preview Editor.
+// Render at 1440px (DESKTOP_PREVIEW_WIDTH), no padding — fills the preview area tightly.
+const ProductCardPreviewStub = () => (
+  <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
+    {/* 5 card placeholders side by side to fill the width */}
+    {[1,2,3,4,5].map((i) => (
+      <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 5 ? "1px solid #e5e7eb" : undefined, display: "flex", flexDirection: "column" }}>
+        <div style={{ height: 180, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </div>
+        <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ height: 11, background: "#e2e8f0", borderRadius: 3, width: "75%" }} />
+          <div style={{ height: 10, background: "#f1f5f9", borderRadius: 3, width: "50%" }} />
+          <div style={{ height: 30, background: "#1e293b", borderRadius: 5, marginTop: 4 }} />
+        </div>
+      </div>
+    ))}
+  </div>
+);
+const ProductSliderPreviewStub = () => (
+  <div style={{ width: 1440, background: "#f8fafc", padding: "24px", boxSizing: "border-box" }}>
+    <div style={{ height: 16, background: "#e2e8f0", borderRadius: 4, width: 160, margin: "0 auto 16px" }} />
+    <div style={{ display: "flex", gap: 12 }}>
+      {[1,2,3,4,5].map((i) => (
+        <div key={i} style={{ flex: 1, background: "#ffffff", borderRadius: 6, border: "1px solid #e5e7eb", overflow: "hidden" }}>
+          <div style={{ height: 140, background: "#e2e8f0" }} />
+          <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 5 }}>
+            <div style={{ height: 9, background: "#e2e8f0", borderRadius: 3, width: "80%" }} />
+            <div style={{ height: 9, background: "#f1f5f9", borderRadius: 3, width: "50%" }} />
+            <div style={{ height: 24, background: "#1e293b", borderRadius: 4, marginTop: 2 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+);
+const ProductDescriptionCardPreviewStub = () => (
+  <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
+    {/* Two side-by-side description cards to fill width */}
+    {[1,2].map((i) => (
+      <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 2 ? "1px solid #e5e7eb" : undefined, display: "flex" }}>
+        <div style={{ width: "45%", background: "#e2e8f0", minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+        </div>
+        <div style={{ flex: 1, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
+          <div style={{ height: 14, background: "#e2e8f0", borderRadius: 3, width: "85%" }} />
+          <div style={{ height: 3, background: "#e2e8f0", borderRadius: 1, width: 32 }} />
+          <div style={{ height: 9, background: "#f1f5f9", borderRadius: 3 }} />
+          <div style={{ height: 9, background: "#f1f5f9", borderRadius: 3, width: "90%" }} />
+          <div style={{ height: 9, background: "#f1f5f9", borderRadius: 3, width: "70%" }} />
+          <div style={{ height: 14, background: "#e2e8f0", borderRadius: 3, width: "35%", marginTop: 4 }} />
+          <div style={{ height: 32, background: "transparent", border: "1.5px solid #1e293b", borderRadius: 5, marginTop: 2 }} />
+        </div>
+      </div>
+    ))}
+  </div>
+);
 
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
@@ -170,6 +244,39 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   profileloginnode: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).profileloginnode ?? (BASE_CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   Accordion: asComponent(Accordion),
   accordion: asComponent(Accordion),
+  ProductCard: ProductCardPreviewStub,
+  productcard: ProductCardPreviewStub,
+  "Product Card": ProductCardPreviewStub,
+  ProductSlider: ProductSliderPreviewStub,
+  productslider: ProductSliderPreviewStub,
+  "Product Slider": ProductSliderPreviewStub,
+  ProductDescriptionCard: ProductDescriptionCardPreviewStub,
+  productdescriptioncard: ProductDescriptionCardPreviewStub,
+  "Product Description Card": ProductDescriptionCardPreviewStub,
+  Rectangle: asComponent(Rectangle),
+  rectangle: asComponent(Rectangle),
+  Diamond: asComponent(Diamond),
+  diamond: asComponent(Diamond),
+  Heart: asComponent(Heart),
+  heart: asComponent(Heart),
+  Trapezoid: asComponent(Trapezoid),
+  trapezoid: asComponent(Trapezoid),
+  Pentagon: asComponent(Pentagon),
+  pentagon: asComponent(Pentagon),
+  Hexagon: asComponent(Hexagon),
+  hexagon: asComponent(Hexagon),
+  Heptagon: asComponent(Heptagon),
+  heptagon: asComponent(Heptagon),
+  Octagon: asComponent(Octagon),
+  octagon: asComponent(Octagon),
+  Nonagon: asComponent(Nonagon),
+  nonagon: asComponent(Nonagon),
+  Decagon: asComponent(Decagon),
+  decagon: asComponent(Decagon),
+  Parallelogram: asComponent(Parallelogram),
+  parallelogram: asComponent(Parallelogram),
+  Kite: asComponent(Kite),
+  kite: asComponent(Kite),
 });
 
 export const AssetLivePreview = ({
@@ -215,9 +322,11 @@ export const AssetLivePreview = ({
     return (
       <div className="h-16 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center text-[var(--builder-text-muted)] pointer-events-none group-hover:bg-[var(--builder-surface-3)] transition-colors">
         <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
-          <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
-            <Frame>{item.element}</Frame>
-          </Editor>
+          {item.preview ?? (
+            <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
+              <Frame>{item.element}</Frame>
+            </Editor>
+          )}
         </AssetPreviewErrorBoundary>
       </div>
     );
@@ -226,8 +335,8 @@ export const AssetLivePreview = ({
   if (previewMode === "shape") {
     const shapePreviewElement = React.cloneElement(item.element as React.ReactElement<any>, {
       isPreview: true,
-      width: 48,
-      height: 48,
+      width: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 64 : (item.label.toLowerCase() === "kite" ? 36 : 48),
+      height: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 32 : (item.label.toLowerCase() === "kite" ? 64 : 48),
       margin: 0,
       padding: 0,
       position: "static",
@@ -365,7 +474,15 @@ export const AssetsPanel = () => {
                       data-asset-category={item.category}
                       data-asset-label={item.label}
                       ref={(ref) => {
-                        if (ref && item?.element) connectors.create(ref, item.element);
+                        if (!ref || !item?.element) return;
+
+                        const dragElement = iconFolder
+                          ? React.cloneElement(item.element as React.ReactElement<any>, {
+                              color: "#000000",
+                            })
+                          : item.element;
+
+                        connectors.create(ref, dragElement);
                       }}
                       onDragStart={() => {
                         if (typeof document !== "undefined") {
@@ -404,10 +521,45 @@ export const AssetsPanel = () => {
                           </div>
                         )}
                         <div className="flex items-center justify-center">
-                          <AssetLivePreview
-                            item={item}
-                            previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                          />
+                          {(item.label === "Product Card" || item.label === "Product Description Card") ? (
+                            <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
+                              {item.label === "Product Card" ? (
+                                <div style={{ display: "flex", height: "100%", gap: 1 }}>
+                                  {[1,2,3].map((i) => (
+                                    <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
+                                      <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                      </div>
+                                      <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
+                                        <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
+                                        <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
+                                        <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div style={{ display: "flex", height: "100%" }}>
+                                  <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                  </div>
+                                  <div style={{ flex: 1, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 5, justifyContent: "center", background: "var(--builder-surface-2)" }}>
+                                    <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "85%" }} />
+                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2 }} />
+                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "90%" }} />
+                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "70%" }} />
+                                    <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "40%", marginTop: 2 }} />
+                                    <div style={{ height: 14, border: "1px solid var(--builder-border-mid)", borderRadius: 3 }} />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <AssetLivePreview
+                              item={item}
+                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                            />
+                          )}
                         </div>
                       </div>
                     </div>

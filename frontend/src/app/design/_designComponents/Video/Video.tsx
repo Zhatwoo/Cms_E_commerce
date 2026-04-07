@@ -55,8 +55,10 @@ export const Video = ({
     bottom = "auto",
     left = "auto",
     zIndex = 0,
+    alignSelf = "auto",
     display = "block",
     editorVisibility = "auto",
+    _autoFitInTabs = false,
     _isDraggingSource = false,
 }: VideoProps) => {
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
@@ -67,11 +69,34 @@ export const Video = ({
     }));
 
     const { actions } = useEditor();
-    const { parentDisplay, parentDisplayName, parentHeight } = useEditor((state) => ({
-        parentDisplay: parentId ? String(state.nodes[parentId]?.data?.props?.display ?? "") : "",
-        parentDisplayName: parentId ? String(state.nodes[parentId]?.data?.displayName ?? "") : "",
-        parentHeight: parentId ? state.nodes[parentId]?.data?.props?.height : undefined,
-    }));
+    const { parentDisplay, parentDisplayName, parentHeight, isInsideTabsContext } = useEditor((state) => {
+        const parentNode = parentId ? state.nodes[parentId] : undefined;
+        const parentDisplayValue = parentNode ? String(parentNode.data?.props?.display ?? "") : "";
+        const parentDisplayNameValue = parentNode ? String(parentNode.data?.displayName ?? "") : "";
+        const parentHeightValue = parentNode ? parentNode.data?.props?.height : undefined;
+
+        let insideTabs = false;
+        let cursorId = parentId;
+        let guard = 0;
+        while (cursorId && cursorId !== "ROOT" && guard < 50) {
+            guard += 1;
+            const currentNode = state.nodes[cursorId];
+            if (!currentNode) break;
+            const rawName = String(currentNode.data?.displayName ?? "").trim().toLowerCase();
+            if (rawName === "tabs" || rawName === "tab content" || rawName === "tabcontent") {
+                insideTabs = true;
+                break;
+            }
+            cursorId = currentNode.data?.parent;
+        }
+
+        return {
+            parentDisplay: parentDisplayValue,
+            parentDisplayName: parentDisplayNameValue,
+            parentHeight: parentHeightValue,
+            isInsideTabsContext: insideTabs,
+        };
+    });
 
     // Handle auto-discard if this node was created as a side-effect of a replacement drop
     useEffect(() => {
@@ -89,15 +114,28 @@ export const Video = ({
         }
     }, [_isDraggingSource, id, actions]);
 
-    const shouldFillParent = parentDisplay === "flex" || parentDisplay === "grid";
-    const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section";
+    const shouldFillParent =
+      parentDisplay === "flex" ||
+      parentDisplay === "inline-flex" ||
+      parentDisplay === "grid";
+    const isContainerLikeParent = parentDisplayName === "Container" || parentDisplayName === "Section" || parentDisplayName === "Tab Content";
+    const isTabsLikeContext =
+        isInsideTabsContext ||
+        parentDisplayName === "Tabs" ||
+        parentDisplayName === "Tab Content" ||
+        parentDisplayName === "TabContent";
+    const shouldAutoFitToTabs = Boolean(isTabsLikeContext && _autoFitInTabs === true);
     const isAutoHeight = typeof height !== "string" || height.trim().toLowerCase() === "auto";
     const parentHeightText = typeof parentHeight === "string" ? parentHeight.trim().toLowerCase() : "";
     const parentHasExplicitHeight =
         (typeof parentHeight === "number" && Number.isFinite(parentHeight) && parentHeight > 0) ||
         (typeof parentHeight === "string" && parentHeightText !== "" && parentHeightText !== "auto");
 
+    const resolvedWidth = shouldAutoFitToTabs ? "100%" : (shouldFillParent ? "100%" : width);
     const resolvedHeight =
+        shouldAutoFitToTabs
+            ? "100%"
+            :
         isContainerLikeParent && isAutoHeight && parentHasExplicitHeight
             ? "100%"
             : (height ?? "200px"); // Default height for video if not specified
@@ -221,8 +259,11 @@ export const Video = ({
             }}
             className={`relative group ${customClassName}`}
             style={{
-                width,
+                width: resolvedWidth,
+                maxWidth: "100%",
+                minWidth: 0,
                 height: resolvedHeight,
+                alignSelf,
                 paddingTop: fluidSpace(pt),
                 paddingRight: fluidSpace(pr),
                 paddingBottom: fluidSpace(pb),
@@ -252,7 +293,7 @@ export const Video = ({
                     controls={controls}
                     style={{
                         width: "100%",
-                        height: "100%",
+                        height: resolvedHeight === "auto" ? "auto" : "100%",
                         maxWidth: "100%",
                         maxHeight: "100%",
                         minWidth: 0,

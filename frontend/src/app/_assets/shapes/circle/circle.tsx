@@ -98,7 +98,7 @@ export const Circle = (props: CircleProps) => {
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className="transition-all hover:outline hover:outline-blue-500"
+      className="hover:outline hover:outline-blue-500"
       style={{
         width: w,
         height: h,

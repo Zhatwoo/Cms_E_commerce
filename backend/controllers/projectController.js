@@ -6,6 +6,7 @@ const { deleteProjectStorageFolder, uploadClientMedia, getProjectStorageUsage, d
 const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const Notification = require('../models/Notification');
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -60,21 +61,23 @@ exports.create = async (req, res) => {
       });
     }
 
-    // Check subscription limits
-    const user = await User.findById(userId);
-    const limits = getLimits(user?.subscriptionPlan);
-    const currentProjects = await Project.list(userId);
+    // Fetch owned projects to check limits
+    const ownedProjects = await Project.list(userId);
+    
+    const plan = req.user.subscriptionPlan || 'free';
+    const limits = getLimits(plan);
+    const ownedCount = ownedProjects.length;
 
-    if (currentProjects.length >= limits.projects) {
+    if (ownedCount >= limits.projects) {
       return res.status(403).json({
         success: false,
-        message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${user?.subscriptionPlan || 'free'} plan allows up to ${limits.projects} projects.`,
+        message: `Limit reached: Your plan has reached its limit. Please upgrade your subscription to add more domains or projects. Your current ${plan} plan allows up to ${limits.projects} projects.`,
       });
     }
 
     // If providing a subdomain during creation, check domain limits too
     if (subdomain) {
-      const currentDomains = await Project.countWithSubdomain(userId);
+      const currentDomains = ownedProjects.filter((p) => p.subdomain != null && String(p.subdomain).trim() !== '').length;
       if (currentDomains >= limits.domains) {
         return res.status(403).json({
           success: false,
@@ -198,6 +201,22 @@ exports.update = async (req, res) => {
       ...(general_access !== undefined && { general_access }),
       ...(general_access_role !== undefined && { general_access_role }),
     });
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const actorName = req.user?.name || req.user?.email || 'Client';
+        const notif = await Notification.create({
+          title: 'Website Updated',
+          message: `${actorName} updated website project: ${project?.title || req.params.id}.`,
+          type: 'info',
+          adminId: req.user?.id || 'system',
+          adminName: actorName,
+        });
+        io.emit('notification:added', notif);
+      }
+    } catch (e) {
+      console.warn('Project update notification failed:', e.message);
+    }
     res.status(200).json({
       success: true,
       message: 'Project updated',
@@ -285,6 +304,23 @@ exports.delete = async (req, res) => {
       // keep clientNameForStorage as req.user.name
     }
     await deleteProjectStorageFolder(clientNameForStorage, existing.title);
+
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const actorName = req.user?.name || req.user?.email || 'Client';
+        const notif = await Notification.create({
+          title: 'Website Deleted',
+          message: `${actorName} moved website project to trash: ${existing?.title || req.params.id}.`,
+          type: 'warning',
+          adminId: req.user?.id || 'system',
+          adminName: actorName,
+        });
+        io.emit('notification:added', notif);
+      }
+    } catch (e) {
+      console.warn('Project delete notification failed:', e.message);
+    }
 
     res.status(200).json({
       success: true,
@@ -412,6 +448,23 @@ exports.permanentDelete = async (req, res) => {
     }
 
     await Project.permanentDelete(userId, projectId);
+
+    try {
+      const io = req.app.get('io');
+      if (io) {
+        const actorName = req.user?.name || req.user?.email || 'Client';
+        const notif = await Notification.create({
+          title: 'Website Permanently Deleted',
+          message: `${actorName} permanently deleted website project: ${projectId}.`,
+          type: 'error',
+          adminId: req.user?.id || 'system',
+          adminName: actorName,
+        });
+        io.emit('notification:added', notif);
+      }
+    } catch (e) {
+      console.warn('Project permanent-delete notification failed:', e.message);
+    }
 
     res.status(200).json({
       success: true,

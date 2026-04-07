@@ -11,6 +11,7 @@ export type AdminNavItem = {
   href: string;
   iconSrc: string;
   iconAlt: string;
+  iconComponent?: string; // Support for custom SVG components
   matchExact?: string;
   matchIncludes?: string;
   children?: AdminNavChild[];

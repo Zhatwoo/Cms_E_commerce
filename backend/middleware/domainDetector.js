@@ -12,6 +12,16 @@ const domainDetector = (req, res, next) => {
     const hostWithoutPort = host.split(':')[0];
     const baseWithoutPort = baseDomain.split(':')[0];
 
+    const isIpv4 = (value) => {
+        const m = String(value || '').match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+        if (!m) return false;
+        for (let i = 1; i <= 4; i++) {
+            const n = Number(m[i]);
+            if (!Number.isInteger(n) || n < 0 || n > 255) return false;
+        }
+        return true;
+    };
+
     if (hostWithoutPort.endsWith(baseWithoutPort) && hostWithoutPort !== baseWithoutPort) {
         // Subdomain detection: e.g. alice.yourplatform.com
         const parts = hostWithoutPort.split('.');
@@ -22,7 +32,12 @@ const domainDetector = (req, res, next) => {
 
         req.siteIdentifier = subdomain;
         req.isCustomDomain = false;
-    } else if (hostWithoutPort !== baseWithoutPort && hostWithoutPort !== 'localhost' && hostWithoutPort !== '127.0.0.1') {
+    } else if (
+        hostWithoutPort !== baseWithoutPort &&
+        hostWithoutPort !== 'localhost' &&
+        hostWithoutPort !== '127.0.0.1' &&
+        !isIpv4(hostWithoutPort)
+    ) {
         // Custom domain detection: e.g. alicebiz.com
         req.siteIdentifier = hostWithoutPort;
         req.isCustomDomain = true;

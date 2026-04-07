@@ -2,11 +2,12 @@
 const { auth } = require('../config/firebase');
 const PasswordReset = require('../models/PasswordReset');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
+const { getFirstUrl } = require('../utils/urlBase');
 const { uploadAvatar, slugPathSegment, deleteAvatarByUrlForUser, getStoragePathFromUrl } = require('../utils/storageHelpers');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Audit = require('../models/Audit');
 const stripeService = require('../services/stripeService');
-const Notification = require('../models/Notification');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -32,13 +33,16 @@ const clearAuthCookie = (res) => {
 };
 
 /** No user cookie: confidential data (email, name) must not appear in cookies or localStorage. */
-const userToResponse = (user) => {
+const userToResponse = (user, firebaseUser = null) => {
   if (!user) return null;
+  // Use Firestore value as primary, fall back to Firebase Auth if provided
+  const emailVerified = firebaseUser ? firebaseUser.emailVerified : (user.emailVerified || false);
+  
   return {
     id: user.id,
     uid: user.uid || user.id,
     email: user.email,
-    name: user.displayName || user.email || '',
+    name: user.displayName || user.fullName || user.email || '',
     avatar: user.avatar || null,
     username: user.username || '',
     website: user.website || '',
@@ -46,7 +50,12 @@ const userToResponse = (user) => {
     role: user.role,
     subscriptionPlan: user.subscriptionPlan,
     createdAt: user.createdAt,
-    paymentMethods: user.paymentMethods || []
+    lastSeen: user.lastSeen || null,
+    paymentMethods: user.paymentMethods || [],
+    emailVerified,
+    phone: user.phone || '',
+    notificationPreferences: user.notificationPreferences || { securityAlerts: true, sessionNotifications: true, accountUpdates: true },
+    lastPasswordChange: firebaseUser?.metadata?.lastPasswordUpdatedAt ? new Date(firebaseUser.metadata.lastPasswordUpdatedAt).toISOString() : user.createdAt
   };
 };
 
@@ -116,22 +125,6 @@ exports.register = async (req, res) => {
     // Create user in Firebase immediately (emailVerified: false - can't login until confirmed)
     const user = await User.register({ name: name.trim(), email: normEmail, password });
     
-    // Broadcast to Admins: New User Signed Up
-    try {
-      if (req.app.get('io')) {
-        const notif = await Notification.create({
-          title: 'New User Registered',
-          message: `${name.trim()} (${normEmail}) just created an account.`,
-          type: 'info',
-          adminId: 'system',
-          adminName: name.trim()
-        });
-        req.app.get('io').emit('notification:added', notif);
-      }
-    } catch (e) {
-      console.warn('Register notification failed:', e.message);
-    }
-
     // Generate verification token (JWT with user ID and email)
     const verificationToken = jwt.sign(
       { userId: user.id, email: normEmail, type: 'email_verification' },
@@ -386,6 +379,9 @@ exports.login = async (req, res) => {
     const token = generateToken(uid);
     setAuthCookie(res, token);
 
+    // Update presence immediately on login
+    await User.update(uid, { lastSeen: new Date().toISOString(), isOnline: true }).catch(() => {});
+
     res.status(200).json({
       success: true,
       message: 'Login successful',
@@ -433,6 +429,14 @@ exports.verifyEmail = async (req, res) => {
     // Verify email in Firebase Auth
     await User.setEmailVerified(user.id);
 
+    // Fetch updated firebase user to include verified status in response
+    let firebaseUser = null;
+    try {
+      firebaseUser = await auth.getUser(user.id);
+    } catch (e) {
+      console.warn('verifyEmail: could not fetch updated firebase user:', e.message);
+    }
+
     // Auto-login: create session token
     const authToken = generateToken(user.id);
     setAuthCookie(res, authToken);
@@ -440,7 +444,7 @@ exports.verifyEmail = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'Email confirmed! You are now logged in.',
-      user: userToResponse(user),
+      user: userToResponse(user, firebaseUser),
       token: authToken
     });
   } catch (error) {
@@ -473,28 +477,56 @@ exports.getMe = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    let firebaseUser = null;
+    try {
+      firebaseUser = await auth.getUser(req.user.id);
+      
+      // Auto-sync: If Firebase says verified but Firestore doesn't know yet, update Firestore
+      if (firebaseUser?.emailVerified && !user.emailVerified) {
+        await User.update(user.id, { emailVerified: true }).catch(() => {});
+        user.emailVerified = true;
+      }
+    } catch (e) {
+      console.warn('getMe: could not fetch firebase user:', e.message);
+    }
     res.status(200).json({
       success: true,
-      user: {
-        ...userToResponse(user),
-        username: user.username || '',
-        website: user.website || '',
-        bio: user.bio || ''
-      }
+      user: userToResponse(user, firebaseUser)
     });
   } catch (error) {
     res.status(404).json({ success: false, message: 'User not found' });
   }
 };
 
-exports.logout = (req, res) => {
-  clearAuthCookie(res);
-  res.status(200).json({ success: true, message: 'Logged out' });
+exports.logout = async (req, res) => {
+  try {
+    // Best-effort: resolve user from auth cookie so we can flip presence immediately on logout.
+    const token = req.cookies?.[COOKIE_NAME];
+    if (token) {
+      let uid = null;
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        uid = decoded?.id || null;
+      } catch {
+        // Token might be expired/invalid for verify, but decode can still give user id for presence update.
+        const decoded = jwt.decode(token);
+        uid = decoded && typeof decoded === 'object' ? decoded.id : null;
+      }
+
+      if (uid) {
+        // Record real logout time and explicitly mark offline.
+        await User.update(uid, { lastSeen: new Date().toISOString(), isOnline: false }).catch(() => {});
+      }
+    }
+  } finally {
+    clearAuthCookie(res);
+    res.status(200).json({ success: true, message: 'Logged out' });
+  }
 };
 
 exports.updateProfile = async (req, res) => {
   try {
-    const { name, avatar, username, website, bio, paymentMethods } = req.body;
+    const { name, avatar, username, website, bio, paymentMethods, notificationPreferences, phone } = req.body;
     if (avatar !== undefined && typeof avatar === 'string' && avatar.trim().startsWith('data:')) {
       return res.status(400).json({
         success: false,
@@ -507,9 +539,14 @@ exports.updateProfile = async (req, res) => {
     if (username !== undefined) updates.username = username;
     if (website !== undefined) updates.website = website;
     if (bio !== undefined) updates.bio = bio;
+    if (phone !== undefined) updates.phone = phone;
     if (paymentMethods !== undefined) updates.paymentMethods = paymentMethods;
+    if (notificationPreferences !== undefined) updates.notificationPreferences = notificationPreferences;
 
     if (Object.keys(updates).length > 0) {
+      if (phone !== undefined) {
+        Audit.log('profile_security_update', `Changed recovery phone to: ${phone}`, req.user.id, req.user?.name || req.user?.displayName);
+      }
       const updatedUser = await User.update(req.user.id, updates);
       return res.status(200).json({
         success: true,
@@ -581,8 +618,14 @@ exports.changePassword = async (req, res) => {
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ success: false, message: 'Current password and new password are required' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+    
+    // Stricter password requirements (min 8 chars, uppercase, lowercase, number)
+    const strongPasswordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!strongPasswordRegex.test(newPassword)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number.' 
+      });
     }
 
     const user = await User.get(req.user.id);
@@ -626,7 +669,8 @@ exports.forgotPassword = async (req, res) => {
     let resetUrl = null;
     if (user) {
       const { token } = await PasswordReset.create(user.id, user.email);
-      resetUrl = `${(process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '')}/auth/reset-password?token=${encodeURIComponent(token)}`;
+      const frontendBase = getFirstUrl(process.env.FRONTEND_URL, 'http://localhost:3000');
+      resetUrl = `${frontendBase}/auth/reset-password?token=${encodeURIComponent(token)}`;
 
       const { sent, error: sendError } = await sendPasswordResetEmail(
         user.email,

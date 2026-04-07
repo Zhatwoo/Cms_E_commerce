@@ -373,7 +373,7 @@ export const ComponentsPanel = () => {
               {backBtn(() => setPanelView("landing"))}
               <span className="text-[10px] font-black text-[var(--builder-text)] uppercase tracking-widest">Pre-built Blocks</span>
             </div>
-            <div className="flex-1 overflow-y-auto no-scrollbar pb-20"><AssetsPanel /></div>
+            <div className="flex-1 overflow-y-auto no-scrollbar pb-4"><AssetsPanel /></div>
           </div>
         </div>
 

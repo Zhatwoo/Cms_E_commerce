@@ -62,7 +62,10 @@ export const Banner = ({
 	bottom = "auto",
 	left = "auto",
 	zIndex = 0,
+	alignSelf = "auto",
 	customClassName = "",
+	textDecoration = "none",
+	editorVisibility = "auto",
 	children,
 	}: BannerProps) => {
 	const {
@@ -123,6 +126,13 @@ export const Banner = ({
 	const resolvedText = typeof text === "string" ? text : "FLASH SALE: Up to 70% off - Use code SAVE70";
 	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
 	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
+	const effectiveDisplay =
+		editorVisibility === "hide"
+			? "none"
+			: editorVisibility === "show" && display === "none"
+				? "flex"
+				: display;
+	const isFlexDisplay = effectiveDisplay === "flex" || effectiveDisplay === "inline-flex";
 
 	return (
 		<div
@@ -134,7 +144,7 @@ export const Banner = ({
 			}}
 			className={customClassName}
 			style={{
-				backgroundColor: background,
+				background,
 				paddingLeft: fluidSpace(pl, 0),
 				paddingRight: fluidSpace(pr, 0),
 				paddingTop: fluidSpace(pt, 0),
@@ -152,18 +162,19 @@ export const Banner = ({
 				...(strokePlacement === "outside" && borderWidth > 0
 					? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
 					: { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-				display,
+				display: effectiveDisplay,
 				containerType: "inline-size",
-				flexDirection,
-				flexWrap,
-				alignItems,
-				justifyContent,
-				columnGap: fluidSpace(gap, 0),
-				rowGap: fluidSpace(gap, 0),
+				flexDirection: isFlexDisplay ? flexDirection : undefined,
+				flexWrap: isFlexDisplay ? flexWrap : undefined,
+				alignItems: isFlexDisplay ? alignItems : undefined,
+				justifyContent: isFlexDisplay ? justifyContent : undefined,
+				columnGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
+				rowGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
 				boxShadow,
 				opacity,
 				overflow,
 				position,
+				alignSelf,
 				top: position !== "static" ? top : undefined,
 				right: position !== "static" ? right : undefined,
 				bottom: position !== "static" ? bottom : undefined,
@@ -188,6 +199,7 @@ export const Banner = ({
 						letterSpacing: resolvedLetterSpacing,
 						textAlign,
 						textTransform,
+						textDecoration,
 						color,
 						whiteSpace: "nowrap",
 						overflow: "hidden",
@@ -212,6 +224,7 @@ export const BannerDefaultProps: Partial<BannerProps> = {
 	letterSpacing: 0,
 	textAlign: "center",
 	textTransform: "none",
+	textDecoration: "none",
 	color: "#ffffff",
 	background: "#ef4444",
 	padding: 12,

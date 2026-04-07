@@ -2,17 +2,16 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { AutoLayoutGroup } from "../../_components/rightPanel/settings/AutoLayoutGroup";
-import { GridLayoutGroup } from "../../_components/rightPanel/settings/GridLayoutGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { ProductBindingGroup } from "../../_components/rightPanel/settings/ProductBindingGroup";
 import type { ContainerProps, SetProp } from "../../_types/components";
 
 export const ContainerSettings = () => {
   const {
+    id,
     background,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
@@ -24,13 +23,14 @@ export const ContainerSettings = () => {
     alignItems, justifyContent,
     gap,
     gridTemplateColumns, gridTemplateRows, gridGap, gridColumnGap, gridRowGap, gridAutoRows, gridAutoFlow,
-    position, display, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
     productId,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     background: node.data.props.background,
     paddingLeft: node.data.props.paddingLeft,
     paddingRight: node.data.props.paddingRight,
@@ -71,6 +71,7 @@ export const ContainerSettings = () => {
     gridAutoFlow: node.data.props.gridAutoFlow,
     position: node.data.props.position,
     display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
     right: node.data.props.right,
@@ -99,32 +100,6 @@ export const ContainerSettings = () => {
 
   return (
     <div className="flex flex-col pb-4">
-      {display === "grid" ? (
-        <DesignSection title="Grid Layout">
-          <GridLayoutGroup
-            gridTemplateColumns={gridTemplateColumns}
-            gridTemplateRows={gridTemplateRows}
-            gridGap={gridGap}
-            gridColumnGap={gridColumnGap}
-            gridRowGap={gridRowGap}
-            gridAutoRows={gridAutoRows}
-            gridAutoFlow={gridAutoFlow}
-            setProp={typedSetProp}
-          />
-        </DesignSection>
-      ) : display === "flex" ? (
-        <DesignSection title="Auto Layout">
-          <AutoLayoutGroup
-            flexDirection={flexDirection}
-            flexWrap={flexWrap}
-            alignItems={alignItems}
-            justifyContent={justifyContent}
-            gap={gap}
-            setProp={typedSetProp}
-          />
-        </DesignSection>
-      ) : null}
-
       <DesignSection title="Transform" defaultOpen={false}>
         <TransformGroup
           rotation={rotation}
@@ -135,16 +110,30 @@ export const ContainerSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
           right={right}
           bottom={bottom}
           left={left}
           editorVisibility={editorVisibility}
-          setProp={typedSetProp}
+          flexDirection={flexDirection}
+          flexWrap={flexWrap}
+          alignItems={alignItems}
+          justifyContent={justifyContent}
+          gap={gap}
+          gridTemplateColumns={gridTemplateColumns}
+          gridTemplateRows={gridTemplateRows}
+          gridGap={gridGap}
+          gridColumnGap={gridColumnGap}
+          gridRowGap={gridRowGap}
+          gridAutoRows={gridAutoRows}
+          gridAutoFlow={gridAutoFlow}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
@@ -189,12 +178,11 @@ export const ContainerSettings = () => {
       <DesignSection title="Product Binding" defaultOpen={false}>
         <ProductBindingGroup
           productId={productId}
-          onChange={(nextProductId) =>
+          onChange={(newId) => {
             typedSetProp((props) => {
-              props.productId = nextProductId;
-              props.productIndex = undefined;
-            })
-          }
+              props.productId = newId;
+            });
+          }}
         />
       </DesignSection>
 
