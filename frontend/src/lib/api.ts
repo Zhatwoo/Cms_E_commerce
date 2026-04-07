@@ -1608,6 +1608,10 @@ export type WebsiteManagementRow = {
   domainType: string;
   createdAt?: string;
   updatedAt?: string;
+  views?: number;
+  errors?: number;
+  reports?: number;
+  analyticsKey?: string;
 };
 
 export type WebsiteManagementStats = {
@@ -1627,6 +1631,49 @@ export async function getDomainsManagement(): Promise<{
     data?: WebsiteManagementRow[];
     stats?: WebsiteManagementStats;
   }>('/api/domains/admin/management');
+}
+
+export type WebsiteAnalyticsData = {
+  domainId: string;
+  views: number;
+  errors: number;
+  reports: number;
+  lastViewedAt?: string;
+  lastErrorAt?: string;
+  lastReportedAt?: string;
+};
+
+export async function getWebsiteAnalytics(domainIds: string[]): Promise<{
+  success: boolean;
+  analytics?: Record<string, WebsiteAnalyticsData>;
+}> {
+  if (!domainIds || domainIds.length === 0) {
+    return { success: true, analytics: {} };
+  }
+
+  const queryString = domainIds.map(id => `domainIds=${encodeURIComponent(id)}`).join('&');
+  return apiFetch<{ success: boolean; analytics?: Record<string, WebsiteAnalyticsData> }>(
+    `/api/dashboard/website-analytics?${queryString}`
+  );
+}
+
+export async function trackWebsiteView(subdomain: string): Promise<{ success: boolean }> {
+  try {
+    // The backend will detect the subdomain from the Host header via middleware,
+    // but we send it in the body as backup
+    return await apiFetch<{ success: boolean }>(
+      '/api/analytics/track-view',
+      {
+        method: 'POST',
+        body: JSON.stringify({ subdomain }),
+        headers: { 'x-skip-active-project-scope': '1' } // Don't add project ID header for public tracking
+      }
+    );
+  } catch (error) {
+    // Silently fail - don't block the site
+    console.error('Failed to track view:', error);
+    return { success: false };
+  }
 }
 
 export type ClientRow = {

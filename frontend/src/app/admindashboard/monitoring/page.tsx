@@ -7,11 +7,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   getDomainsManagement,
+  getWebsiteAnalytics,
   listProducts,
   adminWebsiteAction,
   adminDeleteProduct,
   getStoredUser,
   type WebsiteManagementRow,
+  type WebsiteAnalyticsData,
   type ApiProduct
 } from '@/lib/api';
 import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
@@ -124,6 +126,38 @@ function subdomainFromDomain(domainName: string): string {
   return clean;
 }
 
+function websiteAnalyticsKeys(website: WebsiteManagementRow): string[] {
+  const keys = new Set<string>();
+
+  if (website.id) keys.add(String(website.id).trim());
+  if (website.projectId) keys.add(String(website.projectId).trim());
+
+  const domainName = normalize(website.domainName);
+  if (domainName.includes('.')) {
+    const subdomain = subdomainFromDomain(domainName);
+    if (subdomain) keys.add(subdomain);
+  }
+
+  return Array.from(keys).filter(Boolean);
+}
+
+function pickWebsiteAnalytics(
+  website: WebsiteManagementRow,
+  analyticsMap: Record<string, WebsiteAnalyticsData>
+): WebsiteAnalyticsData | undefined {
+  let best: WebsiteAnalyticsData | undefined;
+
+  for (const key of websiteAnalyticsKeys(website)) {
+    const candidate = analyticsMap[key];
+    if (!candidate) continue;
+    if (!best || (candidate.views || 0) > (best.views || 0)) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
 const PRODUCT_CARD_IMAGE = '/images/template-fashion.jpg';
 
 /* ── Website Preview Thumbnail ──────────────────────────────── */
@@ -222,19 +256,21 @@ type WebsiteCardProps = {
   industry: string;
   workingWebsiteKey: string | null;
   openWebsiteActionModal: (w: WebsiteManagementRow) => void;
+  analytics?: WebsiteAnalyticsData;
 };
 
-const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openWebsiteActionModal }: WebsiteCardProps) => {
+const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openWebsiteActionModal, analytics }: WebsiteCardProps) => {
   const statusMeta = getWebsiteStatusMeta(w.status);
   const domainLabel = w.domainName || '—';
   const ownerLabel = w.owner || 'Unknown';
   const isWorking = workingWebsiteKey === `${w.userId}::${w.id}`;
+  const isPublished = normalize(w.status) === 'published';
 
-  // Mock stats for demonstration if they don't exist in the data model yet
+  // Use real analytics or default to 0
   const stats = {
-    views: Math.floor(Math.random() * 5000) + 1200,
-    errors: Math.floor(Math.random() * 5),
-    reports: w.status === 'flagged' ? Math.floor(Math.random() * 10) + 2 : 0,
+    views: w.views ?? analytics?.views ?? 0,
+    errors: w.errors ?? analytics?.errors ?? 0,
+    reports: w.reports ?? analytics?.reports ?? 0,
   };
 
   const statusColors = {
@@ -328,30 +364,32 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
           </p>
         </div>
 
-        {/* Stats Row */}
-        <div className="mt-auto grid grid-cols-3 gap-2 px-2 py-3 rounded-2xl bg-[rgba(166,61,255,0.03)] border border-[rgba(166,61,255,0.06)]">
-          <div className="flex flex-col items-center gap-1">
-            <div className="flex items-center gap-1 text-[#7b1de8] opacity-60">
-              <Eye className="h-3 w-3" />
-              <span className="text-[8px] font-black uppercase">Views</span>
+        {/* Stats Row - Only show for published websites */}
+        {isPublished && (
+          <div className="mt-auto grid grid-cols-3 gap-2 px-2 py-3 rounded-2xl bg-[rgba(166,61,255,0.03)] border border-[rgba(166,61,255,0.06)]">
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1 text-[#7b1de8] opacity-60">
+                <Eye className="h-3 w-3" />
+                <span className="text-[8px] font-black uppercase">Views</span>
+              </div>
+              <span className="text-xs font-black" style={{ color: '#4a1a8a' }}>{stats.views.toLocaleString()}</span>
             </div>
-            <span className="text-xs font-black" style={{ color: '#4a1a8a' }}>{stats.views.toLocaleString()}</span>
-          </div>
-          <div className="flex flex-col items-center gap-1 border-x border-[rgba(166,61,255,0.1)]">
-            <div className="flex items-center gap-1 text-[#FFCC00]">
-              <AlertCircle className="h-3 w-3" />
-              <span className="text-[8px] font-black uppercase">Errors</span>
+            <div className="flex flex-col items-center gap-1 border-x border-[rgba(166,61,255,0.1)]">
+              <div className="flex items-center gap-1 text-[#FFCC00]">
+                <AlertCircle className="h-3 w-3" />
+                <span className="text-[8px] font-black uppercase">Errors</span>
+              </div>
+              <span className="text-xs font-black" style={{ color: '#4a1a8a' }}>{stats.errors}</span>
             </div>
-            <span className="text-xs font-black" style={{ color: '#4a1a8a' }}>{stats.errors}</span>
-          </div>
-          <div className="flex flex-col items-center gap-1">
-            <div className="flex items-center gap-1 text-[#FF4343]">
-              <FileText className="h-3 w-3" />
-              <span className="text-[8px] font-black uppercase">Reports</span>
+            <div className="flex flex-col items-center gap-1">
+              <div className="flex items-center gap-1 text-[#FF4343]">
+                <FileText className="h-3 w-3" />
+                <span className="text-[8px] font-black uppercase">Reports</span>
+              </div>
+              <span className="text-xs font-black" style={{ color: stats.reports > 0 ? '#FF4343' : '#4a1a8a' }}>{stats.reports}</span>
             </div>
-            <span className="text-xs font-black" style={{ color: stats.reports > 0 ? '#FF4343' : '#4a1a8a' }}>{stats.reports}</span>
           </div>
-        </div>
+        )}
 
         {/* Footer Meta */}
         {w.createdAt && (
@@ -544,6 +582,7 @@ function MonitoringPageContent() {
   const [industryFilter, setIndustryFilter] = useState('');
   const [websites, setWebsites] = useState<WebsiteManagementRow[]>([]);
   const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [websiteAnalytics, setWebsiteAnalytics] = useState<Record<string, WebsiteAnalyticsData>>({});
   const [selectedProduct, setSelectedProduct] = useState<ApiProduct | null>(null);
   const [workingWebsiteKey, setWorkingWebsiteKey] = useState<string | null>(null);
   const [workingProductId, setWorkingProductId] = useState<string | null>(null);
@@ -573,8 +612,18 @@ function MonitoringPageContent() {
       const hiddenWebsiteDomains = hiddenWebsiteDomainsRef.current;
       const hiddenProductIds = hiddenProductIdsRef.current;
 
-      setWebsites(nextWebsites.filter((w) => !hiddenWebsiteDomains.has(normalize(w.domainName))));
+      const filteredWebsites = nextWebsites.filter((w) => !hiddenWebsiteDomains.has(normalize(w.domainName)));
+      setWebsites(filteredWebsites);
       setProducts(nextProducts.filter((p) => !hiddenProductIds.has(p.id)));
+
+      // Fetch analytics for all websites
+      if (filteredWebsites.length > 0) {
+        const domainIds = Array.from(new Set(filteredWebsites.flatMap((w) => websiteAnalyticsKeys(w))));
+        const analyticsRes = await getWebsiteAnalytics(domainIds);
+        if (analyticsRes.success && analyticsRes.analytics) {
+          setWebsiteAnalytics(analyticsRes.analytics);
+        }
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -589,10 +638,20 @@ function MonitoringPageContent() {
     }, 30000);
 
     const onDataChanged = () => loadData(true);
+    const onFocus = () => loadData(true);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadData(true);
+      }
+    };
     window.addEventListener('admin:data_changed', onDataChanged);
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
       clearInterval(interval);
       window.removeEventListener('admin:data_changed', onDataChanged);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, []);
 
@@ -649,6 +708,19 @@ function MonitoringPageContent() {
     else if (sortOption === 'oldest') unique.sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
     return unique;
   }, [filteredWebsites, sortOption]);
+
+  const analyticsByWebsiteKey = useMemo(() => {
+    const result = new Map<string, WebsiteAnalyticsData>();
+
+    uniqueWebsites.forEach((website) => {
+      const analytics = pickWebsiteAnalytics(website, websiteAnalytics);
+      if (analytics) {
+        result.set(`${website.userId}::${website.id}`, analytics);
+      }
+    });
+
+    return result;
+  }, [uniqueWebsites, websiteAnalytics]);
 
   const suspiciousProductData = useMemo(() => {
     const nameCounts = new Map<string, number>();
@@ -1232,6 +1304,7 @@ function MonitoringPageContent() {
                             industry={websiteIndustryByDomain.get(w.domainName) || 'General'}
                             workingWebsiteKey={workingWebsiteKey}
                             openWebsiteActionModal={openWebsiteActionModal}
+                            analytics={analyticsByWebsiteKey.get(`${w.userId}::${w.id}`)}
                           />
                         ))}
                       </div>

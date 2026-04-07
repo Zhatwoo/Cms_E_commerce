@@ -7,6 +7,7 @@ const Order = require('../models/Order');
 const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const Audit = require('../models/Audit');
+const WebsiteAnalytics = require('../models/WebsiteAnalytics');
 const cache = require('../utils/cache');
 
 // @desc    Get dashboard summary (unified endpoint with aggregate stats)
@@ -216,6 +217,74 @@ exports.getAnalytics = async (req, res) => {
     res.status(200).json(responseData);
   } catch (error) {
     console.error('getAnalytics Error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get website analytics (views, errors, reports)
+// @route   GET /api/dashboard/website-analytics?domainIds=id1&domainIds=id2
+// @access  Private/Admin
+exports.getWebsiteAnalytics = async (req, res) => {
+  try {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.set('Surrogate-Control', 'no-store');
+
+    const domainIdsParam = req.query.domainIds;
+    
+    if (!domainIdsParam) {
+      return res.status(400).json({
+        success: false,
+        message: 'domainIds query parameter is required'
+      });
+    }
+
+    // Parse domain IDs (handle both array and string formats)
+    let domainIds = [];
+    if (Array.isArray(domainIdsParam)) {
+      domainIds = domainIdsParam.map(id => String(id).trim()).filter(Boolean);
+    } else {
+      domainIds = String(domainIdsParam)
+        .split(',')
+        .map(id => id.trim())
+        .filter(Boolean);
+    }
+
+    if (domainIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'At least one domain ID is required'
+      });
+    }
+
+    // Get analytics for all domains at once
+    const analyticsData = await WebsiteAnalytics.getAnalyticsBatch(domainIds);
+
+    // Format response
+    const formattedData = {};
+    for (const [domainId, analytics] of Object.entries(analyticsData)) {
+      formattedData[domainId] = {
+        domainId,
+        views: analytics.totalViews || 0,
+        errors: analytics.errors || 0,
+        reports: analytics.reports || 0,
+        lastViewedAt: analytics.lastViewedAt,
+        lastErrorAt: analytics.lastErrorAt,
+        lastReportedAt: analytics.lastReportedAt,
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      analytics: formattedData
+    });
+  } catch (error) {
+    console.error('getWebsiteAnalytics Error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
