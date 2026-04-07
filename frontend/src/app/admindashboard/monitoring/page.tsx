@@ -18,6 +18,7 @@ import { ChevronDownIcon, SearchIcon } from '@/lib/icons/adminIcons';
 import { addNotification } from '@/lib/notifications';
 import { formatToPHTimeShort } from '@/lib/dateUtils';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
+import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 import { useAdminLoading } from '../components/LoadingProvider';
 import {
   BookOpen,
@@ -47,6 +48,24 @@ const AdminHeader = dynamic(() => import('../components/header').then((mod) => m
 type MonitoringTab = 'websites' | 'products';
 type SortOption = 'recent' | 'oldest' | 'az' | 'za' | 'price_high' | 'price_low';
 type ToastTone = 'success' | 'error';
+
+const WEBSITE_SORT_OPTIONS = [
+  { id: 'recent' as const, label: 'Recently Created' },
+  { id: 'oldest' as const, label: 'Oldest First' },
+  { id: 'az' as const, label: 'Alphabetical (A–Z)' },
+  { id: 'za' as const, label: 'Alphabetical (Z–A)' },
+];
+
+const PRODUCT_SORT_OPTIONS = [
+  ...WEBSITE_SORT_OPTIONS,
+  { id: 'price_high' as const, label: 'Highest Price' },
+  { id: 'price_low' as const, label: 'Lowest Price' },
+];
+
+const SORT_OPTIONS_BY_TAB: Record<MonitoringTab, typeof WEBSITE_SORT_OPTIONS | typeof PRODUCT_SORT_OPTIONS> = {
+  websites: WEBSITE_SORT_OPTIONS,
+  products: PRODUCT_SORT_OPTIONS,
+};
 
 type WebsiteActionModalState = {
   open: boolean;
@@ -630,7 +649,7 @@ function MonitoringPageContent() {
     return uniqueWebsites.filter((w) => {
       const matchSearch = !q || normalize(w.domainName).includes(q) || normalize(w.owner).includes(q);
       const matchStatus = !statusFilter || normalize(w.status) === statusFilter;
-      const matchIndustry = !industryFilter || normalize(w.plan) === industryFilter;
+      const matchIndustry = !industryFilter || normalizeIndustryKey(w.plan) === industryFilter;
       return matchSearch && matchStatus && matchIndustry;
     });
   }, [uniqueWebsites, search, statusFilter, industryFilter]);
@@ -691,7 +710,7 @@ function MonitoringPageContent() {
         matchStatus = effectiveStatus === statusFilter;
       }
 
-      const matchIndustry = !industryFilter || normalize(productIndustry(p)) === industryFilter;
+      const matchIndustry = !industryFilter || normalizeIndustryKey(productIndustry(p)) === industryFilter;
       return matchFocused && matchSearch && matchStatus && matchIndustry;
     });
   }, [products, focusedProductId, search, statusFilter, industryFilter, suspiciousProductData]);
@@ -708,10 +727,19 @@ function MonitoringPageContent() {
   }, [filteredProducts, sortOption]);
 
   const industryOptions = useMemo(() => {
-    const items = new Set<string>();
-    products.forEach((p) => items.add(productIndustry(p)));
-    uniqueWebsites.forEach((w) => { if (w.plan) items.add(w.plan); });
-    return Array.from(items).filter(Boolean).sort((a, b) => a.localeCompare(b));
+    const seenKeys = new Set<string>();
+
+    const collectIndustryKeys = (raw?: string | null) => {
+      const key = normalizeIndustryKey(raw);
+      if (key) seenKeys.add(key);
+    };
+
+    products.forEach((p) => collectIndustryKeys(productIndustry(p)));
+    uniqueWebsites.forEach((w) => collectIndustryKeys(w.plan));
+
+    return INDUSTRY_OPTIONS.filter((option) => seenKeys.has(option.key)).sort((a, b) =>
+      a.label.localeCompare(b.label)
+    );
   }, [products, uniqueWebsites]);
 
   const websiteIndustryByDomain = useMemo(() => {
@@ -1123,7 +1151,7 @@ function MonitoringPageContent() {
                     aria-label="Filter by industry" suppressHydrationWarning className={`${selectCls} min-w-[130px]`} style={selectStyle}>
                     <option value="">Industry</option>
                     {industryOptions.map((industry) => (
-                      <option key={industry} value={normalize(industry)}>{industry}</option>
+                      <option key={industry.key} value={industry.key}>{industry.label}</option>
                     ))}
                   </select>
                   <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" style={{ color: '#a07ad0' }}>
@@ -1170,17 +1198,12 @@ function MonitoringPageContent() {
                           exit={{ opacity: 0, y: 8, scale: 0.95 }}
                           className="absolute right-0 top-12 z-30 w-48 rounded-2xl p-1.5 shadow-xl origin-top-right"
                           style={{ background: 'rgba(255,255,255,0.98)', border: '1px solid rgba(166,61,255,0.15)', backdropFilter: 'blur(10px)' }}>
-                          {(['recent', 'oldest', 'az', 'za', 'price_high', 'price_low'] as const).map((opt) => (
-                            <button key={opt} type="button"
-                              onClick={() => { setSortOption(opt); setSortMenuOpen(false); }}
+                          {SORT_OPTIONS_BY_TAB[activeTab].map((option) => (
+                            <button key={option.id} type="button"
+                              onClick={() => { setSortOption(option.id); setSortMenuOpen(false); }}
                               className="w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-colors"
-                              style={{ color: sortOption === opt ? '#7b1de8' : '#7a6aa0', background: sortOption === opt ? 'rgba(123,29,232,0.08)' : 'transparent' }}>
-                              {opt === 'recent' && 'Recently Created'}
-                              {opt === 'oldest' && 'Oldest First'}
-                              {opt === 'az' && 'Alphabetical (A–Z)'}
-                              {opt === 'za' && 'Alphabetical (Z–A)'}
-                              {opt === 'price_high' && 'Highest Price'}
-                              {opt === 'price_low' && 'Lowest Price'}
+                              style={{ color: sortOption === option.id ? '#7b1de8' : '#7a6aa0', background: sortOption === option.id ? 'rgba(123,29,232,0.08)' : 'transparent' }}>
+                              {option.label}
                             </button>
                           ))}
                         </motion.div>
