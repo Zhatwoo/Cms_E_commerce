@@ -81,7 +81,18 @@ export type ComponentType =
   | "Rating"
   | "Accordion"
   | "BooleanField"
-  | "ImportedBlock";
+  | "ImportedBlock"
+  | "Diamond"
+  | "Heart"
+  | "Trapezoid"
+  | "Pentagon"
+  | "Hexagon"
+  | "Heptagon"
+  | "Octagon"
+  | "Nonagon"
+  | "Decagon"
+  | "Parallelogram"
+  | "Kite";
 
 /** A single node in the document. */
 export interface CleanNode {

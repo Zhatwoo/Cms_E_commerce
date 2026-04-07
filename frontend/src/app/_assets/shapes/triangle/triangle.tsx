@@ -96,7 +96,7 @@ export const Triangle = (props: TriangleProps) => {
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
       }}
-      className="transition-all hover:outline hover:outline-blue-500"
+      className="hover:outline hover:outline-blue-500"
     >
       <svg
         width="100%"
