@@ -167,6 +167,7 @@ const userRoutes = require('./routes/userRoutes');
 const pageRoutes = require('./routes/pageRoutes');
 const postRoutes = require('./routes/postRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const productRoutes = require('./routes/productRoutes');
 const inventoryRoutes = require('./routes/inventoryRoutes');
 const orderRoutes = require('./routes/orderRoutes');
@@ -180,6 +181,7 @@ const notificationRoutes = require('./routes/notificationRoutes');
 
 // Routes – public site by subdomain must be reachable
 app.use('/api/public', publicSiteRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/published-auth', publishedAuthRoutes);
 app.use('/api/users', userRoutes);
