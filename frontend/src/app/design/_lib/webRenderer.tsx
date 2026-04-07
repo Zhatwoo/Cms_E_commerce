@@ -754,7 +754,19 @@ function ResponsiveNav({ children, containerStyle, onClick, className, dataMobil
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
     >
-      <div className={`nav-menu ${isOpen ? "open" : ""}`}>
+      <div 
+        className={`nav-menu ${isOpen ? "open" : ""}`}
+        style={{
+          display: "flex",
+          flexDirection: containerStyle.flexDirection as any,
+          flexWrap: containerStyle.flexWrap as any,
+          alignItems: containerStyle.alignItems as string,
+          justifyContent: containerStyle.justifyContent as string,
+          gap: containerStyle.gap as string,
+          width: "100%",
+          flex: 1
+        }}
+      >
         {children}
       </div>
       <button
