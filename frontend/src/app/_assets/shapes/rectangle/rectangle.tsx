@@ -1,9 +1,9 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { ShapeSettings } from "../shared/ShapeSettings";
-import type { SquareProps } from "@/app/design/_types/components";
+import type { RectangleProps } from "@/app/design/_types/components";
 
-const SquarePreview = ({
+const RectanglePreview = ({
   w,
   h,
   fillColor,
@@ -30,7 +30,7 @@ const SquarePreview = ({
   />
 );
 
-const SquareEditor = ({
+const RectangleEditor = ({
   w,
   h,
   fillColor,
@@ -156,11 +156,11 @@ const SquareEditor = ({
   );
 };
 
-export const Square = (props: SquareProps) => {
+export const Rectangle = (props: RectangleProps) => {
   const {
-    color = "#e74c3c",
-    width = "200px",
-    height = "200px",
+    color = "#8b5cf6",
+    width = "300px",
+    height = "150px",
     background,
     backgroundImage = "",
     backgroundSize = "cover",
@@ -202,8 +202,8 @@ export const Square = (props: SquareProps) => {
     isPreview,
   } = props;
 
-  const w = typeof width === "number" ? `${width}px` : (width || "200px");
-  const h = typeof height === "number" ? `${height}px` : (height || "200px");
+  const w = typeof width === "number" ? `${width}px` : (width || "300px");
+  const h = typeof height === "number" ? `${height}px` : (height || "150px");
   const fillColor = background || color;
   const m = typeof margin === "number" ? margin : 0;
   const mt = marginTop ?? m;
@@ -223,7 +223,7 @@ export const Square = (props: SquareProps) => {
   const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
 
   if (isPreview) {
-    return <SquarePreview
+    return <RectanglePreview
       w={w}
       h={h}
       fillColor={fillColor}
@@ -233,7 +233,7 @@ export const Square = (props: SquareProps) => {
       resolvedBottomLeft={resolvedBottomLeft}
     />;
   }
-  return <SquareEditor
+  return <RectangleEditor
     w={w}
     h={h}
     fillColor={fillColor}
@@ -272,14 +272,14 @@ export const Square = (props: SquareProps) => {
     ml={ml}
   >
     {children}
-  </SquareEditor>;
+  </RectangleEditor>;
 };
 
-export const SquareDefaultProps: Partial<SquareProps> = {
-  color: "#e74c3c",
-  width: "200px",
-  height: "200px",
-  background: "#e74c3c",
+export const RectangleDefaultProps: Partial<RectangleProps> = {
+  color: "#8b5cf6",
+  width: "300px",
+  height: "150px",
+  background: "#8b5cf6",
   borderRadius: 0,
   radiusTopLeft: 0,
   radiusTopRight: 0,
@@ -295,9 +295,9 @@ export const SquareDefaultProps: Partial<SquareProps> = {
   cursor: "default",
 };
 
-Square.craft = {
-  displayName: "Square",
-  props: SquareDefaultProps,
+Rectangle.craft = {
+  displayName: "Rectangle",
+  props: RectangleDefaultProps,
   rules: {
     canMove: () => true,
     canDelete: (node: { parent?: string }) => node.parent !== "ROOT",

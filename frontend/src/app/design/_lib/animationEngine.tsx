@@ -673,6 +673,23 @@ function useGsapScrollEffect(
     // Use a natural ease for all scroll effects for a clean, smooth feel
     const naturalEase = config.scrub ? "none" : "power1.inOut";
 
+    // --- Ensure effectiveStart and effectiveEnd are always defined at the top scope ---
+    const rawStart = typeof config.start === "string" ? config.start.trim() : "";
+    const rawEnd = typeof config.end === "string" ? config.end.trim() : "";
+    const hasCustomStart = rawStart.length > 0;
+    const hasCustomEnd = rawEnd.length > 0;
+    const blurViewportDefaults = config.type === "blur" && !hasCustomStart && !hasCustomEnd;
+    const exitFocusDefaults = config.type === "fade" && !hasCustomStart && !hasCustomEnd;
+
+    const effectiveStart = hasCustomStart
+      ? rawStart
+      : blurViewportDefaults
+        ? "top bottom"
+        : exitFocusDefaults
+          ? "top center"
+          : "top top";
+    const effectiveEnd = hasCustomEnd ? rawEnd : "bottom top";
+
     // Replaced by 3-point enter/steady/exit logic in tlScroll
 
     if (config.type === "freeMove") {
@@ -707,15 +724,12 @@ function useGsapScrollEffect(
         if (idx === 0) {
           tl.set(el, { x: kf.x, y: kf.y, force3D: true });
         } else {
-          const prev = keyframes[idx - 1];
-          const duration = kf.at - prev.at;
           tl.to(el, {
             x: kf.x,
             y: kf.y,
-            duration,
             ease: "none", // Linear segments since keyframes are sampled/progress-based
             force3D: true,
-          }, prev.at);
+          }, kf.at);
         }
       });
 

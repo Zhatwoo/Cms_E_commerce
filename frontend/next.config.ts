@@ -1,9 +1,23 @@
 import type { NextConfig } from "next";
+import os from "os";
 import path from "path";
+
+const allowedDevOrigins = Array.from(new Set([
+  "localhost",
+  "127.0.0.1",
+  ...Object.values(os.networkInterfaces())
+    .flatMap((entries) => entries ?? [])
+    .filter((info) => info.family === "IPv4" && !info.internal)
+    .map((info) => info.address),
+]));
 
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: false,
+  // Silence "inferred workspace root" warning in monorepo-style setups with multiple lockfiles.
+  outputFileTracingRoot: __dirname,
+  // Allow accessing the dev server from your phone / LAN IP without cross-origin warnings.
+  allowedDevOrigins,
   experimental: {
     optimizePackageImports: [
       'lucide-react',

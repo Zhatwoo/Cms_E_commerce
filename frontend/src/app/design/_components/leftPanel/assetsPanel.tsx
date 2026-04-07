@@ -22,6 +22,20 @@ import { Column } from "../../_designComponents/Column/Column";
 import { Icon } from "../../_designComponents/Icon/Icon";
 import { Rating } from "../../_designComponents/Rating/Rating";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
+import { Rectangle } from "../../../_assets/shapes/rectangle/rectangle";
+import {
+  Diamond,
+  Heart,
+  Trapezoid,
+  Pentagon,
+  Hexagon,
+  Heptagon,
+  Octagon,
+  Nonagon,
+  Decagon,
+  Parallelogram,
+  Kite
+} from "../../../_assets/shapes/additional_shapes";
 
 // Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
 // Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
@@ -239,6 +253,30 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   ProductDescriptionCard: ProductDescriptionCardPreviewStub,
   productdescriptioncard: ProductDescriptionCardPreviewStub,
   "Product Description Card": ProductDescriptionCardPreviewStub,
+  Rectangle: asComponent(Rectangle),
+  rectangle: asComponent(Rectangle),
+  Diamond: asComponent(Diamond),
+  diamond: asComponent(Diamond),
+  Heart: asComponent(Heart),
+  heart: asComponent(Heart),
+  Trapezoid: asComponent(Trapezoid),
+  trapezoid: asComponent(Trapezoid),
+  Pentagon: asComponent(Pentagon),
+  pentagon: asComponent(Pentagon),
+  Hexagon: asComponent(Hexagon),
+  hexagon: asComponent(Hexagon),
+  Heptagon: asComponent(Heptagon),
+  heptagon: asComponent(Heptagon),
+  Octagon: asComponent(Octagon),
+  octagon: asComponent(Octagon),
+  Nonagon: asComponent(Nonagon),
+  nonagon: asComponent(Nonagon),
+  Decagon: asComponent(Decagon),
+  decagon: asComponent(Decagon),
+  Parallelogram: asComponent(Parallelogram),
+  parallelogram: asComponent(Parallelogram),
+  Kite: asComponent(Kite),
+  kite: asComponent(Kite),
 });
 
 export const AssetLivePreview = ({
@@ -297,8 +335,8 @@ export const AssetLivePreview = ({
   if (previewMode === "shape") {
     const shapePreviewElement = React.cloneElement(item.element as React.ReactElement<any>, {
       isPreview: true,
-      width: 48,
-      height: 48,
+      width: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 64 : (item.label.toLowerCase() === "kite" ? 36 : 48),
+      height: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 32 : (item.label.toLowerCase() === "kite" ? 64 : 48),
       margin: 0,
       padding: 0,
       position: "static",
