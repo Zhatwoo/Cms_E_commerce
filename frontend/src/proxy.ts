@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const BASE_DOMAIN = process.env.NEXT_PUBLIC_BASE_DOMAIN ?? 'websitelink';
+const BASE_DOMAIN = (process.env.NEXT_PUBLIC_BASE_DOMAIN || '').trim().toLowerCase();
 
 // Paths that should NEVER be rewritten by the subdomain proxy — they belong to the Next.js app itself.
 const PASSTHROUGH_PREFIXES = [
@@ -31,6 +31,12 @@ export function proxy(request: NextRequest) {
     subdomain = hostname.slice(0, -'.localhost'.length).trim();
   } else if (BASE_DOMAIN && hostname.endsWith('.' + BASE_DOMAIN)) {
     subdomain = hostname.slice(0, -(BASE_DOMAIN.length + 1)).trim();
+  } else {
+    const parts = hostname.split('.').filter(Boolean);
+    const isIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+    if (!isIpv4 && parts.length >= 3) {
+      subdomain = parts[0];
+    }
   }
 
   if (!subdomain || subdomain === 'www') {

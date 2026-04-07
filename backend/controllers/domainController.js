@@ -3,6 +3,7 @@ const Domain = require('../models/Domain');
 const Project = require('../models/Project');
 const Page = require('../models/Page');
 const User = require('../models/User');
+const WebsiteAnalytics = require('../models/WebsiteAnalytics');
 const { getRealtimeDb, db } = require('../config/firebase');
 const { getLimits } = require('../utils/subscriptionLimits');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
@@ -73,6 +74,7 @@ exports.getManagementList = async (req, res) => {
     const rowsByKey = new Map();
     const rowKeyByProject = new Map();
     const rowKeyBySubdomain = new Map();
+    const analyticsKeys = new Set();
     const publishedSubdomains = new Set();
     const normalizeStatus = (rawStatus, fallback = 'draft') => {
       const status = (rawStatus || fallback).toString().trim().toLowerCase();
@@ -111,6 +113,8 @@ exports.getManagementList = async (req, res) => {
       }
 
       const key = projectId ? `${userId}::${projectId}` : `subdomain::${subdomain}`;
+      if (projectId) analyticsKeys.add(projectId);
+      if (subdomain) analyticsKeys.add(subdomain);
       rowsByKey.set(key, {
         id: doc.domainId || doc.domain_id || doc.id || subdomain,
         projectId,
@@ -176,6 +180,8 @@ exports.getManagementList = async (req, res) => {
         const domainName = project.subdomain
           ? `${project.subdomain}.${BASE_DOMAIN}`
           : `${project.title || 'Untitled Project'} (Draft)`;
+        if (projectId) analyticsKeys.add(projectId);
+        if (normalizedSubdomain) analyticsKeys.add(normalizedSubdomain);
         rowsByKey.set(projectKey, {
           id: projectId,
           projectId,
@@ -198,6 +204,19 @@ exports.getManagementList = async (req, res) => {
     }
 
     const rows = Array.from(rowsByKey.values());
+    const analyticsData = analyticsKeys.size > 0 ? await WebsiteAnalytics.getAnalyticsBatch(Array.from(analyticsKeys)) : {};
+    for (const row of rows) {
+      const candidates = [row.id, row.projectId, row.domainName ? String(row.domainName).split('.')[0] : '']
+        .map((value) => String(value || '').trim())
+        .filter(Boolean);
+      const analytics = candidates.map((key) => analyticsData[key]).find((item) => item && (item.totalViews || item.errors || item.reports));
+      const fallback = candidates.map((key) => analyticsData[key]).find(Boolean);
+      const matched = analytics || fallback || null;
+      row.views = matched?.totalViews || 0;
+      row.errors = matched?.errors || 0;
+      row.reports = matched?.reports || 0;
+      row.analyticsKey = candidates.find((key) => analyticsData[key]) || row.id || row.projectId || '';
+    }
     const total = rows.length;
     const live = rows.filter((r) => r.status === 'published').length;
     const underReview = rows.filter((r) => r.status === 'draft' || r.status === 'pending').length;

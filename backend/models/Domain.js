@@ -67,7 +67,8 @@ async function findByPublishedSubdomain(subdomain) {
   }
 
   return {
-    id: data.domainId,
+    // Keep ID consistent with admin management list fallback logic.
+    id: data.domainId || data.domain_id || data.id || normalized,
     projectId: data.projectId,
     userId: data.userId,
     subdomain: normalized,
