@@ -201,7 +201,7 @@ export default function SubscriptionPage() {
           const cardBg = isDark ? '#111058' : '#ffffff';
           const cardShadow = isCurrent
             ? (isDark
-              ? '0 20px 40px -10px rgba(5,3,39,0.5)'
+              ? '0 20px 40px -10px rgba(5,3,39,0.5), 0 0 0 3px rgba(250,204,21,0.35), 0 0 22px rgba(250,204,21,0.30)'
                 : `0 20px 40px -10px rgba(124,58,237,0.1), 0 0 0 3px ${plan.accent}20, 0 0 20px ${plan.accent}15`)
             : (isDark
                 ? '0 10px 20px rgba(5,3,39,0.2)'
@@ -377,90 +377,82 @@ export default function SubscriptionPage() {
 
       {/* ── COMPARISON TABLE ───────────────────────────────────────────────── */}
       <motion.section
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="relative rounded-[3rem] border overflow-hidden backdrop-blur-3xl transition-all duration-500"
+        initial={{ opacity: 0, scale: 0.99 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative rounded-[2.5rem] border overflow-hidden backdrop-blur-2xl transition-all duration-500"
         style={{
-          backgroundColor: isDark ? 'rgba(17, 16, 88, 0.4)' : '#ffffff',
-          borderColor: isDark ? 'rgba(255, 255, 255, 0.08)' : 'rgba(18, 25, 58, 0.1)',
+          backgroundColor: isDark ? 'rgba(17, 16, 88, 0.4)' : 'rgba(255, 255, 255, 0.8)',
+          borderColor: isDark ? 'rgba(124, 58, 237, 0.2)' : 'rgba(18, 25, 58, 0.08)',
           boxShadow: isDark 
-            ? '0 40px 100px -20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05)' 
-            : '0 40px 100px -20px rgba(18,25,58,0.04)',
+            ? '0 40px 80px -15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)' 
+            : '0 40px 80px -15px rgba(18,25,58,0.03)',
         }}
       >
-        {/* 1. THE SPECTRUM STRIP: Using the Gradient from your screenshot */}
+        {/* THE SPECTRUM STRIP: Gradient from your screenshot */}
         <div 
           className="absolute top-0 left-0 right-0 h-[4px] z-20" 
           style={{ background: 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' }}
         />
 
-        {/* Header: Editorial Identity */}
-        <div className="px-8 py-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-4 border-b border-white/5">
+        {/* Header: Editorial Style */}
+        <div className="px-10 py-12 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-white/5">
           <div className="space-y-2">
             <div className="flex items-center gap-3">
-              {/* Match the top strip gradient here for a subtle "tab" look */}
-              <div className="w-1 h-5 rounded-full" style={{ background: 'linear-gradient(180deg, #7C3AED 0%, #FF9E4A 100%)' }} />
-              <span className="text-[10px] font-black uppercase tracking-[0.5em] text-[#7C3AED]">
-                Featured Offered 2026
+              <div className="w-1.5 h-1.5 rounded-full bg-[#7C3AED]" />
+              <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[#7C3AED]">
+                Protocol Selection
               </span>
             </div>
             <h3 className="text-4xl font-black tracking-tighter"
                 style={{ color: isDark ? '#FFF' : '#12193A', fontFamily: 'var(--font-montserrat)' }}>
-              Comparison Plan
+              Compare Plans
             </h3>
           </div>
           
-          <div className="flex flex-col items-end gap-2">
-          
-            {currentPlan !== 'free' && (
-              <button
-                type="button"
-                onClick={handleCancel}
-                className="rounded-full px-3 py-1 text-[10px] font-bold uppercase tracking-wide transition-all duration-200 hover:brightness-105 active:scale-[0.98]"
-                style={{
-                  background: isDark ? 'rgba(239,68,68,0.14)' : 'rgba(239,68,68,0.08)',
-                  color: isDark ? '#fca5a5' : '#dc2626',
-                  border: isDark ? '1px solid rgba(248,113,113,0.35)' : '1px solid rgba(220,38,38,0.22)',
-                }}
-              >
-                Cancel Plan
-              </button>
-            )}
-          </div>
+          {currentPlan !== 'free' && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-full border transition-all hover:bg-red-500 hover:text-white"
+              style={{
+                borderColor: isDark ? 'rgba(239,68,68,0.3)' : 'rgba(220,38,38,0.2)',
+                color: isDark ? '#fca5a5' : '#dc2626',
+              }}
+            >
+              Cancel Plan
+            </button>
+          )}
         </div>
 
-        <div className="overflow-x-auto pb-5">
+        <div className="overflow-x-auto pb-8">
           <table className="w-full min-w-[900px] border-collapse">
             <thead>
               <tr>
-                <th className="py-7 px-8 text-left w-[30%]">
-                  <span className="text-[10px] font-black uppercase tracking-[0.6em] opacity-20">Functionality_Index</span>
+                <th className="py-10 px-10 text-left w-[30%]">
+                  <span className="text-[10px] font-black uppercase tracking-[0.4em] opacity-20">Features</span>
                 </th>
                 {PLANS.map((plan) => {
                   const isCurrent = currentPlan === plan.id;
                   return (
-                    <th key={plan.id} className="py-7 px-5 text-left relative overflow-visible">
-                      {/* 2. Spotlight: Column depth for the chosen plan */}
+                    <th key={plan.id} className="py-10 px-6 text-left relative">
+                      {/* Visual anchor for chosen plan */}
                       {isCurrent && (
-                        <div className="absolute inset-x-2 inset-y-0 bg-[#7C3AED]/[0.03] z-0 border-x border-[#7C3AED]/5" />
+                        <div className="absolute inset-x-2 inset-y-4 bg-[#7C3AED]/[0.04] rounded-3xl z-0" />
                       )}
                       
-                      <div className="relative z-10 flex flex-col gap-2 transition-all">
-                        {/* Current Plan Name: Gradient Text from Screenshot */}
-                        <span className={`text-[14px] font-black uppercase tracking-[0.3em] transition-all
-                                        ${isCurrent ? 'bg-clip-text text-transparent scale-105 origin-left' : 'opacity-30'}`}
+                      <div className="relative z-10 flex flex-col gap-2">
+                        <span className={`text-[15px] font-black uppercase tracking-[0.2em] 
+                                        ${isCurrent ? 'bg-clip-text text-transparent' : 'opacity-40'}`}
                               style={{ 
                                 backgroundImage: isCurrent ? 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' : 'none',
                                 color: isCurrent ? 'transparent' : (isDark ? '#FFF' : '#12193A') 
                               }}>
                           {plan.name}
                         </span>
-                        
                         {isCurrent && (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#7C3AED]/10 border border-[#7C3AED]/20">
-                            <div className="w-1 h-1 rounded-full bg-[#7C3AED] shadow-[0_0_8px_#7C3AED]" />
-                            <span className="text-[8px] font-black uppercase tracking-widest text-[#7C3AED]">Active_Choice</span>
-                          </div>
+                          <span className="text-[8px] font-black uppercase tracking-widest text-[#7C3AED] opacity-60">
+                            Currently Active
+                          </span>
                         )}
                       </div>
                     </th>
@@ -469,11 +461,11 @@ export default function SubscriptionPage() {
               </tr>
             </thead>
 
-            <tbody className="divide-y-0 relative">
+            <tbody className="divide-y divide-white/5">
               {COMPARISON_ROWS.map((row) => (
                 <tr key={row.label} className="group transition-all hover:bg-white/[0.02]">
-                  <td className="py-4 px-8">
-                    <span className="text-[13px] font-bold tracking-tight opacity-30 group-hover:opacity-100 group-hover:translate-x-1 transition-all inline-block"
+                  <td className="py-6 px-10">
+                    <span className="text-[13px] font-bold tracking-tight opacity-40 group-hover:opacity-100 transition-all inline-block"
                           style={{ color: isDark ? '#FFF' : '#12193A' }}>
                       {row.label}
                     </span>
@@ -485,19 +477,16 @@ export default function SubscriptionPage() {
                     const isDash = val === '—';
 
                     return (
-                      <td key={plan.id} className="py-4 px-5 relative">
-                        {/* Subtle column persistence for active plan */}
-                        {isCurrent && <div className="absolute inset-x-2 inset-y-0 bg-[#7C3AED]/[0.02] border-x border-[#7C3AED]/5 z-0" />}
-                        
+                      <td key={plan.id} className="py-6 px-6 relative">
                         <div className="relative z-10">
                           {isCheck ? (
-                            <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20 shadow-[0_0_20px_rgba(124,58,237,0.1)]">
-                              <Check size={11} strokeWidth={4} />
+                            <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-[#7C3AED]/10 text-[#7C3AED] border border-[#7C3AED]/20">
+                              <Check size={12} strokeWidth={4} />
                             </div>
                           ) : isDash ? (
-                            <span className="text-[10px] font-black opacity-10 tracking-[0.4em]">—</span>
+                            <span className="text-xs opacity-10">—</span>
                           ) : (
-                            <span className={`text-[13px] font-black tracking-tighter ${isCurrent ? 'text-[#7C3AED] scale-105' : 'opacity-70 group-hover:opacity-100'}`}
+                            <span className={`text-[13px] font-black tracking-tighter ${isCurrent ? 'text-[#7C3AED]' : 'opacity-70'}`}
                                   style={{ color: isDark ? '#FFF' : '#12193A' }}>
                               {val}
                             </span>
@@ -512,21 +501,14 @@ export default function SubscriptionPage() {
           </table>
         </div>
 
-        {/* Footer: Tech Document Style */}
-        <div
-          className="px-8 py-5 border-t"
-          style={{
-            backgroundColor: isDark ? 'rgba(255,255,255,0.01)' : '#ffffff',
-            borderColor: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(18,25,58,0.08)',
-          }}
-        >
-          <div className="flex justify-between items-center">
-            <span className="text-[8px] font-black uppercase tracking-[0.5em] opacity-10" style={{ color: isDark ? '#FFF' : '#12193A' }}>
-              Ref_Auth: Inspire_Holdings_2026
-            </span>
-            <div className="flex gap-4 opacity-10">
-              {[1, 2, 3].map((i) => <div key={i} className="h-1.5 w-1.5 rounded-full bg-white" />)}
-            </div>
+        <div className="px-10 py-6 border-t border-white/5 flex justify-between items-center">
+          <span className="text-[9px] font-black uppercase tracking-[0.5em] opacity-10" style={{ color: isDark ? '#FFF' : '#12193A' }}>
+            Inspire Holdings Inc.
+          </span>
+          <div className="flex gap-2">
+            <div className="w-1 h-1 rounded-full bg-[#7C3AED] opacity-40" />
+            <div className="w-1 h-1 rounded-full bg-[#7C3AED] opacity-20" />
+            <div className="w-1 h-1 rounded-full bg-[#7C3AED] opacity-10" />
           </div>
         </div>
       </motion.section>
