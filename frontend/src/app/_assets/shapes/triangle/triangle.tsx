@@ -23,8 +23,13 @@ export const Triangle = (props: TriangleProps) => {
     opacity = 1,
     overflow = "visible",
     cursor = "default",
-    position = "relative",
+     position = "absolute",
     display = "flex",
+     zIndex = 0,
+     top,
+     right,
+     bottom,
+     left,
     children,
     isPreview,
   } = props;
@@ -54,6 +59,11 @@ export const Triangle = (props: TriangleProps) => {
         minHeight: hCss,
         position,
         display,
+        zIndex,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: "center center",
         boxShadow,
@@ -127,8 +137,9 @@ export const TriangleDefaultProps: Partial<TriangleProps> = {
   opacity: 1,
   overflow: "hidden",
   cursor: "default",
-  position: "relative",
+   position: "absolute",
   display: "flex",
+   zIndex: 0,
 };
 
 Triangle.craft = {

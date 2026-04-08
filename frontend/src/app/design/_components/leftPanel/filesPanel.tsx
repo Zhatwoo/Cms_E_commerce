@@ -20,7 +20,7 @@ import {
   Ungroup,
   Pencil,
 } from "lucide-react";
-import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard } from "../../_lib/canvasActions";
+import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard, deleteNodesPreservingCanvasScroll } from "../../_lib/canvasActions";
 import { slugFromName } from "../../_lib/slug";
 import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
@@ -324,7 +324,7 @@ export const FilesPanel = () => {
           const node = query.node(nodeId).get();
           if (PROTECTED.has(node.data.displayName)) return;
           if (!query.node(nodeId).isDeletable()) return;
-          actions.delete(nodeId);
+          deleteNodesPreservingCanvasScroll(actions as any, nodeId);
         } catch { /* node might already be gone */ }
         setContextMenu(null);
       });

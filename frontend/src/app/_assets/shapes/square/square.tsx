@@ -87,6 +87,11 @@ const SquareEditor = ({
   resolvedBottomLeft: number;
   position: React.CSSProperties["position"];
   display: React.CSSProperties["display"];
+  zIndex?: number;
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
   rotation: number;
   boxShadow: string;
   opacity: number;
@@ -117,6 +122,11 @@ const SquareEditor = ({
         display,
         alignItems: "center",
         justifyContent: "center",
+        zIndex: zIndex !== undefined ? zIndex : undefined,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
         padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
         margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
@@ -171,8 +181,13 @@ export const Square = (props: SquareProps) => {
     opacity = 1,
     overflow = "visible",
     cursor = "default",
-    position = "relative",
+    position = "absolute",
     display = "flex",
+    zIndex = 0,
+    top,
+    right,
+    bottom,
+    left,
     pt = 0,
     pr = 0,
     pb = 0,
@@ -230,11 +245,11 @@ export const Square = (props: SquareProps) => {
     cursor={cursor}
     position={position}
     display={display}
-    zIndex={0}
-    top={0}
-    right={0}
-    bottom={0}
-    left={0}
+    zIndex={zIndex}
+    top={top}
+    right={right}
+    bottom={bottom}
+    left={left}
     pt={pt}
     pr={pr}
     pb={pb}
@@ -266,8 +281,9 @@ export const SquareDefaultProps: Partial<SquareProps> = {
   opacity: 1,
   overflow: "hidden",
   cursor: "default",
-  position: "relative",
+  position: "absolute",
   display: "flex",
+  zIndex: 0,
   pt: 0,
   pr: 0,
   pb: 0,

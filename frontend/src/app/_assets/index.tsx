@@ -71,19 +71,19 @@ import { TemplateEntry } from "./_types";
 
 export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
-    <circle cx="30" cy="30" r="28" fill="#ccc" />
+    <circle cx="30" cy="30" r="28" fill="#10b981" />
   </svg>
 );
 
 export const Square = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
-    <rect x="4" y="4" width="52" height="52" fill="#ccc" />
+    <rect x="4" y="4" width="52" height="52" fill="#e74c3c" />
   </svg>
 );
 
 export const Triangle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
-    <polygon points="30,6 54,54 6,54" fill="#ccc" />
+    <polygon points="30,6 54,54 6,54" fill="#3498db" />
   </svg>
 );
 
