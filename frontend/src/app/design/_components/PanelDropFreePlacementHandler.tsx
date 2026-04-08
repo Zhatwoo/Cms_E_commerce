@@ -11,9 +11,10 @@ const MAX_RETRY_FRAMES = 20;
 const MAX_COLUMNS_PER_ROW = 5;
 const FLOW_LAYOUT_TYPES = new Set(["Row", "Section", "Container", "Viewport", "Tab Content", "TabContent"]);
 const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const SHAPE_DISPLAY_NAMES = new Set(["Circle", "Square", "Triangle", "Rectangle", "Diamond", "Heart", "Trapezoid", "Pentagon", "Hexagon", "Heptagon", "Octagon", "Nonagon", "Decagon", "Parallelogram", "Kite"]);
 const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 const HORIZONTAL_COLUMN_PARENTS = new Set(["Row", "Section", "Container", "Column", "Tab Content", "TabContent"]);
-const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent", "Circle", "Square", "Triangle", "Rectangle", "Diamond", "Heart", "Trapezoid", "Pentagon", "Hexagon", "Heptagon", "Octagon", "Nonagon", "Decagon", "Parallelogram", "Kite"]);
 const BLOCKED_DROP_TYPES = new Set(["Accordion"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
@@ -71,7 +72,7 @@ function usesFlowPlacement(parentDisplayName: string | undefined, parentProps: R
   return parentProps.isFreeform !== true && (
     parentDisplay === "flex" ||
     parentDisplay === "grid" ||
-    (!!parentDisplayName && FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName))
+    (!!parentDisplayName && (FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName) || SHAPE_DISPLAY_NAMES.has(parentDisplayName)))
   );
 }
 
@@ -378,6 +379,7 @@ export function PanelDropFreePlacementHandler() {
               targetDisplay === "flex" ||
               targetDisplay === "grid" ||
               FLOW_PARENT_DISPLAY_NAMES.has(targetDisplayName) ||
+              SHAPE_DISPLAY_NAMES.has(targetDisplayName) ||
               targetDisplayName === "Page";
             const isLayoutRoot = FLOW_LAYOUT_TYPES.has(nodeName ?? "");
             if (isFlowTarget && isLayoutRoot) {

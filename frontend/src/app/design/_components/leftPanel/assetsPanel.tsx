@@ -253,6 +253,8 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   ProductDescriptionCard: ProductDescriptionCardPreviewStub,
   productdescriptioncard: ProductDescriptionCardPreviewStub,
   "Product Description Card": ProductDescriptionCardPreviewStub,
+  CategoriesCardCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
+  categoriescardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
   Rectangle: asComponent(Rectangle),
   rectangle: asComponent(Rectangle),
   Diamond: asComponent(Diamond),
@@ -333,14 +335,10 @@ export const AssetLivePreview = ({
   }
 
   if (previewMode === "shape") {
-    const shapePreviewElement = React.cloneElement(item.element as React.ReactElement<any>, {
-      isPreview: true,
+    const shapePreviewElement = item.preview ? React.cloneElement(item.preview as React.ReactElement<any>, {
       width: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 64 : (item.label.toLowerCase() === "kite" ? 36 : 48),
       height: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 32 : (item.label.toLowerCase() === "kite" ? 64 : 48),
-      margin: 0,
-      padding: 0,
-      position: "static",
-    });
+    }) : null;
 
     return (
       <div className="h-20 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-[var(--builder-surface-3)] transition-colors">

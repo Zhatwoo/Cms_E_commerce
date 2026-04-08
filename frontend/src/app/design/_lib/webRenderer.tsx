@@ -482,6 +482,7 @@ const frameResponsiveStyles = (
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
+      }
 
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
@@ -2647,6 +2648,24 @@ function RenderNode({
     }
 
     case "Text": {
+      const shapeParentTypes = new Set([
+        "Circle",
+        "Square",
+        "Triangle",
+        "Rectangle",
+        "Diamond",
+        "Heart",
+        "Trapezoid",
+        "Pentagon",
+        "Hexagon",
+        "Heptagon",
+        "Octagon",
+        "Nonagon",
+        "Decagon",
+        "Parallelogram",
+        "Kite",
+      ]);
+      const isShapeParent = !!parentType && shapeParentTypes.has(parentType);
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
@@ -2680,7 +2699,9 @@ function RenderNode({
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
       const originalPos = (props.position as string) || "relative";
-      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+      const shouldClearOffsets =
+        (!builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative") ||
+        isShapeParent;
 
       const textStyle: React.CSSProperties = {
         fontSize: typographySpec.fontSize,
@@ -3949,6 +3970,23 @@ function RenderNode({
     case "Decagon":
     case "Parallelogram":
     case "Kite": {
+      const shapeClipPath = (() => {
+        if (type === "Circle") return "circle(50% at 50% 50%)";
+        if (type === "Square") return undefined;
+        if (type === "Triangle") return "polygon(0% 100%, 50% 0%, 100% 100%)";
+        if (type === "Diamond") return "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)";
+        if (type === "Heart") return "polygon(50% 92%, 20% 70%, 6% 48%, 8% 30%, 24% 16%, 38% 18%, 50% 30%, 62% 18%, 76% 16%, 92% 30%, 94% 48%, 80% 70%)";
+        if (type === "Trapezoid") return "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)";
+        if (type === "Pentagon") return "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)";
+        if (type === "Hexagon") return "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
+        if (type === "Heptagon") return "polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)";
+        if (type === "Octagon") return "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)";
+        if (type === "Nonagon") return "polygon(50% 0%, 83% 12%, 100% 43%, 94% 78%, 68% 100%, 32% 100%, 6% 78%, 0% 43%, 17% 12%)";
+        if (type === "Decagon") return "polygon(50% 0%, 80% 10%, 100% 35%, 100% 65%, 80% 90%, 50% 100%, 20% 90%, 0% 65%, 0% 35%, 20% 10%)";
+        if (type === "Parallelogram") return "polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)";
+        if (type === "Kite") return "polygon(50% 0%, 100% 45%, 50% 100%, 0% 45%)";
+        return undefined;
+      })();
       const m = toNumber(props.margin, 0);
       const mt = toNumber(props.marginTop ?? m, 0);
       const mr = toNumber(props.marginRight ?? m, 0);
@@ -3959,7 +3997,11 @@ function RenderNode({
       const pr = toNumber(props.paddingRight ?? p, 0);
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
-      const fill = (props.background as string) || (props.color as string) || "#999999";
+      const backgroundRaw = typeof props.background === "string" ? props.background : "";
+      const normalizedBackground = backgroundRaw.trim().toLowerCase();
+      const fill = (backgroundRaw && normalizedBackground !== "transparent"
+        ? backgroundRaw
+        : ((props.color as string) || "#999999"));
       const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
       const originalPos = (props.position as string) || "relative";
       const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
@@ -4007,11 +4049,16 @@ function RenderNode({
               return parts.length ? parts.join(" ") : undefined;
             })(),
             transformOrigin: "center center",
-            backgroundColor: "transparent",
-            backgroundImage: "none",
-            backgroundSize: undefined,
-            backgroundPosition: undefined,
-            backgroundRepeat: undefined,
+            backgroundColor: type === "Circle" || type === "Square" ? fill : "transparent",
+            backgroundImage:
+              (type === "Circle" || type === "Square") && bgImage
+                ? overlay
+                  ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
+                  : `url(${bgImage})`
+                : "none",
+            backgroundSize: (type === "Circle" || type === "Square") && bgImage ? ((props.backgroundSize as string) || "cover") : undefined,
+            backgroundPosition: (type === "Circle" || type === "Square") && bgImage ? ((props.backgroundPosition as string) || "center") : undefined,
+            backgroundRepeat: (type === "Circle" || type === "Square") && bgImage ? ((props.backgroundRepeat as string) || "no-repeat") : undefined,
             borderRadius:
               type === "Circle"
                 ? "50%"
@@ -4049,6 +4096,7 @@ function RenderNode({
                 bottom: 0,
                 pointerEvents: "none",
                 display: "block",
+                overflow: "visible",
               }}
               preserveAspectRatio="none"
             >
@@ -4057,7 +4105,9 @@ function RenderNode({
                   d="M 50 90 C 20 70 5 55 5 35 C 5 20 20 10 32 10 C 40 10 47 15 50 22 C 53 15 60 10 68 10 C 80 10 95 20 95 35 C 95 55 80 70 50 90 Z"
                   fill={fill}
                   stroke={props.borderColor as string}
-                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) : undefined}
+                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) * 2 : undefined}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ paintOrder: "stroke fill" }}
                 />
               ) : (
                 <polygon
@@ -4078,6 +4128,8 @@ function RenderNode({
                   fill={fill}
                   stroke={props.borderColor as string}
                   strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) * 2 : undefined}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ paintOrder: "stroke fill" }}
                   strokeDasharray={
                     props.borderStyle === "dashed"
                       ? "6,6"
@@ -4089,7 +4141,20 @@ function RenderNode({
               )}
             </svg>
           ) : null}
-          {children}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              clipPath: shapeClipPath,
+              WebkitClipPath: shapeClipPath,
+              overflow: "hidden",
+            }}
+          >
+            {children}
+          </div>
         </div>
       );
     }
@@ -4373,6 +4438,7 @@ export function WebPreview({
   const pageWidthPx = parsePixelValue(width) ?? 1920;
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const pageHeightPx = parsePixelValue(minHeight) ?? 800;
   const pageRotation = toNumber(pageProps.pageRotation, 0);
 
   const { ref, width: measuredWidth } = useContainerWidth(1200);
@@ -4452,7 +4518,10 @@ export function WebPreview({
     </>
   );
 
-      const isContainedScroller = fillViewport || isPhoneSize || shouldUseResponsiveViewport;
+      // In builder parity mode, preview must match the canvas artboard size exactly.
+      // So we disable the contained scroller behavior (which uses viewport units + internal scroll)
+      // and render a fixed-size page frame instead.
+      const isContainedScroller = !builderParityMode && (fillViewport || isPhoneSize || shouldUseResponsiveViewport);
 
       return (
     <>
@@ -4472,12 +4541,19 @@ export function WebPreview({
         data-preview-scroll-root={isContainedScroller ? "true" : undefined}
         style={{
           width: "100%",
-          minHeight: "100vh",
+          // For builder parity mode, lock the preview to the canvas container (no `vh`, no internal scroll).
+          height: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
+          maxHeight: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
+          minHeight: builderParityMode ? 0 : (isContainedScroller ? "100%" : "100vh"),
           display: "flex",
           flexDirection: "column",
           alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
-          overflowY: isContainedScroller ? "auto" : "visible",
+          overflowY: builderParityMode ? "hidden" : (isContainedScroller ? "auto" : "visible"),
+          // In builder parity mode we want a fixed-size artboard, but wheel scrolling should
+          // still "chain" to the parent page/canvas when the pointer is over the artboard.
+          // Using `overscroll-behavior: none` breaks that chaining, making it feel unscrollable.
+          overscrollBehavior: builderParityMode ? undefined : (isContainedScroller ? "contain" : undefined),
           backgroundColor: background,
         }}
       >
@@ -4485,17 +4561,29 @@ export function WebPreview({
         <div
           key={currentPageId}
           style={{
-            width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
-            maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
-            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
-            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight),
+            width: builderParityMode
+              ? `${pageWidthPx}px`
+              : shouldStretchDesktopPage
+                ? "100%"
+                : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
+            maxWidth: builderParityMode
+              ? `${pageWidthPx}px`
+              : shouldStretchDesktopPage
+                ? "100%"
+                : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
+            height: builderParityMode
+              ? `${pageHeightPx}px`
+              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight)),
+            minHeight: builderParityMode
+              ? `${pageHeightPx}px`
+              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight)),
             backgroundColor: "transparent",
             margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
             position: "relative",
             isolation: "isolate",
-            overflow: isScaling ? "visible" : "hidden",
+            overflow: builderParityMode ? "hidden" : (isScaling ? "visible" : "hidden"),
             transition: "transform 0.2s ease, width 0.3s ease",
             ...transitionStyle,
           }}

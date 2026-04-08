@@ -11,6 +11,8 @@ interface SizePositionGroupProps extends SizePositionSettableProps {
   maxWidth?: string | number;
   minHeight?: string | number;
   maxHeight?: string | number;
+  hidePadding?: boolean;
+  hideMargin?: boolean;
 }
 
 export const SizePositionGroup = ({
@@ -24,6 +26,8 @@ export const SizePositionGroup = ({
   marginRight = 0,
   marginTop = 0,
   marginBottom = 0,
+  hidePadding = false,
+  hideMargin = false,
   setProp
 }: SizePositionGroupProps) => {
 
@@ -278,25 +282,29 @@ export const SizePositionGroup = ({
         </div>
       </div>
 
-      <div className="w-full h-px bg-[var(--builder-border)] my-1"></div>
+      {(!hidePadding || !hideMargin) && <div className="w-full h-px bg-[var(--builder-border)] my-1"></div>}
 
       {/* Padding */}
-      <BoxInput
-        label="Padding"
-        top={paddingTop} right={paddingRight} bottom={paddingBottom} left={paddingLeft}
-        expanded={expandPadding}
-        setExpanded={setExpandPadding}
-        onChange={handlePaddingChange}
-      />
+      {!hidePadding && (
+        <BoxInput
+          label="Padding"
+          top={paddingTop} right={paddingRight} bottom={paddingBottom} left={paddingLeft}
+          expanded={expandPadding}
+          setExpanded={setExpandPadding}
+          onChange={handlePaddingChange}
+        />
+      )}
 
       {/* Margin */}
-      <BoxInput
-        label="Margin"
-        top={marginTop} right={marginRight} bottom={marginBottom} left={marginLeft}
-        expanded={expandMargin}
-        setExpanded={setExpandMargin}
-        onChange={handleMarginChange}
-      />
+      {!hideMargin && (
+        <BoxInput
+          label="Margin"
+          top={marginTop} right={marginRight} bottom={marginBottom} left={marginLeft}
+          expanded={expandMargin}
+          setExpanded={setExpandMargin}
+          onChange={handleMarginChange}
+        />
+      )}
     </div>
   );
 };
