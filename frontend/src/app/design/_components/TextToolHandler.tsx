@@ -28,6 +28,23 @@ type PreviewRect = {
 };
 
 const CANVAS_DISPLAY_NAMES = new Set(["Page", "Viewport", "Container", "Section", "Row", "Column", "Frame", "Button", "Tab Content"]);
+const SHAPE_DISPLAY_NAMES = new Set([
+    "Circle",
+    "Square",
+    "Triangle",
+    "Rectangle",
+    "Diamond",
+    "Heart",
+    "Trapezoid",
+    "Pentagon",
+    "Hexagon",
+    "Heptagon",
+    "Octagon",
+    "Nonagon",
+    "Decagon",
+    "Parallelogram",
+    "Kite",
+]);
 
 function isCanvasNode(nodes: Record<string, any>, nodeId: string | null): nodeId is string {
     if (!nodeId) return false;
@@ -62,6 +79,26 @@ function resolvePageTargetId(startId: string | null, nodes: Record<string, any>)
     }
     const firstPage = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
     return firstPage ?? null;
+}
+
+function isShapeCanvasNode(nodes: Record<string, any>, nodeId: string | null): nodeId is string {
+    if (!nodeId) return false;
+    const node = nodes[nodeId];
+    if (!node?.data) return false;
+    const displayName = String(node.data.displayName ?? "");
+    return SHAPE_DISPLAY_NAMES.has(displayName);
+}
+
+function resolveShapeCanvasTargetId(startId: string | null, nodes: Record<string, any>): string | null {
+    let current = startId;
+    const visited = new Set<string>();
+    while (current && !visited.has(current)) {
+        visited.add(current);
+        if (isShapeCanvasNode(nodes, current)) return current;
+        const parent = nodes[current]?.data?.parent;
+        current = typeof parent === "string" ? parent : null;
+    }
+    return null;
 }
 
 function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: number } {
@@ -126,7 +163,10 @@ export const TextToolHandler = () => {
             const nodeEl = target.closest("[data-node-id]") as HTMLElement | null;
             const clickedNodeId = nodeEl?.getAttribute("data-node-id") || null;
             const nodes = queryRef.current.getState().nodes as Record<string, any>;
-            let targetNodeId = resolvePageTargetId(clickedNodeId, nodes) ?? resolveCanvasTargetId(clickedNodeId, nodes);
+            let targetNodeId =
+                resolveShapeCanvasTargetId(clickedNodeId, nodes) ??
+                resolveCanvasTargetId(clickedNodeId, nodes) ??
+                resolvePageTargetId(clickedNodeId, nodes);
 
             if (!targetNodeId || targetNodeId === "ROOT") {
                 const firstPage = Object.keys(nodes).find(id => String(nodes[id]?.data?.displayName ?? "") === "Page");
@@ -181,12 +221,15 @@ export const TextToolHandler = () => {
             if (dragState.targetNodeId) {
                 try {
                     const state = queryRef.current.getState();
+                    const typedNodes = state.nodes as Record<string, any>;
                     const normalizedTargetId =
-                        resolvePageTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
-                        resolveCanvasTargetId(dragState.targetNodeId, state.nodes as Record<string, any>) ??
+                        resolveShapeCanvasTargetId(dragState.targetNodeId, typedNodes) ??
+                        resolveCanvasTargetId(dragState.targetNodeId, typedNodes) ??
+                        resolvePageTargetId(dragState.targetNodeId, typedNodes) ??
                         dragState.targetNodeId;
                     const parentNode = state.nodes[normalizedTargetId];
                     const parentProps = (parentNode?.data?.props ?? {}) as Record<string, unknown>;
+                    const parentDisplayName = String(parentNode?.data?.displayName ?? "");
                     const targetDom = queryRef.current.node(normalizedTargetId).get()?.dom;
                     let finalLeft = left;
                     let finalTop = top;
@@ -208,7 +251,9 @@ export const TextToolHandler = () => {
                         parentPosition === "absolute" ||
                         parentPosition === "fixed" ||
                         parentPosition === "sticky";
-                    const shouldUseAbsolute = forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned);
+                    const parentIsShape = SHAPE_DISPLAY_NAMES.has(parentDisplayName);
+                    const shouldUseAbsolute =
+                        !parentIsShape && (forceAbsoluteForClick || parentIsFreeform || (!parentIsFlexOrGrid && parentIsPositioned));
 
                     const textElement = (
                         <Text

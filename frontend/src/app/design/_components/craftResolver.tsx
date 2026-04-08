@@ -44,6 +44,12 @@ import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-log
 import { ProductSlider } from "../_designComponents/ProductSlider/ProductSlider";
 import { ProductCard as ProductCardComponent } from "../_designComponents/ProductCard/ProductCard";
 import { ProductDescriptionCard as ProductDescriptionCardComponent } from "../_designComponents/ProductDescriptionCard/ProductDescriptionCard";
+import { HeroBannerCTA_v2Block } from "../../_assets/Hero/HeroBannerCTA_v2Block";
+import { HeroBannerCTABlock } from "../../_assets/Hero/HeroBannerCTABlock";
+import { HeroWithImageBlock } from "../../_assets/Hero/HeroWithImageBlock";
+import { CenteredHeroBlock } from "../../_assets/Hero/CenteredHeroBlock";
+import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
+import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -83,30 +89,9 @@ function withResolverFallback<T extends Resolver>(base: T): T {
         return Reflect.has(target, "Container") || Reflect.has(target, "container");
       }
 
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-      
-      if (shapes.some(s => normalized.includes(s))) return true;
-
-      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-      if (Reflect.has(target, canonical)) return true;
-
-      if (
-        normalized.includes("image") ||
-        normalized === "img" ||
-        normalized === "imagecomponent"
-      ) {
-        return (
-          Reflect.has(target, "Image") ||
-          Reflect.has(target, "image") ||
-          Reflect.has(target, "IMAGE") ||
-          Reflect.has(target, "img") ||
-          Reflect.has(target, "Img") ||
-          Reflect.has(target, "ImageComponent")
-        );
-      }
-
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      // Keep Craft from throwing when a saved/dragged node uses an unexpected
+      // name variant; `get()` will still return a safe fallback component.
+      return true;
     },
   }) as T;
 }
@@ -159,6 +144,12 @@ export function buildCraftResolver(): Resolver {
   const ProductSliderComp = asComponent(ProductSlider, ContainerComp);
   const ProductCardComp = asComponent(ProductCardComponent, ContainerComp);
   const ProductDescriptionCardComp = asComponent(ProductDescriptionCardComponent, ContainerComp);
+  const HeroBannerCTA_v2BlockComp = asComponent(HeroBannerCTA_v2Block, ContainerComp);
+  const HeroBannerCTABlockComp = asComponent(HeroBannerCTABlock, ContainerComp);
+  const HeroWithImageBlockComp = asComponent(HeroWithImageBlock, ContainerComp);
+  const CenteredHeroBlockComp = asComponent(CenteredHeroBlock, ContainerComp);
+  const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
+  const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -270,6 +261,23 @@ export function buildCraftResolver(): Resolver {
     ProductDescriptionCard: ProductDescriptionCardComp,
     productdescriptioncard: ProductDescriptionCardComp,
     "Product Description Card": ProductDescriptionCardComp,
+    HeroBannerCTA_v2Block: HeroBannerCTA_v2BlockComp,
+    herobannercta_v2block: HeroBannerCTA_v2BlockComp,
+    "Hero Banner CTA v2 Block": HeroBannerCTA_v2BlockComp,
+    HeroBannerCTABlock: HeroBannerCTABlockComp,
+    herobannerctablock: HeroBannerCTABlockComp,
+    "Hero Banner CTA Block": HeroBannerCTABlockComp,
+    HeroWithImageBlock: HeroWithImageBlockComp,
+    herowithimageblock: HeroWithImageBlockComp,
+    "Hero With Image Block": HeroWithImageBlockComp,
+    CenteredHeroBlock: CenteredHeroBlockComp,
+    centeredheroblock: CenteredHeroBlockComp,
+    "Centered Hero Block": CenteredHeroBlockComp,
+    CategoryTile: CategoryTileComp,
+    categorytile: CategoryTileComp,
+    "Category Tile": CategoryTileComp,
+    CategoriesCardCanvas: CategoriesCardCanvasComp,
+    categoriescardcanvas: CategoriesCardCanvasComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -293,8 +301,14 @@ export function buildCraftResolver(): Resolver {
   ]);
   addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
+  addAliases(base, "CategoriesCardCanvas", CategoriesCardCanvasComp, ["Categories Card Canvas", "categoriescardcanvas"]);
+  addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);
+  addAliases(base, "HeroBannerCTA_v2Block", HeroBannerCTA_v2BlockComp, ["Hero Banner CTA v2 Block", "herobannercta_v2block"]);
+  addAliases(base, "HeroBannerCTABlock", HeroBannerCTABlockComp, ["Hero Banner CTA Block", "herobannerctablock"]);
+  addAliases(base, "HeroWithImageBlock", HeroWithImageBlockComp, ["Hero With Image Block", "herowithimageblock"]);
+  addAliases(base, "CenteredHeroBlock", CenteredHeroBlockComp, ["Centered Hero Block", "centeredheroblock"]);
   return base;
 }
 

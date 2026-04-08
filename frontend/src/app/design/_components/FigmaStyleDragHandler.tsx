@@ -20,6 +20,21 @@ const CANVAS_DISPLAY_NAMES = new Set([
   "Button",
   "Tab Content",
   "TabContent",
+  "Circle",
+  "Square",
+  "Triangle",
+  "Rectangle",
+  "Diamond",
+  "Heart",
+  "Trapezoid",
+  "Pentagon",
+  "Hexagon",
+  "Heptagon",
+  "Octagon",
+  "Nonagon",
+  "Decagon",
+  "Parallelogram",
+  "Kite",
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";
@@ -28,6 +43,23 @@ const BOX_SELECTING_FLAG = "boxSelecting";
 const BOX_SELECTING_INTENT_FLAG = "boxSelectingIntent";
 
 const FLOW_LAYOUT_PARENTS = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const SHAPE_PARENT_DISPLAY_NAMES = new Set([
+  "Circle",
+  "Square",
+  "Triangle",
+  "Rectangle",
+  "Diamond",
+  "Heart",
+  "Trapezoid",
+  "Pentagon",
+  "Hexagon",
+  "Heptagon",
+  "Octagon",
+  "Nonagon",
+  "Decagon",
+  "Parallelogram",
+  "Kite",
+]);
 const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
 const OFFSET_MOVE_TYPES = new Set(["Image", "Text", "Icon", "Button", "Badge", "Circle", "Square", "Triangle"]);
 
@@ -284,6 +316,12 @@ function getMoveModeForNode(nodeId: string, state: { nodes: NodesMap }): MoveMod
     (!parentIsFlexOrGrid && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
   const position = String(props.position ?? "static").toLowerCase();
   const isAbsoluteLike = position === "absolute" || position === "fixed";
+
+  // Keep text movement inside shape canvases flow-based so future size/typography
+  // adjustments do not inherit offset drift that can push text outside.
+  if (displayName === "Text" && SHAPE_PARENT_DISPLAY_NAMES.has(parentDisplayName)) {
+    return "margin";
+  }
 
   if (displayName === "Section") return "margin";
   if (isAbsoluteLike) return "offset";
