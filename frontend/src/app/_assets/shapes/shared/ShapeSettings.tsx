@@ -3,7 +3,6 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "@/app/design/_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "@/app/design/_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "@/app/design/_components/rightPanel/settings/AppearanceGroup";
-import { PositionGroup } from "@/app/design/_components/rightPanel/settings/PositionGroup";
 import { EffectsGroup } from "@/app/design/_components/rightPanel/settings/EffectsGroup";
 import type { CircleProps, SetProp } from "@/app/design/_types/components";
 
@@ -79,20 +78,8 @@ export const ShapeSettings = () => {
           marginRight={marginRight}
           marginTop={marginTop}
           marginBottom={marginBottom}
-          setProp={typedSetProp}
-        />
-      </DesignSection>
-
-      <DesignSection title="Position & Display" defaultOpen={false}>
-        <PositionGroup
-          position={position}
-          display={display}
-          zIndex={zIndex}
-          top={top}
-          right={right}
-          bottom={bottom}
-          left={left}
-          editorVisibility={editorVisibility}
+          hidePadding={true}
+          hideMargin={true}
           setProp={typedSetProp}
         />
       </DesignSection>

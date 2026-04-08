@@ -1821,6 +1821,7 @@ export type AnalyticsResponse = {
     };
     trends: {
       users: number[];
+      maxActiveUsers: number[];
       websites: number[];
       domains: number[];
       pending: number[];

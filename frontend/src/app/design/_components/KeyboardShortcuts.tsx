@@ -10,6 +10,7 @@ import {
   getClipboard,
   groupSelection,
   ungroupSelection,
+  deleteNodesPreservingCanvasScroll,
 } from "../_lib/canvasActions";
 import { Container } from "../_designComponents/Container/Container";
 
@@ -594,7 +595,8 @@ export const KeyboardShortcuts = () => {
             } catch {
               // ignore
             }
-            actions.delete(
+            deleteNodesPreservingCanvasScroll(
+              actions as any,
               deletable.length === 1 ? deletable[0] : deletable
             );
           }

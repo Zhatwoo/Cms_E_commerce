@@ -11,6 +11,7 @@ const AdminHeader = dynamic(() => import('../../components/header'), { ssr: fals
 const PlatformTraffic = dynamic(() => import('./PlatformTraffic'), { ssr: false }) as any;
 const RevenueGrowth = dynamic(() => import('./RevenueGrowth'), { ssr: false }) as any;
 const SubscriptionDistribution = dynamic(() => import('./SubscriptionDistribution'), { ssr: false }) as any;
+const ActiveUsersChart = dynamic(() => import('./ActiveUsersChart'), { ssr: false }) as any;
 
 
 
@@ -199,6 +200,23 @@ export default function AnalyticsPageContent() {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+
+                        {/* Middle Section: Active Users Performance Chart */}
+                        <div className="space-y-6">
+                            <motion.div
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.4, delay: 0.1 }}
+                            >
+                                <ActiveUsersChart 
+                                    period={period} 
+                                    onPeriodChange={setPeriod} 
+                                    actualUsers={analytics?.trends?.users}
+                                    maxUsers={analytics?.trends?.maxActiveUsers}
+                                    loading={loading}
+                                />
+                            </motion.div>
                         </div>
 
                         {/* Middle Section: Charts & Tabs */}

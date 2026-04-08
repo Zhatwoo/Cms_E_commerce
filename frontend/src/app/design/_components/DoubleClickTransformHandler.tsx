@@ -28,6 +28,7 @@ export function DoubleClickTransformHandler() {
     const handleDblClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
+      if (target.closest("[data-inline-text-edit]")) return;
       const onResizeOverlay = target.closest("[data-panel='resize-overlay']");
       if (target.closest("[data-panel]") && !onResizeOverlay) return;
       if (onResizeOverlay) {
