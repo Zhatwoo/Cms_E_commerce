@@ -44,6 +44,8 @@ import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-log
 import { ProductSlider } from "../_designComponents/ProductSlider/ProductSlider";
 import { ProductCard as ProductCardComponent } from "../_designComponents/ProductCard/ProductCard";
 import { ProductDescriptionCard as ProductDescriptionCardComponent } from "../_designComponents/ProductDescriptionCard/ProductDescriptionCard";
+import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
+import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -138,6 +140,8 @@ export function buildCraftResolver(): Resolver {
   const ProductSliderComp = asComponent(ProductSlider, ContainerComp);
   const ProductCardComp = asComponent(ProductCardComponent, ContainerComp);
   const ProductDescriptionCardComp = asComponent(ProductDescriptionCardComponent, ContainerComp);
+  const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
+  const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -249,6 +253,11 @@ export function buildCraftResolver(): Resolver {
     ProductDescriptionCard: ProductDescriptionCardComp,
     productdescriptioncard: ProductDescriptionCardComp,
     "Product Description Card": ProductDescriptionCardComp,
+    CategoryTile: CategoryTileComp,
+    categorytile: CategoryTileComp,
+    "Category Tile": CategoryTileComp,
+    CategoriesCardCanvas: CategoriesCardCanvasComp,
+    categoriescardcanvas: CategoriesCardCanvasComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -272,6 +281,8 @@ export function buildCraftResolver(): Resolver {
   ]);
   addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
+  addAliases(base, "CategoriesCardCanvas", CategoriesCardCanvasComp, ["Categories Card Canvas", "categoriescardcanvas"]);
+  addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);
   return base;
