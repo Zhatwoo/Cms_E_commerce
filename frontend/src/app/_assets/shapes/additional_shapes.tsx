@@ -20,8 +20,6 @@ const GenericShapeEditor = ({
   props: RectangleProps;
 }) => {
   const { connectors: { connect, drag }, id } = useNode();
-  
-  const p = props || {};
   const {
     color = "#8b5cf6",
     width = "200px",
@@ -35,40 +33,19 @@ const GenericShapeEditor = ({
     rotation = 0,
     opacity = 1,
     position = "relative",
-    top = "auto",
-    left = "auto",
-    right = "auto",
-    bottom = "auto",
-    zIndex = 0,
     display = "flex",
     margin = 0,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
     padding = 0,
-    paddingTop,
-    paddingRight,
-    paddingBottom,
-    paddingLeft,
     children,
-  } = p;
+  } = props;
 
   const wCss = typeof width === "number" ? `${width}px` : (width || "200px");
   const hCss = typeof height === "number" ? `${height}px` : (height || "200px");
   const fillColor = background || color;
 
   const mVal = typeof margin === "number" ? margin : 0;
-  const mt = marginTop ?? mVal;
-  const mr = marginRight ?? mVal;
-  const mb = marginBottom ?? mVal;
-  const ml = marginLeft ?? mVal;
 
   const pVal = typeof padding === "number" ? padding : 0;
-  const pt = paddingTop ?? pVal;
-  const pr = paddingRight ?? pVal;
-  const pb = paddingBottom ?? pVal;
-  const pl = paddingLeft ?? pVal;
 
   const finalClip = clipPath || "none";
   
@@ -92,18 +69,13 @@ const GenericShapeEditor = ({
         minWidth: wCss,
         minHeight: hCss,
         position,
-        top: position !== "static" ? top : undefined,
-        left: position !== "static" ? left : undefined,
-        right: position !== "static" ? right : undefined,
-        bottom: position !== "static" ? bottom : undefined,
-        zIndex: zIndex !== 0 ? zIndex : undefined,
         display,
         alignItems: "center",
         justifyContent: "center",
+        padding: `${pVal}px`,
+        margin: `${mVal}px`,
         opacity,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
       }}
       className="hover:outline hover:outline-blue-500"
     >
@@ -115,10 +87,8 @@ const GenericShapeEditor = ({
         preserveAspectRatio="none"
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          zIndex: 1,
           pointerEvents: "none",
+          overflow: "visible",
         }}
       >
         {points && (
@@ -127,6 +97,7 @@ const GenericShapeEditor = ({
             fill="transparent"
             stroke={borderColor}
             strokeWidth={borderWidth * 2} // multiplier because of 100x100 viewBox
+            vectorEffect="non-scaling-stroke"
             strokeDasharray={borderStyle === "dashed" ? "6,6" : borderStyle === "dotted" ? "3,3" : undefined}
           />
         )}
@@ -136,6 +107,7 @@ const GenericShapeEditor = ({
             fill="transparent"
             stroke={borderColor}
             strokeWidth={borderWidth * 2}
+            vectorEffect="non-scaling-stroke"
             strokeDasharray={borderStyle === "dashed" ? "6,6" : borderStyle === "dotted" ? "3,3" : undefined}
           />
         )}
@@ -146,7 +118,6 @@ const GenericShapeEditor = ({
         style={{
           position: "absolute",
           inset: 0,
-          zIndex: 1,
           ...maskStyle,
           backgroundColor: fillColor,
           backgroundImage: backgroundImage
@@ -163,7 +134,6 @@ const GenericShapeEditor = ({
       <div
         style={{
           position: "relative",
-          zIndex: 3,
           width: "100%",
           height: "100%",
           display: "flex",
@@ -359,3 +329,4 @@ Kite.craft = {
   related: { settings: ShapeSettings },
   canvas: true,
 };
+

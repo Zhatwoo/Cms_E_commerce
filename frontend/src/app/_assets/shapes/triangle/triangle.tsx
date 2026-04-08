@@ -14,32 +14,17 @@ export const Triangle = (props: TriangleProps) => {
     backgroundPosition = "center",
     backgroundRepeat = "no-repeat",
     backgroundOverlay = "",
-    margin = 0,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
-    padding = 0,
-    paddingTop = 0,
-    paddingRight = 0,
-    paddingBottom = 0,
-    paddingLeft = 0,
     borderColor = "transparent",
     borderWidth = 0,
     borderStyle = "solid",
     strokePlacement = "mid",
-    position = "relative",
-    display = "flex",
-    zIndex = 0,
-    top = "auto",
-    right = "auto",
-    bottom = "auto",
-    left = "auto",
     rotation = 0,
     boxShadow = "none",
     opacity = 1,
     overflow = "visible",
     cursor = "default",
+    position = "relative",
+    display = "flex",
     children,
     isPreview,
   } = props;
@@ -55,17 +40,6 @@ export const Triangle = (props: TriangleProps) => {
       </svg>
     );
   }
-
-  const m = typeof margin === "number" ? margin : 0;
-  const mt = marginTop ?? m;
-  const mr = marginRight ?? m;
-  const mb = marginBottom ?? m;
-  const ml = marginLeft ?? m;
-  const p = typeof padding === "number" ? padding : 0;
-  const pt = paddingTop ?? p;
-  const pr = paddingRight ?? p;
-  const pb = paddingBottom ?? p;
-  const pl = paddingLeft ?? p;
   const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
   const { connectors: { connect, drag }, id } = useNode();
 
@@ -80,21 +54,11 @@ export const Triangle = (props: TriangleProps) => {
         minHeight: hCss,
         position,
         display,
-        zIndex: zIndex !== 0 ? zIndex : undefined,
-        top: position !== "static" ? top : undefined,
-        right: position !== "static" ? right : undefined,
-        bottom: position !== "static" ? bottom : undefined,
-        left: position !== "static" ? left : undefined,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: "center center",
-        alignItems: "center",
-        justifyContent: "center",
         boxShadow,
         opacity,
-        overflow: effectiveOverflow,
         cursor,
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
       }}
       className="hover:outline hover:outline-blue-500"
     >
@@ -102,19 +66,19 @@ export const Triangle = (props: TriangleProps) => {
         width="100%"
         height="100%"
         viewBox="0 0 100 100"
+        preserveAspectRatio="none"
         style={{
           position: "absolute",
-          top: 0,
-          left: 0,
-          zIndex: 1,
           pointerEvents: "none",
+          overflow: "visible",
         }}
       >
         <polygon
           points="0,100 50,0 100,100"
           fill="transparent"
           stroke={borderColor}
-          strokeWidth={borderWidth}
+          strokeWidth={borderWidth * 2}
+          vectorEffect="non-scaling-stroke"
           strokeDasharray={borderStyle === "dashed" ? "6,6" : borderStyle === "dotted" ? "3,3" : undefined}
         />
       </svg>
@@ -122,7 +86,6 @@ export const Triangle = (props: TriangleProps) => {
         style={{
           position: "absolute",
           inset: 0,
-          zIndex: 1,
           clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
           backgroundColor: fillColor,
           backgroundImage: backgroundImage
@@ -138,12 +101,9 @@ export const Triangle = (props: TriangleProps) => {
       <div
         style={{
           position: "relative",
-          zIndex: 3,
           width: "100%",
           height: "100%",
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
           clipPath: "polygon(0 100%, 50% 0, 100% 100%)",
           overflow: "hidden",
         }}
@@ -167,6 +127,8 @@ export const TriangleDefaultProps: Partial<TriangleProps> = {
   opacity: 1,
   overflow: "hidden",
   cursor: "default",
+  position: "relative",
+  display: "flex",
 };
 
 Triangle.craft = {
@@ -181,3 +143,4 @@ Triangle.craft = {
   },
   canvas: true,
 };
+

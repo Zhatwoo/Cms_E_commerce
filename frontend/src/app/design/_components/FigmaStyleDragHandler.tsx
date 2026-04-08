@@ -20,6 +20,21 @@ const CANVAS_DISPLAY_NAMES = new Set([
   "Button",
   "Tab Content",
   "TabContent",
+  "Circle",
+  "Square",
+  "Triangle",
+  "Rectangle",
+  "Diamond",
+  "Heart",
+  "Trapezoid",
+  "Pentagon",
+  "Hexagon",
+  "Heptagon",
+  "Octagon",
+  "Nonagon",
+  "Decagon",
+  "Parallelogram",
+  "Kite",
 ]);
 const EDITOR_DRAGGING_FLAG = "editorDragging";
 const EDITOR_DROP_COMMIT_FLAG = "editorDropCommit";

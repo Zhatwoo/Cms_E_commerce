@@ -206,12 +206,15 @@ export const Text = ({
     alignSelf,
     boxSizing: "border-box",
     minHeight: hasExplicitHeight ? undefined : "min-content",
-    overflow: hasExplicitHeight ? "hidden" : "visible",
+    overflow: hasExplicitHeight || isEditing ? "hidden" : "visible",
     whiteSpace: "pre-wrap",
     overflowWrap: "break-word",
     wordBreak: "normal",
     hyphens: "manual",
-    display,
+    display: isEditing ? "flex" : display,
+    alignItems: isEditing ? "flex-start" : undefined,
+    justifyContent: isEditing ? "flex-start" : undefined,
+    flexDirection: isEditing ? "column" : undefined,
     flexShrink: isFlexOrGridParent && isFlowText && !width ? 1 : undefined,
     marginTop: fluidSpace(mt),
     marginBottom: fluidSpace(mb),
@@ -328,7 +331,9 @@ export const Text = ({
           onKeyDown={handleKeyDown}
           onInput={handleInput}
           style={{
-            outline: "none",
+            outline: "2px solid #3b82f6",
+            outlineOffset: "-2px",
+            flex: "0 1 auto",
             minHeight: "1em",
             whiteSpace: "pre-wrap",
             wordBreak: "break-word",
@@ -338,6 +343,15 @@ export const Text = ({
             color: "inherit",
             lineHeight: "inherit",
             width: "100%",
+            maxWidth: "100%",
+            height: hasExplicitHeight ? "100%" : "auto",
+            maxHeight: "100%",
+            overflow: "hidden",
+            overflowWrap: "break-word",
+            hyphens: "auto",
+            boxSizing: "border-box",
+            padding: "2px 4px",
+            margin: 0,
           }}
         />
       ) : (
