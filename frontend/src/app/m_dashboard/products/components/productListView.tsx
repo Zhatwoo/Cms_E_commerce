@@ -1,8 +1,10 @@
 'use client';
 
 import { AnimatePresence } from 'framer-motion';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { type Product, type ProductVariant } from '../../lib/productsData';
 import { ProductCard } from './productContainer';
+import { StatusBadge, type StatusType } from './statusBadge';
 
 interface ColorConfig {
   [key: string]: any;
@@ -31,6 +33,31 @@ export interface ProductListViewProps {
   onCloseMenu: () => void;
   /** Async callback to save product data (used by edit modal). */
   onSaveProduct?: (productData: Partial<Product> & Record<string, unknown>) => Promise<boolean>;
+}
+
+function ActionTooltip({
+  label,
+  theme,
+  children,
+}: {
+  label: string;
+  theme: 'light' | 'dark';
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="group/tooltip relative inline-flex items-center justify-center">
+      {children}
+      <div
+        className={`pointer-events-none hidden absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] shadow-2xl group-hover/tooltip:block ${
+          theme === 'dark'
+            ? 'border border-white/10 bg-[#12193A] text-white'
+            : 'border border-[#7c3aed]/20 bg-white text-[#14034A]'
+        }`}
+      >
+        {label}
+      </div>
+    </div>
+  );
 }
 
 function isImageSource(value: string): boolean {
@@ -136,13 +163,14 @@ export function ProductListView({
 }: ProductListViewProps) {
   if (viewMode === 'tile') {
     return (
-      <div id="products-grid" className="max-w-[1360px] mx-auto grid justify-center gap-3 md:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div id="products-grid" className="max-w-272.5 mx-auto w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 md:gap-5">
         <AnimatePresence>
           {products.map((product) => (
             <ProductCard
               key={product.id}
               product={product}
               colors={colors}
+              theme={theme as 'light' | 'dark'}
               onView={onView}
               onEdit={onEdit}
               onDelete={onDelete}
@@ -159,16 +187,16 @@ export function ProductListView({
 
   // List view
   return (
-    <div className="max-w-[1090px] mx-auto overflow-hidden rounded-3xl border" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
+    <div className="max-w-272.5 mx-auto overflow-hidden rounded-3xl border" style={{ borderColor: '#2D3A90', backgroundColor: '#141446' }}>
       <div style={{ overflowX: 'auto' }}>
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 56px',
+            gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 1fr 154px',
             gap: 16,
             padding: '13px 24px',
+            width: '100%',
             minWidth: 860,
-            borderRadius: '24px 24px 0 0',
             background: theme === 'dark'
               ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)'
               : '#803BED',
@@ -184,7 +212,8 @@ export function ProductListView({
           <span>Variants</span>
           <span>Price</span>
           <span>Inventory</span>
-          <span />
+          <span className="text-center">Status</span>
+          <span className="text-center">Actions</span>
         </div>
 
         {products.map((product, index) => {
@@ -198,11 +227,12 @@ export function ProductListView({
               onClick={() => onView(product)}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 56px',
+                gridTemplateColumns: '2.1fr 1.2fr 1.4fr 1.1fr 1.1fr 1fr 154px',
                 gap: 16,
                 padding: '14px 24px',
                 alignItems: 'center',
                 fontSize: 14,
+                width: '100%',
                 minWidth: 860,
                 borderBottom: index < products.length - 1 ? '1px solid rgba(255,255,255,0.055)' : 'none',
                 transition: 'background 0.15s',
@@ -213,7 +243,7 @@ export function ProductListView({
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div
-                  className="w-14 h-14 rounded-md overflow-hidden border flex-shrink-0"
+                  className="w-14 h-14 rounded-md overflow-hidden border shrink-0"
                   style={{ borderColor: '#2D3A90', backgroundColor: '#D9D9DC' }}
                 >
                   {showThumb ? (
@@ -251,60 +281,60 @@ export function ProductListView({
                 {Number(product.stock ?? 0)}
               </div>
 
-              <div data-product-menu-root="true" className="flex justify-center relative">
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onToggleMenu(product.id);
-                  }}
-                  className="flex h-9 w-9 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-[1.04]"
-                  style={{ backgroundColor: 'rgba(255,255,255,0.96)', borderColor: 'rgba(174,160,255,0.95)', color: '#3B1E8C' }}
-                  title="Product actions"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <circle cx="6" cy="12" r="2.2" />
-                    <circle cx="12" cy="12" r="2.2" />
-                    <circle cx="18" cy="12" r="2.2" />
-                  </svg>
-                </button>
-                {openMenuProductId === product.id && (
-                  <div
-                    className="absolute right-2 top-12 z-40 w-28 rounded-lg border border-[#2D3A90] bg-[#12145A] py-1 shadow-xl"
-                    onClick={(event) => event.stopPropagation()}
+              <div className="flex items-center justify-center">
+                <StatusBadge status={String(product.status || 'draft').toLowerCase() as StatusType} />
+              </div>
+
+              <div className="flex items-center justify-center gap-2" onClick={(event) => event.stopPropagation()}>
+                <ActionTooltip label="View product" theme={theme as 'light' | 'dark'}>
+                  <button
+                    type="button"
+                    onClick={() => onView(product)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110"
+                    style={{
+                      background: theme === 'dark' ? 'rgba(34,197,94,0.12)' : 'rgba(34,197,94,0.08)',
+                      borderColor: theme === 'dark' ? 'rgba(34,197,94,0.24)' : 'rgba(34,197,94,0.18)',
+                      color: '#22c55e',
+                    }}
+                    aria-label="View product"
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onCloseMenu();
-                        onView(product);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5"
-                    >
-                      View
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onCloseMenu();
-                        onEdit(product);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-left text-[11px] text-white hover:bg-white/5"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onCloseMenu();
-                        void onDelete(product);
-                      }}
-                      className="w-full px-2.5 py-1.5 text-left text-[11px] text-red-300 hover:bg-red-500/10"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                )}
+                    <Eye size={13} />
+                  </button>
+                </ActionTooltip>
+
+                <ActionTooltip label="Edit product" theme={theme as 'light' | 'dark'}>
+                  <button
+                    type="button"
+                    onClick={() => onEdit(product)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110"
+                    style={{
+                      background: theme === 'dark' ? 'rgba(124,58,237,0.16)' : 'rgba(124,58,237,0.08)',
+                      borderColor: theme === 'dark' ? 'rgba(124,58,237,0.28)' : 'rgba(124,58,237,0.18)',
+                      color: theme === 'dark' ? '#c4b5fd' : '#7c3aed',
+                    }}
+                    aria-label="Edit product"
+                  >
+                    <Pencil size={13} />
+                  </button>
+                </ActionTooltip>
+
+                <ActionTooltip label="Delete product" theme={theme as 'light' | 'dark'}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void onDelete(product);
+                    }}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-all duration-200 hover:-translate-y-0.5 hover:brightness-110"
+                    style={{
+                      background: theme === 'dark' ? 'rgba(239,68,68,0.12)' : 'rgba(239,68,68,0.06)',
+                      borderColor: theme === 'dark' ? 'rgba(239,68,68,0.22)' : 'rgba(239,68,68,0.18)',
+                      color: '#f87171',
+                    }}
+                    aria-label="Delete product"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </ActionTooltip>
               </div>
             </div>
           );

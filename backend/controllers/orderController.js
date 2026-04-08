@@ -8,6 +8,7 @@ const StorefrontOrder = require('../models/StorefrontOrder');
 const paymongoService = require('../services/paymongoService');
 const stripeService = require('../services/stripeService');
 const paypalService = require('../services/paypalService');
+const { getFirstUrl } = require('../utils/urlBase');
 
 function normalizeStatus(status) {
   return String(status || '')
@@ -494,7 +495,7 @@ exports.createPaymentIntent = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Order is not pending payment' });
     }
 
-    const baseUrl = (process.env.APP_BASE_URL || process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+    const baseUrl = getFirstUrl(process.env.APP_BASE_URL || process.env.FRONTEND_URL, 'http://localhost:3000');
     const successUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=success`;
     const cancelUrl = `${baseUrl}/sites/${subdomain}/checkout/result?order_id=${orderId}&status=failed`;
 

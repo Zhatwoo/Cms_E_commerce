@@ -15,10 +15,16 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
     const search = url.search || '';
     const cookie = request.headers.get('cookie') || '';
     const contentType = request.headers.get('content-type') || '';
+    const authorization = request.headers.get('authorization') || '';
+    const projectId = request.headers.get('x-project-id') || '';
+    const siteIdentifier = request.headers.get('x-site-identifier') || '';
 
     const headers: HeadersInit = {};
     if (cookie) headers.cookie = cookie;
     if (contentType) headers['content-type'] = contentType;
+    if (authorization) headers.authorization = authorization;
+    if (projectId) headers['x-project-id'] = projectId;
+    if (siteIdentifier) headers['x-site-identifier'] = siteIdentifier;
 
     const init: RequestInit = {
       method,

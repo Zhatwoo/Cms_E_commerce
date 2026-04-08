@@ -1391,7 +1391,7 @@ function PreviewContent() {
                       initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                       mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                       enableFormInputs
-                      builderParityMode={false}
+                      builderParityMode={true}
                       fillViewport={false}
                       storeContext={previewStoreContext}
                     />
@@ -1424,7 +1424,7 @@ function PreviewContent() {
                           initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                           mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
                           enableFormInputs
-                          builderParityMode={false}
+                          builderParityMode={true}
                           fillViewport
                           storeContext={previewStoreContext}
                           simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
@@ -1452,7 +1452,7 @@ function PreviewContent() {
                           initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                           mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                           enableFormInputs
-                          builderParityMode={false}
+                          builderParityMode={true}
                           fillViewport
                           storeContext={previewStoreContext}
                           simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}

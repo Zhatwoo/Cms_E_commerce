@@ -1,34 +1,46 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
-import { getMe, updateProfile, type User, getUnionBankLink, getPayPalLink } from '@/lib/api';
-import { 
-    Bell, 
-    Shield, 
-    Palette, 
-    Code, 
-    CreditCard,
-    ChevronRight,
-    Save,
-    Lock,
-    Eye,
-    EyeOff,
-    Check,
-    Moon,
-    Sun,
-    Plus,
-    Trash2
-} from 'lucide-react';
+import { getMe, updateProfile, uploadAvatarApi, type User as ApiUser, getUnionBankLink, getPayPalLink } from '@/lib/api';
+import { TabBar, type TabBarItem } from '../components/ui/tabbar';
 import { AddCardModal } from './components/AddCardModal';
+import { GeneralTab } from './tabs/GeneralTab';
+import { NotificationsTab } from './tabs/NotificationsTab';
+import { SecurityTab } from './tabs/SecurityTab';
+import { BillingTab } from './tabs/BillingTab';
 
-type SettingTab = 'notifications' | 'security' | 'appearance' | 'api' | 'billing';
+type SettingTab = 'general' | 'notifications' | 'security' | 'billing';
+
+const SETTINGS_TABS: readonly TabBarItem<SettingTab>[] = [
+    { id: 'general', label: 'GENERAL' },
+    { id: 'notifications', label: 'NOTIFICATIONS' },
+    { id: 'security', label: 'SECURITY' },
+    { id: 'billing', label: 'BILLING' },
+];
+
 
 export default function SettingsPage() {
     const { colors, theme, toggleTheme } = useTheme();
-    const [activeTab, setActiveTab] = useState<SettingTab>('notifications');
+    const isDark = theme === 'dark';
+    const [activeTab, setActiveTab] = useState<SettingTab>('general');
     const [showPassword, setShowPassword] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
+    const [generalSaveSuccess, setGeneralSaveSuccess] = useState(false);
+    const [generalSaving, setGeneralSaving] = useState(false);
+    const [generalForm, setGeneralForm] = useState({
+        name: '',
+        email: '',
+        username: '',
+        website: '',
+        bio: '',
+    });
+    const [generalFeedback, setGeneralFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [avatarUrl, setAvatarUrl] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=User');
+    const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+    const [pendingAvatarPreviewUrl, setPendingAvatarPreviewUrl] = useState<string | null>(null);
+    const [avatarUploading, setAvatarUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Notification settings state
     const [emailNotifications, setEmailNotifications] = useState(true);
@@ -37,7 +49,7 @@ export default function SettingsPage() {
     const [securityAlerts, setSecurityAlerts] = useState(true);
 
     // User & Billing state
-    const [user, setUser] = useState<User | null>(null);
+    const [user, setUser] = useState<ApiUser | null>(null);
     const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isLinking, setIsLinking] = useState(false);
@@ -60,6 +72,26 @@ export default function SettingsPage() {
         };
         fetchUser();
     }, []);
+
+    useEffect(() => {
+        if (!user) return;
+        setGeneralForm({
+            name: user.name || '',
+            email: user.email || '',
+            username: user.username || user.name?.toLowerCase().replace(/\s/g, '') || '',
+            website: user.website || '',
+            bio: user.bio || '',
+        });
+        if (!pendingAvatarFile) {
+            setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email || 'User'}`);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        return () => {
+            if (pendingAvatarPreviewUrl) URL.revokeObjectURL(pendingAvatarPreviewUrl);
+        };
+    }, [pendingAvatarPreviewUrl]);
 
     const handleAddCard = () => {
         setIsAddCardModalOpen(true);
@@ -164,644 +196,252 @@ export default function SettingsPage() {
         }
     };
 
-    const tabs = [
-        { id: 'notifications' as SettingTab, label: 'Notifications', icon: Bell },
-        { id: 'security' as SettingTab, label: 'Security', icon: Shield },
-        { id: 'appearance' as SettingTab, label: 'Appearance', icon: Palette },
-        { id: 'api' as SettingTab, label: 'API Keys', icon: Code },
-        { id: 'billing' as SettingTab, label: 'Billing', icon: CreditCard },
-    ];
-
     const handleSave = () => {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 1500);
     };
 
-    return (
-        <div className="dashboard-landing-light relative space-y-6 [font-family:var(--font-outfit),sans-serif]">
-            <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-                <div
-                    className="absolute left-[12%] top-[80px] h-[280px] w-[280px] rounded-full opacity-20 blur-3xl"
-                    style={{ backgroundColor: colors.accent.purpleDeep }}
+    const handleSaveGeneral = async () => {
+        const trimmedName = generalForm.name.trim();
+        const trimmedEmail = generalForm.email.trim();
+        if (!trimmedName || !trimmedEmail) return;
+
+        setGeneralSaving(true);
+        setAvatarUploading(Boolean(pendingAvatarFile));
+        setGeneralFeedback(null);
+        try {
+            let avatarToSave: string | undefined;
+            if (pendingAvatarFile) {
+                const uploadRes = await uploadAvatarApi(pendingAvatarFile);
+                if (!uploadRes.success || !uploadRes.url) {
+                    throw new Error(uploadRes.message || 'Avatar upload failed');
+                }
+                avatarToSave = uploadRes.url;
+            }
+
+            const response = await updateProfile({
+                name: trimmedName,
+                username: generalForm.username.trim() || undefined,
+                website: generalForm.website.trim() || undefined,
+                bio: generalForm.bio.trim() || undefined,
+                ...(avatarToSave !== undefined ? { avatar: avatarToSave } : {}),
+            });
+
+            if (response?.success && response.user) {
+                setUser(response.user);
+                if (pendingAvatarPreviewUrl) URL.revokeObjectURL(pendingAvatarPreviewUrl);
+                setPendingAvatarPreviewUrl(null);
+                setPendingAvatarFile(null);
+                setAvatarUrl(response.user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${response.user.email || 'User'}`);
+                setGeneralFeedback({ type: 'success', message: 'Profile updated successfully.' });
+                setGeneralSaveSuccess(true);
+                setTimeout(() => setGeneralSaveSuccess(false), 1500);
+            } else {
+                setGeneralFeedback({ type: 'error', message: response?.message || 'Failed to update profile.' });
+            }
+        } catch (error) {
+            console.error('Failed to save general settings:', error);
+            const message = error instanceof Error ? error.message : 'Failed to update profile.';
+            setGeneralFeedback({ type: 'error', message });
+        } finally {
+            setAvatarUploading(false);
+            setGeneralSaving(false);
+        }
+    };
+
+    const handleGeneralReset = () => {
+        if (!user) return;
+        if (pendingAvatarPreviewUrl) URL.revokeObjectURL(pendingAvatarPreviewUrl);
+        setPendingAvatarPreviewUrl(null);
+        setPendingAvatarFile(null);
+        setGeneralFeedback(null);
+        setGeneralForm({
+            name: user.name || '',
+            email: user.email || '',
+            username: user.username || user.name?.toLowerCase().replace(/\s/g, '') || '',
+            website: user.website || '',
+            bio: user.bio || '',
+        });
+        setAvatarUrl(user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email || 'User'}`);
+    };
+
+    const handleGeneralAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            setGeneralFeedback({ type: 'error', message: 'Please choose an image file.' });
+            return;
+        }
+
+        if (pendingAvatarPreviewUrl) URL.revokeObjectURL(pendingAvatarPreviewUrl);
+        const previewUrl = URL.createObjectURL(file);
+        setPendingAvatarPreviewUrl(previewUrl);
+        setPendingAvatarFile(file);
+        setAvatarUrl(previewUrl);
+        setGeneralFeedback({ type: 'success', message: 'Avatar selected. Save changes to apply.' });
+        if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const handleGeneralFieldChange = (field: keyof typeof generalForm, value: string) => {
+        setGeneralForm((prev) => ({ ...prev, [field]: value }));
+    };
+
+    const renderActiveTab = () => {
+        if (activeTab === 'general') {
+            return (
+                <GeneralTab
+                    colors={colors}
+                    theme={theme}
+                    user={user}
+                    avatarUrl={avatarUrl}
+                    generalForm={generalForm}
+                    generalFeedback={generalFeedback}
+                    generalSaving={generalSaving}
+                    avatarUploading={avatarUploading}
+                    generalSaveSuccess={generalSaveSuccess}
+                    fileInputRef={fileInputRef}
+                    onAvatarChange={handleGeneralAvatarChange}
+                    onFieldChange={handleGeneralFieldChange}
+                    onReset={handleGeneralReset}
+                    onSave={handleSaveGeneral}
                 />
+            );
+        }
+
+        if (activeTab === 'notifications') {
+            return (
+                <NotificationsTab
+                    colors={colors}
+                    theme={theme}
+                    emailNotifications={emailNotifications}
+                    orderNotifications={orderNotifications}
+                    marketingEmails={marketingEmails}
+                    securityAlerts={securityAlerts}
+                    setEmailNotifications={setEmailNotifications}
+                    setOrderNotifications={setOrderNotifications}
+                    setMarketingEmails={setMarketingEmails}
+                    setSecurityAlerts={setSecurityAlerts}
+                    saveSuccess={saveSuccess}
+                    onSave={handleSave}
+                />
+            );
+        }
+
+        if (activeTab === 'security') {
+            return (
+                <SecurityTab
+                    colors={colors}
+                    theme={theme}
+                    showPassword={showPassword}
+                    setShowPassword={setShowPassword}
+                    saveSuccess={saveSuccess}
+                    onSave={handleSave}
+                />
+            );
+        }
+
+        if (activeTab === 'billing') {
+            return (
+                <BillingTab
+                    colors={colors}
+                    theme={theme}
+                    paymentMethods={paymentMethods}
+                    isLinking={isLinking}
+                    removingCardId={removingCardId}
+                    onAddCard={handleAddCard}
+                    onRemoveCard={handleRemoveCard}
+                    onLinkUnionBank={handleLinkUnionBank}
+                    onLinkPayPal={handleLinkPayPal}
+                />
+            );
+        }
+
+        return null;
+    };
+
+    return (
+        <div className="dashboard-landing-light relative min-h-[calc(100vh-176px)] px-5 py-8 lg:px-40 [font-family:var(--font-outfit),sans-serif]">
+            <div className="pointer-events-none fixed inset-0 -z-10">
                 <div
-                    className="absolute right-[14%] top-[120px] h-[240px] w-[240px] rounded-full opacity-20 blur-3xl"
-                    style={{ backgroundColor: colors.accent.yellow }}
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-250 h-150 rounded-full opacity-[0.08] blur-[120px]"
+                    style={{ background: 'radial-gradient(circle, #7C3AED, #D946EF, transparent)' }}
                 />
             </div>
-            {/* Header */}
-            <section className="relative z-10 mb-3 text-center pt-2 pb-1">
+
+            <section className="text-center py-4 mb-7">
                 <motion.h1
-                    className="text-[40px] sm:text-[54px] lg:text-[66px] font-extrabold leading-[0.98] tracking-tight"
-                    initial={{ opacity: 0, y: 10 }}
+                    className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
+                    initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4 }}
+                    transition={{ duration: 0.5 }}
+                    style={{ color: colors.text.primary }}
                 >
+                    My{' '}
                     <span
-                        className={`text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                        className={`inline-block text-transparent bg-clip-text bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                        style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
                     >
                         Settings
                     </span>
-                </motion.h1>
-                <motion.p
-                    className="mx-auto mt-2 max-w-[760px] text-sm md:text-base"
-                    style={{ color: colors.text.secondary }}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.42, delay: 0.08 }}
-                >
-                    Manage your account settings and preferences in one place.
-                </motion.p>
+                </motion.h1>    
             </section>
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                {/* Sidebar Navigation */}
-                <div className="lg:col-span-1">
-                    <div 
-                        className="rounded-2xl border p-2 space-y-1"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-                    >
-                        {tabs.map((tab) => {
-                            const Icon = tab.icon;
-                            const isActive = activeTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-all ${
-                                        isActive ? 'shadow-sm' : 'hover:bg-opacity-50'
-                                    }`}
-                                    style={{
-                                        backgroundColor: isActive ? colors.bg.elevated : 'transparent',
-                                        color: isActive ? colors.text.primary : colors.text.secondary,
-                                    }}
-                                >
-                                    <Icon className="w-5 h-5" />
-                                    <span className="flex-1 font-medium">{tab.label}</span>
-                                    {isActive && <ChevronRight className="w-4 h-4" />}
-                                </button>
-                            );
-                        })}
-                    </div>
+            <div className="max-w-6xl mx-auto px-4">
+                <div className="flex justify-center mb-12">
+                    <TabBar<SettingTab>
+                        tabs={SETTINGS_TABS}
+                        activeTab={activeTab}
+                        onTabChange={setActiveTab}
+                        theme={theme as 'light' | 'dark'}
+                        underlineLayoutId="settings-tab-underline"
+                        className="justify-center flex-wrap gap-x-5 sm:gap-x-8"
+                    />
                 </div>
-
-                {/* Content Area */}
-                <div className="lg:col-span-3">
+                <main>
                     <motion.div
                         key={activeTab}
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="rounded-2xl border p-6 space-y-6"
-                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
+                        className={`backdrop-blur-2xl rounded-[3rem] border overflow-hidden transition-colors duration-700 ${
+                            isDark 
+                                ? "bg-[#120533]/40 border-white/5" 
+                                : "bg-white/70 border-white/50"
+                        }`}
+                        style={{ 
+                            boxShadow: isDark 
+                                ? '0 40px 100px -20px rgba(0,0,0,0.5)' 
+                                : '0 40px 100px -20px rgba(0,0,0,0.03)' 
+                        }}
                     >
-                        {/* Notifications Settings */}
-                        {activeTab === 'notifications' && (
-                            <>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1" style={{ color: colors.text.primary }}>
-                                        Notification Preferences
-                                    </h2>
-                                    <p className="text-sm" style={{ color: colors.text.muted }}>
-                                        Choose how you want to be notified about activity
-                                    </p>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div className="flex items-start justify-between py-3 border-b" style={{ borderColor: colors.border.faint }}>
-                                        <div className="flex-1">
-                                            <h3 className="font-medium mb-1" style={{ color: colors.text.primary }}>
-                                                Email Notifications
-                                            </h3>
-                                            <p className="text-sm" style={{ color: colors.text.muted }}>
-                                                Receive email updates about your account
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => setEmailNotifications(!emailNotifications)}
-                                            className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: emailNotifications ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
-                                        >
-                                            <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                                                    emailNotifications ? 'translate-x-6' : ''
-                                                }`}
-                                            />
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-start justify-between py-3 border-b" style={{ borderColor: colors.border.faint }}>
-                                        <div className="flex-1">
-                                            <h3 className="font-medium mb-1" style={{ color: colors.text.primary }}>
-                                                Order Updates
-                                            </h3>
-                                            <p className="text-sm" style={{ color: colors.text.muted }}>
-                                                Get notified when orders are placed or updated
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => setOrderNotifications(!orderNotifications)}
-                                            className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: orderNotifications ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
-                                        >
-                                            <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                                                    orderNotifications ? 'translate-x-6' : ''
-                                                }`}
-                                            />
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-start justify-between py-3 border-b" style={{ borderColor: colors.border.faint }}>
-                                        <div className="flex-1">
-                                            <h3 className="font-medium mb-1" style={{ color: colors.text.primary }}>
-                                                Marketing Emails
-                                            </h3>
-                                            <p className="text-sm" style={{ color: colors.text.muted }}>
-                                                Receive tips, promotions, and updates
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => setMarketingEmails(!marketingEmails)}
-                                            className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: marketingEmails ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
-                                        >
-                                            <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                                                    marketingEmails ? 'translate-x-6' : ''
-                                                }`}
-                                            />
-                                        </button>
-                                    </div>
-
-                                    <div className="flex items-start justify-between py-3">
-                                        <div className="flex-1">
-                                            <h3 className="font-medium mb-1" style={{ color: colors.text.primary }}>
-                                                Security Alerts
-                                            </h3>
-                                            <p className="text-sm" style={{ color: colors.text.muted }}>
-                                                Important notifications about your account security
-                                            </p>
-                                        </div>
-                                        <button
-                                            onClick={() => setSecurityAlerts(!securityAlerts)}
-                                            className="relative w-12 h-6 rounded-full transition-colors"
-                                            style={{ backgroundColor: securityAlerts ? (theme === 'dark' ? '#B13BFF' : '#8B5CF6') : 'rgba(148,163,184,0.5)' }}
-                                        >
-                                            <span
-                                                className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                                                    securityAlerts ? 'translate-x-6' : ''
-                                                }`}
-                                            />
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-                                    <button
-                                        onClick={handleSave}
-                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
-                                        style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
-                                    >
-                                        {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                                        {saveSuccess ? 'Saved!' : 'Save Preferences'}
-                                    </button>
-                                </div>
-                            </>
+                        {/* Consistent Header Strip */}
+                        <div
+                    className="px-12 py-6 flex items-center justify-between"
+                    style={{ 
+                        background: isDark 
+                            ? 'linear-gradient(to right, #4C1D95, #1E1B4B)' 
+                            : 'linear-gradient(to right, #803BED, #D946EF)',
+                        borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
+                    }}
+                >
+                    <h2 className="text-white font-black uppercase tracking-[0.3em] text-[10px] opacity-90">
+                        Configuration / {SETTINGS_TABS.find((t) => t.id === activeTab)?.label}
+                    </h2>
+                    
+                    <div className="relative">
+                        <div className={`w-2 h-2 rounded-full animate-pulse ${
+                            isDark ? "bg-[#FFCC00]" : "bg-white/40"
+                        }`} />
+                        {isDark && (
+                            <div className="absolute inset-0 w-2 h-2 rounded-full bg-[#FFCC00] blur-xs opacity-60" />
                         )}
-
-                        {/* Security Settings */}
-                        {activeTab === 'security' && (
-                            <>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1" style={{ color: colors.text.primary }}>
-                                        Security Settings
-                                    </h2>
-                                    <p className="text-sm" style={{ color: colors.text.muted }}>
-                                        Manage your password and security preferences
-                                    </p>
-                                </div>
-
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2" style={{ color: colors.text.primary }}>
-                                            Current Password
-                                        </label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: colors.text.muted }} />
-                                            <input
-                                                type={showPassword ? 'text' : 'password'}
-                                                placeholder="••••••••"
-                                                className="w-full pl-11 pr-11 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                                                style={{
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: colors.border.faint,
-                                                    color: colors.text.primary,
-                                                }}
-                                            />
-                                            <button
-                                                onClick={() => setShowPassword(!showPassword)}
-                                                className="absolute right-3 top-1/2 -translate-y-1/2"
-                                                style={{ color: colors.text.muted }}
-                                            >
-                                                {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2" style={{ color: colors.text.primary }}>
-                                            New Password
-                                        </label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: colors.text.muted }} />
-                                            <input
-                                                type={showPassword ? 'text' : 'password'}
-                                                placeholder="••••••••"
-                                                className="w-full pl-11 pr-4 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                                                style={{
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: colors.border.faint,
-                                                    color: colors.text.primary,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <label className="block text-sm font-medium mb-2" style={{ color: colors.text.primary }}>
-                                            Confirm New Password
-                                        </label>
-                                        <div className="relative">
-                                            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: colors.text.muted }} />
-                                            <input
-                                                type={showPassword ? 'text' : 'password'}
-                                                placeholder="••••••••"
-                                                className="w-full pl-11 pr-4 py-2.5 rounded-lg border focus:outline-none focus:ring-2 focus:ring-violet-500 transition-all"
-                                                style={{
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: colors.border.faint,
-                                                    color: colors.text.primary,
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-                                        <h3 className="font-medium mb-3" style={{ color: colors.text.primary }}>
-                                            Two-Factor Authentication
-                                        </h3>
-                                        <div 
-                                            className="p-4 rounded-lg border"
-                                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                        >
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="font-medium text-sm" style={{ color: colors.text.primary }}>
-                                                        Status: Not Enabled
-                                                    </p>
-                                                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>
-                                                        Add an extra layer of security to your account
-                                                    </p>
-                                                </div>
-                                                <button className="px-4 py-2 rounded-lg border hover:bg-opacity-50 transition-colors text-sm font-medium"
-                                                    style={{ borderColor: colors.border.faint, color: colors.text.primary }}
-                                                >
-                                                    Enable
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="flex justify-end pt-4 border-t" style={{ borderColor: colors.border.faint }}>
-                                    <button
-                                        onClick={handleSave}
-                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85"
-                                        style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}
-                                    >
-                                        {saveSuccess ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                                        {saveSuccess ? 'Saved!' : 'Update Password'}
-                                    </button>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Appearance Settings */}
-                        {activeTab === 'appearance' && (
-                            <>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1" style={{ color: colors.text.primary }}>
-                                        Appearance
-                                    </h2>
-                                    <p className="text-sm" style={{ color: colors.text.muted }}>
-                                        Customize how your dashboard looks
-                                    </p>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="font-medium mb-3" style={{ color: colors.text.primary }}>
-                                            Theme
-                                        </h3>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <button
-                                                onClick={() => theme === 'dark' && toggleTheme()}
-                                                className={`p-4 rounded-lg border-2 transition-all ${
-                                                    theme === 'light' ? 'border-violet-500' : 'border-transparent'
-                                                }`}
-                                                style={{ 
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: theme === 'light' ? '#B13BFF' : colors.border.faint
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <Sun className="w-5 h-5 text-yellow-500" />
-                                                    <span className="font-medium" style={{ color: colors.text.primary }}>
-                                                        Light
-                                                    </span>
-                                                </div>
-                                                <div className="h-16 rounded bg-white border" style={{ borderColor: colors.border.faint }}>
-                                                    <div className="h-1/3 bg-gray-100 border-b" style={{ borderColor: colors.border.faint }} />
-                                                </div>
-                                            </button>
-
-                                            <button
-                                                onClick={() => theme === 'light' && toggleTheme()}
-                                                className={`p-4 rounded-lg border-2 transition-all ${
-                                                    theme === 'dark' ? 'border-violet-500' : 'border-transparent'
-                                                }`}
-                                                style={{ 
-                                                    backgroundColor: colors.bg.elevated,
-                                                    borderColor: theme === 'dark' ? '#B13BFF' : colors.border.faint
-                                                }}
-                                            >
-                                                <div className="flex items-center gap-3 mb-2">
-                                                    <Moon className="w-5 h-5 text-blue-500" />
-                                                    <span className="font-medium" style={{ color: colors.text.primary }}>
-                                                        Dark
-                                                    </span>
-                                                </div>
-                                                <div className="h-16 rounded bg-gray-900 border border-gray-800">
-                                                    <div className="h-1/3 bg-gray-800 border-b border-gray-700" />
-                                                </div>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-medium mb-3" style={{ color: colors.text.primary }}>
-                                            Accent Color
-                                        </h3>
-                                        <div className="flex gap-3">
-                                            {['#B13BFF', '#B36760', '#FFCC00', '#22C55E', '#38BDF8', '#F97316'].map((color) => (
-                                                <button
-                                                    key={color}
-                                                    className="w-12 h-12 rounded-lg border-2 hover:scale-110 transition-transform"
-                                                    style={{ 
-                                                        backgroundColor: color,
-                                                        borderColor: color === '#B13BFF' ? colors.text.primary : 'transparent'
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Billing Settings */}
-                        {activeTab === 'billing' && (
-                            <>
-                                <div>
-                                    <h2 className="text-xl font-semibold mb-1" style={{ color: colors.text.primary }}>
-                                        Billing & Subscription
-                                    </h2>
-                                    <p className="text-sm" style={{ color: colors.text.muted }}>
-                                        Manage your subscription and payment methods
-                                    </p>
-                                </div>
-
-                                <div className="space-y-6">
-                                    <div 
-                                        className="p-6 rounded-lg border"
-                                        style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                    >
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div>
-                                                <h3 className="text-lg font-semibold" style={{ color: colors.text.primary }}>
-                                                    Professional Plan
-                                                </h3>
-                                                <p className="text-sm mt-1" style={{ color: colors.text.muted }}>
-                                                    Billed monthly
-                                                </p>
-                                            </div>
-                                            <span className="text-2xl font-bold" style={{ color: colors.text.primary }}>
-                                                ₱49<span className="text-sm font-normal">/mo</span>
-                                            </span>
-                                        </div>
-                                        <div className="flex gap-3">
-                                            <button className="px-4 py-2 rounded-lg text-white text-sm font-medium transition-opacity hover:opacity-85"
-                                                style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)', textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)' }}>
-                                                Upgrade Plan
-                                            </button>
-                                            <button className="px-4 py-2 rounded-lg border hover:bg-opacity-50 transition-colors text-sm font-medium"
-                                                style={{ borderColor: colors.border.faint, color: colors.text.primary }}
-                                            >
-                                                Cancel Subscription
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-medium mb-3" style={{ color: colors.text.primary }}>
-                                            Payment Methods
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {paymentMethods.length > 0 ? (
-                                                <>
-                                                    {paymentMethods.map((card) => (
-                                                        <div 
-                                                            key={card.id}
-                                                            className="p-4 rounded-lg border flex items-center justify-between"
-                                                            style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                                        >
-                                                            <div className="flex items-center gap-3">
-                                                                <div 
-                                                                    className="w-12 h-8 rounded flex items-center justify-center text-white font-bold text-xs"
-                                                                    style={{ 
-                                                                        background: card.type === 'paypal' ? '#003087' : card.type === 'unionbank' ? '#fd6412' : 'linear-gradient(to bottom right, #2563eb, #9333ea)'
-                                                                    }}
-                                                                >
-                                                                    {card.type === 'paypal' ? 'PP' : card.type === 'unionbank' ? 'UB' : card.type.toUpperCase()}
-                                                                </div>
-                                                                <div>
-                                                                    <p className="font-medium text-sm" style={{ color: colors.text.primary }}>
-                                                                        {card.type === 'paypal' ? (card.email || 'PayPal Account') : `•••• •••• •••• ${card.last4}`}
-                                                                    </p>
-                                                                    <p className="text-xs" style={{ color: colors.text.muted }}>
-                                                                        {card.type === 'paypal' ? `Linked on ${new Date(card.linkedAt).toLocaleDateString()}` : `Expires ${card.expMonth}/${card.expYear}`}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleRemoveCard(card.id);
-                                                                }}
-                                                                disabled={removingCardId === card.id}
-                                                                className="relative z-50 p-2 rounded-lg border hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50 cursor-pointer"
-                                                                style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-                                                                title="Remove Card"
-                                                                id={`remove-card-${card.id}`}
-                                                            >
-                                                                {removingCardId === card.id ? (
-                                                                    <div className="w-5 h-5 border-2 border-red-200 border-t-red-600 rounded-full animate-spin" />
-                                                                ) : (
-                                                                    <Trash2 className="w-5 h-5" />
-                                                                )}
-                                                            </button>
-                                                        </div>
-                                                    ))}
-                                                    <button 
-                                                        onClick={handleAddCard}
-                                                        disabled={isLinking}
-                                                        className="w-full flex items-center justify-center gap-2 p-4 rounded-lg border border-dashed transition-all hover:bg-opacity-50"
-                                                        style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint, color: colors.text.secondary }}
-                                                    >
-                                                        {isLinking ? (
-                                                            <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                                                        ) : (
-                                                            <Plus className="w-4 h-4" />
-                                                        )}
-                                                        Add New Card
-                                                    </button>
-                                                </>
-                                            ) : (
-                                                <div 
-                                                    className="p-8 rounded-lg border border-dashed flex flex-col items-center justify-center text-center space-y-3"
-                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                                >
-                                                    <div className="w-12 h-12 rounded-full bg-violet-500/10 flex items-center justify-center">
-                                                        <CreditCard className="w-6 h-6 text-violet-500" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium" style={{ color: colors.text.primary }}>No cards added yet</p>
-                                                        <p className="text-xs" style={{ color: colors.text.muted }}>Add a credit card to manage your subscription and payments</p>
-                                                    </div>
-                                                    <button 
-                                                        onClick={handleAddCard}
-                                                        disabled={isLinking}
-                                                        className="flex items-center gap-2 px-6 py-2.5 rounded-lg text-white font-medium transition-opacity hover:opacity-85 disabled:opacity-50"
-                                                        style={{ background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)' }}
-                                                    >
-                                                        {isLinking ? (
-                                                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                        ) : (
-                                                            <Plus className="w-4 h-4" />
-                                                        )}
-                                                        {isLinking ? 'Linking Card...' : 'Add Card'}
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            <div className="pt-2">
-                                                <button 
-                                                    type="button"
-                                                    onClick={handleLinkUnionBank}
-                                                    disabled={isLinking}
-                                                    className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-500 hover:bg-blue-50/10 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
-                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
-                                                            <div className="w-full h-full flex items-center justify-center bg-[#fd6412] rounded-sm">
-                                                                <span className="text-[10px] font-black text-white tracking-tighter">UPay</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>UPay (UnionBank)</p>
-                                                            <p className="text-[10px]" style={{ color: colors.text.muted }}>Direct bank and e-wallet payments via UPay</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
-                                                        {paymentMethods.some(m => m.type === 'unionbank') ? 'Connected' : 'Link Account'} <ChevronRight className="w-3 h-3" />
-                                                    </div>
-                                                </button>
-                                            </div>
-
-                                            <div className="pt-2">
-                                                <button 
-                                                    type="button"
-                                                    onClick={handleLinkPayPal}
-                                                    disabled={isLinking}
-                                                    className="w-full flex items-center justify-between p-4 rounded-xl border transition-all hover:border-blue-600 hover:bg-blue-50/10 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer active:scale-[0.98]"
-                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                                >
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-12 h-8 rounded bg-white border border-zinc-200 flex items-center justify-center p-1 overflow-hidden">
-                                                            <div className="w-full h-full flex items-center justify-center bg-[#003087] rounded-sm">
-                                                                <span className="text-[10px] font-black text-white tracking-tighter">PayPal</span>
-                                                            </div>
-                                                        </div>
-                                                        <div className="text-left">
-                                                            <p className="font-semibold text-sm" style={{ color: colors.text.primary }}>PayPal</p>
-                                                            <p className="text-[10px]" style={{ color: colors.text.muted }}>International credit cards and PayPal balance</p>
-                                                        </div>
-                                                    </div>
-                                                    <div className="flex items-center gap-2 text-blue-600 font-medium text-xs group-hover:translate-x-1 transition-transform">
-                                                        {paymentMethods.some(m => m.type === 'paypal') 
-                                                            ? `Connected (${paymentMethods.find(m => m.type === 'paypal')?.email})` 
-                                                            : 'Connect'} <ChevronRight className="w-3 h-3" />
-                                                    </div>
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="font-medium mb-3" style={{ color: colors.text.primary }}>
-                                            Billing History
-                                        </h3>
-                                        <div className="space-y-2">
-                                            {[
-                                                { date: 'Jan 1, 2026', amount: '₱49.00', status: 'Paid' },
-                                                { date: 'Dec 1, 2025', amount: '₱49.00', status: 'Paid' },
-                                                { date: 'Nov 1, 2025', amount: '₱49.00', status: 'Paid' },
-                                            ].map((invoice, i) => (
-                                                <div
-                                                    key={i}
-                                                    className="p-3 rounded-lg border flex items-center justify-between"
-                                                    style={{ backgroundColor: colors.bg.elevated, borderColor: colors.border.faint }}
-                                                >
-                                                    <div>
-                                                        <p className="font-medium text-sm" style={{ color: colors.text.primary }}>
-                                                            {invoice.date}
-                                                        </p>
-                                                        <p className="text-xs" style={{ color: colors.text.muted }}>
-                                                            Invoice #{1234567 + i}
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex items-center gap-4">
-                                                        <span className="font-medium" style={{ color: colors.text.primary }}>
-                                                            {invoice.amount}
-                                                        </span>
-                                                        <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/10 text-green-600">
-                                                            {invoice.status}
-                                                        </span>
-                                                        <button className="text-sm hover:underline" style={{ color: colors.accent.yellow }}>
-                                                            Download
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-                            </>
-                        )}
-                    </motion.div>
+                    </div>
                 </div>
+
+                        <div className="p-12 md:p-20">
+                            {renderActiveTab()}
+                        </div>
+                    </motion.div>
+                </main>
             </div>
             
             <AddCardModal 

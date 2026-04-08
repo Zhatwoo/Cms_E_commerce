@@ -26,6 +26,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
         maxWidth: "1600px",
         padding: 0,
         canvas: true,
+        height: "min-content",
       },
       React.createElement(
         Element as any,
@@ -38,6 +39,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
           paddingRight: 10,
           canvas: true,
           alignItems: "stretch",
+          height: "min-content",
         },
         React.createElement(
           Element as any,
@@ -75,6 +77,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
           paddingRight: 10,
           canvas: true,
           alignItems: "stretch",
+          height: "min-content",
         },
         React.createElement(
           Element as any,
@@ -117,6 +120,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
                 paddingRight: 14,
                 canvas: true,
                 alignItems: "stretch",
+                height: "44px",
               },
               React.createElement(
                 Element as any,
@@ -147,6 +151,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
           paddingRight: 10,
           canvas: true,
           alignItems: "stretch",
+          height: "min-content",
         },
         React.createElement(
           Element as any,

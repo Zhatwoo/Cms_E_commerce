@@ -310,6 +310,18 @@ export async function apiFetch<T>(
   }
 
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+  // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
+  // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
+  if (typeof window !== 'undefined' && normalizedPath.startsWith('/api/')) {
+    const res = await fetch(normalizedPath, {
+      ...options,
+      headers,
+      credentials: 'include',
+    });
+    return handleResponse<T>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 
@@ -755,8 +767,10 @@ export async function uploadMediaApi(
   file: File,
   options?: { onProgress?: (percent: number) => void; folder?: 'images' | 'videos' | 'files' }
 ): Promise<{ url: string }> {
-  const base = getApiUrl().replace(/\/$/, '');
-  const url = `${base}/api/projects/${projectId}/media`;
+  const url =
+    typeof window !== 'undefined'
+      ? `/api/projects/${projectId}/media`
+      : `${getApiUrl().replace(/\/$/, '')}/api/projects/${projectId}/media`;
 
   if (options?.onProgress) {
     return new Promise((resolve, reject) => {
@@ -1048,6 +1062,19 @@ export async function uploadProductImageApi(
   file: File,
   subdomain?: string
 ): Promise<{ success: boolean; message?: string; url?: string }> {
+  if (typeof window !== 'undefined') {
+    const formData = new FormData();
+    formData.append('image', file);
+    if (subdomain) formData.append('subdomain', subdomain);
+
+    const res = await fetch(`/api/products/upload-image`, {
+      method: 'POST',
+      credentials: 'include',
+      body: formData,
+    });
+    return handleResponse<{ success: boolean; message?: string; url?: string }>(res);
+  }
+
   const candidates = getApiCandidates();
   let lastError: unknown = null;
 

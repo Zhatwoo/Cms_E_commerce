@@ -29,6 +29,10 @@
   --builder-purple-glow:    rgba(124, 58, 237, 0.30);
   --builder-canvas-bg:      #07051A;
   --builder-icon-glow:      rgba(167, 139, 250, 0.6);
+  --builder-active-text:    #93c5fd; /* blue-300 */
+  --builder-status-saving:  #fde047; /* yellow-300 */
+  --builder-status-saved:   #86efac; /* green-300 */
+  --builder-status-error:   #fca5a5; /* red-300 */
 }
 
 /* ── Web Builder — Light Mode ── */
@@ -52,6 +56,10 @@
   --builder-purple-glow:    rgba(91, 33, 182, 0.18);
   --builder-canvas-bg:      #eceaf6;
   --builder-icon-glow:      rgba(91, 33, 182, 0.5);
+  --builder-active-text:    #07051A;
+  --builder-status-saving:  #a16207; /* yellow-700 */
+  --builder-status-saved:   #15803d; /* green-700 */
+  --builder-status-error:   #b91c1c; /* red-700 */
 }
 
 /* ── Code Editor — always dark regardless of theme ── */
@@ -70,6 +78,10 @@
   --builder-accent-hover:   #FFD740;
   --builder-purple:         #7C3AED;
   --builder-purple-light:   #A78BFA;
+  --builder-active-text:    #93c5fd;
+  --builder-status-saving:  #fde047;
+  --builder-status-saved:   #86efac;
+  --builder-status-error:   #fca5a5;
 }
 
 @theme inline {
@@ -98,4 +110,8 @@
   --color-builder-purple:         var(--builder-purple);
   --color-builder-purple-light:   var(--builder-purple-light);
   --color-builder-canvas-bg:      var(--builder-canvas-bg);
+  --color-builder-active-text:    var(--builder-active-text);
+  --color-builder-status-saving:  var(--builder-status-saving);
+  --color-builder-status-saved:   var(--builder-status-saved);
+  --color-builder-status-error:   var(--builder-status-error);
 }
