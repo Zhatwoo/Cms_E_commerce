@@ -25,7 +25,11 @@ import {
   SimpleFooter,
   MultiColumnFooter,
   NewsletterFooter,
-  BrandFooter
+  BrandFooter,
+  StudioFooter,
+  MarketplaceFooter,
+  DarkCommerceFooter,
+  CentricFooter
 } from "./Footer";
 import {
   FacebookIcon,
@@ -191,6 +195,10 @@ export const TEMPLATES: TemplateEntry[] = [
   MultiColumnFooter,
   NewsletterFooter,
   BrandFooter,
+  StudioFooter,
+  MarketplaceFooter,
+  DarkCommerceFooter,
+  CentricFooter,
   FacebookIcon,
   GoogleIcon,
   InstagramIcon,
@@ -265,6 +273,10 @@ export const GROUPED_TEMPLATES = [
       SimpleFooter,
       NewsletterFooter,
       BrandFooter,
+      StudioFooter,
+      MarketplaceFooter,
+      DarkCommerceFooter,
+      CentricFooter,
     ],
   },
   {
