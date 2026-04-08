@@ -1,14 +1,10 @@
 "use client";
 
 import React from "react";
-import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { SimpleHeader } from "./Header";
 import {
   HeaderWithSearch,
   HeaderWithMegamenu,
-  MinimalistSaleHeader,
-  LuxuryHeader,
-  MobileHeader,
-  DarkModeHeader,
   ProfileLogin
 } from "./Header";
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
@@ -180,13 +176,8 @@ export const RectangleTemplate: TemplateEntry = {
 
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
-  HeaderWithCTA,
   HeaderWithSearch,
   HeaderWithMegamenu,
-  MinimalistSaleHeader,
-  LuxuryHeader,
-  MobileHeader,
-  DarkModeHeader,
   ProfileLogin,
   CenteredHero,
   HeroWithImage,
@@ -260,13 +251,8 @@ export const GROUPED_TEMPLATES = [
     folder: "Header",
     items: [
       SimpleHeader,
-      HeaderWithCTA,
       HeaderWithSearch,
       HeaderWithMegamenu,
-      MinimalistSaleHeader,
-      LuxuryHeader,
-      MobileHeader,
-      DarkModeHeader,
       ProfileLogin,
     ],
   },
