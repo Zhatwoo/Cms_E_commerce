@@ -139,6 +139,9 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 // Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
 const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   ...CRAFT_RESOLVER,
+  Icon: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Icon),
+  icon: asComponent((CRAFT_RESOLVER as Record<string, unknown>).icon ?? (CRAFT_RESOLVER as Record<string, unknown>).Icon),
+  ICON: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ICON ?? (CRAFT_RESOLVER as Record<string, unknown>).Icon),
   ProfileLogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
   profilelogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   ProfileLoginNode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLoginNode ?? (CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
@@ -204,6 +207,7 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered === "tab content" || lowered.includes("tabcontent")) return "TabContent";
   if (lowered.includes("tabs")) return "Tabs";
   if (lowered.includes("image")) return "Image";
+  if (lowered.includes("icon")) return "Icon";
   if (lowered.includes("text")) return "Text";
   if (lowered.includes("button")) return "Button";
   if (lowered.includes("divider")) return "Divider";
