@@ -31,32 +31,17 @@ export const Circle = (props: CircleProps) => {
     backgroundPosition = "center",
     backgroundRepeat = "no-repeat",
     backgroundOverlay = "",
-    margin = 0,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
-    padding = 0,
-    paddingTop = 0,
-    paddingRight = 0,
-    paddingBottom = 0,
-    paddingLeft = 0,
     borderColor = "transparent",
     borderWidth = 0,
     borderStyle = "solid",
     strokePlacement = "mid",
-    position = "relative",
-    display = "flex",
-    zIndex = 0,
-    top = "auto",
-    right = "auto",
-    bottom = "auto",
-    left = "auto",
     rotation = 0,
     boxShadow = "none",
     opacity = 1,
     overflow = "visible",
     cursor = "default",
+    position = "relative",
+    display = "flex",
     children,
     isPreview,
   } = props;
@@ -64,16 +49,6 @@ export const Circle = (props: CircleProps) => {
   const w = typeof width === "number" ? `${width}px` : (width || "200px");
   const h = typeof height === "number" ? `${height}px` : (height || "200px");
   const fillColor = background || color;
-  const m = typeof margin === "number" ? margin : 0;
-  const mt = marginTop ?? m;
-  const mr = marginRight ?? m;
-  const mb = marginBottom ?? m;
-  const ml = marginLeft ?? m;
-  const p = typeof padding === "number" ? padding : 0;
-  const pt = paddingTop ?? p;
-  const pr = paddingRight ?? p;
-  const pb = paddingBottom ?? p;
-  const pl = paddingLeft ?? p;
   const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
 
   if (isPreview) {
@@ -104,6 +79,10 @@ export const Circle = (props: CircleProps) => {
         height: h,
         minWidth: w as string,
         minHeight: h as string,
+        position: position as React.CSSProperties["position"],
+        display: display as React.CSSProperties["display"],
+        alignItems: "center",
+        justifyContent: "center",
         backgroundColor: fillColor,
         backgroundImage: backgroundImage
           ? backgroundOverlay
@@ -117,23 +96,12 @@ export const Circle = (props: CircleProps) => {
         ...(strokePlacement === "outside" && borderWidth > 0
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
-        position,
-        display,
-        zIndex: zIndex !== 0 ? zIndex : undefined,
-        top: position !== "static" ? top : undefined,
-        right: position !== "static" ? right : undefined,
-        bottom: position !== "static" ? bottom : undefined,
-        left: position !== "static" ? left : undefined,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: "center center",
         boxShadow,
         opacity,
         overflow: effectiveOverflow,
         cursor,
-        alignItems: "center",
-        justifyContent: "center",
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
       }}
     >
       {children}
@@ -153,7 +121,9 @@ export const CircleDefaultProps: Partial<CircleResizableProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "hidden",
-  cursor: "default"
+  cursor: "default",
+  position: "relative",
+  display: "flex",
 };
 
 Circle.craft = {
@@ -161,5 +131,7 @@ Circle.craft = {
   props: CircleDefaultProps,
   related: {
     settings: ShapeSettings
-  }
+  },
+  canvas: true,
 };
+

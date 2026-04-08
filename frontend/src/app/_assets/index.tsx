@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Element } from "@craftjs/core";
 import { SimpleHeader } from "./Header";
 import {
   HeaderWithSearch,
@@ -126,23 +127,23 @@ export const KitePreview = (props: any) => (
   <svg width="60" height="60" viewBox="0 0 100 100"><polygon points="50,15 80,40 50,85 20,40" fill="#ef4444" /></svg>
 );
 
-export const DiamondTemplate: TemplateEntry = { label: "Diamond", description: "Diamond shape", preview: <DiamondPreview />, element: <CraftDiamond />, category: "icon" };
-export const HeartTemplate: TemplateEntry = { label: "Heart", description: "Heart shape", preview: <HeartPreview />, element: <CraftHeart />, category: "icon" };
-export const TrapezoidTemplate: TemplateEntry = { label: "Trapezoid", description: "Trapezoid shape", preview: <TrapezoidPreview />, element: <CraftTrapezoid />, category: "icon" };
-export const PentagonTemplate: TemplateEntry = { label: "Pentagon", description: "Pentagon shape", preview: <PentagonPreview />, element: <CraftPentagon />, category: "icon" };
-export const HexagonTemplate: TemplateEntry = { label: "Hexagon", description: "Hexagon shape", preview: <HexagonPreview />, element: <CraftHexagon />, category: "icon" };
-export const HeptagonTemplate: TemplateEntry = { label: "Heptagon", description: "Heptagon shape", preview: <HeptagonPreview />, element: <CraftHeptagon />, category: "icon" };
-export const OctagonTemplate: TemplateEntry = { label: "Octagon", description: "Octagon shape", preview: <OctagonPreview />, element: <CraftOctagon />, category: "icon" };
-export const NonagonTemplate: TemplateEntry = { label: "Nonagon", description: "Nonagon shape", preview: <NonagonPreview />, element: <CraftNonagon />, category: "icon" };
-export const DecagonTemplate: TemplateEntry = { label: "Decagon", description: "Decagon shape", preview: <DecagonPreview />, element: <CraftDecagon />, category: "icon" };
-export const ParallelogramTemplate: TemplateEntry = { label: "Parallelogram", description: "Parallelogram shape", preview: <ParallelogramPreview />, element: <CraftParallelogram />, category: "icon" };
-export const KiteTemplate: TemplateEntry = { label: "Kite", description: "Kite shape", preview: <KitePreview />, element: <CraftKite />, category: "icon" };
+export const DiamondTemplate: TemplateEntry = { label: "Diamond", description: "Diamond shape", preview: <DiamondPreview />, element: <Element is={CraftDiamond} canvas />, category: "icon" };
+export const HeartTemplate: TemplateEntry = { label: "Heart", description: "Heart shape", preview: <HeartPreview />, element: <Element is={CraftHeart} canvas />, category: "icon" };
+export const TrapezoidTemplate: TemplateEntry = { label: "Trapezoid", description: "Trapezoid shape", preview: <TrapezoidPreview />, element: <Element is={CraftTrapezoid} canvas />, category: "icon" };
+export const PentagonTemplate: TemplateEntry = { label: "Pentagon", description: "Pentagon shape", preview: <PentagonPreview />, element: <Element is={CraftPentagon} canvas />, category: "icon" };
+export const HexagonTemplate: TemplateEntry = { label: "Hexagon", description: "Hexagon shape", preview: <HexagonPreview />, element: <Element is={CraftHexagon} canvas />, category: "icon" };
+export const HeptagonTemplate: TemplateEntry = { label: "Heptagon", description: "Heptagon shape", preview: <HeptagonPreview />, element: <Element is={CraftHeptagon} canvas />, category: "icon" };
+export const OctagonTemplate: TemplateEntry = { label: "Octagon", description: "Octagon shape", preview: <OctagonPreview />, element: <Element is={CraftOctagon} canvas />, category: "icon" };
+export const NonagonTemplate: TemplateEntry = { label: "Nonagon", description: "Nonagon shape", preview: <NonagonPreview />, element: <Element is={CraftNonagon} canvas />, category: "icon" };
+export const DecagonTemplate: TemplateEntry = { label: "Decagon", description: "Decagon shape", preview: <DecagonPreview />, element: <Element is={CraftDecagon} canvas />, category: "icon" };
+export const ParallelogramTemplate: TemplateEntry = { label: "Parallelogram", description: "Parallelogram shape", preview: <ParallelogramPreview />, element: <Element is={CraftParallelogram} canvas />, category: "icon" };
+export const KiteTemplate: TemplateEntry = { label: "Kite", description: "Kite shape", preview: <KitePreview />, element: <Element is={CraftKite} canvas />, category: "icon" };
 
 export const CircleTemplate: TemplateEntry = {
   label: "Circle",
   description: "A simple SVG circle shape.",
   preview: <Circle />,
-  element: <CraftCircle />, // Draggable Craft.js component
+  element: <Element is={CraftCircle} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
@@ -150,7 +151,7 @@ export const SquareTemplate: TemplateEntry = {
   label: "Square",
   description: "A simple SVG square shape.",
   preview: <Square />,
-  element: <CraftSquare />, // Draggable Craft.js component
+  element: <Element is={CraftSquare} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
@@ -158,7 +159,7 @@ export const TriangleTemplate: TemplateEntry = {
   label: "Triangle",
   description: "A simple SVG triangle shape.",
   preview: <Triangle />,
-  element: <CraftTriangle />, // Draggable Craft.js component
+  element: <Element is={CraftTriangle} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
@@ -166,7 +167,7 @@ export const RectangleTemplate: TemplateEntry = {
   label: "Rectangle",
   description: "A simple SVG rectangle shape.",
   preview: <Rectangle />,
-  element: <CraftRectangle />, // Draggable Craft.js component
+  element: <Element is={CraftRectangle} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 

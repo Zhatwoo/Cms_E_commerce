@@ -504,7 +504,7 @@ exports.getStorageUsage = async (req, res) => {
       });
     }
 
-    const owner = await User.findById(resolved.ownerId);
+    const owner = await User.get(resolved.ownerId);
     if (!owner) {
       return res.status(404).json({
         success: false,
@@ -574,7 +574,7 @@ exports.deleteMedia = async (req, res) => {
       });
     }
 
-    const owner = await User.findById(resolved.ownerId);
+    const owner = await User.get(resolved.ownerId);
     if (!owner) {
       return res.status(404).json({
         success: false,

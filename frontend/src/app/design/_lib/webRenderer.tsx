@@ -4049,6 +4049,7 @@ function RenderNode({
                 bottom: 0,
                 pointerEvents: "none",
                 display: "block",
+                overflow: "visible",
               }}
               preserveAspectRatio="none"
             >
@@ -4057,7 +4058,9 @@ function RenderNode({
                   d="M 50 90 C 20 70 5 55 5 35 C 5 20 20 10 32 10 C 40 10 47 15 50 22 C 53 15 60 10 68 10 C 80 10 95 20 95 35 C 95 55 80 70 50 90 Z"
                   fill={fill}
                   stroke={props.borderColor as string}
-                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) : undefined}
+                  strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) * 2 : undefined}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ paintOrder: "stroke fill" }}
                 />
               ) : (
                 <polygon
@@ -4078,6 +4081,8 @@ function RenderNode({
                   fill={fill}
                   stroke={props.borderColor as string}
                   strokeWidth={toNumber(props.borderWidth, 0) > 0 ? toNumber(props.borderWidth, 0) * 2 : undefined}
+                  vectorEffect="non-scaling-stroke"
+                  style={{ paintOrder: "stroke fill" }}
                   strokeDasharray={
                     props.borderStyle === "dashed"
                       ? "6,6"
