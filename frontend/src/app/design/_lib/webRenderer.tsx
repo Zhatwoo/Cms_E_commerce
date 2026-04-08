@@ -4373,6 +4373,7 @@ export function WebPreview({
   const pageWidthPx = parsePixelValue(width) ?? 1920;
   const background = (pageProps.background as string) || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const pageHeightPx = parsePixelValue(minHeight) ?? 800;
   const pageRotation = toNumber(pageProps.pageRotation, 0);
 
   const { ref, width: measuredWidth } = useContainerWidth(1200);
@@ -4452,7 +4453,10 @@ export function WebPreview({
     </>
   );
 
-      const isContainedScroller = fillViewport || isPhoneSize || shouldUseResponsiveViewport;
+      // In builder parity mode, preview must match the canvas artboard size exactly.
+      // So we disable the contained scroller behavior (which uses viewport units + internal scroll)
+      // and render a fixed-size page frame instead.
+      const isContainedScroller = !builderParityMode && (fillViewport || isPhoneSize || shouldUseResponsiveViewport);
 
       return (
     <>
@@ -4472,12 +4476,19 @@ export function WebPreview({
         data-preview-scroll-root={isContainedScroller ? "true" : undefined}
         style={{
           width: "100%",
-          minHeight: "100vh",
+          // For builder parity mode, lock the preview to the canvas container (no `vh`, no internal scroll).
+          height: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
+          maxHeight: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
+          minHeight: builderParityMode ? 0 : (isContainedScroller ? "100%" : "100vh"),
           display: "flex",
           flexDirection: "column",
           alignItems: shouldStretchDesktopPage ? "stretch" : "center",
           overflowX: "hidden",
-          overflowY: isContainedScroller ? "auto" : "visible",
+          overflowY: builderParityMode ? "hidden" : (isContainedScroller ? "auto" : "visible"),
+          // In builder parity mode we want a fixed-size artboard, but wheel scrolling should
+          // still "chain" to the parent page/canvas when the pointer is over the artboard.
+          // Using `overscroll-behavior: none` breaks that chaining, making it feel unscrollable.
+          overscrollBehavior: builderParityMode ? undefined : (isContainedScroller ? "contain" : undefined),
           backgroundColor: background,
         }}
       >
@@ -4485,17 +4496,29 @@ export function WebPreview({
         <div
           key={currentPageId}
           style={{
-            width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
-            maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
-            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
-            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight),
+            width: builderParityMode
+              ? `${pageWidthPx}px`
+              : shouldStretchDesktopPage
+                ? "100%"
+                : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
+            maxWidth: builderParityMode
+              ? `${pageWidthPx}px`
+              : shouldStretchDesktopPage
+                ? "100%"
+                : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
+            height: builderParityMode
+              ? `${pageHeightPx}px`
+              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight)),
+            minHeight: builderParityMode
+              ? `${pageHeightPx}px`
+              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight)),
             backgroundColor: "transparent",
             margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
             position: "relative",
             isolation: "isolate",
-            overflow: isScaling ? "visible" : "hidden",
+            overflow: builderParityMode ? "hidden" : (isScaling ? "visible" : "hidden"),
             transition: "transform 0.2s ease, width 0.3s ease",
             ...transitionStyle,
           }}

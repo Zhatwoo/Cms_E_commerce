@@ -1382,7 +1382,7 @@ function PreviewContent() {
                   <div
                     ref={previewRef}
                     className="w-full min-w-0 preview-fadein bg-white"
-                    style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle, minHeight: "calc(100vh - 160px)" }}
+                    style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }}
                   >
                     <WebPreview
                       key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
@@ -1416,7 +1416,7 @@ function PreviewContent() {
                         <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
                         <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                       </div>
-                      <div ref={previewRef} style={{ minHeight: "calc(100vh - 240px)" }}>
+                      <div ref={previewRef}>
                         <WebPreview
                           key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
                           doc={effectiveCleanDoc}
@@ -1444,7 +1444,7 @@ function PreviewContent() {
                       style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px" }}
                     >
                       <div className="device-notch"><div className="device-notch-pill" /></div>
-                      <div ref={previewRef} style={{ minHeight: "calc(100vh - 280px)" }}>
+                      <div ref={previewRef}>
                         <WebPreview
                           key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
                           doc={effectiveCleanDoc}
