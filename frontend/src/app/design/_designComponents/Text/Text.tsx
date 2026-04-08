@@ -103,12 +103,51 @@ export const Text = ({
   const isFlowText = position !== "absolute" && position !== "fixed";
   // Row, Column, Section hardcode display:flex in JSX without storing it in props,
   // so we detect them by displayName as well.
-  const FLEX_PARENT_TYPES = new Set(["Row", "Column", "Section", "Container", "Frame"]);
+  const FLEX_PARENT_TYPES = new Set([
+    "Row",
+    "Column",
+    "Section",
+    "Container",
+    "Frame",
+    "Circle",
+    "Square",
+    "Triangle",
+    "Rectangle",
+    "Diamond",
+    "Heart",
+    "Trapezoid",
+    "Pentagon",
+    "Hexagon",
+    "Heptagon",
+    "Octagon",
+    "Nonagon",
+    "Decagon",
+    "Parallelogram",
+    "Kite",
+  ]);
+  const SHAPE_PARENT_TYPES = new Set([
+    "Circle",
+    "Square",
+    "Triangle",
+    "Rectangle",
+    "Diamond",
+    "Heart",
+    "Trapezoid",
+    "Pentagon",
+    "Hexagon",
+    "Heptagon",
+    "Octagon",
+    "Nonagon",
+    "Decagon",
+    "Parallelogram",
+    "Kite",
+  ]);
   const isFlexOrGridParent =
     parentDisplay === "flex" ||
     parentDisplay === "inline-flex" ||
     parentDisplay === "grid" ||
     FLEX_PARENT_TYPES.has(parentDisplayName);
+  const isShapeParent = SHAPE_PARENT_TYPES.has(parentDisplayName);
   const resolvedWidth = width ?? (isFlowText && isFlexOrGridParent ? "100%" : undefined);
   const hasExplicitHeight =
     typeof height === "string" &&
@@ -157,6 +196,25 @@ export const Text = ({
     };
   }, []);
 
+  useEffect(() => {
+    if (!isShapeParent) return;
+    const isAbsolute = position === "absolute" || position === "fixed";
+    if (isAbsolute) return;
+    const hasOffset =
+      (typeof top === "string" && top !== "auto") ||
+      (typeof left === "string" && left !== "auto") ||
+      (typeof right === "string" && right !== "auto") ||
+      (typeof bottom === "string" && bottom !== "auto");
+    if (!hasOffset) return;
+
+    actions.setProp((props: Record<string, unknown>) => {
+      props.top = "auto";
+      props.left = "auto";
+      props.right = "auto";
+      props.bottom = "auto";
+    });
+  }, [actions, bottom, isShapeParent, left, position, right, top]);
+
   const flushPendingTextSync = (force = false) => {
     const nextText = pendingTextRef.current;
     if (!force && nextText === lastSyncedTextRef.current) return;
@@ -195,10 +253,10 @@ export const Text = ({
     color,
     position,
     zIndex,
-    top: position !== "static" ? top : undefined,
-    right: position !== "static" ? right : undefined,
-    bottom: position !== "static" ? bottom : undefined,
-    left: position !== "static" ? left : undefined,
+    top: position !== "static" ? (isShapeParent && isFlowText ? "auto" : top) : undefined,
+    right: position !== "static" ? (isShapeParent && isFlowText ? "auto" : right) : undefined,
+    bottom: position !== "static" ? (isShapeParent && isFlowText ? "auto" : bottom) : undefined,
+    left: position !== "static" ? (isShapeParent && isFlowText ? "auto" : left) : undefined,
     width: resolvedWidth,
     height: hasExplicitHeight ? height : "auto",
     maxWidth: "100%",

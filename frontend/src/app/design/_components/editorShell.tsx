@@ -265,28 +265,9 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
         return Reflect.has(target, "Container") || Reflect.has(target, "container");
       }
 
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-
-      const canonical = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized);
-      if (canonical && Reflect.has(target, canonical)) return true;
-
-      if (
-        normalized.includes("image") ||
-        normalized === "img" ||
-        normalized === "imagecomponent"
-      ) {
-        return (
-          Reflect.has(target, "Image") ||
-          Reflect.has(target, "image") ||
-          Reflect.has(target, "IMAGE") ||
-          Reflect.has(target, "img") ||
-          Reflect.has(target, "Img") ||
-          Reflect.has(target, "ImageComponent")
-        );
-      }
-
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      // Let unknown/case-variant node types pass membership checks so `get()`
+      // can safely resolve them to a fallback component.
+      return true;
     },
   }) as T;
 }

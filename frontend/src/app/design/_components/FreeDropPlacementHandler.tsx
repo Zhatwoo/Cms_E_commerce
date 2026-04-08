@@ -22,6 +22,7 @@ type DragSourceKind = "asset" | "component" | "imported" | null;
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const SHAPE_DISPLAY_NAMES = new Set(["Circle", "Square", "Triangle", "Rectangle", "Diamond", "Heart", "Trapezoid", "Pentagon", "Hexagon", "Heptagon", "Octagon", "Nonagon", "Decagon", "Parallelogram", "Kite"]);
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -177,7 +178,9 @@ export function FreeDropPlacementHandler() {
           parentDisplay === "grid" ||
           parentDisplayName === "Tab Content" ||
           parentDisplayName === "TabContent" ||
-          LAYOUT_LIKE_TYPES.has(parentDisplayName);
+          LAYOUT_LIKE_TYPES.has(parentDisplayName) ||
+          FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName) ||
+          SHAPE_DISPLAY_NAMES.has(parentDisplayName);
         const forceFlowPlacement = false;
 
         let left = 0;

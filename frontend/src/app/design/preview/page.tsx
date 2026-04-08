@@ -131,15 +131,7 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
         return Reflect.has(target, "Container") || Reflect.has(target, "container");
       }
 
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-      
-      if (shapes.some(s => normalized.includes(s))) return true;
-
-      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-      if (Reflect.has(target, canonical)) return true;
-
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      return true;
     },
   }) as T;
 }

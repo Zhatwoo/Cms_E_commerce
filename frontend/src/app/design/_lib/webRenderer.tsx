@@ -3959,7 +3959,11 @@ function RenderNode({
       const pr = toNumber(props.paddingRight ?? p, 0);
       const pb = toNumber(props.paddingBottom ?? p, 0);
       const pl = toNumber(props.paddingLeft ?? p, 0);
-      const fill = (props.background as string) || (props.color as string) || "#999999";
+      const backgroundRaw = typeof props.background === "string" ? props.background : "";
+      const normalizedBackground = backgroundRaw.trim().toLowerCase();
+      const fill = (backgroundRaw && normalizedBackground !== "transparent"
+        ? backgroundRaw
+        : ((props.color as string) || "#999999"));
       const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
       const originalPos = (props.position as string) || "relative";
       const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
@@ -4007,11 +4011,16 @@ function RenderNode({
               return parts.length ? parts.join(" ") : undefined;
             })(),
             transformOrigin: "center center",
-            backgroundColor: "transparent",
-            backgroundImage: "none",
-            backgroundSize: undefined,
-            backgroundPosition: undefined,
-            backgroundRepeat: undefined,
+            backgroundColor: type === "Circle" || type === "Square" ? fill : "transparent",
+            backgroundImage:
+              (type === "Circle" || type === "Square") && bgImage
+                ? overlay
+                  ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
+                  : `url(${bgImage})`
+                : "none",
+            backgroundSize: (type === "Circle" || type === "Square") && bgImage ? ((props.backgroundSize as string) || "cover") : undefined,
+            backgroundPosition: (type === "Circle" || type === "Square") && bgImage ? ((props.backgroundPosition as string) || "center") : undefined,
+            backgroundRepeat: (type === "Circle" || type === "Square") && bgImage ? ((props.backgroundRepeat as string) || "no-repeat") : undefined,
             borderRadius:
               type === "Circle"
                 ? "50%"

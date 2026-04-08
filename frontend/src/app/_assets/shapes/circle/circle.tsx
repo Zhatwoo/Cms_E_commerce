@@ -40,15 +40,22 @@ export const Circle = (props: CircleProps) => {
     opacity = 1,
     overflow = "visible",
     cursor = "default",
-    position = "relative",
+    position = "absolute",
     display = "flex",
+    zIndex = 0,
+    top,
+    right,
+    bottom,
+    left,
     children,
     isPreview,
   } = props;
 
   const w = typeof width === "number" ? `${width}px` : (width || "200px");
   const h = typeof height === "number" ? `${height}px` : (height || "200px");
-  const fillColor = background || color;
+  const normalizedBackground = typeof background === "string" ? background.trim().toLowerCase() : "";
+  const shouldUseBackground = Boolean(background) && normalizedBackground !== "transparent";
+  const fillColor = shouldUseBackground ? background : color;
   const effectiveOverflow = overflow === "visible" ? "hidden" : overflow;
 
   if (isPreview) {
@@ -81,6 +88,11 @@ export const Circle = (props: CircleProps) => {
         minHeight: h as string,
         position: position as React.CSSProperties["position"],
         display: display as React.CSSProperties["display"],
+        zIndex,
+        top: position !== "static" ? top : undefined,
+        right: position !== "static" ? right : undefined,
+        bottom: position !== "static" ? bottom : undefined,
+        left: position !== "static" ? left : undefined,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: fillColor,
@@ -113,7 +125,7 @@ export const CircleDefaultProps: Partial<CircleResizableProps> = {
   color: "#10b981",
   width: "200px",
   height: "200px",
-  background: undefined,
+  background: "#10b981",
   borderColor: "transparent",
   borderWidth: 0,
   borderStyle: "solid",
@@ -122,8 +134,9 @@ export const CircleDefaultProps: Partial<CircleResizableProps> = {
   opacity: 1,
   overflow: "hidden",
   cursor: "default",
-  position: "relative",
+  position: "absolute",
   display: "flex",
+  zIndex: 0,
 };
 
 Circle.craft = {
