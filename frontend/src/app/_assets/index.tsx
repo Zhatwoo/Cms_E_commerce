@@ -8,7 +8,7 @@ import {
   HeaderWithMegamenu,
   ProfileLogin
 } from "./Header";
-import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
+import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2 } from "./Hero";
 import { FeaturesGrid, Testimonial } from "./Content";
 import {
   ProductCard,
@@ -23,9 +23,10 @@ import {
 } from "./Cards";
 import {
   SimpleFooter,
-  MultiColumnFooter,
-  NewsletterFooter,
-  BrandFooter
+  StudioFooter,
+  MarketplaceFooter,
+  DarkCommerceFooter,
+  BrutalistFooter,
 } from "./Footer";
 import {
   FacebookIcon,
@@ -180,7 +181,6 @@ export const TEMPLATES: TemplateEntry[] = [
   HeroWithImage,
   HeroBannerCTA,
   HeroBannerCTA_v2,
-  HeroBannerCTA_v3,
   FeaturesGrid,
   Testimonial,
   ProductCard,
@@ -188,9 +188,10 @@ export const TEMPLATES: TemplateEntry[] = [
   ProductsOverview,
   ProductDescriptionCard,
   SimpleFooter,
-  MultiColumnFooter,
-  NewsletterFooter,
-  BrandFooter,
+  StudioFooter,
+  MarketplaceFooter,
+  DarkCommerceFooter,
+  BrutalistFooter,
   FacebookIcon,
   GoogleIcon,
   InstagramIcon,
@@ -240,7 +241,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Hero",
-    items: [CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3],
+    items: [CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2],
   },
   {
     folder: "Content",
@@ -261,10 +262,11 @@ export const GROUPED_TEMPLATES = [
   {
     folder: "Footer",
     items: [
-      MultiColumnFooter,
       SimpleFooter,
-      NewsletterFooter,
-      BrandFooter,
+      StudioFooter,
+      MarketplaceFooter,
+      DarkCommerceFooter,
+      BrutalistFooter,
     ],
   },
   {
