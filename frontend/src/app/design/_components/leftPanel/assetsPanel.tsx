@@ -236,6 +236,8 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Row: asComponent(Row),
   Column: asComponent(Column),
   Icon: asComponent(Icon),
+  icon: asComponent(Icon),
+  ICON: asComponent(Icon),
   Rating: asComponent(Rating),
   rating: asComponent(Rating),
   ProfileLogin: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),

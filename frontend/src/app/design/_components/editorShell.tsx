@@ -2806,6 +2806,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Text = asComponent(Text);
     base.text = asComponent(Text);
     base.TEXT = asComponent(Text);
+    base.Icon = asComponent(CRAFT_RESOLVER.Icon ?? Icon);
+    base.icon = asComponent(CRAFT_RESOLVER.icon ?? CRAFT_RESOLVER.Icon ?? Icon);
+    base.ICON = asComponent(CRAFT_RESOLVER.ICON ?? CRAFT_RESOLVER.Icon ?? Icon);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
 

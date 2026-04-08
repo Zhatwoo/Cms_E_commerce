@@ -5,6 +5,7 @@ export * from './Instagram/InstagramIcon';
 export * from './Twitter/TwitterIcon';
 export * from './Search/SearchIcon';
 export * from './Home/HomeIcon';
+export * from './Bell/BellIcon';
 export * from './Menu/MenuIcon';
 export * from './Close/CloseIcon';
 export * from './Settings/SettingsIcon';

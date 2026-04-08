@@ -11,6 +11,7 @@ import type { IconProps, SetProp } from "../../_types/components";
 
 const ICON_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "Search", value: "search" },
+  { label: "Bell", value: "bell" },
   { label: "Home", value: "home" },
   { label: "Menu", value: "menu" },
   { label: "Close", value: "close" },
