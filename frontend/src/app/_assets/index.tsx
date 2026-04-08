@@ -26,6 +26,7 @@ import {
   StudioFooter,
   MarketplaceFooter,
   DarkCommerceFooter,
+  BrutalistFooter,
 } from "./Footer";
 import {
   FacebookIcon,
@@ -190,6 +191,7 @@ export const TEMPLATES: TemplateEntry[] = [
   StudioFooter,
   MarketplaceFooter,
   DarkCommerceFooter,
+  BrutalistFooter,
   FacebookIcon,
   GoogleIcon,
   InstagramIcon,
@@ -264,6 +266,7 @@ export const GROUPED_TEMPLATES = [
       StudioFooter,
       MarketplaceFooter,
       DarkCommerceFooter,
+      BrutalistFooter,
     ],
   },
   {
