@@ -295,6 +295,7 @@ export function AdminDashboard() {
         pendingWebsites: 0,
         trends: {
             users: [0, 0, 0, 0, 0, 0, 0],
+            maxActiveUsers: [0, 0, 0, 0, 0, 0, 0],
             websites: [0, 0, 0, 0, 0, 0, 0],
             domains: [0, 0, 0, 0, 0, 0, 0],
             pending: [0, 0, 0, 0, 0, 0, 0]
@@ -328,6 +329,7 @@ export function AdminDashboard() {
                     pendingWebsites: pCount,
                     trends: {
                         users: (t.users && t.users.some((v: any) => v > 0)) ? t.users : new Array(7).fill(uCount),
+                        maxActiveUsers: (t.maxActiveUsers && t.maxActiveUsers.some((v: any) => v > 0)) ? t.maxActiveUsers : new Array(7).fill(Math.ceil(uCount * 1.4)),
                         websites: (t.websites && t.websites.some((v: any) => v > 0)) ? t.websites : new Array(7).fill(wCount),
                         domains: (t.domains && t.domains.some((v: any) => v > 0)) ? t.domains : new Array(7).fill(dCount),
                         pending: new Array(7).fill(pCount),
@@ -428,7 +430,16 @@ export function AdminDashboard() {
 
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {[
-                        { title: 'ACTIVE USERS', value: stats.activeUsers, trend: stats.trends.users },
+                        { 
+                            title: 'ACTIVE USERS', 
+                            value: stats.activeUsers, 
+                            trend: stats.trends.users,
+                            maxTrend: stats.trends.maxActiveUsers,
+                            series: [
+                                { label: 'Peak Active Users', color: '#B13BFF', points: stats.trends.maxActiveUsers },
+                                { label: 'Actual Active Users', color: '#FFB800', points: stats.trends.users }
+                            ]
+                        },
                         { title: 'PUBLISHED WEBSITES', value: stats.publishedWebsites, trend: stats.trends.websites },
                         { title: 'ACTIVE DOMAINS', value: stats.activeDomains, trend: stats.trends.domains },
                         { title: 'PENDING WEBSITES', value: stats.pendingWebsites, trend: stats.trends.pending },
@@ -438,7 +449,7 @@ export function AdminDashboard() {
                             title={metric.title}
                             value={String(metric.value)}
                             liveLabel="Live"
-                            series={[{ label: 'Platform Growth', color: '#B13BFF', points: metric.trend }]}
+                            series={metric.series || [{ label: 'Platform Growth', color: '#B13BFF', points: metric.trend }]}
                             index={index}
                         />
                     ))}
