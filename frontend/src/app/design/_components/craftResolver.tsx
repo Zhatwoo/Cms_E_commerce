@@ -44,6 +44,10 @@ import { ProfileLoginNode } from "../../_assets/Header/profile-login/profile-log
 import { ProductSlider } from "../_designComponents/ProductSlider/ProductSlider";
 import { ProductCard as ProductCardComponent } from "../_designComponents/ProductCard/ProductCard";
 import { ProductDescriptionCard as ProductDescriptionCardComponent } from "../_designComponents/ProductDescriptionCard/ProductDescriptionCard";
+import { HeroBannerCTA_v2Block } from "../../_assets/Hero/HeroBannerCTA_v2Block";
+import { HeroBannerCTABlock } from "../../_assets/Hero/HeroBannerCTABlock";
+import { HeroWithImageBlock } from "../../_assets/Hero/HeroWithImageBlock";
+import { CenteredHeroBlock } from "../../_assets/Hero/CenteredHeroBlock";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -159,6 +163,10 @@ export function buildCraftResolver(): Resolver {
   const ProductSliderComp = asComponent(ProductSlider, ContainerComp);
   const ProductCardComp = asComponent(ProductCardComponent, ContainerComp);
   const ProductDescriptionCardComp = asComponent(ProductDescriptionCardComponent, ContainerComp);
+  const HeroBannerCTA_v2BlockComp = asComponent(HeroBannerCTA_v2Block, ContainerComp);
+  const HeroBannerCTABlockComp = asComponent(HeroBannerCTABlock, ContainerComp);
+  const HeroWithImageBlockComp = asComponent(HeroWithImageBlock, ContainerComp);
+  const CenteredHeroBlockComp = asComponent(CenteredHeroBlock, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -270,6 +278,18 @@ export function buildCraftResolver(): Resolver {
     ProductDescriptionCard: ProductDescriptionCardComp,
     productdescriptioncard: ProductDescriptionCardComp,
     "Product Description Card": ProductDescriptionCardComp,
+    HeroBannerCTA_v2Block: HeroBannerCTA_v2BlockComp,
+    herobannercta_v2block: HeroBannerCTA_v2BlockComp,
+    "Hero Banner CTA v2 Block": HeroBannerCTA_v2BlockComp,
+    HeroBannerCTABlock: HeroBannerCTABlockComp,
+    herobannerctablock: HeroBannerCTABlockComp,
+    "Hero Banner CTA Block": HeroBannerCTABlockComp,
+    HeroWithImageBlock: HeroWithImageBlockComp,
+    herowithimageblock: HeroWithImageBlockComp,
+    "Hero With Image Block": HeroWithImageBlockComp,
+    CenteredHeroBlock: CenteredHeroBlockComp,
+    centeredheroblock: CenteredHeroBlockComp,
+    "Centered Hero Block": CenteredHeroBlockComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -295,6 +315,10 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);
+  addAliases(base, "HeroBannerCTA_v2Block", HeroBannerCTA_v2BlockComp, ["Hero Banner CTA v2 Block", "herobannercta_v2block"]);
+  addAliases(base, "HeroBannerCTABlock", HeroBannerCTABlockComp, ["Hero Banner CTA Block", "herobannerctablock"]);
+  addAliases(base, "HeroWithImageBlock", HeroWithImageBlockComp, ["Hero With Image Block", "herowithimageblock"]);
+  addAliases(base, "CenteredHeroBlock", CenteredHeroBlockComp, ["Centered Hero Block", "centeredheroblock"]);
   return base;
 }
 
