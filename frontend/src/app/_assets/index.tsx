@@ -2,19 +2,14 @@
 
 import React from "react";
 import { Element } from "@craftjs/core";
-import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { SimpleHeader } from "./Header";
 import {
   HeaderWithSearch,
   HeaderWithMegamenu,
-  MinimalistSaleHeader,
-  LuxuryHeader,
-  MobileHeader,
-  DarkModeHeader,
   ProfileLogin
 } from "./Header";
 import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
-import { FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1 } from "./Content";
-import { ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1 } from "./Forms";
+import { FeaturesGrid, Testimonial } from "./Content";
 import {
   ProductCard,
   TeamMemberCard,
@@ -25,9 +20,6 @@ import {
   CategoriesCard,
   BrowseCategory,
    ProductsOverview,
-  ProductDetailView,
-  ProductDetailViewV2,
-  ProductDetailViewV3,
 } from "./Cards";
 import {
   SimpleFooter,
@@ -181,13 +173,8 @@ export const RectangleTemplate: TemplateEntry = {
 
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
-  HeaderWithCTA,
   HeaderWithSearch,
   HeaderWithMegamenu,
-  MinimalistSaleHeader,
-  LuxuryHeader,
-  MobileHeader,
-  DarkModeHeader,
   ProfileLogin,
   CenteredHero,
   HeroWithImage,
@@ -196,23 +183,8 @@ export const TEMPLATES: TemplateEntry[] = [
   HeroBannerCTA_v3,
   FeaturesGrid,
   Testimonial,
-  DeliveryAddress,
-  DeliveryAddressV1,
-  ContactForm,
-  NewsletterSignup,
-  OrderForm,
-  OrderFormV1,
-  LoginForm,
-  SignupForm,
-  AddToCart,
-  PaymentForm,
-  PaymentMethod,
-  PaymentMethodV1,
   ProductCard,
   TeamMemberCard,
-  ProductDetailView,
-  ProductDetailViewV2,
-  ProductDetailViewV3,
   ProductsOverview,
   ProductDescriptionCard,
   SimpleFooter,
@@ -261,13 +233,8 @@ export const GROUPED_TEMPLATES = [
     folder: "Header",
     items: [
       SimpleHeader,
-      HeaderWithCTA,
       HeaderWithSearch,
       HeaderWithMegamenu,
-      MinimalistSaleHeader,
-      LuxuryHeader,
-      MobileHeader,
-      DarkModeHeader,
       ProfileLogin,
     ],
   },
@@ -277,7 +244,7 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1],
+    items: [FeaturesGrid, Testimonial],
   },
   {
     folder: "Cards",
@@ -289,14 +256,7 @@ export const GROUPED_TEMPLATES = [
       FeaturedProduct,
       CategoriesCard,
       BrowseCategory,
-      ProductDetailView,
-      ProductDetailViewV2,
-      ProductDetailViewV3,
     ],
-  },
-  {
-    folder: "Forms",
-    items: [ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1],
   },
   {
     folder: "Footer",

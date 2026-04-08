@@ -484,9 +484,11 @@ const MIN_PANEL_WIDTH = 200;
 const MAX_PANEL_WIDTH = 600;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
-const INFINITE_CANVAS_WIDTH_VW = 4000;
-const INFINITE_CANVAS_HEIGHT_VH = 4000;
 const INFINITE_CANVAS_PADDING_PX = 30000;
+// Avoid `vw`/`vh` here: browser zoom changes viewport units and makes the canvas appear to "grow".
+// Use large pixel bounds instead so the scrollable area stays stable under Ctrl+Scroll.
+const INFINITE_CANVAS_MIN_WIDTH_PX = INFINITE_CANVAS_PADDING_PX * 2 + PAGE_BASE_WIDTH * 80;
+const INFINITE_CANVAS_MIN_HEIGHT_PX = INFINITE_CANVAS_PADDING_PX * 2 + PAGE_BASE_HEIGHT * 80;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -2982,8 +2984,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <div
                         className="flex items-start justify-start relative"
                         style={{
-                          minWidth: `${INFINITE_CANVAS_WIDTH_VW}vw`,
-                          minHeight: `${INFINITE_CANVAS_HEIGHT_VH}vh`,
+                          minWidth: `${INFINITE_CANVAS_MIN_WIDTH_PX}px`,
+                          minHeight: `${INFINITE_CANVAS_MIN_HEIGHT_PX}px`,
                           padding: `${INFINITE_CANVAS_PADDING_PX}px`,
                           boxSizing: "border-box",
                           transformOrigin: "top left",
