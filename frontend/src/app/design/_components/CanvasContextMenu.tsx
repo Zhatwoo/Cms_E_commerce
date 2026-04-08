@@ -29,6 +29,7 @@ import {
   duplicateNodes,
   groupSelection,
   ungroupSelection,
+  deleteNodesPreservingCanvasScroll,
 } from "../_lib/canvasActions";
 import { Container } from "../_designComponents/Container/Container";
 import { useDesignProject } from "../_context/DesignProjectContext";
@@ -488,7 +489,7 @@ export function CanvasContextMenu() {
   const handleDelete = () => {
     if (!deletable) return;
     try {
-      (actions as any).delete(effectiveIds.length === 1 ? effectiveIds[0]! : effectiveIds);
+      deleteNodesPreservingCanvasScroll(actions as any, effectiveIds.length === 1 ? effectiveIds[0]! : effectiveIds);
       (actions as any).selectNode(undefined);
     } catch { /* ignore */ }
     close();
