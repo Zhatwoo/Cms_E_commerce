@@ -23,13 +23,9 @@ import {
 } from "./Cards";
 import {
   SimpleFooter,
-  MultiColumnFooter,
-  NewsletterFooter,
-  BrandFooter,
   StudioFooter,
   MarketplaceFooter,
   DarkCommerceFooter,
-  CentricFooter
 } from "./Footer";
 import {
   FacebookIcon,
@@ -192,13 +188,9 @@ export const TEMPLATES: TemplateEntry[] = [
   ProductsOverview,
   ProductDescriptionCard,
   SimpleFooter,
-  MultiColumnFooter,
-  NewsletterFooter,
-  BrandFooter,
   StudioFooter,
   MarketplaceFooter,
   DarkCommerceFooter,
-  CentricFooter,
   FacebookIcon,
   GoogleIcon,
   InstagramIcon,
@@ -269,14 +261,10 @@ export const GROUPED_TEMPLATES = [
   {
     folder: "Footer",
     items: [
-      MultiColumnFooter,
       SimpleFooter,
-      NewsletterFooter,
-      BrandFooter,
       StudioFooter,
       MarketplaceFooter,
       DarkCommerceFooter,
-      CentricFooter,
     ],
   },
   {
