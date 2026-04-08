@@ -283,6 +283,23 @@ type GuideState = {
 export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotate = false }: ResizeOverlayProps) => {
   const { actions, query } = useEditor();
 
+  const SHAPE_DISPLAY_NAMES = new Set([
+    "Circle",
+    "Square",
+    "Triangle",
+    "Rectangle",
+    "Diamond",
+    "Heart",
+    "Trapezoid",
+    "Pentagon",
+    "Hexagon",
+    "Heptagon",
+    "Octagon",
+    "Nonagon",
+    "Decagon",
+    "Parallelogram",
+    "Kite",
+  ]);
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content", "TabContent"]);
   const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
   const isSectionNode = (() => {
@@ -427,14 +444,18 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         parentProps.isFreeform === true ||
         (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
 
+      if (displayName === "Text" && !!parentDisplayName && SHAPE_DISPLAY_NAMES.has(parentDisplayName)) {
+        return "margin";
+      }
+
       if (displayName === "Page") return "page-canvas";
       if (parentIsFreeform) return "offset";
       if (isAbsoluteLike) return "offset";
-      if (parentDisplayName && flowLayoutParents.has(parentDisplayName)) return "margin";
+      if (parentDisplayName && (flowLayoutParents.has(parentDisplayName) || SHAPE_DISPLAY_NAMES.has(parentDisplayName))) return "margin";
       if (displayName && offsetMoveTypes.has(displayName)) return "offset";
       return "margin";
     },
-    [query]
+    [query, SHAPE_DISPLAY_NAMES]
   );
 
   const applyOverlayRect = useCallback((nextRect: DOMRect) => {
@@ -522,7 +543,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const displayName = candidate?.data?.displayName as string | undefined;
           const isCanvas = candidate?.data?.isCanvas ?? MOVE_TARGET_TYPES.has(displayName ?? "");
           if (!isCanvas) return false;
-          return displayName ? MOVE_TARGET_TYPES.has(displayName) : false;
+          return displayName ? (MOVE_TARGET_TYPES.has(displayName) || SHAPE_DISPLAY_NAMES.has(displayName)) : false;
         });
 
         if (!dropParentId || dropParentId === sourceParentId) return false;
@@ -534,7 +555,8 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const dropParentDisplay = String(dropParentProps.display ?? "").toLowerCase();
         const dropParentIsFlexOrGrid = dropParentDisplay === "flex" || dropParentDisplay === "grid";
         const dropParentIsFreeform = dropParentProps.isFreeform === true;
-        const isFlowParent = !!dropParentName && flowParents.has(dropParentName) && dropParentIsFlexOrGrid && !dropParentIsFreeform;
+        const isShapeParent = !!dropParentName && SHAPE_DISPLAY_NAMES.has(dropParentName);
+        const isFlowParent = (!!dropParentName && flowParents.has(dropParentName) && dropParentIsFlexOrGrid && !dropParentIsFreeform) || isShapeParent;
         const index = Array.isArray(dropParent?.data?.nodes)
           ? (isFlowParent ? 0 : dropParent.data.nodes.length)
           : 0;
