@@ -95,7 +95,7 @@ export const SimpleFooter: TemplateEntry = {
           {
             is: Row as any,
             canvas: true,
-            gap: 24,
+            gap: 16,
             flexWrap: "nowrap",
             alignItems: "flex-start",
             justifyContent: "space-between",
@@ -104,7 +104,7 @@ export const SimpleFooter: TemplateEntry = {
             Element as any,
             {
               is: Column as any,
-              width: "27%",
+              width: "26%",
               padding: 0,
               gap: 0,
               canvas: true,
@@ -172,7 +172,7 @@ export const SimpleFooter: TemplateEntry = {
             Element as any,
             {
               is: Column as any,
-              width: "20%",
+              width: "18%",
               padding: 0,
               gap: 0,
               canvas: true,
@@ -199,7 +199,7 @@ export const SimpleFooter: TemplateEntry = {
             Element as any,
             {
               is: Column as any,
-              width: "20%",
+              width: "18%",
               padding: 0,
               gap: 0,
               canvas: true,
@@ -226,7 +226,7 @@ export const SimpleFooter: TemplateEntry = {
             Element as any,
             {
               is: Column as any,
-              width: "20%",
+              width: "18%",
               padding: 0,
               gap: 0,
               canvas: true,
@@ -299,15 +299,7 @@ export const SimpleFooter: TemplateEntry = {
             React.createElement(Text as any, { text: "Code of Conduct", fontSize: 9, color: "#4a4a4f" })
           )
         )
-      ),
-      React.createElement(Element as any, {
-        is: Container as any,
-        width: "100%",
-        minHeight: "190px",
-        background: "#e3e3e6",
-        padding: 0,
-        canvas: true,
-      })
+      )
     )
   ),
   category: "footer",

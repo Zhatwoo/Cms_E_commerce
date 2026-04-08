@@ -482,6 +482,7 @@ const frameResponsiveStyles = (
         min-width: 0 !important;
         height: auto !important;
         display: block !important;
+      }
 
       .frame-responsive-inner.frame-fluid [data-node-id] {
         max-width: 100% !important;
