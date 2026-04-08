@@ -85,30 +85,9 @@ function withResolverFallback<T extends Resolver>(base: T): T {
         return Reflect.has(target, "Container") || Reflect.has(target, "container");
       }
 
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-      
-      if (shapes.some(s => normalized.includes(s))) return true;
-
-      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-      if (Reflect.has(target, canonical)) return true;
-
-      if (
-        normalized.includes("image") ||
-        normalized === "img" ||
-        normalized === "imagecomponent"
-      ) {
-        return (
-          Reflect.has(target, "Image") ||
-          Reflect.has(target, "image") ||
-          Reflect.has(target, "IMAGE") ||
-          Reflect.has(target, "img") ||
-          Reflect.has(target, "Img") ||
-          Reflect.has(target, "ImageComponent")
-        );
-      }
-
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      // Keep Craft from throwing when a saved/dragged node uses an unexpected
+      // name variant; `get()` will still return a safe fallback component.
+      return true;
     },
   }) as T;
 }

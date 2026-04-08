@@ -78,6 +78,27 @@ function getRenderedScale(el: HTMLElement | null): { scaleX: number; scaleY: num
   };
 }
 
+function getCanvasScrollContainer(): HTMLElement | null {
+  if (typeof document === "undefined") return null;
+  return document.querySelector("[data-canvas-container]") as HTMLElement | null;
+}
+
+export function deleteNodesPreservingCanvasScroll(actions: EditorActions, ids: string | string[]): void {
+  const container = getCanvasScrollContainer();
+  const scrollLeft = container?.scrollLeft ?? null;
+  const scrollTop = container?.scrollTop ?? null;
+
+  actions.delete(ids);
+
+  if (!container || scrollLeft === null || scrollTop === null) return;
+
+  requestAnimationFrame(() => {
+    if (!container.isConnected) return;
+    container.scrollLeft = scrollLeft;
+    container.scrollTop = scrollTop;
+  });
+}
+
 function getNodePositionFallback(node: any): { left: number; top: number; width: number; height: number } | null {
   if (!node) return null;
   const props = node.props ?? node.data?.props ?? {};
