@@ -2647,6 +2647,24 @@ function RenderNode({
     }
 
     case "Text": {
+      const shapeParentTypes = new Set([
+        "Circle",
+        "Square",
+        "Triangle",
+        "Rectangle",
+        "Diamond",
+        "Heart",
+        "Trapezoid",
+        "Pentagon",
+        "Hexagon",
+        "Heptagon",
+        "Octagon",
+        "Nonagon",
+        "Decagon",
+        "Parallelogram",
+        "Kite",
+      ]);
+      const isShapeParent = !!parentType && shapeParentTypes.has(parentType);
       const m = typeof props.margin === "number" ? props.margin : 0;
       const mt = (props.marginTop ?? m) as number;
       const mb = (props.marginBottom ?? m) as number;
@@ -2680,7 +2698,9 @@ function RenderNode({
       const textTransformStyle = [rot ? `rotate(${rot}deg)` : null, flipH ? "scaleX(-1)" : null, flipV ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined;
       const normalizedPos = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
       const originalPos = (props.position as string) || "relative";
-      const shouldClearOffsets = !builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative";
+      const shouldClearOffsets =
+        (!builderParityMode && isNarrowPreview && originalPos !== "relative" && normalizedPos === "relative") ||
+        isShapeParent;
 
       const textStyle: React.CSSProperties = {
         fontSize: typographySpec.fontSize,
@@ -3949,6 +3969,23 @@ function RenderNode({
     case "Decagon":
     case "Parallelogram":
     case "Kite": {
+      const shapeClipPath = (() => {
+        if (type === "Circle") return "circle(50% at 50% 50%)";
+        if (type === "Square") return undefined;
+        if (type === "Triangle") return "polygon(0% 100%, 50% 0%, 100% 100%)";
+        if (type === "Diamond") return "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)";
+        if (type === "Heart") return "polygon(50% 92%, 20% 70%, 6% 48%, 8% 30%, 24% 16%, 38% 18%, 50% 30%, 62% 18%, 76% 16%, 92% 30%, 94% 48%, 80% 70%)";
+        if (type === "Trapezoid") return "polygon(20% 0%, 80% 0%, 100% 100%, 0% 100%)";
+        if (type === "Pentagon") return "polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%)";
+        if (type === "Hexagon") return "polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)";
+        if (type === "Heptagon") return "polygon(50% 0%, 90% 20%, 100% 60%, 75% 100%, 25% 100%, 0% 60%, 10% 20%)";
+        if (type === "Octagon") return "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)";
+        if (type === "Nonagon") return "polygon(50% 0%, 83% 12%, 100% 43%, 94% 78%, 68% 100%, 32% 100%, 6% 78%, 0% 43%, 17% 12%)";
+        if (type === "Decagon") return "polygon(50% 0%, 80% 10%, 100% 35%, 100% 65%, 80% 90%, 50% 100%, 20% 90%, 0% 65%, 0% 35%, 20% 10%)";
+        if (type === "Parallelogram") return "polygon(25% 0%, 100% 0%, 75% 100%, 0% 100%)";
+        if (type === "Kite") return "polygon(50% 0%, 100% 45%, 50% 100%, 0% 45%)";
+        return undefined;
+      })();
       const m = toNumber(props.margin, 0);
       const mt = toNumber(props.marginTop ?? m, 0);
       const mr = toNumber(props.marginRight ?? m, 0);
@@ -4103,7 +4140,20 @@ function RenderNode({
               )}
             </svg>
           ) : null}
-          {children}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              clipPath: shapeClipPath,
+              WebkitClipPath: shapeClipPath,
+              overflow: "hidden",
+            }}
+          >
+            {children}
+          </div>
         </div>
       );
     }
