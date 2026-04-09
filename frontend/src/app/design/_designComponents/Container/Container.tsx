@@ -18,7 +18,9 @@ function fluidSpace(value: number, min = 0): string {
 
 function normalizeContainerHeight(value: string | undefined): string {
   if (value == null) return "240px";
-  return String(value).trim().toLowerCase() === "auto" ? "240px" : value;
+  const v = String(value).trim().toLowerCase();
+  // Allow 'auto' to actually be auto, but keep 240px as a fallback for editor visibility if empty
+  return v === "auto" ? "auto" : value;
 }
 
 function isColorLike(value: unknown): boolean {
