@@ -158,7 +158,7 @@ export const Icon = ({
       IconComponent = Home;
   }
   const hasExplicitBox = width !== "auto" || height !== "auto";
-  const fitToBox = width !== "auto" && height !== "auto";
+  const fitToBox = true;
   const resolvedWidth = hasExplicitBox ? width : `${size}px`;
   const resolvedHeight = hasExplicitBox ? height : `${size}px`;
 

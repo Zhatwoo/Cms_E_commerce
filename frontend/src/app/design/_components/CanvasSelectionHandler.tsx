@@ -83,6 +83,8 @@ export const CanvasSelectionHandler = () => {
       if (!target) return;
 
       if (target.closest("[data-ui='color-picker']")) return;
+      if (target.closest("[data-resize-handle]")) return;
+      if (target.closest("[data-panel='resize-overlay']")) return;
 
       // Ignore inputs/textareas/selects/contenteditable
       const tag = target.tagName;
