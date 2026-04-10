@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../design/_components/rightPanel/settings/DesignSection";
 import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
+import { useDesignProject } from "../../design/_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 
 export type MinimalTypeLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
@@ -17,6 +19,9 @@ export interface MinimalTypeHeroBlockProps {
   backgroundImage?: string;
   minHeight?: number;
   overlayColor?: string;
+  buttonColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
 }
 
 const LayoutThumb = ({ style, active, onClick, label }: { style: MinimalTypeLayoutStyle; active: boolean; onClick: () => void; label: string }) => {
@@ -64,6 +69,24 @@ export const MinimalTypeHeroBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as MinimalTypeHeroBlockProps }));
   const set = <K extends keyof MinimalTypeHeroBlockProps>(key: K, val: MinimalTypeHeroBlockProps[K]) =>
     setProp((p: MinimalTypeHeroBlockProps) => { p[key] = val; });
+  const { projectId } = useDesignProject();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+    setUploading(true);
+    try {
+      const res = await addFileToMediaLibrary(projectId, file);
+      if (res?.url) set("backgroundImage", res.url);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const inputCls = "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
 
   return (
     <div className="flex flex-col gap-0">
@@ -83,21 +106,27 @@ export const MinimalTypeHeroBlockSettings = () => {
       <DesignSection title="Content" defaultOpen={false}>
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Title</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.title ?? "Elevate Your Style"} onChange={(e) => set("title", e.target.value)} />
+          <input className={inputCls} value={props.title ?? "Elevate Your Style"} onChange={(e) => set("title", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Subtitle</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.subtitle ?? "Premium quality products crafted for those who appreciate the finer things in life."} onChange={(e) => set("subtitle", e.target.value)} />
+          <input className={inputCls} value={props.subtitle ?? "Premium quality products crafted for those who appreciate the finer things in life."} onChange={(e) => set("subtitle", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Primary button</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.primaryLabel ?? "Explore Collection"} onChange={(e) => set("primaryLabel", e.target.value)} />
+          <input className={inputCls} value={props.primaryLabel ?? "Explore Collection"} onChange={(e) => set("primaryLabel", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Secondary button</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.secondaryLabel ?? "Our Story"} onChange={(e) => set("secondaryLabel", e.target.value)} />
+          <input className={inputCls} value={props.secondaryLabel ?? "Our Story"} onChange={(e) => set("secondaryLabel", e.target.value)} />
         </div>
       </DesignSection>
 
-      <DesignSection title="Style" defaultOpen={false}>
+      <DesignSection title="Background" defaultOpen={false}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-builder-text-muted">Background image URL</label>
-            <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+            <label className="text-[10px] text-builder-text-muted">Background image</label>
+            <div className="flex gap-1.5">
+              <input className={inputCls + " flex-1 min-w-0"} value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50" title="Upload image">
+                {uploading ? "..." : "Upload"}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </div>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
@@ -106,6 +135,23 @@ export const MinimalTypeHeroBlockSettings = () => {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Min height</label>
             <NumericInput value={props.minHeight ?? 580} onChange={(val) => set("minHeight", val)} min={200} max={1200} step={10} unit="px" />
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Colors" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Title color</label>
+            <ColorPicker value={props.titleColor ?? "#0f172a"} onChange={(val) => set("titleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Subtitle color</label>
+            <ColorPicker value={props.subtitleColor ?? "#64748b"} onChange={(val) => set("subtitleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Button color</label>
+            <ColorPicker value={props.buttonColor ?? "#0f172a"} onChange={(val) => set("buttonColor", val)} className="w-full" />
           </div>
         </div>
       </DesignSection>
@@ -122,6 +168,9 @@ export const MinimalTypeHeroBlock = ({
   backgroundImage = "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
   minHeight = 580,
   overlayColor = "rgba(255,255,255,0.95)",
+  buttonColor = "#0f172a",
+  titleColor = "#0f172a",
+  subtitleColor = "#64748b",
 }: MinimalTypeHeroBlockProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -184,7 +233,7 @@ export const MinimalTypeHeroBlock = ({
             margin: 0,
             fontSize: "clamp(32px, 6vw, 56px)",
             fontWeight: 300,
-            color: "#0f172a",
+            color: titleColor,
             lineHeight: 1.1,
             letterSpacing: -1,
             fontFamily: "Georgia, 'Times New Roman', serif",
@@ -195,7 +244,7 @@ export const MinimalTypeHeroBlock = ({
           <p style={{
             margin: 0,
             fontSize: 16,
-            color: "#64748b",
+            color: subtitleColor,
             lineHeight: 1.8,
             maxWidth: 500,
           }}>
@@ -203,7 +252,7 @@ export const MinimalTypeHeroBlock = ({
           </p>
           <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center", marginTop: 12 }}>
             <button type="button" style={{
-              background: "#0f172a",
+              background: buttonColor,
               color: "#ffffff",
               border: "none",
               fontSize: 13,
@@ -217,8 +266,8 @@ export const MinimalTypeHeroBlock = ({
             </button>
             <button type="button" style={{
               background: "transparent",
-              color: "#0f172a",
-              border: "1px solid #0f172a",
+              color: buttonColor,
+              border: `1px solid ${buttonColor}`,
               fontSize: 13,
               fontWeight: 500,
               padding: "14px 36px",
@@ -259,6 +308,9 @@ MinimalTypeHeroBlock.craft = {
     backgroundImage: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
     minHeight: 580,
     overlayColor: "rgba(255,255,255,0.95)",
+    buttonColor: "#0f172a",
+    titleColor: "#0f172a",
+    subtitleColor: "#64748b",
   },
   custom: {},
   related: { settings: MinimalTypeHeroBlockSettings },

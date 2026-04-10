@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../design/_components/rightPanel/settings/DesignSection";
 import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
+import { useDesignProject } from "../../design/_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 
 export type CollectionLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
@@ -18,6 +20,10 @@ export interface CollectionHeroBlockProps {
   backgroundImage?: string;
   minHeight?: number;
   overlayColor?: string;
+  buttonColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  badgeColor?: string;
 }
 
 const LayoutThumb = ({ style, active, onClick, label }: { style: CollectionLayoutStyle; active: boolean; onClick: () => void; label: string }) => {
@@ -63,8 +69,26 @@ const LayoutThumb = ({ style, active, onClick, label }: { style: CollectionLayou
 
 export const CollectionHeroBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as CollectionHeroBlockProps }));
+  const { projectId } = useDesignProject();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   const set = <K extends keyof CollectionHeroBlockProps>(key: K, val: CollectionHeroBlockProps[K]) =>
     setProp((p: CollectionHeroBlockProps) => { p[key] = val; });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+    setUploading(true);
+    try {
+      const item = await addFileToMediaLibrary(projectId, file);
+      set("backgroundImage", item.url);
+    } catch { /* upload failed */ }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const inputCls = "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
 
   return (
     <div className="flex flex-col gap-0">
@@ -96,11 +120,17 @@ export const CollectionHeroBlockSettings = () => {
         </div>
       </DesignSection>
 
-      <DesignSection title="Style" defaultOpen={false}>
+      <DesignSection title="Background" defaultOpen={false}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-builder-text-muted">Background image URL</label>
-            <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+            <label className="text-[10px] text-builder-text-muted">Image</label>
+            <div className="flex gap-1.5">
+              <input className={inputCls + " flex-1 min-w-0"} value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50" title="Upload image">
+                {uploading ? "..." : "Upload"}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </div>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
@@ -109,6 +139,27 @@ export const CollectionHeroBlockSettings = () => {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Min height</label>
             <NumericInput value={props.minHeight ?? 520} onChange={(val) => set("minHeight", val)} min={200} max={1200} step={10} unit="px" />
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Colors" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Title color</label>
+            <ColorPicker value={props.titleColor ?? "#1e293b"} onChange={(val) => set("titleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Subtitle color</label>
+            <ColorPicker value={props.subtitleColor ?? "#64748b"} onChange={(val) => set("subtitleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Button color</label>
+            <ColorPicker value={props.buttonColor ?? "#ea580c"} onChange={(val) => set("buttonColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Badge color</label>
+            <ColorPicker value={props.badgeColor ?? "#dc2626"} onChange={(val) => set("badgeColor", val)} className="w-full" />
           </div>
         </div>
       </DesignSection>
@@ -126,6 +177,10 @@ export const CollectionHeroBlock = ({
   backgroundImage = "https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070&auto=format&fit=crop",
   minHeight = 520,
   overlayColor = "rgba(255,241,235,0.88)",
+  buttonColor = "#ea580c",
+  titleColor = "#1e293b",
+  subtitleColor = "#64748b",
+  badgeColor = "#dc2626",
 }: CollectionHeroBlockProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -210,7 +265,7 @@ export const CollectionHeroBlock = ({
             display: "inline-flex",
             alignItems: "center",
             gap: 6,
-            background: "#dc2626",
+            background: badgeColor,
             color: "#ffffff",
             fontSize: 12,
             fontWeight: 700,
@@ -222,10 +277,10 @@ export const CollectionHeroBlock = ({
             {badgeText}
           </div>
 
-          <p style={{ margin: 0, fontSize: "clamp(32px, 6vw, 52px)", fontWeight: 800, color: "#1e293b", lineHeight: 1.05 }}>
+          <p style={{ margin: 0, fontSize: "clamp(32px, 6vw, 52px)", fontWeight: 800, color: titleColor, lineHeight: 1.05 }}>
             {title}
           </p>
-          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: "#64748b", lineHeight: 1.7, maxWidth: 440 }}>
+          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: subtitleColor, lineHeight: 1.7, maxWidth: 440 }}>
             {subtitle}
           </p>
 
@@ -248,7 +303,7 @@ export const CollectionHeroBlock = ({
 
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
             <button type="button" style={{
-              background: "#ea580c",
+              background: buttonColor,
               color: "#ffffff",
               border: "none",
               fontSize: 14,
@@ -288,6 +343,10 @@ CollectionHeroBlock.craft = {
     backgroundImage: "https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070&auto=format&fit=crop",
     minHeight: 520,
     overlayColor: "rgba(255,241,235,0.88)",
+    buttonColor: "#ea580c",
+    titleColor: "#1e293b",
+    subtitleColor: "#64748b",
+    badgeColor: "#dc2626",
   },
   custom: {},
   related: { settings: CollectionHeroBlockSettings },

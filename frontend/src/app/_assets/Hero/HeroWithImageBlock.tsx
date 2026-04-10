@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../design/_components/rightPanel/settings/DesignSection";
 import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
+import { useDesignProject } from "../../design/_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 
 export type HeroWithImageLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
@@ -16,6 +18,9 @@ export interface HeroWithImageBlockProps {
   backgroundImage?: string;
   minHeight?: number;
   overlayColor?: string;
+  buttonColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
 }
 
 const LayoutThumb = ({ style, active, onClick, label }: { style: HeroWithImageLayoutStyle; active: boolean; onClick: () => void; label: string }) => {
@@ -65,11 +70,28 @@ const LayoutThumb = ({ style, active, onClick, label }: { style: HeroWithImageLa
 
 export const HeroWithImageBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as HeroWithImageBlockProps }));
+  const { projectId } = useDesignProject();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
 
   const set = <K extends keyof HeroWithImageBlockProps>(key: K, val: HeroWithImageBlockProps[K]) =>
     setProp((p: HeroWithImageBlockProps) => {
       p[key] = val;
     });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+    setUploading(true);
+    try {
+      const item = await addFileToMediaLibrary(projectId, file);
+      set("backgroundImage", item.url);
+    } catch { /* upload failed */ }
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const inputCls = "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
 
   return (
     <div className="flex flex-col gap-0">
@@ -90,19 +112,25 @@ export const HeroWithImageBlockSettings = () => {
       <DesignSection title="Content" defaultOpen={false}>
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Title</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.title ?? "Welcome to Our Website"} onChange={(e) => set("title", e.target.value)} />
+          <input className={inputCls} value={props.title ?? "Welcome to Our Website"} onChange={(e) => set("title", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Subtitle</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.subtitle ?? "We're here to help you discover what you need. Browse our offerings and get in touch."} onChange={(e) => set("subtitle", e.target.value)} />
+          <input className={inputCls} value={props.subtitle ?? "We're here to help you discover what you need. Browse our offerings and get in touch."} onChange={(e) => set("subtitle", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Button label</label>
-          <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.buttonLabel ?? "Learn More"} onChange={(e) => set("buttonLabel", e.target.value)} />
+          <input className={inputCls} value={props.buttonLabel ?? "Learn More"} onChange={(e) => set("buttonLabel", e.target.value)} />
         </div>
       </DesignSection>
 
-      <DesignSection title="Style" defaultOpen={false}>
+      <DesignSection title="Background" defaultOpen={false}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-builder-text-muted">Background image URL</label>
-            <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+            <label className="text-[10px] text-builder-text-muted">Image</label>
+            <div className="flex gap-1.5">
+              <input className={inputCls + " flex-1 min-w-0"} value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50" title="Upload image">
+                {uploading ? "..." : "Upload"}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </div>
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
@@ -111,6 +139,23 @@ export const HeroWithImageBlockSettings = () => {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Min height</label>
             <NumericInput value={props.minHeight ?? 620} onChange={(val) => set("minHeight", val)} min={200} max={1200} step={10} unit="px" />
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Colors" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Title color</label>
+            <ColorPicker value={props.titleColor ?? "#1e293b"} onChange={(val) => set("titleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Subtitle color</label>
+            <ColorPicker value={props.subtitleColor ?? "#64748b"} onChange={(val) => set("subtitleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Button color</label>
+            <ColorPicker value={props.buttonColor ?? "#10b981"} onChange={(val) => set("buttonColor", val)} className="w-full" />
           </div>
         </div>
       </DesignSection>
@@ -126,6 +171,9 @@ export const HeroWithImageBlock = ({
   backgroundImage = "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop",
   minHeight = 620,
   overlayColor = "rgba(255,255,255,0.88)",
+  buttonColor = "#10b981",
+  titleColor = "#1e293b",
+  subtitleColor = "#64748b",
 }: HeroWithImageBlockProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -174,9 +222,9 @@ export const HeroWithImageBlock = ({
             justifyContent: "center",
           }}
         >
-          <p style={{ margin: 0, fontSize: "clamp(26px, 5vw, 40px)", fontWeight: 700, color: "#1e293b", lineHeight: 1.15 }}>{title}</p>
-          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: "#64748b", lineHeight: 1.6 }}>{subtitle}</p>
-          <button type="button" style={{ background: "#10b981", color: "#ffffff", border: "none", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: "min(160px, 100%)" }}>{buttonLabel}</button>
+          <p style={{ margin: 0, fontSize: "clamp(26px, 5vw, 40px)", fontWeight: 700, color: titleColor, lineHeight: 1.15 }}>{title}</p>
+          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: subtitleColor, lineHeight: 1.6 }}>{subtitle}</p>
+          <button type="button" style={{ background: buttonColor, color: "#ffffff", border: "none", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: "min(160px, 100%)" }}>{buttonLabel}</button>
         </div>
 
         <div
@@ -206,6 +254,9 @@ HeroWithImageBlock.craft = {
     backgroundImage: "https://images.unsplash.com/photo-1519389950473-47ba0277781c?q=80&w=2070&auto=format&fit=crop",
     minHeight: 620,
     overlayColor: "rgba(255,255,255,0.88)",
+    buttonColor: "#10b981",
+    titleColor: "#1e293b",
+    subtitleColor: "#64748b",
   },
   custom: {},
   related: { settings: HeroWithImageBlockSettings },
