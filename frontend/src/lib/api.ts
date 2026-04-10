@@ -1114,7 +1114,10 @@ export async function uploadProductImageApi(
 }
 
 export async function createProduct(params: {
-  subdomain: string;
+  /** Optional when using the active project scope header (`x-project-id`). */
+  subdomain?: string;
+  /** Optional fallback when `x-project-id` is not available. */
+  projectId?: string;
   name: string;
   sku?: string;
   category?: string;
