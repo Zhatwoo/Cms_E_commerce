@@ -1527,6 +1527,34 @@ function normalizeLayoutHeightForNarrow(
   return undefined;
 }
 
+function normalizeBlockHeightForNarrow(
+  heightValue: unknown,
+  isNarrow: boolean,
+  builderParityMode?: boolean,
+): string | undefined {
+  if (!isNarrow || builderParityMode) {
+    return normalizeLayoutHeightForNarrow(heightValue, isNarrow, builderParityMode);
+  }
+
+  if (typeof heightValue === "number") {
+    return heightValue >= 180 ? "auto" : `${heightValue}px`;
+  }
+
+  if (typeof heightValue === "string") {
+    const raw = heightValue.trim();
+    if (!raw) return undefined;
+    const lower = raw.toLowerCase();
+    if (lower === "auto") return raw;
+    if (lower.endsWith("px")) {
+      const parsed = Number(lower.slice(0, -2));
+      if (Number.isFinite(parsed) && parsed >= 180) return "auto";
+    }
+    return raw;
+  }
+
+  return undefined;
+}
+
 function normalizeSpacerDimension(
   value: unknown,
   axis: "width" | "height",
@@ -1754,13 +1782,64 @@ function PrototypeWrapper({
   if (isDomElement) {
     const existingStyle =
       (children.props as Record<string, unknown>)?.style as React.CSSProperties | undefined;
+    const existingOnClickCapture =
+      (children.props as Record<string, unknown>)?.onClickCapture as
+        | ((e: React.MouseEvent) => void)
+        | undefined;
+    const existingOnDoubleClickCapture =
+      (children.props as Record<string, unknown>)?.onDoubleClickCapture as
+        | ((e: React.MouseEvent) => void)
+        | undefined;
+    const existingOnMouseEnter =
+      (children.props as Record<string, unknown>)?.onMouseEnter as
+        | ((e: React.MouseEvent) => void)
+        | undefined;
+    const existingOnMouseLeave =
+      (children.props as Record<string, unknown>)?.onMouseLeave as
+        | ((e: React.MouseEvent) => void)
+        | undefined;
+    const existingOnKeyDown =
+      (children.props as Record<string, unknown>)?.onKeyDown as
+        | ((e: React.KeyboardEvent) => void)
+        | undefined;
+
     return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
-      ...(hasClick ? { onClick: handleClick } : {}),
-      ...(hasDblClick ? { onDoubleClick: handleDblClick } : {}),
-      ...(hasHover ? { onMouseEnter: () => run("hover") } : {}),
-      ...(hasMouseLeave ? { onMouseLeave: () => run("mouseLeave") } : {}),
+      ...(hasClick
+        ? {
+            onClickCapture: (e: React.MouseEvent) => {
+              existingOnClickCapture?.(e);
+              if (!e.defaultPrevented) handleClick(e);
+            },
+          }
+        : {}),
+      ...(hasDblClick
+        ? {
+            onDoubleClickCapture: (e: React.MouseEvent) => {
+              existingOnDoubleClickCapture?.(e);
+              if (!e.defaultPrevented) handleDblClick(e);
+            },
+          }
+        : {}),
+      ...(hasHover
+        ? {
+            onMouseEnter: (e: React.MouseEvent) => {
+              existingOnMouseEnter?.(e);
+              run("hover");
+            },
+          }
+        : {}),
+      ...(hasMouseLeave
+        ? {
+            onMouseLeave: (e: React.MouseEvent) => {
+              existingOnMouseLeave?.(e);
+              run("mouseLeave");
+            },
+          }
+        : {}),
       style: { ...existingStyle, cursor: "pointer" },
       onKeyDown: (e: React.KeyboardEvent) => {
+        existingOnKeyDown?.(e);
+        if (e.defaultPrevented) return;
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           run("click");
@@ -2028,6 +2107,12 @@ function RenderNode({
   const nodeType = typeof node.type === "string" ? node.type : (node.type as any)?.resolvedName;
   const rawType = String(nodeType || "").trim() || "Container";
   const normalizedTypeMap: Record<string, ComponentType> = {
+    categoriescardcanvas: "CategoriesCardCanvas",
+    "categories card canvas": "CategoriesCardCanvas",
+    categorytile: "CategoryTile",
+    "category tile": "CategoryTile",
+    productcard: "ProductCard",
+    "product card": "ProductCard",
     text: "Text",
     container: "Container",
     section: "Section",
@@ -2102,9 +2187,10 @@ function RenderNode({
     storeContext && !productBinding
       ? childIds.filter((id) => {
         const childNode = nodes[id];
-        return Boolean(childNode) &&
-          String(childNode?.type ?? "").trim().toLowerCase() === "container" &&
-          hasAddToCartButton(id, nodes);
+        if (!childNode) return false;
+        const childType = String(childNode.type ?? "").trim().toLowerCase();
+        if (childType === "productcard" || childType === "product card") return true;
+        return childType === "container" && hasAddToCartButton(id, nodes);
       })
       : [];
   const productTemplateIdSet = new Set(directProductTemplateIds);
@@ -2185,7 +2271,408 @@ function RenderNode({
     wrapWithAnimation(wrapWithPrototype(withNodeMeta(el), prototype, onPrototypeAction), animation);
 
   switch (type) {
+    case "CategoriesCardCanvas":
+    case "Categories Card Canvas":
+    case "CATEGORIESCARDCANVAS": {
+      const linkedNodes = ((node as unknown as { linkedNodes?: Record<string, string> })?.linkedNodes) ?? {};
+      const linkedIds = Object.values(linkedNodes).filter((id) => Boolean(nodes[id]));
+      const orderedIds = [...childIds, ...linkedIds.filter((id) => !childIds.includes(id))];
+      const tileNodes = orderedIds
+        .map((id) => renderChildNode(id))
+        .filter((entry): entry is React.ReactNode => Boolean(entry));
+
+      const headingText = String((props.headingText as string) || "Shop by Category");
+      const canvasPosition = (props.position as React.CSSProperties["position"]) || "relative";
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          data-layout="column"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            position: canvasPosition,
+            top: canvasPosition !== "static" ? (props.top as React.CSSProperties["top"]) : undefined,
+            left: canvasPosition !== "static" ? (props.left as React.CSSProperties["left"]) : undefined,
+            right: canvasPosition !== "static" ? (props.right as React.CSSProperties["right"]) : undefined,
+            bottom: canvasPosition !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
+            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || "100%",
+            maxWidth: "100%",
+            background: "#f5f3ff",
+            padding: isNarrowPreview ? "16px" : "24px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: "14px",
+          }}
+          onClick={interactiveClick}
+        >
+          <h3
+            style={{
+              margin: 0,
+              color: "#111827",
+              fontSize: isNarrowPreview ? 34 : 40,
+              fontWeight: 700,
+              lineHeight: 1.15,
+              letterSpacing: "-0.02em",
+            }}
+          >
+            {headingText}
+          </h3>
+          <div
+            data-fluid-space="true"
+            style={{
+              display: "flex",
+              flexWrap: isNarrowPreview ? "wrap" : "nowrap",
+              gap: "16px",
+              alignItems: "stretch",
+              overflowX: isNarrowPreview ? "auto" : "visible",
+              paddingBottom: isNarrowPreview ? "4px" : undefined,
+            }}
+          >
+            {tileNodes.length > 0 ? tileNodes : children}
+          </div>
+        </div>
+      );
+    }
+
+    case "CategoryTile":
+    case "Category Tile":
+    case "CATEGORYTILE": {
+      const label = String((props.label as string) || "Category");
+      const width = Math.max(120, Math.min(520, toNumber(props.cardWidth, 180)));
+      const height = Math.max(130, Math.min(620, toNumber(props.cardHeight, 170)));
+      const mediaHeight = Math.max(70, Math.min(520, toNumber(props.mediaHeight, 120)));
+      const radius = Math.max(0, Math.min(40, toNumber(props.borderRadius, 14)));
+      const fontSize = Math.max(10, Math.min(28, toNumber(props.fontSize, 12)));
+      const fontColor = String((props.fontColor as string) || "#1f2937");
+      const cardBgColor = String((props.cardBgColor as string) || "#ffffff");
+      const mediaBgColor = String((props.mediaBgColor as string) || "");
+      const iconType = String((props.iconType as string) || "shoppingBag").toLowerCase();
+      const iconTheme = String((props.iconTheme as string) || "violet").toLowerCase();
+      const imageUrl = String((props.imageUrl as string) || "").trim();
+      const imageFit = String((props.imageFit as string) || "cover") === "contain" ? "contain" : "cover";
+      const iconBg = iconTheme === "indigo" ? "#eef2ff" : "#f3f4f6";
+      const iconColor = iconTheme === "indigo" ? "#6366f1" : "#8b5cf6";
+
+      const glyph = iconType === "home" ? "⌂" : iconType === "star" ? "☆" : "⌂";
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            width: `${width}px`,
+            height: `${height}px`,
+            maxWidth: "100%",
+            background: cardBgColor,
+            borderRadius: `${radius}px`,
+            boxShadow: "0 1px 3px rgba(15,23,42,0.1)",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
+            flexShrink: 0,
+            boxSizing: "border-box",
+          }}
+          onClick={interactiveClick}
+        >
+          <div
+            style={{
+              height: `${mediaHeight}px`,
+              width: "100%",
+              background: mediaBgColor || "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            {imageUrl ? (
+              <img src={imageUrl} alt={label} style={{ width: "100%", height: "100%", objectFit: imageFit }} />
+            ) : (
+              <div
+                style={{
+                  width: "56px",
+                  height: "56px",
+                  borderRadius: "999px",
+                  background: iconBg,
+                  color: iconColor,
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: "32px",
+                  lineHeight: 1,
+                }}
+              >
+                {glyph}
+              </div>
+            )}
+          </div>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: "10px 12px",
+              textAlign: "center",
+              fontSize: `${fontSize}px`,
+              fontWeight: 600,
+              color: fontColor,
+              lineHeight: 1.3,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {label}
+          </div>
+        </div>
+      );
+    }
+
+    case "ProductCard":
+    case "Product Card":
+    case "PRODUCTCARD": {
+      const width = String((props.width as string) || "280px");
+      const imageHeight = toNumber(props.imageHeight, 240);
+      const cardBackground = String((props.cardBackground as string) || "#ffffff");
+      const cardBorderColor = String((props.cardBorderColor as string) || "#e5e7eb");
+      const cardBorderWidth = toNumber(props.cardBorderWidth, 1);
+      const cardBorderRadius = toNumber(props.cardBorderRadius, 10);
+      const cardPadding = toNumber(props.cardPadding, 12);
+      const nameFontSize = toNumber(props.nameFontSize, 14);
+      const priceFontSize = toNumber(props.priceFontSize, 14);
+      const buttonFontSize = toNumber(props.buttonFontSize, 13);
+      const nameColor = String((props.nameColor as string) || "#111827");
+      const priceColor = String((props.priceColor as string) || "#111827");
+      const buttonBackground = String((props.buttonBackground as string) || "#111827");
+      const buttonTextColor = String((props.buttonTextColor as string) || "#ffffff");
+      const buttonLabel = String((props.buttonLabel as string) || "Add to Cart");
+      const imageObjectFit = String((props.imageObjectFit as string) || "cover");
+      const position = (props.position as React.CSSProperties["position"]) || "relative";
+      const boundImage = productBinding?.product.images?.[0];
+      const boundName = productBinding?.product.name || "Product name";
+      const boundPrice = typeof productBinding?.product.price === "number" ? formatStorePrice(productBinding.product.price) : "PHP 0.00";
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            position,
+            top: position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined,
+            left: position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined,
+            right: position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined,
+            bottom: position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
+            zIndex: props.zIndex as number | undefined,
+            width,
+            maxWidth: "100%",
+            background: cardBackground,
+            border: `${cardBorderWidth}px solid ${cardBorderColor}`,
+            borderRadius: `${cardBorderRadius}px`,
+            boxSizing: "border-box",
+            overflow: "hidden",
+            display: "flex",
+            flexDirection: "column",
+          }}
+          onClick={interactiveClick}
+        >
+          <div style={{ width: "100%", height: `${imageHeight}px`, background: "#f3f4f6", overflow: "hidden" }}>
+            {boundImage ? (
+              <img src={boundImage} alt={boundName} style={{ width: "100%", height: "100%", objectFit: imageObjectFit as React.CSSProperties["objectFit"] }} />
+            ) : null}
+          </div>
+          <div style={{ padding: `${cardPadding}px`, display: "flex", flexDirection: "column", gap: "6px" }}>
+            <div style={{ margin: 0, fontSize: `${nameFontSize}px`, fontWeight: 700, color: nameColor }}>{boundName}</div>
+            <div style={{ margin: 0, fontSize: `${priceFontSize}px`, fontWeight: 600, color: priceColor }}>{boundPrice}</div>
+            <button
+              type="button"
+              style={{
+                marginTop: "6px",
+                width: "100%",
+                border: "none",
+                borderRadius: `${toNumber(props.buttonBorderRadius, 6)}px`,
+                padding: "9px 12px",
+                background: buttonBackground,
+                color: buttonTextColor,
+                fontSize: `${buttonFontSize}px`,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {buttonLabel}
+            </button>
+          </div>
+        </div>
+      );
+    }
+
     case "Container": {
+      const isLegacyCategoryTileContainer =
+        typeof props.label === "string" &&
+        (Object.prototype.hasOwnProperty.call(props, "cardWidth") ||
+          Object.prototype.hasOwnProperty.call(props, "mediaHeight") ||
+          Object.prototype.hasOwnProperty.call(props, "iconType"));
+
+      if (isLegacyCategoryTileContainer) {
+        const label = String((props.label as string) || "Category");
+        const width = Math.max(120, Math.min(520, toNumber(props.cardWidth, 180)));
+        const height = Math.max(130, Math.min(620, toNumber(props.cardHeight, 170)));
+        const mediaHeight = Math.max(70, Math.min(520, toNumber(props.mediaHeight, 120)));
+        const radius = Math.max(0, Math.min(40, toNumber(props.borderRadius, 14)));
+        const fontSize = Math.max(10, Math.min(28, toNumber(props.fontSize, 12)));
+        const fontColor = String((props.fontColor as string) || "#1f2937");
+        const cardBgColor = String((props.cardBgColor as string) || "#ffffff");
+        const mediaBgColor = String((props.mediaBgColor as string) || "");
+        const iconType = String((props.iconType as string) || "shoppingbag").toLowerCase();
+        const iconTheme = String((props.iconTheme as string) || "violet").toLowerCase();
+        const imageUrl = String((props.imageUrl as string) || "").trim();
+        const imageFit = String((props.imageFit as string) || "cover") === "contain" ? "contain" : "cover";
+        const iconBg = iconTheme === "indigo" ? "#eef2ff" : "#f3f4f6";
+        const iconColor = iconTheme === "indigo" ? "#6366f1" : "#8b5cf6";
+        const glyph = iconType === "home" ? "⌂" : iconType === "star" ? "☆" : "⌂";
+
+        return wrap(
+          <div
+            data-fluid-space="true"
+            className={((props.customClassName as string) || "").trim() || undefined}
+            style={{
+              width: `${width}px`,
+              height: `${height}px`,
+              maxWidth: "100%",
+              background: cardBgColor,
+              borderRadius: `${radius}px`,
+              boxShadow: "0 1px 3px rgba(15,23,42,0.1)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+              flexShrink: 0,
+              boxSizing: "border-box",
+            }}
+            onClick={interactiveClick}
+          >
+            <div
+              style={{
+                height: `${mediaHeight}px`,
+                width: "100%",
+                background: mediaBgColor || "transparent",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                overflow: "hidden",
+              }}
+            >
+              {imageUrl ? (
+                <img src={imageUrl} alt={label} style={{ width: "100%", height: "100%", objectFit: imageFit }} />
+              ) : (
+                <div
+                  style={{
+                    width: "56px",
+                    height: "56px",
+                    borderRadius: "999px",
+                    background: iconBg,
+                    color: iconColor,
+                    display: "grid",
+                    placeItems: "center",
+                    fontSize: "32px",
+                    lineHeight: 1,
+                  }}
+                >
+                  {glyph}
+                </div>
+              )}
+            </div>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "10px 12px",
+                textAlign: "center",
+                fontSize: `${fontSize}px`,
+                fontWeight: 600,
+                color: fontColor,
+                lineHeight: 1.3,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {label}
+            </div>
+          </div>
+        );
+      }
+
+      const isLegacyCategoriesCanvasContainer =
+        childIds.length > 0 &&
+        childIds.every((id) => {
+          const child = nodes[id];
+          if (!child) return false;
+          const childProps = (child.props ?? {}) as Record<string, unknown>;
+          return (
+            typeof childProps.label === "string" &&
+            (Object.prototype.hasOwnProperty.call(childProps, "cardWidth") ||
+              Object.prototype.hasOwnProperty.call(childProps, "mediaHeight") ||
+              Object.prototype.hasOwnProperty.call(childProps, "iconType"))
+          );
+        });
+
+      if (isLegacyCategoriesCanvasContainer) {
+        const headingText = String((props.headingText as string) || "Shop by Category");
+        const canvasPosition = (props.position as React.CSSProperties["position"]) || "relative";
+
+        return wrap(
+          <div
+            data-fluid-space="true"
+            data-layout="column"
+            className={((props.customClassName as string) || "").trim() || undefined}
+            style={{
+              position: canvasPosition,
+              top: canvasPosition !== "static" ? (props.top as React.CSSProperties["top"]) : undefined,
+              left: canvasPosition !== "static" ? (props.left as React.CSSProperties["left"]) : undefined,
+              right: canvasPosition !== "static" ? (props.right as React.CSSProperties["right"]) : undefined,
+              bottom: canvasPosition !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
+              width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || "100%",
+              maxWidth: "100%",
+              background: "#f5f3ff",
+              padding: isNarrowPreview ? "16px" : "24px",
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              gap: "14px",
+            }}
+            onClick={interactiveClick}
+          >
+            <h3
+              style={{
+                margin: 0,
+                color: "#111827",
+                fontSize: isNarrowPreview ? 34 : 40,
+                fontWeight: 700,
+                lineHeight: 1.15,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {headingText}
+            </h3>
+            <div
+              data-fluid-space="true"
+              style={{
+                display: "flex",
+                flexWrap: isNarrowPreview ? "wrap" : "nowrap",
+                gap: "16px",
+                alignItems: "stretch",
+                overflowX: isNarrowPreview ? "auto" : "visible",
+                paddingBottom: isNarrowPreview ? "4px" : undefined,
+              }}
+            >
+              {children}
+            </div>
+          </div>
+        );
+      }
+
       const spacingPreset = detectResponsiveSpacingPreset(nodeId, props);
       const spacing = getResponsiveSpacingTuning(spacingPreset, isNarrowPreview, builderParityMode);
       const hasRenderableChildren = childIds.some((id) => Boolean(nodes[id]));
@@ -2198,6 +2685,7 @@ function RenderNode({
         !productBinding &&
         storeContext.products.length > 0 &&
         directProductTemplateIds.length === 0 &&
+        props.autoProductSlot === true &&
         hasAddToCartButton(nodeId ?? "", nodes);
       if (isProductSlot) {
         // Product slots skip animation wrapping for simplicity
@@ -2345,7 +2833,7 @@ function RenderNode({
         isNarrowPreview,
         builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const normalizedHeight = normalizeBlockHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
       const normalizedPosition = normalizeResponsivePosition(
         props.position as React.CSSProperties["position"] | undefined,
         isNarrowPreview,
@@ -2365,6 +2853,9 @@ function RenderNode({
         String(parentNode?.type ?? "").toLowerCase() === "section" &&
         parentBackground.includes("8b5cf6") &&
         parentBackground.includes("3b82f6");
+      const containsProductCards =
+        hasAddToCartButton(nodeId ?? "", nodes) ||
+        directProductTemplateIds.length > 0;
       const rawContainerHeight = normalizedHeight ?? (props.height as string | undefined);
       const normalizedContainerHeight = builderParityMode
         ? normalizeContainerHeight(rawContainerHeight, hasRenderableChildren)
@@ -2377,9 +2868,50 @@ function RenderNode({
         rawContainerHeight != null &&
         String(rawContainerHeight).trim().toLowerCase() === "240px";
       const resolvedContainerHeight = shouldAutoFixLegacySynclyContainer ? "auto" : normalizedContainerHeight;
+      const parsedContainerHeightPx =
+        typeof rawContainerHeight === "number"
+          ? rawContainerHeight
+          : (typeof rawContainerHeight === "string" && rawContainerHeight.trim().toLowerCase().endsWith("px")
+              ? Number(rawContainerHeight.trim().toLowerCase().slice(0, -2))
+              : NaN);
+      const shouldReleaseDesktopProductHeight =
+        !isNarrowPreview &&
+        containsProductCards &&
+        Number.isFinite(parsedContainerHeightPx) &&
+        parsedContainerHeightPx >= 260;
+      const siblingPlaceholderCount = (() => {
+        if (!node?.parent) return 0;
+        const parent = nodes[node.parent];
+        if (!parent) return 0;
+        return (parent.children ?? []).reduce((count, siblingId) => {
+          const sibling = nodes[siblingId];
+          if (!sibling || sibling.type !== "Container") return count;
+          const siblingChildIds = sibling.children ?? [];
+          const siblingHasRenderableChildren = siblingChildIds.some((id) => Boolean(nodes[id]));
+          if (siblingHasRenderableChildren) return count;
+          const siblingHeightPx = parsePixelValue((sibling.props?.height as string) ?? undefined);
+          if (!Number.isFinite(siblingHeightPx) || (siblingHeightPx as number) < 220) return count;
+          return count + 1;
+        }, 0);
+      })();
+      const isDesktopEmptyCardShell =
+        !isNarrowPreview &&
+        !hasRenderableChildren &&
+        Number.isFinite(parsedContainerHeightPx) &&
+        parsedContainerHeightPx >= 220 &&
+        siblingPlaceholderCount >= 2;
+      const effectiveContainerHeight =
+        isDesktopEmptyCardShell
+          ? "0px"
+          : (shouldReleaseDesktopProductHeight ? "auto" : resolvedContainerHeight);
       const resolvedContainerBackground = shouldAutoFixLegacySynclyContainer && (rawContainerBackground === "#ffffff" || rawContainerBackground === "white")
         ? "transparent"
         : ((props.background || props.backgroundColor || "transparent") as string);
+      const requestedOverflow = (props.overflow as string) || "visible";
+      const effectiveOverflow =
+        containsProductCards && requestedOverflow === "hidden"
+          ? "visible"
+          : requestedOverflow;
 
       const containerStyle: React.CSSProperties = {
         background: resolvedContainerBackground,
@@ -2391,13 +2923,17 @@ function RenderNode({
           backgroundPosition: (props.backgroundPosition as string),
           backgroundRepeat: (props.backgroundRepeat as string),
         } : {}),
-        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
-        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
+        padding: isDesktopEmptyCardShell
+          ? "0px"
+          : `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+        margin: isDesktopEmptyCardShell
+          ? "0px"
+          : `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
         minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
-        height: resolvedContainerHeight,
-        minHeight: !hasRenderableChildren ? "50px" : undefined,
+        height: effectiveContainerHeight,
+        minHeight: isDesktopEmptyCardShell ? 0 : (!hasRenderableChildren ? "50px" : undefined),
         boxSizing: "border-box",
         borderRadius: `${br}px`,
         ...(strokePlacement === "outside" && borderDecl
@@ -2406,7 +2942,7 @@ function RenderNode({
             ? { border: borderDecl }
             : {}),
         position: normalizedPosition,
-        display: displayVal,
+        display: isDesktopEmptyCardShell ? "none" : displayVal,
         flexDirection: displayVal === "flex" ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
@@ -2418,7 +2954,7 @@ function RenderNode({
         rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
-        overflow: props.overflow as string,
+        overflow: effectiveOverflow,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
         top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
         right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
@@ -2478,7 +3014,28 @@ function RenderNode({
         isNarrowPreview,
         builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const normalizedHeight = normalizeBlockHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const containsProductCards =
+        hasAddToCartButton(nodeId ?? "", nodes) ||
+        directProductTemplateIds.length > 0;
+      const rawSectionHeight = normalizedHeight ?? (props.height as string | undefined);
+      const parsedSectionHeightPx =
+        typeof rawSectionHeight === "number"
+          ? rawSectionHeight
+          : (typeof rawSectionHeight === "string" && rawSectionHeight.trim().toLowerCase().endsWith("px")
+              ? Number(rawSectionHeight.trim().toLowerCase().slice(0, -2))
+              : NaN);
+      const shouldReleaseDesktopSectionHeight =
+        !isNarrowPreview &&
+        containsProductCards &&
+        Number.isFinite(parsedSectionHeightPx) &&
+        parsedSectionHeightPx >= 260;
+      const effectiveSectionHeight = shouldReleaseDesktopSectionHeight ? "auto" : rawSectionHeight;
+      const requestedSectionOverflow = (props.overflow as string) || "hidden";
+      const effectiveSectionOverflow =
+        containsProductCards && requestedSectionOverflow === "hidden"
+          ? "visible"
+          : requestedSectionOverflow;
       return wrap(
         <section
           data-fluid-space="true"
@@ -2500,7 +3057,7 @@ function RenderNode({
             width: normalizedWidth ?? (props.width as string),
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
-            height: normalizedHeight ?? (props.height as string),
+            height: effectiveSectionHeight,
             containerType: "inline-size",
             borderRadius: px(props.borderRadius),
             ...(sectionStrokePlacement === "outside" && sectionBorderDecl
@@ -2517,7 +3074,7 @@ function RenderNode({
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             position: "relative",
-            overflow: (props.overflow as string) || "hidden",
+            overflow: effectiveSectionOverflow,
             cursor: interactiveClick ? "pointer" : undefined,
           }}
           onClick={interactiveClick}
@@ -2558,8 +3115,31 @@ function RenderNode({
         isNarrowPreview,
         builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const normalizedHeight = normalizeBlockHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const containsProductCards =
+        hasAddToCartButton(nodeId ?? "", nodes) ||
+        directProductTemplateIds.length > 0;
+      const rawRowHeight = normalizedHeight ?? (props.height as string | undefined);
+      const parsedRowHeightPx =
+        typeof rawRowHeight === "number"
+          ? rawRowHeight
+          : (typeof rawRowHeight === "string" && rawRowHeight.trim().toLowerCase().endsWith("px")
+              ? Number(rawRowHeight.trim().toLowerCase().slice(0, -2))
+              : NaN);
+      const shouldReleaseDesktopRowHeight =
+        !isNarrowPreview &&
+        containsProductCards &&
+        Number.isFinite(parsedRowHeightPx) &&
+        parsedRowHeightPx >= 220;
+      const effectiveRowHeight = shouldReleaseDesktopRowHeight ? "auto" : rawRowHeight;
       const isNavRow = isNavContainer(node, nodes, props);
+      const requestedRowOverflow = props.overflow as string;
+      const effectiveRowOverflow =
+        isNavRow
+          ? "visible"
+          : (containsProductCards && requestedRowOverflow === "hidden"
+              ? "visible"
+              : requestedRowOverflow);
       const rowStyle: React.CSSProperties = {
         background: (props.background || props.backgroundColor || "transparent") as string,
         padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
@@ -2567,7 +3147,7 @@ function RenderNode({
         width: normalizedWidth ?? (props.width as string),
         maxWidth: isNarrowPreview ? "100%" : undefined,
         minWidth: isNarrowPreview ? 0 : undefined,
-        height: normalizedHeight ?? (props.height as string),
+        height: effectiveRowHeight,
         borderRadius: px(props.borderRadius),
         ...(rowStrokePlacement === "outside" && rowBorderDecl
           ? { border: "none", outline: rowBorderDecl, outlineOffset: 0 }
@@ -2582,7 +3162,7 @@ function RenderNode({
         gap: fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx),
         boxShadow: props.boxShadow as string,
         opacity: props.opacity as number,
-        overflow: isNavRow ? "visible" : (props.overflow as string),
+        overflow: effectiveRowOverflow,
         cursor: interactiveClick ? "pointer" : undefined,
       };
 
@@ -2629,7 +3209,28 @@ function RenderNode({
         isNarrowPreview,
         builderParityMode,
       );
-      const normalizedHeight = normalizeLayoutHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const normalizedHeight = normalizeBlockHeightForNarrow(props.height, isNarrowPreview, builderParityMode);
+      const containsProductCards =
+        hasAddToCartButton(nodeId ?? "", nodes) ||
+        directProductTemplateIds.length > 0;
+      const rawColumnHeight = normalizedHeight ?? (props.height as string | undefined);
+      const parsedColumnHeightPx =
+        typeof rawColumnHeight === "number"
+          ? rawColumnHeight
+          : (typeof rawColumnHeight === "string" && rawColumnHeight.trim().toLowerCase().endsWith("px")
+              ? Number(rawColumnHeight.trim().toLowerCase().slice(0, -2))
+              : NaN);
+      const shouldReleaseDesktopColumnHeight =
+        !isNarrowPreview &&
+        containsProductCards &&
+        Number.isFinite(parsedColumnHeightPx) &&
+        parsedColumnHeightPx >= 220;
+      const effectiveColumnHeight = shouldReleaseDesktopColumnHeight ? "auto" : rawColumnHeight;
+      const requestedColumnOverflow = props.overflow as string;
+      const effectiveColumnOverflow =
+        containsProductCards && requestedColumnOverflow === "hidden"
+          ? "visible"
+          : requestedColumnOverflow;
       const colBw = (props.borderWidth ?? 0) as number;
       const colBorderDecl = colBw > 0 ? `${colBw}px ${props.borderStyle} ${props.borderColor}` : undefined;
       const colStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
@@ -2647,7 +3248,7 @@ function RenderNode({
             background: (props.background || props.backgroundColor || "transparent") as string,
             padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
             margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
-            height: normalizedHeight ?? (props.height as string),
+            height: effectiveColumnHeight,
             borderRadius: px(props.borderRadius),
             ...(colStrokePlacement === "outside" && colBorderDecl
               ? { border: "none", outline: colBorderDecl, outlineOffset: 0 }
@@ -2662,7 +3263,7 @@ function RenderNode({
             gap: fluidSpace(props.gap, 0, 0.4, 1.8, useFixedPx),
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
-            overflow: props.overflow as string,
+            overflow: effectiveColumnOverflow,
             cursor: interactiveClick ? "pointer" : undefined,
           }}
           onClick={interactiveClick}

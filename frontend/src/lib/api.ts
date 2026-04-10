@@ -295,6 +295,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
@@ -305,11 +306,10 @@ export async function apiFetch<T>(
     delete headers['x-skip-active-project-scope'];
   }
 
-  if (!skipActiveProjectScope && activeProjectId && !headers['x-project-id']) {
+  const isPublicSitePath = normalizedPath.startsWith('/api/public/');
+  if (!skipActiveProjectScope && !isPublicSitePath && activeProjectId && !headers['x-project-id']) {
     headers['x-project-id'] = activeProjectId;
   }
-
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
   // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
   // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
@@ -1063,6 +1063,15 @@ export async function listProducts(params?: {
   return apiFetch<{ success: boolean; items: ApiProduct[]; total: number; page: number; totalPages: number }>(path, {
     headers,
   });
+}
+
+export async function getProduct(id: string): Promise<{ success: boolean; data?: ApiProduct; message?: string }> {
+  const normalizedId = String(id || '').trim();
+  if (!normalizedId) {
+    throw new Error('Product id is required');
+  }
+
+  return apiFetch<{ success: boolean; data?: ApiProduct; message?: string }>(`/api/products/${encodeURIComponent(normalizedId)}`);
 }
 
 // For uploading prodcut images to Firebase Storage 

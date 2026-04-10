@@ -132,12 +132,6 @@ export function CategoriesCardCanvas() {
             event.stopPropagation();
             setIsEditingHeading(true);
           }}
-          onMouseDown={(event) => {
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
           onBlur={() => {
             if (isEditingHeading) flushHeadingText();
           }}

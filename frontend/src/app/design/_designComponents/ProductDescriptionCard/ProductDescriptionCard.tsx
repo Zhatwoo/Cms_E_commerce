@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
-import { listProducts, type ApiProduct } from "@/lib/api";
+import { getProduct, listProducts, type ApiProduct } from "@/lib/api";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { ProductDescriptionCardSettings } from "./ProductDescriptionCardSettings";
 
@@ -121,10 +121,26 @@ export const ProductDescriptionCard = ({
     if (!boundProductId) { setProduct(null); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    listProducts({ subdomain: projectSubdomain ?? undefined })
-      .then((res) => { if (!cancelled) setProduct(res.items?.find((p) => p.id === boundProductId) ?? null); })
-      .catch(() => { if (!cancelled) setProduct(null); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    (async () => {
+      try {
+        const direct = await getProduct(boundProductId);
+        if (!cancelled && direct.data) {
+          setProduct(direct.data);
+          return;
+        }
+      } catch {
+        // Fall back to the storefront list below.
+      }
+
+      try {
+        const res = await listProducts({ subdomain: projectSubdomain ?? undefined });
+        if (!cancelled) setProduct(res.items?.find((p) => p.id === boundProductId) ?? null);
+      } catch {
+        if (!cancelled) setProduct(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
     return () => { cancelled = true; };
   }, [boundProductId, projectSubdomain]);
 
