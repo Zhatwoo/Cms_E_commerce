@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Editor, Frame } from "@craftjs/core";
 import { deserializeCleanToCraft, serializeCraftToClean } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
-import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT, PREVIEW_MOBILE_VIEWPORT_WIDTH, PREVIEW_TABLET_VIEWPORT_WIDTH } from "../_lib/viewportConstants";
@@ -678,9 +677,8 @@ function PreviewContent() {
       });
       const content = data?.data?.content;
       if (!content) return null;
-      let clean = parseContentToCleanDoc(content);
+      const clean = parseContentToCleanDoc(content);
       if (!clean) return null;
-      clean = migratePublishedContent(clean) as any;
       return JSON.stringify(clean);
     } catch {
       return null;
@@ -1172,7 +1170,7 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const docToPublish = cleanDoc ?? null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -1228,7 +1226,7 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const docToPublish = cleanDoc ?? null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);

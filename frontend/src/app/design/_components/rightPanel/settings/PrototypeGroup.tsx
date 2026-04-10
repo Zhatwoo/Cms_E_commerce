@@ -73,6 +73,15 @@ export interface PageOption {
   id: string;
   name: string;
   slug: string;
+  index: number;
+}
+
+function toPageIdentifierName(pageName: string | undefined, pageIndex: number): string {
+  const trimmed = String(pageName || "").trim();
+  if (!trimmed) return `Page ${pageIndex + 1}`;
+  if (/^page\s*name$/i.test(trimmed)) return `Page ${pageIndex + 1}`;
+  if (/^untitled\s*page$/i.test(trimmed)) return `Page ${pageIndex + 1}`;
+  return trimmed;
 }
 
 interface PrototypeGroupProps {
@@ -115,11 +124,12 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
         if (node?.data?.displayName === "Page") {
           const props = node.data.props ?? {};
           const rawName = props.pageName as string | undefined;
-          const name = (!rawName || rawName === "Page Name") ? `Page ${index + 1}` : rawName;
+          const name = toPageIdentifierName(rawName, index);
           list.push({
             id,
             name,
             slug: (props.pageSlug as string) ?? `page-${index}`,
+            index,
           });
         }
       });
@@ -146,15 +156,17 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
   const addInteraction = useCallback(() => {
     const current = readPrototype();
     const next = clonePrototype(current);
+    const fallbackDestination = pages[0]?.id;
     next.interactions.push({
       trigger: "click",
       action: "navigateTo",
+      destination: fallbackDestination,
       duration: 300,
       easing: "ease",
       transition: "dissolve",
     });
     commitPrototype(next);
-  }, [readPrototype, commitPrototype]);
+  }, [readPrototype, commitPrototype, pages]);
 
   const removeInteraction = useCallback(
     (index: number) => {
@@ -180,6 +192,14 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
 
   const isPageReference = (dest: string | undefined) =>
     dest && pages.some((p) => p.id === dest || p.slug === dest);
+
+  const resolveDestinationPage = useCallback(
+    (dest: string | undefined): PageOption | null => {
+      if (!dest) return null;
+      return pages.find((p) => p.id === dest || p.slug === dest) ?? null;
+    },
+    [pages]
+  );
 
   return (
     <div className="flex flex-col pb-4">
@@ -223,6 +243,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                       onChange={(e) =>
                         updateInteraction(index, { trigger: e.target.value as InteractionTrigger })
                       }
+                      title="Trigger"
                       className={selectClass}
                     >
                       {Object.entries(TRIGGER_LABELS).map(([k, v]) => (
@@ -238,6 +259,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                       onChange={(e) =>
                         updateInteraction(index, { action: e.target.value as InteractionAction })
                       }
+                      title="Action"
                       className={selectClass}
                     >
                       {Object.entries(ACTION_LABELS).map(([k, v]) => (
@@ -260,12 +282,13 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                           onChange={(e) =>
                             updateInteraction(index, { destination: e.target.value || undefined })
                           }
+                          title="Destination"
                           className={selectClass}
                         >
                           <option value="">Select page</option>
                           {pages.map((p) => (
                             <option key={p.id} value={p.id}>
-                              {p.name} ({p.slug})
+                              {p.name}
                             </option>
                           ))}
                         </select>
@@ -276,10 +299,20 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                           onChange={(e) =>
                             updateInteraction(index, { destination: e.target.value || undefined })
                           }
+                          title={interaction.action === "openUrl" ? "URL" : "Destination"}
                           placeholder={interaction.action === "openUrl" ? "https://..." : "Element ID"}
                           className="w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none"
                         />
                       )}
+                      {interaction.action === "navigateTo" && interaction.destination ? (
+                        <p className="text-[10px] text-[var(--builder-text-faint)]">
+                          {(() => {
+                            const page = resolveDestinationPage(interaction.destination);
+                            if (!page) return `Destination: ${interaction.destination}`;
+                            return `Destination: ${page.name}`;
+                          })()}
+                        </p>
+                      ) : null}
                     </div>
                   )}
 
@@ -292,6 +325,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                           onChange={(e) =>
                             updateInteraction(index, { transition: e.target.value as TransitionType })
                           }
+                          title="Transition"
                           className={selectClass}
                         >
                           {Object.entries(TRANSITION_LABELS).map(([k, v]) => (
@@ -313,6 +347,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                           onChange={(e) =>
                             updateInteraction(index, { duration: Number(e.target.value) })
                           }
+                          title="Duration"
                           className={sliderClass}
                         />
                       </div>
@@ -323,6 +358,7 @@ export const PrototypeGroup = ({ selectedIds }: PrototypeGroupProps) => {
                           onChange={(e) =>
                             updateInteraction(index, { easing: e.target.value as EasingType })
                           }
+                          title="Easing"
                           className={selectClass}
                         >
                           {Object.entries(EASING_LABELS).map(([k, v]) => (

@@ -238,57 +238,47 @@ export function CategoriesCardCanvas() {
       ref={(ref) => {
         if (ref) connectors.connect(connectors.drag(ref));
       }}
-      className="w-full box-border bg-[#f9fafb] px-3 py-4 sm:px-4 lg:px-6"
+      className="w-full box-border bg-[#f9fafb] px-2 py-3 sm:px-3 lg:px-4"
     >
-      <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-3">
-        <div className="min-w-0">
-          <h3
-            ref={headingRef}
-            data-inline-text-edit
-            contentEditable={isEditingHeading}
-            suppressContentEditableWarning
-            onDoubleClick={(event) => {
+      <div className="flex w-full flex-wrap items-center justify-between gap-2">
+        <h3
+          ref={headingRef}
+          data-inline-text-edit
+          contentEditable={isEditingHeading}
+          suppressContentEditableWarning
+          onDoubleClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setIsEditingHeading(true);
+          }}
+          onBlur={() => {
+            if (isEditingHeading) flushHeadingText();
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
               event.preventDefault();
               event.stopPropagation();
               setIsEditingHeading(true);
-            }}
-            onMouseDown={(event) => {
-              event.stopPropagation();
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-            }}
-            onBlur={() => {
-              if (isEditingHeading) flushHeadingText();
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                flushHeadingText();
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                if (headingRef.current) headingRef.current.innerText = headingText || "Shop by Category";
-                setIsEditingHeading(false);
-              }
-            }}
-            className={`m-0 text-[clamp(22px,3vw,32px)] font-bold leading-[1.15] text-[#111827] ${
-              isEditingHeading ? "cursor-text outline-none" : "cursor-text"
-            }`}
-          >
-            {headingText || "Shop by Category"}
-          </h3>
-          <p className="mt-1 m-0 text-xs font-semibold text-[#6366f1] sm:text-sm">
-            {projectIndustry ? `Subcategories for ${projectIndustry}` : "Previewing clothing & apparel subcategories"}
-          </p>
-        </div>
-        <p className="m-0 text-xs font-semibold uppercase tracking-[0.18em] text-[#6b7280] sm:text-right">
-          Layout: {LAYOUT_OPTIONS.find((option) => option.value === layoutMode)?.label || "Auto grid"}
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              if (headingRef.current) headingRef.current.innerText = headingText || "Shop by Category";
+              setIsEditingHeading(false);
+            }
+          }}
+          className={`m-0 text-[28px] font-bold leading-[1.2] text-[#111827] ${
+            isEditingHeading ? "cursor-text outline-none" : "cursor-text"
+          }`}
+        >
+          {headingText || "Shop by Category"}
+        </h3>
+        <p className="m-0 text-sm font-semibold text-[#6366f1]">
+          {projectIndustry ? `Subcategories for ${projectIndustry}` : "Previewing clothing & apparel subcategories"}
         </p>
       </div>
 
       {categories.length > 0 ? (
-        <div className="mx-auto mt-4 w-full max-w-[1280px]">
+        <div className="mt-3 w-full">
           <div className={layoutConfig.containerClassName}>
             {categories.map((label, idx) => {
               const baseIconType = idx % 3 === 0 ? "shoppingBag" : idx % 3 === 1 ? "home" : "star";

@@ -6,7 +6,6 @@ import Link from 'next/link';
 import { apiFetch } from '@/lib/api';
 import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
-import { migratePublishedContent } from '@/app/design/_lib/contentMigration';
 import { PREVIEW_TABLET_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
@@ -56,6 +55,11 @@ function SubdomainContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const storefrontContext = React.useMemo(
+    () => (products.length > 0 ? { products, addToCart } : null),
+    [products, addToCart]
+  );
+
   useEffect(() => {
     if (!subdomain) { setLoading(false); setError(true); return; }
     const normalized = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -70,11 +74,9 @@ function SubdomainContent() {
         if (!data?.success) { setError(true); setLoading(false); return; }
         if (data?.projectTitle) setSiteTitle(data.projectTitle as string);
         const content = data?.data?.content;
-        let parsed = parseContentToCleanDoc(content);
-        if (parsed) {
-          parsed = migratePublishedContent(parsed) as BuilderDocument;
-          setDoc(parsed);
-        } else setError(true);
+        const parsed = parseContentToCleanDoc(content);
+        if (parsed) setDoc(parsed as BuilderDocument);
+        else setError(true);
       } catch { if (!cancelled) setError(true); }
       finally { if (!cancelled) setLoading(false); }
     })();
@@ -122,9 +124,9 @@ function SubdomainContent() {
   return (
     <StorefrontRenderBoundary>
       <>
-        <LiveSite doc={doc} pageIndex={0} mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT} enableFormInputs storeContext={{ products, addToCart }} />
-        <CartFab />
-        <CartDrawer />
+        <LiveSite doc={doc} pageIndex={0} mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT} enableFormInputs storeContext={storefrontContext} />
+        {storefrontContext ? <CartFab /> : null}
+        {storefrontContext ? <CartDrawer /> : null}
       </>
     </StorefrontRenderBoundary>
   );

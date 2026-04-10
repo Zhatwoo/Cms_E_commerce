@@ -50,7 +50,6 @@ import { SnapMarkers } from "./SnapMarkers";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { migratePublishedContent } from "../_lib/contentMigration";
 import { slugFromName } from "../_lib/slug";
 import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -2207,13 +2206,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         };
 
         const applyMigration = (raw: string | object): string => {
-          try {
-            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-            const migrated = migratePublishedContent(parsed);
-            return typeof migrated === "string" ? migrated : JSON.stringify(migrated);
-          } catch {
-            return typeof raw === "string" ? raw : JSON.stringify(raw);
-          }
+          return typeof raw === "string" ? raw : JSON.stringify(raw);
         };
 
         const normalizeToCraftJson = (input: unknown): string | null => {
@@ -2925,7 +2918,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     <ShapeToolHandler />
                     <DoubleClickTransformHandler />
                     <SnapMarkers />
-                    <PrototypeFlowLines />
+                    <PrototypeFlowLines scale={scale} />
                     {/* Top Panel */}
                     {panelsReady && (
                       <TopPanel
