@@ -20,6 +20,7 @@ import { Divider } from "../_designComponents/Divider/Divider";
 import { Banner } from "../_designComponents/Banner/banner";
 import { Badge } from "../_designComponents/Badge/badge";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
+import { Icon } from "../_designComponents/Icon/Icon";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
