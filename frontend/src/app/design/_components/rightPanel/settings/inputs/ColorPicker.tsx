@@ -825,6 +825,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
         <div
             ref={popoverRef}
             data-ui="color-picker"
+            data-canvas-interactive="true"
             className="fixed z-[9999] bg-[var(--builder-surface)] p-3 rounded-xl border border-transparent shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
             style={{
                 width: `${popoverWidth}px`,
@@ -837,8 +838,6 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 pointerEvents: 'auto',
                 transition: isDragging ? 'none' : 'opacity 0.15s, transform 0.15s',
                 cursor: isDragging ? 'grabbing' : 'default',
-                willChange: isDragging ? 'transform' : 'auto',
-                backfaceVisibility: 'hidden',
             }}
             onMouseDown={(e) => e.stopPropagation()}
             onMouseEnter={(e) => e.stopPropagation()}

@@ -82,6 +82,8 @@ export const CanvasSelectionHandler = () => {
       const target = e.target as HTMLElement | null;
       if (!target) return;
 
+      if (target.closest("[data-ui='color-picker']")) return;
+
       // Ignore inputs/textareas/selects/contenteditable
       const tag = target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
