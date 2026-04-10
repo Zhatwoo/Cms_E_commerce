@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   selectedToIds,
+  selectedToLeafIds,
   getClipboard,
   copySelection,
   pasteClipboard,
@@ -229,7 +230,7 @@ export function CanvasContextMenu() {
   }
 
   const state = query.getState();
-  const selectedIds = selectedToIds(state.events.selected);
+  const selectedIds = selectedToLeafIds(state.events.selected, state.nodes);
   // Use menu.nodeId as fallback when right-click selects a node but selection hasn't propagated yet
   const effectiveIds = selectedIds.length > 0
     ? selectedIds

@@ -56,6 +56,63 @@ export function selectedToIds(selected: unknown): string[] {
   return [];
 }
 
+/**
+ * Return only "leaf" selections (exclude any selected node that is an ancestor
+ * of another selected node). This prevents actions like delete/duplicate from
+ * operating on both a container and its child when we preserve ancestor selection.
+ */
+export function filterLeafSelectionIds(ids: string[], nodes: Record<string, any>): string[] {
+  const selected = ids.filter((id) => id && id !== "ROOT" && !!nodes?.[id]);
+  if (selected.length <= 1) return selected;
+
+  const selectedSet = new Set(selected);
+  const ancestorSelected = new Set<string>();
+
+  for (const id of selected) {
+    let curr: string | null | undefined = nodes[id]?.data?.parent ?? null;
+    while (curr && curr !== "ROOT") {
+      if (selectedSet.has(curr)) ancestorSelected.add(curr);
+      curr = nodes[curr]?.data?.parent ?? null;
+    }
+  }
+
+  return selected.filter((id) => !ancestorSelected.has(id));
+}
+
+export function selectedToLeafIds(selected: unknown, nodes: Record<string, any>): string[] {
+  return filterLeafSelectionIds(selectedToIds(selected), nodes);
+}
+
+const PRESERVE_SELECTION_ANCESTOR_TYPES = new Set(["Page", "Section", "Container", "Row", "Column"]);
+
+export function buildSelectionWithAncestors(leafIds: string[], nodes: Record<string, any>): string[] {
+  const preserveLower = new Set(Array.from(PRESERVE_SELECTION_ANCESTOR_TYPES).map((s) => s.toLowerCase()));
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (id: string | null | undefined) => {
+    if (!id || id === "ROOT") return;
+    if (!nodes?.[id]) return;
+    if (seen.has(id)) return;
+    seen.add(id);
+    out.push(id);
+  };
+
+  // Keep the leaf nodes first (primary selection remains first in array order).
+  for (const id of leafIds) add(id);
+
+  for (const id of leafIds) {
+    let curr: string | null | undefined = nodes?.[id]?.data?.parent ?? null;
+    while (curr && curr !== "ROOT") {
+      const displayName = String(nodes?.[curr]?.data?.displayName ?? nodes?.[curr]?.data?.type?.resolvedName ?? "");
+      if (preserveLower.has(displayName.toLowerCase())) add(curr);
+      curr = nodes?.[curr]?.data?.parent ?? null;
+    }
+  }
+
+  return out;
+}
+
 function parsePxValue(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string") {
@@ -313,7 +370,7 @@ export function duplicateNodes(
       const { newRootId, remappedNodes } = remapSubtreeIds(nodeId, subtree, existingIds);
 
       // remappedNodes are already in { id, data: { type (fn), ... } } shape
-      (actions as any).addNodeTree({ rootNodeId: newRootId, nodes: remappedNodes }, parentId, insertIndex);
+      addNodeTreeWithStaticPosition(actions, { rootNodeId: newRootId, nodes: remappedNodes }, parentId, insertIndex);
       newRootIds.push(newRootId);
     }
   } catch (e) {
@@ -509,7 +566,7 @@ export function pasteClipboard(
           rootNode.data.props = { ...rootNode.data.props, canvasX: newCanvasX, canvasY: newCanvasY, pageName: `Page ${pageCount + 1}` };
         }
 
-        (actions as any).addNodeTree({ rootNodeId: newRootId, nodes: toLiveNodes(remappedNodes) }, viewportId);
+        addNodeTreeWithStaticPosition(actions, { rootNodeId: newRootId, nodes: toLiveNodes(remappedNodes) }, viewportId);
         newRootIds.push(newRootId);
         continue;
       }
@@ -536,7 +593,7 @@ export function pasteClipboard(
       const subtree = collectSubtree(rootId);
       const { newRootId, remappedNodes } = remapSubtreeIds(rootId, subtree, existingIds);
 
-      (actions as any).addNodeTree({ rootNodeId: newRootId, nodes: toLiveNodes(remappedNodes) }, targetParentId, atIndex);
+      addNodeTreeWithStaticPosition(actions, { rootNodeId: newRootId, nodes: toLiveNodes(remappedNodes) }, targetParentId, atIndex);
       newRootIds.push(newRootId);
     }
 
@@ -603,24 +660,24 @@ export function pasteExternalImage(
     const atIndex = options?.atIndex ?? resolved.atIndex;
 
     const nodeId = `img-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    (actions as any).addNodeTree({
-      rootNodeId: nodeId,
-      nodes: {
-        [nodeId]: {
-          id: nodeId,
-          data: {
-            type: { resolvedName: "Image" },
-            isCanvas: false,
-            props: { src: src.trim(), alt: "Pasted Image", objectFit: "cover", width: "320px", height: "220px" },
-            displayName: "Image",
-            custom: {},
-            hidden: false,
-            nodes: [],
-            linkedNodes: {},
-            parent: null,
-          },
-        },
-      },
+    addNodeTreeWithStaticPosition(actions, {
+       rootNodeId: nodeId,
+       nodes: {
+         [nodeId]: {
+           id: nodeId,
+           data: {
+             type: { resolvedName: "Image" },
+             isCanvas: false,
+             props: { src: src.trim(), alt: "Pasted Image", objectFit: "cover", width: "320px", height: "220px" },
+             displayName: "Image",
+             custom: {},
+             hidden: false,
+             nodes: [],
+             linkedNodes: {},
+             parent: null,
+           },
+         },
+       },
     }, parentId, atIndex);
     actions.selectNode(nodeId);
     return nodeId;
@@ -702,7 +759,7 @@ export function groupSelection(
     });
     const tree = parseEl(groupEl).toNodeTree();
     const groupNodeId: string = tree.rootNodeId;
-    (actions as any).addNodeTree(tree, parentId, insertIndex);
+    addNodeTreeWithStaticPosition(actions, tree, parentId, insertIndex);
 
     const sorted = [...nodeIds].sort((a, b) => siblings.indexOf(a) - siblings.indexOf(b));
     sorted.forEach((id, i) => { try { actions.move?.(id, groupNodeId, i); } catch { /* skip */ } });
@@ -806,5 +863,82 @@ export function ungroupSelection(
   } catch (e) {
     console.warn("[ungroupSelection] failed:", e);
     return [];
+  }
+}
+
+/** Ensure Container nodes in a node map/tree have position set to 'static' */
+function enforceContainerPositionStaticOnNodes(nodesMap: Record<string, any> | undefined) {
+  if (!nodesMap || typeof nodesMap !== 'object') return;
+  for (const n of Object.values(nodesMap)) {
+    try {
+      const data = n?.data ?? n;
+      const displayName = (data?.displayName ?? data?.type?.resolvedName ?? "").toString().toLowerCase();
+      if (displayName === "container") {
+        data.props = { ...(data.props ?? {}), position: "static" };
+        if (n.data) n.data.props = data.props; else n.props = data.props;
+      }
+    } catch (e) {
+      // ignore malformed node
+    }
+  }
+}
+
+/** Wrapper for actions.addNodeTree that enforces Container position defaults */
+function addNodeTreeWithStaticPosition(actions: any, tree: any, parentId?: string, index?: number) {
+  if (!tree) return actions.addNodeTree?.(tree, parentId, index);
+  // If tree is { rootNodeId, nodes }
+  if (tree.nodes && typeof tree.nodes === 'object') {
+    enforceContainerPositionStaticOnNodes(tree.nodes);
+    return actions.addNodeTree?.(tree, parentId, index);
+  }
+  // If tree is a plain nodes map
+  if (typeof tree === 'object') {
+    enforceContainerPositionStaticOnNodes(tree);
+    return actions.addNodeTree?.({ rootNodeId: tree.rootNodeId ?? undefined, nodes: tree }, parentId, index);
+  }
+  return actions.addNodeTree?.(tree, parentId, index);
+}
+
+export function addNodeTreeEnforced(actions: any, tree: any, parentId?: string, index?: number) {
+  return addNodeTreeWithStaticPosition(actions, tree, parentId, index);
+}
+
+// Replace internal calls to use the enforced wrapper
+
+/**
+ * Select nodes but also include any ancestor layout nodes (Page/Section/Row/Column/Container)
+ * so selecting a child does not visually/behaviorally "lose" its layout context.
+ *
+ * Important: callers that perform actions (delete/duplicate/move) should generally
+ * operate on the leaf selection (`selectedToLeafIds`) to avoid affecting ancestors.
+ */
+export function selectNodesPreserveContainers(
+  actions: EditorActions,
+  query: EditorQuery,
+  nodeIds?: string[] | string,
+  options?: { mergeLeafSelection?: boolean }
+): void {
+  try {
+    // If called with no nodeIds, treat as a clear-selection command
+    if (nodeIds === undefined || nodeIds === null) {
+      try { actions.selectNode(); } catch { /* ignore */ }
+      return;
+    }
+    const ids = Array.isArray(nodeIds) ? nodeIds.slice() : (nodeIds ? [nodeIds] : []);
+    const state = query.getState();
+    const nodesMap = state.nodes ?? {};
+
+    const baseLeaf = filterLeafSelectionIds(ids, nodesMap);
+    const mergedLeaf = options?.mergeLeafSelection
+      ? filterLeafSelectionIds([...selectedToLeafIds(state.events?.selected, nodesMap), ...baseLeaf], nodesMap)
+      : baseLeaf;
+
+    const out = buildSelectionWithAncestors(mergedLeaf, nodesMap);
+
+    if (out.length === 0) actions.selectNode();
+    else actions.selectNode(out.length === 1 ? out[0] : out);
+  } catch (e) {
+    // Fallback to direct selection
+    try { actions.selectNode(nodeIds as any); } catch { /* ignore */ }
   }
 }

@@ -5,6 +5,7 @@ import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 
+
 function getNodeChildIds(node: Record<string, any> | null | undefined): string[] {
   if (!node || typeof node !== "object") return [];
   const data = (node.data ?? {}) as Record<string, unknown>;
@@ -81,7 +82,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const suppressPassiveHover = name === "Page";
 
   const { isActive, actions, query } = useEditor((state, query) => ({
-    isActive: query.getEvent('selected').contains(id),
+    isActive: query.getEvent("selected").contains(id),
   }));
 
   const [isDomHovered, setIsDomHovered] = useState(false);

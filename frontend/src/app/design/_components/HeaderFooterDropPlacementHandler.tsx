@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 type HeaderFooterCategory = "header" | "footer";
 
@@ -87,7 +88,7 @@ export function HeaderFooterDropPlacementHandler() {
           return;
         }
 
-        const selectedIds = selectedToIds(state?.events?.selected);
+        const selectedIds = filterLeafSelectionIds(selectedToIds(state?.events?.selected), nodes as any);
         const selectedRootIds = selectedIds.filter((id) => {
           const parentId = nodes[id]?.data?.parent;
           if (!parentId || parentId === "ROOT") return false;
@@ -186,7 +187,7 @@ export function HeaderFooterDropPlacementHandler() {
       const rootsToMove = [...newRootIds];
 
       if (rootsToMove.length === 0) {
-        const selectedIds = selectedToIds(state?.events?.selected);
+        const selectedIds = filterLeafSelectionIds(selectedToIds(state?.events?.selected), nodes as any);
         const selectedRootIds = selectedIds.filter((id) => {
           const parentId = nodes[id]?.data?.parent;
           if (!parentId || parentId === "ROOT") return false;
