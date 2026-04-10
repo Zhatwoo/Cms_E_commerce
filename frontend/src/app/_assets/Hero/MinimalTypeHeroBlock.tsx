@@ -3,6 +3,8 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../design/_components/rightPanel/settings/DesignSection";
+import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
+import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
 
 export type MinimalTypeLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
@@ -88,6 +90,23 @@ export const MinimalTypeHeroBlockSettings = () => {
           <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.primaryLabel ?? "Explore Collection"} onChange={(e) => set("primaryLabel", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Secondary button</label>
           <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.secondaryLabel ?? "Our Story"} onChange={(e) => set("secondaryLabel", e.target.value)} />
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Style" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Background image URL</label>
+            <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Overlay color</label>
+            <ColorPicker value={props.overlayColor ?? "rgba(255,255,255,0.95)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Min height</label>
+            <NumericInput value={props.minHeight ?? 580} onChange={(val) => set("minHeight", val)} min={200} max={1200} step={10} unit="px" />
+          </div>
         </div>
       </DesignSection>
     </div>
