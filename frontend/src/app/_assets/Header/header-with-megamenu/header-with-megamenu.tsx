@@ -58,7 +58,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
           padding: 0,
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           gap: 12,
         },
         React.createElement(
@@ -137,7 +137,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
           minHeight: "100%",
           padding: 0,
           gap: 16,
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
         },
         React.createElement(
           Element as any,
@@ -184,7 +184,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
               gap: 22,
               alignItems: "center",
               justifyContent: "center",
-              flexWrap: "nowrap",
+              flexWrap: "wrap",
             },
             React.createElement(Text as any, { text: "Home", width: "auto", fontSize: 14, fontWeight: "600", color: "#111111" }),
             React.createElement(Text as any, { text: "About", width: "auto", fontSize: 14, fontWeight: "600", color: "#111111" })
@@ -224,7 +224,7 @@ export const HeaderWithMegamenu: TemplateEntry = {
             },
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, width: "100%", alignItems: "center", justifyContent: "space-between", flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, width: "100%", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" },
               React.createElement(Text as any, { text: "Search...", width: "auto", fontSize: 14, color: "#6b7280", fontStyle: "italic" }),
               React.createElement(Icon as any, { iconType: "search", size: 18, color: "#6b7280" })
             )

@@ -369,7 +369,7 @@ export function ProfileLoginBlock({
           height: resolvedHeight,
           boxSizing: "border-box",
           whiteSpace: "nowrap",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           appearance: "none",
           textAlign: "left",
         }}

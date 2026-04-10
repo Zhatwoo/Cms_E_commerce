@@ -47,7 +47,7 @@ export const HeaderWithSearch: TemplateEntry = {
 				paddingBottom: 6,
 				paddingLeft: 16,
 				gap: 18,
-				flexWrap: "nowrap",
+				flexWrap: "wrap",
 				alignItems: "center",
 				justifyContent: "space-between",
 			},

@@ -46,7 +46,7 @@ export const SimpleHeader: TemplateEntry = {
 				paddingBottom: 6,
 				paddingLeft: 16,
 				gap: 18,
-				flexWrap: "nowrap",
+				flexWrap: "wrap",
 				alignItems: "center",
 				justifyContent: "flex-start",
 			},
