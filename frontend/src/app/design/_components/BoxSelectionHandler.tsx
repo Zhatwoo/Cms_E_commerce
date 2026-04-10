@@ -153,6 +153,7 @@ export const BoxSelectionHandler = () => {
         target.closest("SELECT") ||
         target.closest("[contenteditable=true]")
       ) return;
+      if (target.closest("[data-ui='color-picker']")) return;
       if (target.closest("[data-section-drag-handle='true']")) return;
       const isResizeOverlay = !!target.closest("[data-panel='resize-overlay']");
       if (target.closest("[data-panel]") && !isResizeOverlay) return;
