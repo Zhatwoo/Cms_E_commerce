@@ -835,6 +835,7 @@ export const FigmaStyleDragHandler = () => {
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (target.closest("[data-canvas-interactive='true']")) return;
+      if (target.closest("[data-ui='color-picker']")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.colorPickerDragging === "true") return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
