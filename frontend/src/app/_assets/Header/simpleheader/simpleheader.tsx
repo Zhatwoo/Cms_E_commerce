@@ -3,105 +3,121 @@
 
 import React from "react";
 import { Element } from "@craftjs/core";
+import { Container } from "../../../design/_designComponents/Container/Container";
 import { Image } from "../../../design/_designComponents/Image/Image";
 import { Text } from "../../../design/_designComponents/Text/Text";
-import { Section } from "../../../design/_designComponents/Section/Section";
 import { Row } from "../../../design/_designComponents/Row/Row";
+import { Column } from "../../../design/_designComponents/Column/Column";
 import { TemplateEntry } from "../../_types";
 
 export const SimpleHeader: TemplateEntry = {
-  label: "Simple Header",
-  description: "Clean navbar with logo and menu",
-  preview: "Nav",
-  element: React.createElement(
-    Element as any,
-    {
-      is: Row as any,
-      canvas: true,
-      background: "#ffffff",
-      width: "100%",
-      paddingTop: 16,
-      paddingBottom: 16,
-      paddingLeft: 24,
-      paddingRight: 24,
-      justifyContent: "space-between",
-      alignItems: "center",
-      gap: 24,
-    },
-    React.createElement(
-      Element as any,
-      {
-        is: Section as any,
-        canvas: true,
-        background: "transparent",
-        width: "100%",
-        padding: 0,
-        minHeight: "auto",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-      },
-      React.createElement(
-        Element as any,
-        {
-          is: Row as any,
-          canvas: true,
-          background: "transparent",
-          width: "100%",
-          padding: 0,
-          gap: 24,
-          flexWrap: "nowrap",
-          alignItems: "center",
-          justifyContent: "space-between",
-        },
-        React.createElement(Image as any, {
-          src: "",
-          alt: "Header Logo",
-          width: 76,
-          height: 34,
-          objectFit: "contain",
-          allowUpload: true,
-        }),
-        React.createElement(
-          Element as any,
-          {
-            is: Row as any,
-            canvas: true,
-            background: "transparent",
-            width: "auto",
-            padding: 0,
-            gap: 32,
-            flexWrap: "nowrap",
-            alignItems: "center",
-            justifyContent: "flex-end",
-          },
-          React.createElement(Text as any, {
-            text: "Home",
-            fontSize: 24,
-            fontWeight: "500",
-            color: "#374151",
-          }),
-          React.createElement(Text as any, {
-            text: "About",
-            fontSize: 24,
-            fontWeight: "500",
-            color: "#374151",
-          }),
-          React.createElement(Text as any, {
-            text: "Services",
-            fontSize: 24,
-            fontWeight: "500",
-            color: "#374151",
-          }),
-          React.createElement(Text as any, {
-            text: "Contact",
-            fontSize: 24,
-            fontWeight: "500",
-            color: "#374151",
-          })
-        )
-      )
-    )
-  ),
-  category: "header",
+	label: "Simple Header",
+	description: "Light gray header with left image and right navigation",
+	preview: "Nav",
+	element: React.createElement(
+		Element as any,
+		{
+			is: Container as any,
+			canvas: true,
+			display: "flex",
+			background: "#ffffff",
+			width: "100%",
+			height: "52px",
+			paddingTop: 0,
+			paddingRight: 0,
+			paddingBottom: 0,
+			paddingLeft: 0,
+			flexDirection: "row",
+			alignItems: "center",
+			justifyContent: "space-between",
+			overflow: "hidden",
+		},
+		React.createElement(
+			Element as any,
+			{
+				is: Row as any,
+				canvas: true,
+				background: "transparent",
+				width: "100%",
+				height: "100%",
+				minHeight: "100%",
+				paddingTop: 6,
+				paddingRight: 50,
+				paddingBottom: 6,
+				paddingLeft: 16,
+				gap: 18,
+				flexWrap: "nowrap",
+				alignItems: "center",
+				justifyContent: "flex-start",
+			},
+			React.createElement(
+				Element as any,
+				{
+					is: Column as any,
+					canvas: true,
+					customClassName: "min-h-0",
+					background: "transparent",
+					width: "72px",
+					height: "100%",
+					padding: 0,
+					flexDirection: "column",
+					alignItems: "flex-start",
+					justifyContent: "center",
+				},
+				React.createElement(Image as any, {
+					src: "",
+					alt: "Image",
+					width: "46px",
+					height: "32px",
+					objectFit: "cover",
+					allowUpload: true,
+				})
+			),
+			React.createElement(
+				Element as any,
+				{
+					is: Column as any,
+					canvas: true,
+					customClassName: "min-h-0",
+					background: "transparent",
+					width: "auto",
+					height: "100%",
+					padding: 0,
+					flexDirection: "row",
+					alignItems: "center",
+					justifyContent: "flex-end",
+					gap: 26,
+				},
+				React.createElement(Text as any, {
+					text: "Home",
+					width: "auto",
+					fontSize: 13,
+					fontWeight: "700",
+					color: "#111111",
+				}),
+				React.createElement(Text as any, {
+					text: "About",
+					width: "auto",
+					fontSize: 13,
+					fontWeight: "700",
+					color: "#111111",
+				}),
+				React.createElement(Text as any, {
+					text: "Services",
+					width: "auto",
+					fontSize: 13,
+					fontWeight: "700",
+					color: "#111111",
+				}),
+				React.createElement(Text as any, {
+					text: "Contact",
+					width: "auto",
+					fontSize: 13,
+					fontWeight: "700",
+					color: "#111111",
+				})
+			)
+		)
+	),
+	category: "header",
 };

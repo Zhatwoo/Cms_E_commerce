@@ -261,13 +261,27 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
     },
     has(target, prop) {
       if (Reflect.has(target, prop)) return true;
-      if (typeof prop !== "string") {
-        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      if (typeof prop === "string") return true;
+      return !!(target.Container || target.container);
+    },
+    ownKeys(target) {
+      // Ensure "Container" and other core keys appear as own keys
+      const keys = Reflect.ownKeys(target);
+      if (!keys.includes("Container")) keys.push("Container");
+      return keys;
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+      if (desc) return desc;
+      if (typeof prop === "string") {
+        return {
+          enumerable: true,
+          configurable: true,
+          writable: false,
+          value: target.Container || SAFE_CONTAINER,
+        };
       }
-
-      // Let unknown/case-variant node types pass membership checks so `get()`
-      // can safely resolve them to a fallback component.
-      return true;
+      return undefined;
     },
   }) as T;
 }
@@ -2789,6 +2803,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Text = asComponent(Text);
     base.text = asComponent(Text);
     base.TEXT = asComponent(Text);
+    base.Icon = asComponent(CRAFT_RESOLVER.Icon ?? Icon);
+    base.icon = asComponent(CRAFT_RESOLVER.icon ?? CRAFT_RESOLVER.Icon ?? Icon);
+    base.ICON = asComponent(CRAFT_RESOLVER.ICON ?? CRAFT_RESOLVER.Icon ?? Icon);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
 

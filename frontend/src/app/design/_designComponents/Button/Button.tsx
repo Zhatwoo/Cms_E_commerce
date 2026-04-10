@@ -25,7 +25,8 @@ function fluidSpace(value: number, min = 0): string {
 }
 
 export const Button = ({
-  label = "Button",
+  label,
+  text,
   variant = "primary",
   backgroundColor,
   textColor,
@@ -69,7 +70,7 @@ export const Button = ({
   alignSelf = "auto",
   display,
   children,
-}: ButtonProps) => {
+}: ButtonProps & { text?: string }) => {
   const { id, connectors: { connect, drag } } = useNode();
 
   // Resolve variant defaults (user overrides take priority)
@@ -93,6 +94,7 @@ export const Button = ({
   const pb = paddingBottom ?? p ?? 12;
   const pl = paddingLeft ?? p ?? 28;
   const pr = paddingRight ?? p ?? 28;
+  const resolvedLabel = label ?? text ?? "Button";
   const isAutoWidth = width === "auto";
   const isPercentWidth = typeof width === "string" && width.includes("%");
 
@@ -154,7 +156,7 @@ export const Button = ({
       }}
       className={customClassName}
     >
-      {children ?? label}
+      {children ?? resolvedLabel}
     </button>
   );
 };
