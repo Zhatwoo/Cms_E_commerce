@@ -16,7 +16,68 @@ export interface BrandLogosBlockProps {
   headingColor?: string;
   brandColor?: string;
   brandBg?: string;
+  layoutStyle?: "single-row" | "two-rows" | "grid" | "minimal";
 }
+
+const LayoutThumb = ({ style, active, onClick, label }: { style: string; active: boolean; onClick: () => void; label: string }) => {
+  const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
+    active ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+  }`;
+  const c = active ? "var(--builder-accent)" : "#94a3b8";
+
+  let inner: React.ReactNode = null;
+  if (style === "single-row") {
+    inner = (
+      <div className="flex flex-row w-full h-full items-center justify-center p-1.5 gap-1">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c, opacity: 0.35 }} />
+        ))}
+      </div>
+    );
+  } else if (style === "two-rows") {
+    inner = (
+      <div className="flex flex-col w-full h-full items-center justify-center p-1.5 gap-1">
+        <div className="flex flex-row gap-1 justify-center">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c, opacity: 0.35 }} />
+          ))}
+        </div>
+        <div className="flex flex-row gap-1 justify-center">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="w-3.5 h-3 rounded-sm" style={{ backgroundColor: c, opacity: 0.35 }} />
+          ))}
+        </div>
+      </div>
+    );
+  } else if (style === "grid") {
+    inner = (
+      <div className="grid grid-cols-3 w-full h-full place-items-center p-1.5 gap-1">
+        {[...Array(6)].map((_, i) => (
+          <div key={i} className="w-3 h-3 rounded-sm" style={{ backgroundColor: c, opacity: 0.35 }} />
+        ))}
+      </div>
+    );
+  } else if (style === "minimal") {
+    inner = (
+      <div className="flex flex-row w-full h-full items-center justify-center p-1.5 gap-1">
+        {[...Array(4)].map((_, i) => (
+          <React.Fragment key={i}>
+            <div className="h-[3px] w-3 rounded-full" style={{ backgroundColor: c, opacity: 0.5 }} />
+            {i < 3 && <div className="h-[3px] w-[2px] rounded-full" style={{ backgroundColor: c, opacity: 0.25 }} />}
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1 cursor-pointer group" onClick={onClick}>
+      <div className={box}>{inner}</div>
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${active ? "text-builder-accent" : "text-builder-text-faint"}`}>{label}</span>
+    </div>
+  );
+};
 
 export const BrandLogosBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as BrandLogosBlockProps }));
@@ -26,8 +87,29 @@ export const BrandLogosBlockSettings = () => {
 
   const inputCls = "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
 
+  const layouts: { value: BrandLogosBlockProps["layoutStyle"]; label: string }[] = [
+    { value: "single-row", label: "Row" },
+    { value: "two-rows", label: "Two Rows" },
+    { value: "grid", label: "Grid" },
+    { value: "minimal", label: "Minimal" },
+  ];
+
   return (
     <div className="flex flex-col gap-0">
+      <DesignSection title="Layout" defaultOpen>
+        <div className="grid grid-cols-2 gap-2">
+          {layouts.map((l) => (
+            <LayoutThumb
+              key={l.value}
+              style={l.value!}
+              active={(props.layoutStyle ?? "single-row") === l.value}
+              onClick={() => set("layoutStyle", l.value)}
+              label={l.label}
+            />
+          ))}
+        </div>
+      </DesignSection>
+
       <DesignSection title="Content" defaultOpen>
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Heading</label>
@@ -80,10 +162,131 @@ export const BrandLogosBlock = ({
   headingColor = "#94a3b8",
   brandColor = "#cbd5e1",
   brandBg = "#f8fafc",
+  layoutStyle = "single-row",
 }: BrandLogosBlockProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
   const brands = [brand1, brand2, brand3, brand4, brand5];
+
+  const renderBrands = () => {
+    if (layoutStyle === "minimal") {
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 0,
+            width: "100%",
+          }}
+        >
+          {brands.map((brand, idx) => (
+            <React.Fragment key={idx}>
+              <span style={{ fontSize: 16, fontWeight: 600, color: brandColor, whiteSpace: "nowrap" }}>{brand}</span>
+              {idx < brands.length - 1 && (
+                <span style={{ fontSize: 16, fontWeight: 400, color: brandColor, opacity: 0.4, margin: "0 12px" }}>|</span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      );
+    }
+
+    if (layoutStyle === "grid") {
+      return (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: 16,
+            width: "100%",
+          }}
+        >
+          {brands.map((brand, idx) => (
+            <div
+              key={idx}
+              style={{
+                height: 72,
+                background: brandBg,
+                borderRadius: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <span style={{ fontSize: 16, fontWeight: 600, color: brandColor }}>{brand}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    if (layoutStyle === "two-rows") {
+      return (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 16,
+            justifyContent: "center",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          {brands.map((brand, idx) => (
+            <div
+              key={idx}
+              style={{
+                flex: idx < 3 ? "1 1 30%" : "1 1 45%",
+                maxWidth: idx < 3 ? "30%" : "45%",
+                height: 72,
+                background: brandBg,
+                borderRadius: 10,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <span style={{ fontSize: 16, fontWeight: 600, color: brandColor }}>{brand}</span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+
+    // single-row (default)
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 32,
+          justifyContent: "center",
+          alignItems: "center",
+          width: "100%",
+        }}
+      >
+        {brands.map((brand, idx) => (
+          <div
+            key={idx}
+            style={{
+              width: 160,
+              height: 72,
+              background: brandBg,
+              borderRadius: 10,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <span style={{ fontSize: 16, fontWeight: 600, color: brandColor }}>{brand}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <section
@@ -124,34 +327,7 @@ export const BrandLogosBlock = ({
           {heading}
         </p>
 
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: 32,
-            justifyContent: "center",
-            alignItems: "center",
-            width: "100%",
-          }}
-        >
-          {brands.map((brand, idx) => (
-            <div
-              key={idx}
-              style={{
-                width: 160,
-                height: 72,
-                background: brandBg,
-                borderRadius: 10,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ fontSize: 16, fontWeight: 600, color: brandColor }}>{brand}</span>
-            </div>
-          ))}
-        </div>
+        {renderBrands()}
 
         <div
           style={{
@@ -178,6 +354,7 @@ BrandLogosBlock.craft = {
     headingColor: "#94a3b8",
     brandColor: "#cbd5e1",
     brandBg: "#f8fafc",
+    layoutStyle: "single-row",
   },
   custom: {},
   related: { settings: BrandLogosBlockSettings },

@@ -18,7 +18,79 @@ export interface CTABannerBlockProps {
   primaryButtonColor?: string;
   primaryButtonTextColor?: string;
   minHeight?: number;
+  layoutStyle?: "horizontal" | "centered" | "stacked" | "split";
 }
+
+const LayoutThumb = ({ style, active, onClick, label }: { style: string; active: boolean; onClick: () => void; label: string }) => {
+  const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
+    active ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+  }`;
+  const c = active ? "var(--builder-accent)" : "#94a3b8";
+  const t = active ? "var(--builder-accent)" : "#cbd5e1";
+
+  let inner: React.ReactNode = null;
+
+  if (style === "horizontal") {
+    inner = (
+      <div className="flex flex-row items-center justify-between w-full px-2">
+        <div className="flex flex-col gap-[3px]">
+          <div style={{ width: 28, height: 3, borderRadius: 1, background: t }} />
+          <div style={{ width: 20, height: 2, borderRadius: 1, background: t, opacity: 0.5 }} />
+        </div>
+        <div className="flex flex-row gap-1">
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c }} />
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c, opacity: 0.4 }} />
+        </div>
+      </div>
+    );
+  } else if (style === "centered") {
+    inner = (
+      <div className="flex flex-col items-center justify-center w-full gap-[4px]">
+        <div style={{ width: 28, height: 3, borderRadius: 1, background: t }} />
+        <div style={{ width: 20, height: 2, borderRadius: 1, background: t, opacity: 0.5 }} />
+        <div className="flex flex-row gap-1 mt-1">
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c }} />
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c, opacity: 0.4 }} />
+        </div>
+      </div>
+    );
+  } else if (style === "stacked") {
+    inner = (
+      <div className="flex flex-col items-center justify-center w-full gap-[4px]">
+        <div className="flex flex-col gap-[3px] w-full px-2">
+          <div style={{ width: "100%", height: 3, borderRadius: 1, background: t }} />
+          <div style={{ width: "70%", height: 2, borderRadius: 1, background: t, opacity: 0.5 }} />
+        </div>
+        <div className="flex flex-row gap-1 mt-1">
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c }} />
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c, opacity: 0.4 }} />
+        </div>
+      </div>
+    );
+  } else if (style === "split") {
+    inner = (
+      <div className="flex flex-row items-stretch w-full h-full">
+        <div className="flex-1 flex flex-col justify-center gap-[3px] px-2">
+          <div style={{ width: 24, height: 3, borderRadius: 1, background: t }} />
+          <div style={{ width: 16, height: 2, borderRadius: 1, background: t, opacity: 0.5 }} />
+        </div>
+        <div style={{ width: 1, background: c, opacity: 0.3 }} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-1 px-2">
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c }} />
+          <div style={{ width: 12, height: 6, borderRadius: 2, background: c, opacity: 0.4 }} />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1 cursor-pointer group" onClick={onClick}>
+      <div className={box}>{inner}</div>
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${active ? "text-builder-accent" : "text-builder-text-faint"}`}>{label}</span>
+    </div>
+  );
+};
 
 export const CTABannerBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as CTABannerBlockProps }));
@@ -30,6 +102,20 @@ export const CTABannerBlockSettings = () => {
 
   return (
     <div className="flex flex-col gap-0">
+      <DesignSection title="Layout" defaultOpen>
+        <div className="grid grid-cols-2 gap-2">
+          {(["horizontal", "centered", "stacked", "split"] as const).map((s) => (
+            <LayoutThumb
+              key={s}
+              style={s}
+              label={s}
+              active={(props.layoutStyle ?? "horizontal") === s}
+              onClick={() => set("layoutStyle", s)}
+            />
+          ))}
+        </div>
+      </DesignSection>
+
       <DesignSection title="Content" defaultOpen>
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Heading</label>
@@ -96,6 +182,7 @@ export const CTABannerBlock = ({
   primaryButtonColor = "#ffffff",
   primaryButtonTextColor = "#6366f1",
   minHeight = 300,
+  layoutStyle = "horizontal",
 }: CTABannerBlockProps) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -119,51 +206,108 @@ export const CTABannerBlock = ({
           width: "100%",
           padding: "72px 40px",
           display: "flex",
-          flexDirection: "row",
+          flexDirection: layoutStyle === "horizontal" || layoutStyle === "split" ? "row" : "column",
           flexWrap: "wrap",
           gap: 32,
-          justifyContent: "space-between",
-          alignItems: "center",
+          justifyContent: layoutStyle === "horizontal" ? "space-between" : "center",
+          alignItems: layoutStyle === "centered" || layoutStyle === "stacked" ? "center" : layoutStyle === "split" ? "stretch" : "center",
           boxSizing: "border-box",
+          textAlign: layoutStyle === "centered" ? "center" : undefined,
         }}
       >
-        <div style={{ maxWidth: 560, display: "flex", flexDirection: "column", gap: 12 }}>
-          <p style={{ margin: 0, fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 700, color: headingColor, lineHeight: 1.2 }}>{heading}</p>
-          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: textColor, lineHeight: 1.6 }}>{subheading}</p>
-        </div>
+        {layoutStyle === "split" ? (
+          <>
+            <div style={{ flex: "1 1 50%", display: "flex", flexDirection: "column", gap: 12, justifyContent: "center" }}>
+              <p style={{ margin: 0, fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 700, color: headingColor, lineHeight: 1.2 }}>{heading}</p>
+              <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: textColor, lineHeight: 1.6 }}>{subheading}</p>
+            </div>
+            <div style={{ flex: "1 1 50%", display: "flex", flexDirection: "column", gap: 12, alignItems: "center", justifyContent: "center" }}>
+              <button
+                type="button"
+                style={{
+                  background: primaryButtonColor,
+                  color: primaryButtonTextColor,
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                }}
+              >
+                {primaryLabel}
+              </button>
+              <button
+                type="button"
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  color: "#ffffff",
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                }}
+              >
+                {secondaryLabel}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{
+              maxWidth: layoutStyle === "horizontal" ? 560 : undefined,
+              width: layoutStyle === "stacked" ? "100%" : undefined,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              alignItems: layoutStyle === "centered" ? "center" : undefined,
+            }}>
+              <p style={{ margin: 0, fontSize: "clamp(22px, 4vw, 32px)", fontWeight: 700, color: headingColor, lineHeight: 1.2 }}>{heading}</p>
+              <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: textColor, lineHeight: 1.6 }}>{subheading}</p>
+            </div>
 
-        <div style={{ display: "flex", flexDirection: "row", gap: 12, flexWrap: "wrap" }}>
-          <button
-            type="button"
-            style={{
-              background: primaryButtonColor,
-              color: primaryButtonTextColor,
-              border: "none",
-              fontSize: 14,
-              fontWeight: 700,
-              padding: "14px 32px",
-              borderRadius: 10,
-              cursor: "pointer",
-            }}
-          >
-            {primaryLabel}
-          </button>
-          <button
-            type="button"
-            style={{
-              background: "rgba(255,255,255,0.15)",
-              color: "#ffffff",
-              border: "none",
-              fontSize: 14,
-              fontWeight: 700,
-              padding: "14px 32px",
-              borderRadius: 10,
-              cursor: "pointer",
-            }}
-          >
-            {secondaryLabel}
-          </button>
-        </div>
+            <div style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: 12,
+              flexWrap: "wrap",
+              justifyContent: layoutStyle === "centered" || layoutStyle === "stacked" ? "center" : undefined,
+            }}>
+              <button
+                type="button"
+                style={{
+                  background: primaryButtonColor,
+                  color: primaryButtonTextColor,
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                }}
+              >
+                {primaryLabel}
+              </button>
+              <button
+                type="button"
+                style={{
+                  background: "rgba(255,255,255,0.15)",
+                  color: "#ffffff",
+                  border: "none",
+                  fontSize: 14,
+                  fontWeight: 700,
+                  padding: "14px 32px",
+                  borderRadius: 10,
+                  cursor: "pointer",
+                }}
+              >
+                {secondaryLabel}
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </section>
   );
@@ -183,6 +327,7 @@ CTABannerBlock.craft = {
     primaryButtonColor: "#ffffff",
     primaryButtonTextColor: "#6366f1",
     minHeight: 300,
+    layoutStyle: "horizontal",
   },
   custom: {},
   related: { settings: CTABannerBlockSettings },
