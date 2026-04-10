@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 import { getSnapGuides, getBoundingRect, Rect, SnapGuide } from "./snapUtils";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 const DRAGGING_ATTR = "data-dragging";
 
@@ -151,6 +152,23 @@ function selectedToIds(raw: unknown): string[] {
   if (raw instanceof Set) return Array.from(raw);
   if (raw && typeof raw === "object") return Object.keys(raw as Record<string, unknown>);
   return [];
+}
+
+function findNodeIdFromPoint(clientX: number, clientY: number): string | null {
+  try {
+    const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+    for (const el of elements) {
+      if (!el) continue;
+      // Skip any panel/overlay UI so we can pick the real node underneath.
+      if (el.closest?.("[data-panel]")) continue;
+      const nodeEl = el.closest?.("[data-node-id]") as HTMLElement | null;
+      const id = nodeEl?.getAttribute?.("data-node-id") ?? null;
+      if (id) return id;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
 }
 
 function setDraggingStyle(doms: HTMLElement[], on: boolean) {
@@ -818,7 +836,6 @@ export const FigmaStyleDragHandler = () => {
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (target.closest("[data-canvas-interactive='true']")) return;
       if (document.body.dataset.spacePan === "true") return;
-      if (target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
@@ -826,9 +843,14 @@ export const FigmaStyleDragHandler = () => {
       const nodesMap = state.nodes as Record<string, { data?: { props?: { locked?: boolean } } }>;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
-      const selectedIdsAtMouseDown = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]);
-      let nodeIdFromTarget = findDeepestNodeId(target);
-      if (!nodeIdFromTarget && target.closest("[data-panel='resize-overlay']") && selectedIdsAtMouseDown.length > 0) {
+      const selectedIdsAtMouseDown = filterLeafSelectionIds(
+        selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]),
+        state.nodes
+      );
+      const onResizeOverlay = Boolean(target.closest("[data-panel='resize-overlay']"));
+      let nodeIdFromTarget = onResizeOverlay ? findNodeIdFromPoint(e.clientX, e.clientY) : findDeepestNodeId(target);
+      if (!nodeIdFromTarget) nodeIdFromTarget = findNodeIdFromPoint(e.clientX, e.clientY);
+      if (!nodeIdFromTarget && selectedIdsAtMouseDown.length > 0) {
         nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
       }
 
@@ -980,10 +1002,16 @@ export const FigmaStyleDragHandler = () => {
         }
 
         const state = queryRef.current.getState();
-        let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
+        let ids = filterLeafSelectionIds(
+          selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]),
+          state.nodes
+        );
 
         if (d.preferMultiDrag && d.clickedWasInSelection && d.selectionSnapshotIds.length > 1) {
-          const snapshotValid = d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]);
+          const snapshotValid = filterLeafSelectionIds(
+            d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]),
+            state.nodes
+          );
           if (snapshotValid.length > 1) {
             ids = snapshotValid;
             try {

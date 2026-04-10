@@ -378,6 +378,8 @@ export function ProfileLoginBlock({
           <img
             src={displayAvatar}
             alt={currentUser ? `${displayText} avatar` : "Profile"}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
             onError={() => setAvatarErrored(true)}
             style={{
               width: `${avatarSize}px`,
@@ -386,6 +388,7 @@ export function ProfileLoginBlock({
               objectFit: "cover",
               backgroundColor: "#d1d5db",
               flexShrink: 0,
+              WebkitUserDrag: "none",
             }}
           />
         ) : (

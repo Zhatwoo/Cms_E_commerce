@@ -20,6 +20,27 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
+function normalizeImageSource(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const repaired = raw
+    .replace(/ImageProducts_img%2F/gi, 'Products_img%2F')
+    .replace(/ImageProducts_img\//gi, 'Products_img/');
+
+  if (isImageSource(repaired)) return repaired;
+
+  const bucket = String(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  const looksLikeStoragePath = /^Products_img(?:\/|%2F)/i.test(repaired);
+  if (!bucket || !looksLikeStoragePath) return '';
+
+  const [pathPartRaw, queryRaw = ''] = repaired.split('?');
+  const pathPart = pathPartRaw.includes('%2F') ? pathPartRaw : encodeURIComponent(pathPartRaw);
+  const query = queryRaw.trim();
+  const suffix = query ? `?${query}` : '?alt=media';
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${pathPart}${suffix}`;
+}
+
 function getVariantGroups(product: Product): ProductVariant[] {
   return Array.isArray(product.variants)
     ? product.variants.filter((variant: ProductVariant) => Array.isArray(variant.options) && variant.options.length > 0)
@@ -55,7 +76,7 @@ function getSelectedVariantImage(product: Product, selectedOptions: Record<strin
     const selectedOptionId = selectedOptions[variant.id];
     if (!selectedOptionId) continue;
     const selectedOption = variant.options.find((option: any) => option.id === selectedOptionId);
-    const image = String(selectedOption?.image || '').trim();
+    const image = normalizeImageSource(selectedOption?.image);
     if (isImageSource(image)) return image;
   }
   return null;
@@ -127,7 +148,10 @@ export function ProductCard({
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
   const [showEditModal, setShowEditModal] = useState(false);
   const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
-  const imageValue = String(selectedVariantImage || product.image || '').trim();
+  const firstGalleryImage = Array.isArray(product.images)
+    ? product.images.map((img) => normalizeImageSource(img)).find((img) => isImageSource(img)) || ''
+    : '';
+  const imageValue = normalizeImageSource(selectedVariantImage || firstGalleryImage || product.image || '');
   const showImage = isImageSource(imageValue);
   const variantGroups = getVariantGroups(product);
   const colorVariant = variantGroups.find((variant) => variant.name.toLowerCase().includes('color'));

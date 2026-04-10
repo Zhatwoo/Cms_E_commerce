@@ -9,6 +9,9 @@ import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
 import { ProjectSwitchPill } from './ProjectSwitchPill';
 import { AnimatePresence, motion } from 'framer-motion';
+import { fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
+import { formatToPHTime } from '@/lib/dateUtils';
+import { Settings } from 'lucide-react';
 
 const SunIcon = () => (
     <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -116,11 +119,38 @@ const LogoutIcon = () => (
     </svg>
 );
 
-const NOTIFICATIONS: { id: number; text: string; time: string; unread: boolean }[] = [
-    { id: 1, text: 'Welcome to your dashboard!', time: '1m ago', unread: true },
-    { id: 2, text: 'New order received for project "Portfolio"', time: '2h ago', unread: false },
-    { id: 3, text: 'Your domain registration is complete.', time: '1d ago', unread: false },
-];
+function HeaderScrollbarStyles() {
+    return (
+        <style jsx global>{`
+            .header-notifications-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+            .header-notifications-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .header-notifications-scrollbar::-webkit-scrollbar-thumb {
+                background: rgba(255, 206, 0, 0.3);
+                border-radius: 10px;
+            }
+            .header-notifications-scrollbar::-webkit-scrollbar-thumb:hover {
+                background: rgba(255, 206, 0, 0.5);
+            }
+            @keyframes pulse-notification {
+                0%, 100% {
+                    opacity: 1;
+                    transform: scale(1);
+                }
+                50% {
+                    opacity: 0.7;
+                    transform: scale(1.2);
+                }
+            }
+            .notification-pulse {
+                animation: pulse-notification 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            }
+        `}</style>
+    );
+}
 
 type DashboardHeaderProps = {
     onMenuToggle: () => void;
@@ -135,6 +165,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const [showNotifications, setShowNotifications] = useState(false);
     const [scrolled, setScrolled] = useState(false);
     const [failedAvatarSrc, setFailedAvatarSrc] = useState<string | null>(null);
+    const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+    const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
     const emailPrefix = (user?.email || '').split('@')[0] || 'user';
     const usernameValue = String(user?.username || emailPrefix || '').replace(/^@+/, '');
     const profileName = String(user?.name || '').trim();
@@ -163,7 +195,26 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    const unreadCount = NOTIFICATIONS.filter((n) => n.unread).length;
+    useEffect(() => {
+        const loadNotifications = async () => {
+            if (showNotifications && notifications.length === 0) {
+                setIsLoadingNotifications(true);
+                try {
+                    const data = await fetchSharedNotifications();
+                    setNotifications(data);
+                } catch (error) {
+                    console.error('Failed to load notifications:', error);
+                }
+                setIsLoadingNotifications(false);
+            }
+        };
+        loadNotifications();
+        window.addEventListener('notificationsUpdate', loadNotifications);
+        return () => window.removeEventListener('notificationsUpdate', loadNotifications);
+    }, [showNotifications, notifications.length]);
+
+    const unreadCount = notifications.filter((n) => !n.read).length;
+    const recentNotifications = notifications.slice(0, 10); // Show 10 recent notifications
     const showProjectSwitch =
         pathname?.startsWith('/m_dashboard/products') ||
         pathname?.startsWith('/m_dashboard/inventory') ||
@@ -193,6 +244,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                     : scrolled ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(15,23,42,0.08)',
             }}
         >
+            <HeaderScrollbarStyles />
             <div className="relative flex items-center justify-between px-4 sm:px-6" style={{ height: '84px' }}>
                 <div className="flex items-center">
                     <button
@@ -235,25 +287,36 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                         >
                             <BellIcon />
                             {unreadCount > 0 && (
-                                <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-black" />
+                                <span className="notification-pulse absolute top-2 right-2 h-2 w-2 rounded-full bg-red-500 border border-white dark:border-black" />
                             )}
                         </button>
                         {showNotifications && (
                             <>
                                 <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
                                 <div
-                                    className="absolute right-0 mt-2 w-80 rounded-xl border shadow-xl z-20 backdrop-blur-md overflow-hidden"
-                                    style={{ backgroundColor: theme === 'dark' ? 'rgba(29, 29, 33, 0.95)' : 'rgba(255, 255, 255, 0.95)', borderColor: colors.border.faint }}
+                                    className="absolute right-0 mt-2 w-96 rounded-xl border shadow-xl z-20 backdrop-blur-md overflow-hidden"
+                                    style={{ backgroundColor: theme === 'dark' ? 'var(--builder-surface)' : 'rgba(255, 255, 255, 0.95)', borderColor: colors.border.faint }}
                                 >
-                                    <div className="px-4 py-3 border-b" style={{ borderColor: colors.border.faint }}>
-                                        <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Notifications</p>
+                                <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+                                        <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Recent Notifications</p>
+                                        <Link href="/m_dashboard/settings?tab=notifications" className="p-1 hover:opacity-80 transition-opacity" style={{ color: colors.accent.yellow }} title="Notification Settings" onClick={() => setShowNotifications(false)}>
+                                            <Settings size={18} />
+                                        </Link>
                                     </div>
-                                    <div className="max-h-64 overflow-y-auto">
-                                        {NOTIFICATIONS.length > 0 ? (
-                                            NOTIFICATIONS.map(n => (
-                                                <div key={n.id} className="px-4 py-3 border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer" style={{ borderColor: colors.border.faint }}>
-                                                    <p className="text-sm" style={{ color: colors.text.primary }}>{n.text}</p>
-                                                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{n.time}</p>
+                                    <div className="max-h-96 overflow-y-auto header-notifications-scrollbar">
+                                        {isLoadingNotifications ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#FFCE00] border-t-transparent"></div>
+                                            </div>
+                                        ) : recentNotifications.length > 0 ? (
+                                            recentNotifications.map(n => (
+                                                <div key={n.id} className={`px-4 py-3 border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer relative ${!n.read ? 'bg-black/2 dark:bg-white/5' : ''}`} style={{ borderColor: colors.border.faint }}>
+                                                    {!n.read && (
+                                                        <span className="absolute top-3 right-4 h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: colors.accent.yellow }} />
+                                                    )}
+                                                    <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{n.title}</p>
+                                                    <p className="text-xs mt-1" style={{ color: colors.text.secondary }}>{n.message}</p>
+                                                    <p className="text-xs mt-1" style={{ color: colors.text.muted }}>{formatToPHTime(n.time)}</p>
                                                 </div>
                                             ))
                                         ) : (
@@ -262,6 +325,14 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                             </p>
                                         )}
                                     </div>
+                                    <Link
+                                        href="/m_dashboard/notifications"
+                                        className="block w-full px-4 py-3 text-center text-sm font-semibold border-t transition-colors hover:bg-black/5 dark:hover:bg-white/10"
+                                        style={{ borderColor: colors.border.faint, color: colors.accent.yellow }}
+                                        onClick={() => setShowNotifications(false)}
+                                    >
+                                        See All Notifications
+                                    </Link>
                                 </div>
                             </>
                         )}

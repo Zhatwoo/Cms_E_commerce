@@ -1,5 +1,6 @@
 'use client';
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { getMe, updateProfile, uploadAvatarApi, type User as ApiUser, getUnionBankLink, getPayPalLink } from '@/lib/api';
@@ -55,6 +56,15 @@ export default function SettingsPage() {
     const [isLinking, setIsLinking] = useState(false);
     const [removingCardId, setRemovingCardId] = useState<string | null>(null);
     const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
+
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const tabParam = searchParams.get('tab') as SettingTab | null;
+        if (tabParam && ['general', 'notifications', 'security', 'billing'].includes(tabParam)) {
+            setActiveTab(tabParam);
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const fetchUser = async () => {

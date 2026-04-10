@@ -172,11 +172,11 @@ export const CenteredHeroBlock = ({
             minHeight: isCloseUp ? undefined : 360,
           }}
         >
-          <p style={{ margin: 0, fontSize: 48, fontWeight: 700, color: "#1e293b", lineHeight: 1.15 }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 18, color: "#64748b", lineHeight: 1.6 }}>{subtitle}</p>
+          <p style={{ margin: 0, fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 700, color: "#1e293b", lineHeight: 1.15 }}>{title}</p>
+          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 18px)", color: "#64748b", lineHeight: 1.6 }}>{subtitle}</p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center", width: "100%", marginTop: 8 }}>
-            <button type="button" style={{ background: "#3b82f6", color: "#fff", border: "none", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: 160 }}>{primaryLabel}</button>
-            <button type="button" style={{ background: "transparent", color: "#64748b", border: "1px solid #e2e8f0", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: 160 }}>{secondaryLabel}</button>
+            <button type="button" style={{ background: "#3b82f6", color: "#fff", border: "none", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: "min(160px, 100%)" }}>{primaryLabel}</button>
+            <button type="button" style={{ background: "transparent", color: "#64748b", border: "1px solid #e2e8f0", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: "min(160px, 100%)" }}>{secondaryLabel}</button>
           </div>
         </div>
       </div>

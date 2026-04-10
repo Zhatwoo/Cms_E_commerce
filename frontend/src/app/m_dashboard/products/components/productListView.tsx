@@ -70,6 +70,27 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
+function normalizeImageSource(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const repaired = raw
+    .replace(/ImageProducts_img%2F/gi, 'Products_img%2F')
+    .replace(/ImageProducts_img\//gi, 'Products_img/');
+
+  if (isImageSource(repaired)) return repaired;
+
+  const bucket = String(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  const looksLikeStoragePath = /^Products_img(?:\/|%2F)/i.test(repaired);
+  if (!bucket || !looksLikeStoragePath) return '';
+
+  const [pathPartRaw, queryRaw = ''] = repaired.split('?');
+  const pathPart = pathPartRaw.includes('%2F') ? pathPartRaw : encodeURIComponent(pathPartRaw);
+  const query = queryRaw.trim();
+  const suffix = query ? `?${query}` : '?alt=media';
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${pathPart}${suffix}`;
+}
+
 function getVariantLabelsForList(product: Product): string[] {
   const groups = getVariantGroups(product);
   if (groups.length === 0) return ['NO VARIANT'];
@@ -217,7 +238,12 @@ export function ProductListView({
         </div>
 
         {products.map((product, index) => {
-          const image = String(product.image || '').trim();
+          const firstGalleryImage = Array.isArray(product.images)
+            ? product.images
+              .map((img) => normalizeImageSource(img))
+              .find((img) => isImageSource(img)) || ''
+            : '';
+          const image = normalizeImageSource(firstGalleryImage || product.image || '');
           const showThumb = isImageSource(image);
           const variantLabels = getVariantLabelsForList(product);
 

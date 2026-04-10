@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
+import { selectedToIds } from "../_lib/canvasActions";
 
 /**
  * Handles multi-selection on the canvas via mousedown on capture phase.
@@ -29,6 +30,17 @@ export const CanvasSelectionHandler = () => {
   }, [activeTool, actions]);
 
   useEffect(() => {
+    const isSideOrToolPanel = (el: HTMLElement | null): boolean => {
+      if (!el) return false;
+      return Boolean(
+        el.closest("[data-panel='left']") ||
+          el.closest("[data-panel='right']") ||
+          el.closest("[data-panel='configs']") ||
+          el.closest("[data-panel='top-controls']") ||
+          el.closest("[data-panel='bottom-tools']")
+      );
+    };
+
     const findDeepestNodeId = (element: HTMLElement | null): string | null => {
       if (!element) return null;
       const selfId = element.getAttribute("data-node-id");
@@ -39,6 +51,22 @@ export const CanvasSelectionHandler = () => {
         const id = current.getAttribute("data-node-id");
         if (id) return id;
         current = current.parentElement;
+      }
+      return null;
+    };
+
+    const findNodeIdFromPoint = (clientX: number, clientY: number): string | null => {
+      try {
+        const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+        for (const el of elements) {
+          if (!el) continue;
+          if (isSideOrToolPanel(el)) continue;
+          const nodeEl = el.closest?.("[data-node-id]") as HTMLElement | null;
+          const id = nodeEl?.getAttribute?.("data-node-id") ?? null;
+          if (id) return id;
+        }
+      } catch {
+        // ignore
       }
       return null;
     };
@@ -58,10 +86,15 @@ export const CanvasSelectionHandler = () => {
       const tag = target.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
 
-      // Ignore clicks inside panel areas (left/right panels, bottom bar)
-      if (target.closest("[data-panel]")) return;
+      // Ignore clicks inside actual UI panels (left/right/settings/toolbars).
+      // Do NOT ignore canvas overlays (resize-overlay, labels, marquee, etc.) because
+      // they sit on top of the canvas and would block selecting inner components.
+      if (isSideOrToolPanel(target)) return;
 
-      const nodeId = findDeepestNodeId(target);
+      const onOverlay = Boolean(target.closest("[data-panel='resize-overlay']"));
+      const nodeId = onOverlay
+        ? findNodeIdFromPoint(e.clientX, e.clientY)
+        : findDeepestNodeId(target) ?? findNodeIdFromPoint(e.clientX, e.clientY);
       const isMulti = e.ctrlKey || e.metaKey;
       const isRange = e.shiftKey;
 
@@ -71,21 +104,12 @@ export const CanvasSelectionHandler = () => {
 
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
-      // Normalize current selection to string[]
-      const raw = state.events.selected;
-      const currentIds: string[] = Array.isArray(raw)
-        ? raw
-        : raw instanceof Set
-          ? Array.from(raw)
-          : raw && typeof raw === "object"
-            ? Object.keys(raw)
-            : [];
+      const currentIds = selectedToIds(state.events.selected).filter(exists);
 
-      const safeSelect = (payload: string | string[] | null) => {
+      const safeSelect = (payload?: string | string[] | null) => {
         try {
-          if (payload !== null) {
-            actions.selectNode(payload);
-          }
+          if (payload === null || payload === undefined) actions.selectNode(undefined);
+          else actions.selectNode(payload);
         } catch {
           try { actions.selectNode(undefined); } catch { /* ignore */ }
         }

@@ -57,7 +57,7 @@ export const StudioFooter: TemplateEntry = {
           canvas: true,
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           gap: 16,
         },
         React.createElement(
@@ -106,7 +106,7 @@ export const StudioFooter: TemplateEntry = {
           canvas: true,
           alignItems: "flex-start",
           justifyContent: "space-between",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           gap: 24,
         },
         React.createElement(
@@ -221,7 +221,7 @@ export const StudioFooter: TemplateEntry = {
           canvas: true,
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
         },
         React.createElement(Text as any, {
           text: "© 2026 CMS Commerce",
@@ -236,7 +236,7 @@ export const StudioFooter: TemplateEntry = {
             canvas: true,
             alignItems: "center",
             justifyContent: "flex-end",
-            flexWrap: "nowrap",
+            flexWrap: "wrap",
             gap: 18,
           },
           React.createElement(Text as any, { text: "Privacy", fontSize: 11, color: "#aa9fdb" }),
