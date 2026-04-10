@@ -30,6 +30,8 @@ import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, sched
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -876,6 +878,7 @@ function PreviewContent() {
     if (!craftPreviewData) return null;
     return readPageDimensionsFromCraftSnapshot(craftPreviewData, selectedPreviewPageSlug);
   }, [craftPreviewData, selectedPreviewPageSlug]);
+  const canUseCraftCanvasPreview = Boolean(craftPreviewData);
 
   const craftDesktopPreviewStyle = useMemo<React.CSSProperties>(() => {
     const fallback: React.CSSProperties = { width: "100%" };
@@ -1172,7 +1175,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      // Publish the same normalized document that drives the current Preview output.
+      const docToPublish = effectiveCleanDoc ? migratePublishedContent(effectiveCleanDoc) : null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -1228,7 +1232,8 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      // Publish the same normalized document that drives the current Preview output.
+      const docToPublish = effectiveCleanDoc ? migratePublishedContent(effectiveCleanDoc) : null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -1451,17 +1456,24 @@ function PreviewContent() {
                     className="w-full min-w-0 preview-fadein bg-white"
                     style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }}
                   >
-                    <WebPreview
-                      key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
-                      doc={effectiveCleanDoc}
-                      pageIndex={selectedPreviewPageIndex}
-                      initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                      mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                      enableFormInputs
-                      builderParityMode={true}
-                      fillViewport={false}
-                      storeContext={previewStoreContext}
-                    />
+                    {canUseCraftCanvasPreview && craftPreviewData ? (
+                      <CraftCanvasPreview
+                        key={`preview-craft-desktop-${selectedPreviewPage?.slug ?? "default"}`}
+                        data={craftPreviewData}
+                      />
+                    ) : (
+                      <WebPreview
+                        key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
+                        doc={effectiveCleanDoc}
+                        pageIndex={selectedPreviewPageIndex}
+                        initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                        enableFormInputs
+                        builderParityMode={true}
+                        fillViewport={false}
+                        storeContext={previewStoreContext}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -1484,19 +1496,26 @@ function PreviewContent() {
                         <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                       </div>
                       <div ref={previewRef}>
-                        <WebPreview
-                          key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
-                          doc={effectiveCleanDoc}
-                          pageIndex={selectedPreviewPageIndex}
-                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
-                          enableFormInputs
-                          builderParityMode={true}
-                          fillViewport
-                          storeContext={previewStoreContext}
-                          simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                          responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                        />
+                        {canUseCraftCanvasPreview && craftPreviewData ? (
+                          <CraftCanvasPreview
+                            key={`preview-craft-tablet-${selectedPreviewPage?.slug ?? "default"}`}
+                            data={craftPreviewData}
+                          />
+                        ) : (
+                          <WebPreview
+                            key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
+                            doc={effectiveCleanDoc}
+                            pageIndex={selectedPreviewPageIndex}
+                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                            mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
+                            enableFormInputs
+                            builderParityMode={true}
+                            fillViewport
+                            storeContext={previewStoreContext}
+                            simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                            responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1512,19 +1531,26 @@ function PreviewContent() {
                     >
                       <div className="device-notch"><div className="device-notch-pill" /></div>
                       <div ref={previewRef}>
-                        <WebPreview
-                          key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
-                          doc={effectiveCleanDoc}
-                          pageIndex={selectedPreviewPageIndex}
-                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                          enableFormInputs
-                          builderParityMode={true}
-                          fillViewport
-                          storeContext={previewStoreContext}
-                          simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                          responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                        />
+                        {canUseCraftCanvasPreview && craftPreviewData ? (
+                          <CraftCanvasPreview
+                            key={`preview-craft-mobile-${selectedPreviewPage?.slug ?? "default"}`}
+                            data={craftPreviewData}
+                          />
+                        ) : (
+                          <WebPreview
+                            key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
+                            doc={effectiveCleanDoc}
+                            pageIndex={selectedPreviewPageIndex}
+                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                            mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                            enableFormInputs
+                            builderParityMode={true}
+                            fillViewport
+                            storeContext={previewStoreContext}
+                            simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                            responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                          />
+                        )}
                       </div>
                       <div className="device-home-bar"><div className="device-home-pill" /></div>
                     </div>

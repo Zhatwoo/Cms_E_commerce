@@ -6,7 +6,7 @@ import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
 import { migratePublishedContent } from '@/app/design/_lib/contentMigration';
-import { PREVIEW_TABLET_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
+import { PREVIEW_MOBILE_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { apiFetch } from '@/lib/api';
 import { StorefrontProvider, useStorefront } from '@/app/sites/_storefront/StorefrontContext';
@@ -199,17 +199,51 @@ function PublicSiteContent() {
     );
   }
 
+  const firstPageProps = (doc.pages?.[0]?.props ?? {}) as Record<string, unknown>;
+  const rawPageWidth = firstPageProps.width;
+  const rawPageHeight = firstPageProps.height;
+  const publishedPageStyle: React.CSSProperties = (() => {
+    const style: React.CSSProperties = { width: "100%" };
+    if (typeof rawPageWidth === "number" && Number.isFinite(rawPageWidth) && rawPageWidth > 0) {
+      style.width = `${rawPageWidth}px`;
+      style.minWidth = `${rawPageWidth}px`;
+    } else if (typeof rawPageWidth === "string" && rawPageWidth.trim()) {
+      const trimmed = rawPageWidth.trim();
+      const lower = trimmed.toLowerCase();
+      const isFluid =
+        lower.includes("%") ||
+        lower.includes("vw") ||
+        lower.startsWith("min(") ||
+        lower.startsWith("max(") ||
+        lower.startsWith("clamp(");
+      style.width = trimmed;
+      if (!isFluid) style.minWidth = trimmed;
+    }
+
+    if (rawPageHeight === "auto") {
+      style.height = "auto";
+    } else if (typeof rawPageHeight === "number" && Number.isFinite(rawPageHeight) && rawPageHeight > 0) {
+      style.height = `${rawPageHeight}px`;
+    } else if (typeof rawPageHeight === "string" && rawPageHeight.trim()) {
+      style.height = rawPageHeight.trim();
+    }
+    return style;
+  })();
+
   return (
     <StorefrontRenderBoundary>
       <>
-        <WebPreview
-          doc={doc}
-          pageIndex={0}
-          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
-          enableFormInputs
-          builderParityMode={false}
-          storeContext={{ products, addToCart }}
-        />
+        <div className="w-full min-w-0 bg-white" style={publishedPageStyle}>
+          <WebPreview
+            doc={doc}
+            pageIndex={0}
+            mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+            enableFormInputs
+            builderParityMode={true}
+            fillViewport={false}
+            storeContext={{ products, addToCart }}
+          />
+        </div>
         <CartFab />
         <CartDrawer />
       </>
