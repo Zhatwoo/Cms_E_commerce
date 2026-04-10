@@ -48,6 +48,10 @@ import { HeroBannerCTA_v2Block } from "../../_assets/Hero/HeroBannerCTA_v2Block"
 import { HeroBannerCTABlock } from "../../_assets/Hero/HeroBannerCTABlock";
 import { HeroWithImageBlock } from "../../_assets/Hero/HeroWithImageBlock";
 import { CenteredHeroBlock } from "../../_assets/Hero/CenteredHeroBlock";
+import { SplitScreenHeroBlock } from "../../_assets/Hero/SplitScreenHeroBlock";
+import { MinimalTypeHeroBlock } from "../../_assets/Hero/MinimalTypeHeroBlock";
+import { VideoStyleHeroBlock } from "../../_assets/Hero/VideoStyleHeroBlock";
+import { CollectionHeroBlock } from "../../_assets/Hero/CollectionHeroBlock";
 import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
 
@@ -169,6 +173,10 @@ export function buildCraftResolver(): Resolver {
   const HeroBannerCTABlockComp = asComponent(HeroBannerCTABlock, ContainerComp);
   const HeroWithImageBlockComp = asComponent(HeroWithImageBlock, ContainerComp);
   const CenteredHeroBlockComp = asComponent(CenteredHeroBlock, ContainerComp);
+  const SplitScreenHeroBlockComp = asComponent(SplitScreenHeroBlock, ContainerComp);
+  const MinimalTypeHeroBlockComp = asComponent(MinimalTypeHeroBlock, ContainerComp);
+  const VideoStyleHeroBlockComp = asComponent(VideoStyleHeroBlock, ContainerComp);
+  const CollectionHeroBlockComp = asComponent(CollectionHeroBlock, ContainerComp);
   const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
@@ -294,6 +302,18 @@ export function buildCraftResolver(): Resolver {
     CenteredHeroBlock: CenteredHeroBlockComp,
     centeredheroblock: CenteredHeroBlockComp,
     "Centered Hero Block": CenteredHeroBlockComp,
+    SplitScreenHeroBlock: SplitScreenHeroBlockComp,
+    splitscreenheroblock: SplitScreenHeroBlockComp,
+    "Split Screen Hero Block": SplitScreenHeroBlockComp,
+    MinimalTypeHeroBlock: MinimalTypeHeroBlockComp,
+    minimaltypeheroblock: MinimalTypeHeroBlockComp,
+    "Minimal Type Hero Block": MinimalTypeHeroBlockComp,
+    VideoStyleHeroBlock: VideoStyleHeroBlockComp,
+    videostyleheroblock: VideoStyleHeroBlockComp,
+    "Video Style Hero Block": VideoStyleHeroBlockComp,
+    CollectionHeroBlock: CollectionHeroBlockComp,
+    collectionheroblock: CollectionHeroBlockComp,
+    "Collection Hero Block": CollectionHeroBlockComp,
     CategoryTile: CategoryTileComp,
     categorytile: CategoryTileComp,
     "Category Tile": CategoryTileComp,
@@ -330,6 +350,10 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "HeroBannerCTABlock", HeroBannerCTABlockComp, ["Hero Banner CTA Block", "herobannerctablock"]);
   addAliases(base, "HeroWithImageBlock", HeroWithImageBlockComp, ["Hero With Image Block", "herowithimageblock"]);
   addAliases(base, "CenteredHeroBlock", CenteredHeroBlockComp, ["Centered Hero Block", "centeredheroblock"]);
+  addAliases(base, "SplitScreenHeroBlock", SplitScreenHeroBlockComp, ["Split Screen Hero Block", "splitscreenheroblock"]);
+  addAliases(base, "MinimalTypeHeroBlock", MinimalTypeHeroBlockComp, ["Minimal Type Hero Block", "minimaltypeheroblock"]);
+  addAliases(base, "VideoStyleHeroBlock", VideoStyleHeroBlockComp, ["Video Style Hero Block", "videostyleheroblock"]);
+  addAliases(base, "CollectionHeroBlock", CollectionHeroBlockComp, ["Collection Hero Block", "collectionheroblock"]);
   return withResolverFallback(base);
 }
 

@@ -8,8 +8,8 @@ import {
   HeaderWithMegamenu,
   ProfileLogin
 } from "./Header";
-import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2 } from "./Hero";
-import { FeaturesGrid, Testimonial } from "./Content";
+import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, SplitScreenHero, MinimalTypeHero, VideoStyleHero, CollectionHero } from "./Hero";
+import { FeaturesGrid, Testimonial, StatsCounter, NewsletterCTA, ImageText, BrandLogos, CTABanner } from "./Content";
 import {
   ProductCard,
   TeamMemberCard,
@@ -184,8 +184,17 @@ export const TEMPLATES: TemplateEntry[] = [
   HeroWithImage,
   HeroBannerCTA,
   HeroBannerCTA_v2,
+  SplitScreenHero,
+  MinimalTypeHero,
+  VideoStyleHero,
+  CollectionHero,
   FeaturesGrid,
   Testimonial,
+  StatsCounter,
+  NewsletterCTA,
+  ImageText,
+  BrandLogos,
+  CTABanner,
   ProductCard,
   TeamMemberCard,
   ProductsOverview,
@@ -247,11 +256,11 @@ export const GROUPED_TEMPLATES = [
   },
   {
     folder: "Hero",
-    items: [CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2],
+    items: [CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, SplitScreenHero, MinimalTypeHero, VideoStyleHero, CollectionHero],
   },
   {
     folder: "Content",
-    items: [FeaturesGrid, Testimonial],
+    items: [FeaturesGrid, Testimonial, StatsCounter, NewsletterCTA, ImageText, BrandLogos, CTABanner],
   },
   {
     folder: "Cards",

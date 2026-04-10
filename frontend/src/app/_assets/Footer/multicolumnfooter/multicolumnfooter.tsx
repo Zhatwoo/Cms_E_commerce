@@ -115,7 +115,7 @@ export const MultiColumnFooter: TemplateEntry = {
         },
         React.createElement(
           Element as any,
-          { is: Row as any, canvas: true, gap: 18, flexWrap: "nowrap", alignItems: "center" },
+          { is: Row as any, canvas: true, gap: 18, flexWrap: "wrap", alignItems: "center" },
           React.createElement(
             Element as any,
             { is: Column as any, width: "16%", padding: 0, gap: 0, canvas: true, alignItems: "flex-start" },
@@ -153,7 +153,7 @@ export const MultiColumnFooter: TemplateEntry = {
               },
               React.createElement(
                 Element as any,
-                { is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "center", flexWrap: "nowrap" },
+                { is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" },
                 React.createElement(Text as any, { text: "Email", fontSize: 12, color: "#949494" }),
                 React.createElement(Text as any, { text: ">", fontSize: 14, color: "#949494" })
               )
@@ -187,13 +187,13 @@ export const MultiColumnFooter: TemplateEntry = {
         },
         React.createElement(
           Element as any,
-          { is: Row as any, canvas: true, gap: 18, flexWrap: "nowrap", alignItems: "flex-start" },
+          { is: Row as any, canvas: true, gap: 18, flexWrap: "wrap", alignItems: "flex-start" },
           React.createElement(
             Element as any,
             { is: Column as any, width: "36%", padding: 0, gap: 8, canvas: true, alignItems: "flex-start" },
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, gap: 8, alignItems: "center", flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, gap: 8, alignItems: "center", flexWrap: "wrap" },
               React.createElement(
                 Element as any,
                 {
@@ -254,7 +254,7 @@ export const MultiColumnFooter: TemplateEntry = {
             { is: Column as any, width: "24%", padding: 0, gap: 8, canvas: true, alignItems: "flex-start" },
             React.createElement(
               Element as any,
-              { is: Row as any, canvas: true, gap: 10, alignItems: "flex-start", flexWrap: "nowrap" },
+              { is: Row as any, canvas: true, gap: 10, alignItems: "flex-start", flexWrap: "wrap" },
               React.createElement(
                 Element as any,
                 {
@@ -295,7 +295,7 @@ export const MultiColumnFooter: TemplateEntry = {
         ),
         React.createElement(
           Element as any,
-          { is: Row as any, canvas: true, gap: 18, flexWrap: "nowrap", alignItems: "flex-start", marginTop: 14 },
+          { is: Row as any, canvas: true, gap: 18, flexWrap: "wrap", alignItems: "flex-start", marginTop: 14 },
           React.createElement(Element as any, { is: Column as any, width: "36%", padding: 0, gap: 0, canvas: true }),
           React.createElement(
             Element as any,
@@ -342,10 +342,10 @@ export const MultiColumnFooter: TemplateEntry = {
         },
         React.createElement(
           Element as any,
-          { is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "center", flexWrap: "nowrap" },
+          { is: Row as any, canvas: true, justifyContent: "space-between", alignItems: "center", flexWrap: "wrap" },
           React.createElement(
             Element as any,
-            { is: Row as any, canvas: true, gap: 0, alignItems: "center", flexWrap: "nowrap" },
+            { is: Row as any, canvas: true, gap: 0, alignItems: "center", flexWrap: "wrap" },
             React.createElement(Text as any, { text: "Privacy Policy", fontSize: 10, color: "#e5e5e5" }),
             React.createElement(Text as any, { text: "|", fontSize: 10, color: "#8f8f8f", marginLeft: 12, marginRight: 12 }),
             React.createElement(Text as any, { text: "Our History", fontSize: 10, color: "#e5e5e5" }),

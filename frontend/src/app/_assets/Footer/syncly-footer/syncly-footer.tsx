@@ -112,7 +112,7 @@ export const SynclyFooter: TemplateEntry = {
               gap: 8,
               alignItems: "center",
               height: "auto",
-              flexWrap: "nowrap",
+              flexWrap: "wrap",
             },
             React.createElement(
               Element as any,
@@ -167,7 +167,7 @@ export const SynclyFooter: TemplateEntry = {
             alignItems: "flex-start",
             justifyContent: "flex-end",
             height: "auto",
-            flexWrap: "nowrap",
+            flexWrap: "wrap",
           },
           React.createElement(
             Element as any,

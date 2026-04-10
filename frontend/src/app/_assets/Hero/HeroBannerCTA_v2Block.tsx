@@ -223,7 +223,7 @@ export const HeroBannerCTA_v2Block = ({
         style={{
           width: "min(100%, 1280px)",
           minHeight,
-          padding: "80px 48px",
+          padding: "clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)",
           display: "flex",
           flexDirection: isCloseUp ? "column" : imageOnRight ? "row-reverse" : "row",
           alignItems: "stretch",
@@ -260,7 +260,7 @@ export const HeroBannerCTA_v2Block = ({
           <p
             style={{
               margin: 0,
-              fontSize: 28,
+              fontSize: "clamp(18px, 3vw, 28px)",
               fontWeight: 500,
               fontFamily: "Georgia, serif",
               color: "#000000",
@@ -271,7 +271,7 @@ export const HeroBannerCTA_v2Block = ({
           <p
             style={{
               margin: 0,
-              fontSize: 42,
+              fontSize: "clamp(24px, 5vw, 42px)",
               fontWeight: 700,
               lineHeight: 1.1,
               fontFamily: "Georgia, serif",
