@@ -5,6 +5,7 @@ import { useEditor } from "@craftjs/core";
 import { useTransformMode } from "./TransformModeContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 import { useCanvasTool } from "./CanvasToolContext";
+import { selectedToLeafIds } from "../_lib/canvasActions";
 
 /**
  * Double-click on a component/asset → enter transform mode (resize from corners + rotate).
@@ -34,7 +35,7 @@ export function DoubleClickTransformHandler() {
       if (onResizeOverlay) {
         try {
           const state = query.getState();
-          const selectedIds = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT");
+          const selectedIds = selectedToLeafIds(state.events.selected, state.nodes);
           if (selectedIds.length === 1) {
             const selectedId = selectedIds[0]!;
             const displayName = query.node(selectedId).get()?.data?.displayName as string | undefined;

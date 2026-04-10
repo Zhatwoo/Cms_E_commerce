@@ -5,6 +5,7 @@ import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 import { getSnapGuides, Rect } from "./snapUtils";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -656,7 +657,10 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           if (dragRef.current) {
             dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
 
-            const selectedIds = selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]);
+            const selectedIds = filterLeafSelectionIds(
+              selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]),
+              state.nodes
+            );
             const idsToMove = selectedIds.includes(nodeId) ? selectedIds : [nodeId];
             const moveItems = idsToMove
               .map((id) => {
