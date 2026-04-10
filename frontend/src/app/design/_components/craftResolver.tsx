@@ -85,13 +85,26 @@ function withResolverFallback<T extends Resolver>(base: T): T {
     },
     has(target, prop) {
       if (Reflect.has(target, prop)) return true;
-      if (typeof prop !== "string") {
-        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      if (typeof prop === "string") return true;
+      return !!(target.Container || target.container);
+    },
+    ownKeys(target) {
+      const keys = Reflect.ownKeys(target);
+      if (!keys.includes("Container")) keys.push("Container");
+      return keys;
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+      if (desc) return desc;
+      if (typeof prop === "string") {
+        return {
+          enumerable: true,
+          configurable: true,
+          writable: false,
+          value: target.Container || Container,
+        };
       }
-
-      // Keep Craft from throwing when a saved/dragged node uses an unexpected
-      // name variant; `get()` will still return a safe fallback component.
-      return true;
+      return undefined;
     },
   }) as T;
 }
@@ -104,7 +117,15 @@ function withResolverFallback<T extends Resolver>(base: T): T {
 export function buildCraftResolver(): Resolver {
   const ContainerComp: React.ComponentType<any> =
     (typeof Container === "function" ? Container : null) ??
-    ((props: any) => React.createElement("div", props, props?.children));
+    ((props: any) => {
+      const {
+        background, paddingTop, paddingRight, paddingBottom, paddingLeft,
+        width, height, borderRadius, borderColor, borderWidth, borderStyle,
+        alignItems, justifyContent, flexDirection, flexWrap, gap,
+        canvas, isFreeform, anchorPoints, ...domProps
+      } = props;
+      return React.createElement("div", { ...domProps, style: { background, ...props.style } }, props.children);
+    });
   const TextComp = asComponent(Text, ContainerComp);
   const ImageComp = asComponent(Image, ContainerComp);
   const VideoComp = asComponent(Video, ContainerComp);
@@ -309,7 +330,7 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "HeroBannerCTABlock", HeroBannerCTABlockComp, ["Hero Banner CTA Block", "herobannerctablock"]);
   addAliases(base, "HeroWithImageBlock", HeroWithImageBlockComp, ["Hero With Image Block", "herowithimageblock"]);
   addAliases(base, "CenteredHeroBlock", CenteredHeroBlockComp, ["Centered Hero Block", "centeredheroblock"]);
-  return base;
+  return withResolverFallback(base);
 }
 
 /** Shared plain resolver map for editor/preview usage. */

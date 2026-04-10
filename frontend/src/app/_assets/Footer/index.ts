@@ -7,3 +7,6 @@ export { MarketplaceFooter } from "./marketplace-footer/marketplace-footer";
 export { DarkCommerceFooter } from "./dark-commerce-footer/dark-commerce-footer";
 export { CentricFooter } from "./centric-footer/centric-footer";
 export { BrutalistFooter } from "./brutalist-footer/brutalist-footer";
+export { NeoFooter } from "./neo-footer/neo-footer";
+export { SynclyFooter } from "./syncly-footer/syncly-footer";
+export { MinimalFooter } from "./minimal-footer/minimal-footer";
