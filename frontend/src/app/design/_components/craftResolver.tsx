@@ -61,7 +61,6 @@ import { BrandLogosBlock } from "../../_assets/Content/BrandLogosBlock";
 import { CTABannerBlock } from "../../_assets/Content/CTABannerBlock";
 import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
-import { NewsletterCTABlock } from "../../_assets/Content/NewsletterCTABlock";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -194,7 +193,6 @@ export function buildCraftResolver(): Resolver {
   const CTABannerBlockComp = asComponent(CTABannerBlock, ContainerComp);
   const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
-  const NewsletterCTABlockComp = asComponent(NewsletterCTABlock, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
