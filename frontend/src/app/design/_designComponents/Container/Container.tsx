@@ -16,9 +16,11 @@ function fluidSpace(value: number, min = 0): string {
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
-function normalizeContainerHeight(value: string | undefined): string {
-  if (value == null) return "240px";
-  return String(value).trim().toLowerCase() === "auto" ? "240px" : value;
+function normalizeContainerHeight(value: string | undefined, hasChildren: boolean): string {
+  if (value == null) return hasChildren ? "auto" : "240px";
+  const v = String(value).trim().toLowerCase();
+  // Allow 'auto' to actually be auto, but keep 240px fallback for empty drop zones
+  return v === "auto" ? "auto" : value;
 }
 
 function isColorLike(value: unknown): boolean {
@@ -109,7 +111,7 @@ export const Container = ({
 
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
   const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
-  const resolvedHeight = normalizeContainerHeight(height);
+  const resolvedHeight = normalizeContainerHeight(height, hasChildren);
 
   const wPx = parsePx(width);
   const hPx = parsePx(resolvedHeight);
