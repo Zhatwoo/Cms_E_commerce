@@ -30,147 +30,116 @@ export const SynclyFooter: TemplateEntry = {
     {
       is: Section as any,
       width: "100%",
-      // Mesh-like vibrant gradient background
       background: "linear-gradient(135deg, #8b5cf6 0%, #3b82f6 25%, #1e1b4b 50%, #171717 100%)",
-      paddingTop: 80,
+      paddingTop: 72,
       paddingBottom: 40,
-      paddingLeft: 60,
-      paddingRight: 60,
+      paddingLeft: 40,
+      paddingRight: 40,
       canvas: true,
       height: "auto",
       position: "relative",
       overflow: "hidden",
     },
-    // Decorative Blobs for Mesh Effect
-    React.createElement(Container as any, {
-      width: "800px",
-      height: "800px",
-      background: "radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%)",
-      position: "absolute",
-      top: "-200px",
-      right: "-100px",
-      borderRadius: 400,
-      zIndex: 1,
-    }),
-    React.createElement(Container as any, {
-      width: "600px",
-      height: "600px",
-      background: "radial-gradient(circle, rgba(59, 130, 246, 0.3) 0%, transparent 70%)",
-      position: "absolute",
-      bottom: "-100px",
-      left: "-100px",
-      borderRadius: 300,
-      zIndex: 1,
-    }),
-
-    // Content Wrapper
     React.createElement(
       Element as any,
       {
         is: Container as any,
         width: "100%",
-        maxWidth: "1280px",
         background: "transparent",
+        display: "flex",
+        flexDirection: "column",
+        gap: 52,
         canvas: true,
         height: "auto",
-        alignItems: "stretch",
+        padding: 0,
+        alignItems: "flex-start",
         position: "relative",
-        zIndex: 10,
+        zIndex: 2,
       },
-      // TOP SECTION: Heading and CTA
       React.createElement(
         Element as any,
         {
           is: Column as any,
           padding: 0,
-          marginBottom: 80,
           canvas: true,
           alignItems: "flex-start",
           height: "auto",
+          gap: 24,
+          width: "100%",
         },
         React.createElement(Text as any, {
           text: "Ready to start syncing your data?",
-          fontSize: 64,
+          fontSize: 58,
           color: "#ffffff",
-          fontWeight: "500",
-          marginBottom: 32,
+          fontWeight: "600",
+          marginBottom: 0,
           lineHeight: 1.1,
-          width: "600px",
+          width: "100%",
         }),
-        React.createElement(
-          Element as any,
-          {
-            is: Container as any,
-            background: "#ffffff",
-            paddingTop: 12,
-            paddingBottom: 12,
-            paddingLeft: 24,
-            paddingRight: 24,
-            borderRadius: 8,
-            canvas: true,
-            cursor: "pointer",
-            height: "auto",
-          },
-          React.createElement(Text as any, {
-            text: "Contact us",
-            fontSize: 16,
-            color: "#000000",
-            fontWeight: "500",
-          })
-        )
+        React.createElement(Button as any, {
+          variant: "cta",
+          label: "Contact us",
+          fontSize: 16,
+          fontWeight: "600",
+          borderRadius: 10,
+          paddingLeft: 32,
+          paddingRight: 32,
+          paddingTop: 14,
+          paddingBottom: 14,
+          backgroundColor: "#ffffff",
+          color: "#000000",
+        })
       ),
-
-      // BOTTOM SECTION: Newsletter + Links
       React.createElement(
         Element as any,
         {
           is: Row as any,
           canvas: true,
-          gap: 40,
+          gap: 24,
           alignItems: "flex-start",
           justifyContent: "space-between",
           height: "auto",
         },
-        // Newsletter Column
         React.createElement(
           Element as any,
           {
             is: Column as any,
-            width: "35%",
+            width: "38%",
             padding: 0,
             canvas: true,
             alignItems: "flex-start",
             height: "auto",
+            gap: 12,
           },
           React.createElement(Text as any, {
             text: "Newsletter",
             fontSize: 16,
             color: "#ffffff",
             fontWeight: "600",
-            marginBottom: 20,
+            marginBottom: 0,
           }),
           React.createElement(Text as any, {
             text: "We'd love to share our love for product with you in our monthly newsletter.",
             fontSize: 14,
             color: "rgba(255, 255, 255, 0.7)",
-            marginBottom: 24,
+            marginBottom: 10,
             lineHeight: 1.5,
           }),
-          // Input + Subscribe Row
           React.createElement(
             Element as any,
             {
               is: Row as any,
               canvas: true,
-              gap: 12,
+              gap: 8,
               alignItems: "center",
               height: "auto",
+              flexWrap: "nowrap",
             },
             React.createElement(
               Element as any,
               {
                 is: Container as any,
-                width: "240px",
+                width: "100%",
                 height: "44px",
                 background: "rgba(255, 255, 255, 0.1)",
                 borderRadius: 8,
@@ -179,6 +148,7 @@ export const SynclyFooter: TemplateEntry = {
                 paddingLeft: 16,
                 canvas: true,
                 alignItems: "center",
+                display: "flex",
               },
               React.createElement(Text as any, {
                 text: "Enter your email",
@@ -199,6 +169,9 @@ export const SynclyFooter: TemplateEntry = {
                 canvas: true,
                 cursor: "pointer",
                 height: "auto",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
               },
               React.createElement(Text as any, {
                 text: "Subscribe",
@@ -209,20 +182,18 @@ export const SynclyFooter: TemplateEntry = {
             )
           )
         ),
-
-        // Navigation Links
         React.createElement(
           Element as any,
           {
             is: Row as any,
-            width: "50%",
-            gap: 80,
+            width: "58%",
+            gap: 40,
             canvas: true,
             alignItems: "flex-start",
             justifyContent: "flex-end",
             height: "auto",
+            flexWrap: "nowrap",
           },
-          // Column 1
           React.createElement(
             Element as any,
             {
@@ -236,7 +207,6 @@ export const SynclyFooter: TemplateEntry = {
             footerLink("Benefits"),
             footerLink("Features")
           ),
-          // Column 2
           React.createElement(
             Element as any,
             {
@@ -251,7 +221,6 @@ export const SynclyFooter: TemplateEntry = {
             footerLink("Overview"),
             footerLink("Portfolio")
           ),
-          // Column 3
           React.createElement(
             Element as any,
             {
@@ -265,7 +234,6 @@ export const SynclyFooter: TemplateEntry = {
             footerLink("Connectors"),
             footerLink("Security"),
             footerLink("Contact Us"),
-            // Social Icons at bottom of this col
             React.createElement(
               Element as any,
               {
@@ -282,18 +250,19 @@ export const SynclyFooter: TemplateEntry = {
           )
         )
       ),
-
-      // COPYRIGHT
       React.createElement(
         Element as any,
         {
           is: Container as any,
           width: "100%",
-          marginTop: 60,
+          marginTop: 8,
           canvas: true,
           alignItems: "center",
           justifyContent: "center",
           height: "auto",
+          background: "transparent",
+          padding: 0,
+          display: "flex",
         },
         React.createElement(Text as any, {
           text: "© 2025 Syncly.",
