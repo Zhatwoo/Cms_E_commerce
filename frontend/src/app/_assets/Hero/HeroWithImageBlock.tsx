@@ -146,7 +146,7 @@ export const HeroWithImageBlock = ({
         <div
           style={{
             flex: 1,
-            minWidth: isCloseUp ? 280 : 360,
+            minWidth: "min(100%, 280px)",
             maxWidth: 560,
             display: "flex",
             flexDirection: "column",
@@ -155,15 +155,15 @@ export const HeroWithImageBlock = ({
             justifyContent: "center",
           }}
         >
-          <p style={{ margin: 0, fontSize: 40, fontWeight: 700, color: "#1e293b", lineHeight: 1.15 }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 16, color: "#64748b", lineHeight: 1.6 }}>{subtitle}</p>
-          <button type="button" style={{ background: "#10b981", color: "#ffffff", border: "none", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: 160 }}>{buttonLabel}</button>
+          <p style={{ margin: 0, fontSize: "clamp(26px, 5vw, 40px)", fontWeight: 700, color: "#1e293b", lineHeight: 1.15 }}>{title}</p>
+          <p style={{ margin: 0, fontSize: "clamp(14px, 2vw, 16px)", color: "#64748b", lineHeight: 1.6 }}>{subtitle}</p>
+          <button type="button" style={{ background: "#10b981", color: "#ffffff", border: "none", fontSize: 14, fontWeight: 600, padding: "13px 32px", borderRadius: 6, minWidth: "min(160px, 100%)" }}>{buttonLabel}</button>
         </div>
 
         <div
           style={{
             flex: 1,
-            minWidth: isCloseUp ? 280 : 360,
+            minWidth: "min(100%, 280px)",
             maxWidth: 560,
             width: "100%",
             height: isCloseUp ? 260 : 400,
