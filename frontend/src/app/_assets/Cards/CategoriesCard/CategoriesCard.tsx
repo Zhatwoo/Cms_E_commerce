@@ -9,8 +9,6 @@ import { smartGroupCategories } from "@/lib/smartCategories";
 import { CategoryTile } from "../../../design/_designComponents/CategoryTile/CategoryTile";
 import { TemplateEntry } from "../../_types";
 
-const FALLBACK_INDUSTRY = "clothing-apparel";
-
 type ProductWithLegacySubcategory = ApiProduct & {
   subCategory?: unknown;
   sub_category?: unknown;
@@ -47,6 +45,8 @@ function uniqueNonEmpty(values: string[]): string[] {
   }
   return out;
 }
+
+const FALLBACK_INDUSTRY = "clothing-apparel";
 
 export function CategoriesCardCanvas() {
   const {
@@ -152,7 +152,9 @@ export function CategoriesCardCanvas() {
               setIsEditingHeading(false);
             }
           }}
-          className={`m-0 text-[28px] font-bold leading-[1.2] text-[#111827] ${isEditingHeading ? "cursor-text outline-none" : "cursor-text"}`}
+          className={`m-0 text-[28px] font-bold leading-[1.2] text-[#111827] ${
+            isEditingHeading ? "cursor-text outline-none" : "cursor-text"
+          }`}
         >
           {headingText || "Shop by Category"}
         </h3>
@@ -168,6 +170,7 @@ export function CategoriesCardCanvas() {
               const baseIconType = idx % 3 === 0 ? "shoppingBag" : idx % 3 === 1 ? "home" : "star";
               const iconTheme = idx % 2 === 0 ? "violet" : "indigo";
               const tileId = `category-tile-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-") || idx}`;
+
               return (
                 <div key={`${label}-${idx}`} className="flex-shrink-0">
                   <Element
