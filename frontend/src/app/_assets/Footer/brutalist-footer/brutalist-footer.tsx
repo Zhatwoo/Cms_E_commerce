@@ -58,7 +58,7 @@ export const BrutalistFooter: TemplateEntry = {
     {
       is: Container as any,
       width: "100%",
-      height: "318px",
+      height: "auto",
       background: "#101114",
       paddingTop: 0,
       paddingBottom: 0,
@@ -73,7 +73,7 @@ export const BrutalistFooter: TemplateEntry = {
       {
         is: Container as any,
         width: "100%",
-        height: "266px",
+        height: "auto",
         background: "#111317",
         paddingTop: 0,
         paddingBottom: 0,
@@ -97,8 +97,9 @@ export const BrutalistFooter: TemplateEntry = {
           Element as any,
           {
             is: Column as any,
-            width: "42%",
-            height: "266px",
+            width: "min(100%, 42%)",
+            height: "auto",
+            minHeight: "200px",
             background: "#0A0141",
             paddingTop: 30,
             paddingBottom: 26,
