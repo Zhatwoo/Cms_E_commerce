@@ -7,7 +7,6 @@ import { Section } from "../../../design/_designComponents/Section/Section";
 import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
 import { Text } from "../../../design/_designComponents/Text/Text";
-import { Button } from "../../../design/_designComponents/Button/Button";
 import { TemplateEntry } from "../../_types";
 
 // Helper for Footer Links
@@ -23,7 +22,7 @@ function footerLink(text: string) {
 
 export const SynclyFooter: TemplateEntry = {
   label: "Syncly Footer",
-  description: "Modern vibrant gradient footer with newsletter and links",
+  description: "Syncly prebuilt footer for drag-and-drop",
   preview: "Syncly",
   element: React.createElement(
     Element as any,
@@ -75,19 +74,6 @@ export const SynclyFooter: TemplateEntry = {
           marginBottom: 0,
           lineHeight: 1.1,
           width: "100%",
-        }),
-        React.createElement(Button as any, {
-          variant: "cta",
-          label: "Contact us",
-          fontSize: 16,
-          fontWeight: "600",
-          borderRadius: 10,
-          paddingLeft: 32,
-          paddingRight: 32,
-          paddingTop: 14,
-          paddingBottom: 14,
-          backgroundColor: "#ffffff",
-          color: "#000000",
         })
       ),
       React.createElement(
@@ -112,13 +98,6 @@ export const SynclyFooter: TemplateEntry = {
             gap: 12,
           },
           React.createElement(Text as any, {
-            text: "Newsletter",
-            fontSize: 16,
-            color: "#ffffff",
-            fontWeight: "600",
-            marginBottom: 0,
-          }),
-          React.createElement(Text as any, {
             text: "We'd love to share our love for product with you in our monthly newsletter.",
             fontSize: 14,
             color: "rgba(255, 255, 255, 0.7)",
@@ -139,21 +118,19 @@ export const SynclyFooter: TemplateEntry = {
               Element as any,
               {
                 is: Container as any,
-                width: "100%",
-                height: "44px",
                 background: "rgba(255, 255, 255, 0.1)",
+                padding: 10,
+                height: "100%",
                 borderRadius: 8,
                 borderWidth: 1,
                 borderColor: "rgba(255, 255, 255, 0.1)",
-                paddingLeft: 16,
                 canvas: true,
                 alignItems: "center",
-                display: "flex",
               },
               React.createElement(Text as any, {
                 text: "Enter your email",
                 fontSize: 14,
-                color: "rgba(255, 255, 255, 0.4)",
+                color: "#FFFFFF",
               })
             ),
             React.createElement(
@@ -161,15 +138,13 @@ export const SynclyFooter: TemplateEntry = {
               {
                 is: Container as any,
                 background: "rgba(255, 255, 255, 0.15)",
+                padding: 0,
                 paddingTop: 10,
                 paddingBottom: 10,
-                paddingLeft: 20,
-                paddingRight: 20,
                 borderRadius: 8,
                 canvas: true,
                 cursor: "pointer",
                 height: "auto",
-                display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
               },
@@ -265,7 +240,7 @@ export const SynclyFooter: TemplateEntry = {
           display: "flex",
         },
         React.createElement(Text as any, {
-          text: "© 2025 Syncly.",
+          text: "© 2026 Syncly.",
           fontSize: 14,
           color: "rgba(255, 255, 255, 0.5)",
           fontWeight: "400",

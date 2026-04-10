@@ -154,7 +154,7 @@ export const NeoFooter: TemplateEntry = {
             {
               is: Row as any,
               canvas: true,
-              gap: 16,
+              gap: 0,
               flexWrap: "nowrap",
               alignItems: "center",
               justifyContent: "flex-start",
@@ -173,15 +173,6 @@ export const NeoFooter: TemplateEntry = {
                 alignItems: "center",
                 justifyContent: "center",
               },
-              React.createElement(Text as any, {
-                text: "▲",
-                fontSize: 60,
-                fontFamily: "Outfit",
-                color: "#d2983b",
-                fontWeight: "700",
-                position: "absolute",
-                zIndex: 2,
-              }),
               React.createElement(
                 Element as any,
                 {
@@ -207,6 +198,9 @@ export const NeoFooter: TemplateEntry = {
               color: "#ffffff",
               fontWeight: "600",
               letterSpacing: "5px",
+              top: "0px",
+              left: "-47px",
+              marginLeft: -18.374536871269317,
             })
           ),
           
@@ -252,10 +246,11 @@ export const NeoFooter: TemplateEntry = {
               paddingBottom: 18,
               paddingLeft: 32,
               paddingRight: 32,
+              width: "184px",
+              height: "68px",
               canvas: true,
               alignItems: "center",
               justifyContent: "center",
-              height: "auto",
               cursor: "pointer",
             },
             React.createElement(
@@ -274,6 +269,8 @@ export const NeoFooter: TemplateEntry = {
                 fontFamily: "Outfit",
                 color: "#ffffff",
                 fontWeight: "900",
+                top: "-4px",
+                left: "0px",
               }),
               React.createElement(Text as any, {
                 text: "BACK TO TOP",
@@ -374,7 +371,7 @@ export const NeoFooter: TemplateEntry = {
         zIndex: 20,
       },
       React.createElement(Text as any, {
-        text: "Copyright © 2024, Finding Neo, All Rights Reserved.",
+        text: "Copyright © 2026, Finding Neo, All Rights Reserved.",
         fontSize: 14,
         fontFamily: "Outfit",
         color: "#000000",
