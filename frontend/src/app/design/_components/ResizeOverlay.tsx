@@ -648,8 +648,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
       if (type === "move") {
         dom.style.transition = "none";
-        dom.style.setProperty("translate", "0px 0px");
-        dom.style.willChange = "translate";
+        dom.style.setProperty("translate", "0px 0px", "important");
+        dom.style.willChange = "transform, translate";
+        dom.style.backfaceVisibility = "hidden";
 
         try {
           const state = query.getState();
@@ -743,6 +744,8 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           // ignore guide cache failures
         }
       } else if (type === "resize") {
+        dom.style.willChange = "width, height, transform";
+        dom.style.backfaceVisibility = "hidden";
         try {
           const state = query.getState();
           const nodeDisplayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
@@ -1495,8 +1498,8 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       document.body.style.userSelect = "";
     };
 
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove, { passive: true });
+    document.addEventListener("mouseup", handleMouseUp, { passive: true });
     return () => {
       document.removeEventListener("mousemove", handleMouseMove);
       document.removeEventListener("mouseup", handleMouseUp);

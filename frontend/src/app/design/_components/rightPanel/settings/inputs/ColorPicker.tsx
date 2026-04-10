@@ -711,12 +711,16 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     // --- Drag Handlers ---
     const handleDragStart = (e: React.MouseEvent) => {
         e.preventDefault();
+        e.stopPropagation();
         setIsDragging(true);
+        document.body.dataset.colorPickerDragging = "true";
         dragStartRef.current = { x: e.clientX, y: e.clientY };
         coordsAtDragStartRef.current = coords;
 
         const handleDragMove = (ev: MouseEvent) => {
             if (!dragStartRef.current || !coordsAtDragStartRef.current) return;
+            ev.preventDefault();
+            ev.stopPropagation();
             const deltaX = ev.clientX - dragStartRef.current.x;
             const deltaY = ev.clientY - dragStartRef.current.y;
             setDragOffset({ x: deltaX, y: deltaY });
@@ -724,6 +728,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
         const handleDragEnd = () => {
             setIsDragging(false);
+            delete document.body.dataset.colorPickerDragging;
             if (coordsAtDragStartRef.current && (dragOffset.x !== 0 || dragOffset.y !== 0)) {
                 const newCoords = {
                     top: coordsAtDragStartRef.current.top + dragOffset.y,
@@ -742,12 +747,12 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             }
             dragStartRef.current = null;
             setDragOffset({ x: 0, y: 0 });
-            window.removeEventListener("mousemove", handleDragMove);
-            window.removeEventListener("mouseup", handleDragEnd);
+            window.removeEventListener("mousemove", handleDragMove, true);
+            window.removeEventListener("mouseup", handleDragEnd, true);
         };
 
-        window.addEventListener("mousemove", handleDragMove);
-        window.addEventListener("mouseup", handleDragEnd);
+        window.addEventListener("mousemove", handleDragMove, true);
+        window.addEventListener("mouseup", handleDragEnd, true);
     };
 
     // --- Saturation/Value Area Handlers ---
@@ -819,6 +824,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
     return ReactDOM.createPortal(
         <div
             ref={popoverRef}
+            data-ui="color-picker"
             className="fixed z-[9999] bg-[var(--builder-surface)] p-3 rounded-xl border border-transparent shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
             style={{
                 width: `${popoverWidth}px`,
@@ -830,9 +836,14 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 opacity: 1,
                 pointerEvents: 'auto',
                 transition: isDragging ? 'none' : 'opacity 0.15s, transform 0.15s',
-                cursor: isDragging ? 'grabbing' : 'default'
+                cursor: isDragging ? 'grabbing' : 'default',
+                willChange: isDragging ? 'transform' : 'auto',
+                backfaceVisibility: 'hidden',
             }}
             onMouseDown={(e) => e.stopPropagation()}
+            onMouseEnter={(e) => e.stopPropagation()}
+            onMouseLeave={(e) => e.stopPropagation()}
+            onMouseMove={(e) => e.stopPropagation()}
         >
             {/* Popover Header with Drag Handle and Close button */}
             <div className="flex items-center relative gap-2 mb-1">
@@ -887,8 +898,8 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 <>
                     <div
                         ref={satRef}
-                        onMouseDown={handleSatDown}
-                        onTouchStart={handleSatDown}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleSatDown(e); }}
+                        onTouchStart={(e) => { e.preventDefault(); e.stopPropagation(); handleSatDown(e); }}
                         className="relative w-full h-[140px] rounded-lg cursor-crosshair overflow-hidden"
                         style={{ backgroundColor: `rgb(${hueRgb.r}, ${hueRgb.g}, ${hueRgb.b})` }}
                     >
@@ -904,7 +915,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         <div className="flex flex-col flex-1 gap-3">
                             <div
                                 ref={hueRef}
-                                onMouseDown={handleHueDown}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleHueDown(e); }}
                                 className="relative h-3 rounded-full cursor-pointer w-full"
                                 style={{ background: 'linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)' }}
                             >
@@ -916,7 +927,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
                             <div
                                 ref={alphaRef}
-                                onMouseDown={handleAlphaDown}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleAlphaDown(e); }}
                                 className="relative h-3 rounded-full cursor-pointer w-full"
                                 style={{ background: CHECKER_BG, backgroundSize: CHECKER_BG_SIZE, backgroundPosition: CHECKER_BG_POS }}
                             >
@@ -1049,7 +1060,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                 <div className="flex flex-col gap-3 w-full min-w-0">
                     <div
                         ref={gradientTrackRef}
-                        onMouseDown={handleGradientTrackClick}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleGradientTrackClick(e); }}
                         className="relative h-6 rounded-md border border-[var(--builder-border)] cursor-crosshair"
                         style={{ background: buildGradientCss(gradientType, gradientAngle, gradientStops) }}
                     >
@@ -1059,8 +1070,9 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                 <button
                                     key={stop.id}
                                     type="button"
-                                    onMouseDown={(e) => startGradientStopDrag(e, stop.id)}
+                                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); startGradientStopDrag(e, stop.id); }}
                                     onClick={(e) => {
+                                        e.preventDefault();
                                         e.stopPropagation();
                                         setSelectedStopId(stop.id);
                                     }}

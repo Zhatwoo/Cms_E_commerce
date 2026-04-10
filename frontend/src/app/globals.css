@@ -19,6 +19,77 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ─────────────────────────────────────────────────────────────────────
+   120fps Performance Optimizations
+   ───────────────────────────────────────────────────────────────────── */
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  will-change: scroll-position;
+}
+
+/* GPU acceleration for all transforms and animations */
+* {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Optimize animations for 120fps (8.33ms per frame) */
+@media (prefers-reduced-motion: no-preference) {
+  * {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Hardware-accelerated containers */
+[data-node-id],
+[data-panel],
+[data-canvas-container],
+.overflow-auto,
+.overflow-y-auto,
+.overflow-x-auto {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  perspective: 1000px;
+  -webkit-perspective: 1000px;
+}
+
+/* Optimize scrollable regions */
+.overflow-y-auto,
+.overflow-y-scroll,
+.overflow-x-auto,
+.overflow-x-scroll {
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+  contain: layout style paint;
+}
+
+/* Drag and resize performance */
+[data-resize-handle],
+[data-drag-source],
+.builder-comp-card {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Color picker performance */
+[data-ui="color-picker"],
+.fixed.z-\[9999\] {
+  will-change: transform;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  contain: layout style;
+}
+
 @keyframes marquee {
   from {
     transform: translateX(0);
