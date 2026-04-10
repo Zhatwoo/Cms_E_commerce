@@ -11,24 +11,28 @@ const selectClassName =
   "w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]";
 
 export function ProductBindingGroup({ productId, onChange }: ProductBindingGroupProps) {
-  const { projectSubdomain, loading: projectLoading } = useDesignProject();
+  const { projectId, projectSubdomain, loading: projectLoading } = useDesignProject();
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
   const [loadingProducts, setLoadingProducts] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
-    if (!projectSubdomain) {
+    let active = true;
+    setLoadingProducts(true);
+    setError(null);
+
+    const canLoad = Boolean(projectSubdomain || projectId);
+    if (!canLoad) {
       setProducts([]);
       setLoadingProducts(false);
       setError(null);
       return;
     }
 
-    let active = true;
-    setLoadingProducts(true);
-    setError(null);
-
-    listProducts({ subdomain: projectSubdomain, status: "active", limit: 100 })
+    listProducts(projectSubdomain
+      ? { subdomain: projectSubdomain, status: "active", limit: 100 }
+      : { status: "active", limit: 100 }
+    )
       .then((res) => {
         if (!active) return;
         setProducts(res.success ? res.items : []);
@@ -46,7 +50,7 @@ export function ProductBindingGroup({ productId, onChange }: ProductBindingGroup
     return () => {
       active = false;
     };
-  }, [projectSubdomain]);
+  }, [projectSubdomain, projectId]);
 
   const selectedProduct = React.useMemo(
     () => products.find((product) => product.id === productId) ?? null,
@@ -106,7 +110,7 @@ export function ProductBindingGroup({ productId, onChange }: ProductBindingGroup
 
       {!projectLoading && !projectSubdomain ? (
         <p className="text-[10px] text-amber-400/90">
-          This project does not have a storefront subdomain yet, so products cannot be loaded here.
+          This project isn't published yet, so products are loaded from the draft project scope.
         </p>
       ) : null}
 

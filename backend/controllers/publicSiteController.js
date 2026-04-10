@@ -101,7 +101,12 @@ exports.getProducts = async (req, res) => {
     if (!domain || !domain.userId || !domain.projectId) {
       return res.status(404).json({ success: false, message: 'Site not found' });
     }
-    const published = await Product.findPublicBySubdomain(subdomain, { limit: 100 });
+
+    // Prefer project-scoped products (supports creating products pre-publish).
+    const byProject = await Product.findPublicByProject(domain.userId, domain.projectId, { limit: 100 });
+    const published = byProject.length > 0
+      ? byProject
+      : await Product.findPublicBySubdomain(subdomain, { limit: 100 });
     res.status(200).json({ success: true, data: published });
   } catch (error) {
     console.error('getProducts error:', error);

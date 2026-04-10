@@ -662,9 +662,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
         lowStockThreshold: fd.lowStockThreshold,
         trackInventory: true,
         inventoryStatus: computedInventoryStatus,
-        // *** NEW PRODUCT: Generate new ID and timestamp ***
-        id: uid(),
-        createdAt: new Date().toISOString(),
       }));
       if (saved === false) return;
       onClose();

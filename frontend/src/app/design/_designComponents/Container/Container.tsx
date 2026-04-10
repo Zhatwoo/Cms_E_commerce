@@ -207,6 +207,7 @@ export const Container = ({
 
   // Background video needs a positioned ancestor
   const resolvedPosition = hasBackgroundVideo && position === "static" ? "relative" : position;
+  const showPlaceholderMinHeight = !hasChildren && resolvedHeight === "auto";
 
   return (
     <div
@@ -216,7 +217,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`${resolvedPosition !== "static" ? "relative" : ""} ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
+      className={`${resolvedPosition !== "static" ? "relative" : ""} ${showPlaceholderMinHeight ? "min-h-[120px]" : ""} ${customClassName}`}
       style={{
         background: resolvedBackground,
         isolation: "isolate",
