@@ -8,6 +8,7 @@ import { Instagram } from "../../../_assets/Icon/Instagram/Instagram";
 import { Twitter } from "../../../_assets/Icon/Twitter/Twitter";
 import { Search } from "../../../_assets/Icon/Search/Search";
 import { Home } from "../../../_assets/Icon/Home/Home";
+import { Bell } from "../../../_assets/Icon/Bell/Bell";
 import { Menu } from "../../../_assets/Icon/Menu/Menu";
 import { Close } from "../../../_assets/Icon/Close/Close";
 import { Settings } from "../../../_assets/Icon/Settings/Settings";
@@ -89,6 +90,9 @@ export const Icon = ({
   switch (iconType) {
     case "search":
       IconComponent = Search;
+      break;
+    case "bell":
+      IconComponent = Bell;
       break;
     case "home":
       IconComponent = Home;
