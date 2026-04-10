@@ -66,8 +66,7 @@ export const Pagination = ({
     flipVertical = false,
     textDecoration = "none",
 }: PaginationProps) => {
-    const { connectors: { connect, drag } } = useNode();
-    const id = useNode((node) => node.id);
+    const { id, connectors: { connect, drag } } = useNode();
 
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 

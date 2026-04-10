@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Plus, Video as VideoIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useEditor, useNode } from "@craftjs/core";
 import { VideoSettings } from "./VideoSettings";
 import type { VideoProps } from "../../_types/components";
@@ -131,7 +131,10 @@ export const Video = ({
         (typeof parentHeight === "number" && Number.isFinite(parentHeight) && parentHeight > 0) ||
         (typeof parentHeight === "string" && parentHeightText !== "" && parentHeightText !== "auto");
 
-    const resolvedWidth = shouldAutoFitToTabs ? "100%" : (shouldFillParent ? "100%" : width);
+    // Match Image behavior: keep a stable default width (e.g. 320px) unless we explicitly
+    // want to auto-fit (like inside Tabs). Stretching to 100% inside flex/grid parents
+    // makes Video unexpectedly "take over" the row.
+    const resolvedWidth = shouldAutoFitToTabs ? "100%" : width;
     const resolvedHeight =
         shouldAutoFitToTabs
             ? "100%"
@@ -247,16 +250,9 @@ export const Video = ({
                     (containerRef as any).current = ref;
                 }
             }}
+            data-node-id={id}
             data-fluid-media="true"
             data-fluid-space="true"
-            draggable
-            onDragStart={(e) => {
-                if (src) {
-                    e.dataTransfer.setData("canvas-video-url", src);
-                    e.dataTransfer.setData("text/plain", src);
-                    e.dataTransfer.effectAllowed = "copyMove";
-                }
-            }}
             className={`relative group ${customClassName}`}
             style={{
                 width: resolvedWidth,

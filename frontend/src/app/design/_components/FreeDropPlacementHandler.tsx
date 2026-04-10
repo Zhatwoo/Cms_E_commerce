@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 type NodeShape = {
   data?: {
@@ -139,11 +140,14 @@ export function FreeDropPlacementHandler() {
 
       const idsToPlace = rootNewIds.length > 0
         ? rootNewIds
-        : selectedToIds(state?.events?.selected).filter((id) => {
-            const parentId = nodes[id]?.data?.parent;
-            if (!parentId) return false;
-            return !newIdSet.has(parentId);
-          });
+        : filterLeafSelectionIds(
+            selectedToIds(state?.events?.selected).filter((id) => {
+              const parentId = nodes[id]?.data?.parent;
+              if (!parentId) return false;
+              return !newIdSet.has(parentId);
+            }),
+            nodes as any
+          );
 
       if (idsToPlace.length === 0) {
         stopTracking();
