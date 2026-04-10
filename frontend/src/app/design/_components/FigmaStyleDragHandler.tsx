@@ -996,14 +996,12 @@ export const FigmaStyleDragHandler = () => {
 
         // If we clicked on a specific node and it's not in the selection, use the clicked node
         // This prevents dragging parent containers when clicking on child elements.
-        // Exception: if a single parent (group) is selected, keep dragging the group when
-        // clicking on its descendants (Figma-like behavior).
         if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           const clickedNodeId = d.fallbackNodeId;
           const clickedNodeInSelection = ids.includes(clickedNodeId);
 
           // If clicked node is not in selection, prioritize the clicked node
-          // This ensures we drag the actual clicked element, not a parent container
+          // This ensures we drag the actual clicked element, not a parent container.
           if (!clickedNodeInSelection && ids.length > 0) {
             // Check if clicked node is a descendant of any selected node
             const isDescendant = ids.some((selectedId) => {
@@ -1017,11 +1015,8 @@ export const FigmaStyleDragHandler = () => {
               return false;
             });
 
-            // If clicked node is a descendant, keep group drag when only one item is selected.
             if (isDescendant) {
-              if (ids.length > 1) {
-                ids = [clickedNodeId];
-              }
+              ids = [clickedNodeId];
             }
           } else if (ids.length === 0) {
             // No selection, use clicked node
