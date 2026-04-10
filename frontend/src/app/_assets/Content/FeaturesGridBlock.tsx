@@ -6,7 +6,10 @@ import { DesignSection } from "../../design/_components/rightPanel/settings/Desi
 import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
 
+export type FeaturesGridLayoutStyle = "three-col" | "two-col" | "single-col" | "horizontal";
+
 export interface FeaturesGridBlockProps {
+  layoutStyle?: FeaturesGridLayoutStyle;
   heading?: string;
   subheading?: string;
   feature1Title?: string;
@@ -23,6 +26,7 @@ export interface FeaturesGridBlockProps {
 }
 
 const DEFAULTS: Required<FeaturesGridBlockProps> = {
+  layoutStyle: "three-col",
   heading: "Why Choose Us",
   subheading: "Discover the features that make us stand out",
   feature1Title: "Feature 1",
@@ -38,6 +42,74 @@ const DEFAULTS: Required<FeaturesGridBlockProps> = {
   minHeight: 500,
 };
 
+const LayoutThumb = ({ style, active, onClick, label }: { style: FeaturesGridLayoutStyle; active: boolean; onClick: () => void; label: string }) => {
+  const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
+    active
+      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+  }`;
+  const c = active ? "var(--builder-accent)" : "#94a3b8";
+  const co = active ? 0.7 : 0.5;
+  const t = active ? "var(--builder-accent)" : "#cbd5e1";
+  const to2 = active ? 0.8 : 0.6;
+
+  const cardBox = (w: string) => (
+    <div style={{ flex: `0 0 ${w}`, display: "flex", flexDirection: "column" as const, gap: 2, background: c, opacity: co, borderRadius: 3, padding: "4px 3px" }}>
+      {[80, 60].map((pw, i) => (
+        <div key={i} style={{ height: 2, background: t, borderRadius: 1, width: `${pw}%`, opacity: to2 }} />
+      ))}
+    </div>
+  );
+
+  let inner: React.ReactNode;
+  if (style === "three-col") {
+    inner = (
+      <div style={{ width: "100%", display: "flex", gap: 3, padding: 6, alignItems: "stretch" }}>
+        {cardBox("30%")}{cardBox("30%")}{cardBox("30%")}
+      </div>
+    );
+  } else if (style === "two-col") {
+    inner = (
+      <div style={{ width: "100%", display: "flex", gap: 4, padding: 6, alignItems: "stretch" }}>
+        {cardBox("46%")}{cardBox("46%")}
+      </div>
+    );
+  } else if (style === "single-col") {
+    inner = (
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 3, padding: 6 }}>
+        <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 2, background: c, opacity: co, borderRadius: 3, padding: "6px 4px" }}>
+          {[90, 70, 50].map((pw, i) => (
+            <div key={i} style={{ height: 2, background: t, borderRadius: 1, width: `${pw}%`, opacity: to2 }} />
+          ))}
+        </div>
+      </div>
+    );
+  } else {
+    // horizontal
+    inner = (
+      <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 3, padding: 6 }}>
+        {[0, 1, 2].map((i) => (
+          <div key={i} style={{ display: "flex", gap: 3, alignItems: "center" }}>
+            <div style={{ width: 10, height: 10, borderRadius: 2, background: c, opacity: co, flexShrink: 0 }} />
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+              {[70, 50].map((pw, j) => (
+                <div key={j} style={{ height: 2, background: t, borderRadius: 1, width: `${pw}%`, opacity: to2 }} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1 cursor-pointer group" onClick={onClick}>
+      <div className={box}>{inner}</div>
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${active ? "text-builder-accent" : "text-builder-text-faint"}`}>{label}</span>
+    </div>
+  );
+};
+
 export const FeaturesGridBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as FeaturesGridBlockProps }));
 
@@ -48,6 +120,26 @@ export const FeaturesGridBlockSettings = () => {
 
   return (
     <div className="flex flex-col gap-0">
+      <DesignSection title="Layout" defaultOpen>
+        <p className="text-[10px] text-builder-text-faint mb-2 uppercase tracking-wider font-semibold">Select layout style</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {([
+            { style: "three-col" as const, label: "3 Columns" },
+            { style: "two-col" as const, label: "2 Columns" },
+            { style: "single-col" as const, label: "1 Column" },
+            { style: "horizontal" as const, label: "Horizontal" },
+          ]).map((item) => (
+            <LayoutThumb
+              key={item.style}
+              style={item.style}
+              label={item.label}
+              active={(props.layoutStyle ?? DEFAULTS.layoutStyle) === item.style}
+              onClick={() => set("layoutStyle", item.style)}
+            />
+          ))}
+        </div>
+      </DesignSection>
+
       <DesignSection title="Content" defaultOpen>
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Heading</label>
@@ -101,6 +193,7 @@ export const FeaturesGridBlockSettings = () => {
 };
 
 export const FeaturesGridBlock = ({
+  layoutStyle = DEFAULTS.layoutStyle,
   heading = DEFAULTS.heading,
   subheading = DEFAULTS.subheading,
   feature1Title = DEFAULTS.feature1Title,
@@ -156,27 +249,82 @@ export const FeaturesGridBlock = ({
         </div>
 
         {/* Cards */}
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "stretch", justifyContent: "center", width: "100%" }}>
-          {features.map((feat, i) => (
-            <div
-              key={i}
-              style={{
-                minWidth: "min(100%, 300px)",
-                flex: "1 1 300px",
-                background: cardBg,
-                borderRadius: 12,
-                padding: "32px 28px",
-                boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                boxSizing: "border-box",
-              }}
-            >
-              <p style={{ margin: 0, fontSize: 20, fontWeight: 600, color: headingColor }}>{feat.title}</p>
-              <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: textColor, lineHeight: 1.6 }}>{feat.desc}</p>
-            </div>
-          ))}
+        <div style={{
+          display: "flex",
+          flexWrap: layoutStyle === "horizontal" ? "nowrap" : "wrap",
+          flexDirection: layoutStyle === "horizontal" ? "column" : "row",
+          gap: 24,
+          alignItems: "stretch",
+          justifyContent: "center",
+          width: "100%",
+        }}>
+          {features.map((feat, i) => {
+            const cardFlex =
+              layoutStyle === "two-col" ? "1 1 45%" :
+              layoutStyle === "single-col" ? "1 1 100%" :
+              layoutStyle === "horizontal" ? "0 0 auto" :
+              "1 1 300px";
+            const cardMinWidth =
+              layoutStyle === "two-col" ? "min(100%, 400px)" :
+              layoutStyle === "single-col" ? "100%" :
+              "min(100%, 300px)";
+            const cardMaxWidth = layoutStyle === "single-col" ? "100%" : undefined;
+
+            if (layoutStyle === "horizontal") {
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: "100%",
+                    background: cardBg,
+                    borderRadius: 12,
+                    padding: "24px 28px",
+                    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                    display: "flex",
+                    flexDirection: "row",
+                    gap: 20,
+                    alignItems: "center",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: "50%",
+                    background: headingColor,
+                    opacity: 0.15,
+                    flexShrink: 0,
+                  }} />
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                    <p style={{ margin: 0, fontSize: 20, fontWeight: 600, color: headingColor }}>{feat.title}</p>
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: textColor, lineHeight: 1.6 }}>{feat.desc}</p>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div
+                key={i}
+                style={{
+                  minWidth: cardMinWidth,
+                  flex: cardFlex,
+                  maxWidth: cardMaxWidth,
+                  background: cardBg,
+                  borderRadius: 12,
+                  padding: "32px 28px",
+                  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  boxSizing: "border-box",
+                }}
+              >
+                <p style={{ margin: 0, fontSize: 20, fontWeight: 600, color: headingColor }}>{feat.title}</p>
+                <p style={{ margin: 0, fontSize: 14, fontWeight: 400, color: textColor, lineHeight: 1.6 }}>{feat.desc}</p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
@@ -185,7 +333,7 @@ export const FeaturesGridBlock = ({
 
 FeaturesGridBlock.craft = {
   displayName: "Features Grid Block",
-  props: { ...DEFAULTS },
+  props: { ...DEFAULTS, layoutStyle: "three-col" as FeaturesGridLayoutStyle },
   custom: {},
   related: { settings: FeaturesGridBlockSettings },
   rules: { canDrag: () => true, canDrop: () => true, canMoveIn: () => false },

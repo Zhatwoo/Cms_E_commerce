@@ -19,6 +19,7 @@ export interface StatsCounterBlockProps {
   valueColor?: string;
   labelColor?: string;
   cardBg?: string;
+  layoutStyle?: "row" | "two-by-two" | "stacked" | "compact";
 }
 
 const defaults: Required<StatsCounterBlockProps> = {
@@ -34,6 +35,60 @@ const defaults: Required<StatsCounterBlockProps> = {
   valueColor: "#ffffff",
   labelColor: "#94a3b8",
   cardBg: "rgba(255,255,255,0.05)",
+  layoutStyle: "row",
+};
+
+const LayoutThumb = ({ style, active, onClick, label }: { style: string; active: boolean; onClick: () => void; label: string }) => {
+  const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
+    active ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+  }`;
+
+  let inner: React.ReactNode = null;
+
+  if (style === "row") {
+    inner = (
+      <div className="flex flex-row items-center justify-center gap-1 w-full p-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="w-3 h-4 rounded-sm bg-current opacity-40" />
+        ))}
+      </div>
+    );
+  } else if (style === "two-by-two") {
+    inner = (
+      <div className="grid grid-cols-2 gap-1 w-full p-2 place-items-center">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="w-4 h-3 rounded-sm bg-current opacity-40" />
+        ))}
+      </div>
+    );
+  } else if (style === "stacked") {
+    inner = (
+      <div className="flex flex-col items-center justify-center gap-0.75 w-full p-2">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="w-8 h-2 rounded-sm bg-current opacity-40" />
+        ))}
+      </div>
+    );
+  } else if (style === "compact") {
+    inner = (
+      <div className="flex flex-row items-center justify-center w-full p-2">
+        {[0, 1, 2, 3].map((i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <div className="w-px h-4 bg-current opacity-20 mx-0.5" />}
+            <div className="w-3 h-3 rounded-sm bg-current opacity-40" />
+          </React.Fragment>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-1 cursor-pointer group" onClick={onClick}>
+      <div className={box}>{inner}</div>
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${active ? "text-builder-accent" : "text-builder-text-faint"}`}>{label}</span>
+    </div>
+  );
 };
 
 export const StatsCounterBlockSettings = () => {
@@ -50,8 +105,24 @@ export const StatsCounterBlockSettings = () => {
   const inputCls =
     "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
 
+  const currentLayout = props.layoutStyle ?? defaults.layoutStyle;
+
   return (
     <div className="flex flex-col gap-0">
+      <DesignSection title="Layout" defaultOpen>
+        <div className="grid grid-cols-2 gap-2">
+          {(["row", "two-by-two", "stacked", "compact"] as const).map((s) => (
+            <LayoutThumb
+              key={s}
+              style={s}
+              active={currentLayout === s}
+              onClick={() => set("layoutStyle", s)}
+              label={s === "two-by-two" ? "2x2" : s.charAt(0).toUpperCase() + s.slice(1)}
+            />
+          ))}
+        </div>
+      </DesignSection>
+
       <DesignSection title="Content" defaultOpen>
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Stat 1 Value</label>
@@ -110,6 +181,7 @@ export const StatsCounterBlock = ({
   valueColor = defaults.valueColor,
   labelColor = defaults.labelColor,
   cardBg = defaults.cardBg,
+  layoutStyle = defaults.layoutStyle,
 }: StatsCounterBlockProps) => {
   const {
     id,
@@ -122,6 +194,78 @@ export const StatsCounterBlock = ({
     { value: stat3Value, label: stat3Label },
     { value: stat4Value, label: stat4Label },
   ];
+
+  const isCompact = layoutStyle === "compact";
+
+  const containerStyle: React.CSSProperties = (() => {
+    const base: React.CSSProperties = {
+      width: "min(100%, 1100px)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+    };
+    switch (layoutStyle) {
+      case "two-by-two":
+        return { ...base, flexWrap: "wrap", gap: 16 };
+      case "stacked":
+        return { ...base, flexDirection: "column", gap: 16 };
+      case "compact":
+        return { ...base, flexDirection: "row", flexWrap: "wrap", gap: 0 };
+      case "row":
+      default:
+        return { ...base, flexWrap: "wrap", gap: 16 };
+    }
+  })();
+
+  const cardStyle = (idx: number): React.CSSProperties => {
+    const base: React.CSSProperties = {
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      boxSizing: "border-box",
+    };
+    switch (layoutStyle) {
+      case "two-by-two":
+        return {
+          ...base,
+          flex: "1 1 calc(50% - 8px)",
+          minWidth: "min(100%, 240px)",
+          background: cardBg,
+          borderRadius: 16,
+          padding: "36px 24px",
+        };
+      case "stacked":
+        return {
+          ...base,
+          width: "100%",
+          background: cardBg,
+          borderRadius: 16,
+          padding: "36px 24px",
+        };
+      case "compact":
+        return {
+          ...base,
+          flex: "1 1 0",
+          minWidth: "min(100%, 120px)",
+          background: "transparent",
+          borderRadius: 0,
+          padding: "24px 16px",
+          borderRight: idx < stats.length - 1 ? `1px solid ${labelColor}33` : "none",
+        };
+      case "row":
+      default:
+        return {
+          ...base,
+          flex: "1 1 220px",
+          minWidth: "min(100%, 220px)",
+          background: cardBg,
+          borderRadius: 16,
+          padding: "36px 24px",
+        };
+    }
+  };
 
   return (
     <section
@@ -137,37 +281,13 @@ export const StatsCounterBlock = ({
         boxSizing: "border-box",
       }}
     >
-      <div
-        style={{
-          width: "min(100%, 1100px)",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: 16,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
+      <div style={containerStyle}>
         {stats.map((stat, idx) => (
-          <div
-            key={idx}
-            style={{
-              flex: "1 1 220px",
-              minWidth: "min(100%, 220px)",
-              background: cardBg,
-              borderRadius: 16,
-              padding: "36px 24px",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              boxSizing: "border-box",
-            }}
-          >
+          <div key={idx} style={cardStyle(idx)}>
             <p
               style={{
                 margin: 0,
-                fontSize: "clamp(28px, 5vw, 40px)",
+                fontSize: isCompact ? "clamp(22px, 4vw, 30px)" : "clamp(28px, 5vw, 40px)",
                 fontWeight: 700,
                 color: valueColor,
                 textAlign: "center",
@@ -179,7 +299,7 @@ export const StatsCounterBlock = ({
             <p
               style={{
                 margin: 0,
-                fontSize: 14,
+                fontSize: isCompact ? 12 : 14,
                 fontWeight: 500,
                 color: labelColor,
                 textAlign: "center",
@@ -197,7 +317,7 @@ export const StatsCounterBlock = ({
 
 StatsCounterBlock.craft = {
   displayName: "Stats Counter Block",
-  props: { ...defaults },
+  props: { ...defaults, layoutStyle: "row" },
   custom: {},
   related: { settings: StatsCounterBlockSettings },
   rules: { canDrag: () => true, canDrop: () => true, canMoveIn: () => false },
