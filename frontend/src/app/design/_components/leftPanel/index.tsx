@@ -91,7 +91,7 @@ interface LeftPanelProps {
 
 
 export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePanel: setControlledPanel, frameReady = true, width = 320 }: LeftPanelProps) => {
-  const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("files");
+  const [internalPanel, setInternalPanel] = useState<LeftPanelTabId>("components");
   const activePanel = controlledPanel ?? internalPanel;
   const setActivePanel = setControlledPanel ?? setInternalPanel;
   const [menuOpen, setMenuOpen] = useState(false);
@@ -454,6 +454,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
     }
   };
 
+
+  // If the user is a viewer, the Components tab is not available — fall back to Files.
+  useEffect(() => {
+    if (permission === "viewer" && internalPanel === "components") {
+      setInternalPanel("files");
+    }
+  }, [permission, internalPanel]);
 
   return (
     <div
