@@ -227,6 +227,27 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
+function normalizeImageSource(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const repaired = raw
+    .replace(/ImageProducts_img%2F/gi, 'Products_img%2F')
+    .replace(/ImageProducts_img\//gi, 'Products_img/');
+
+  if (isImageSource(repaired)) return repaired;
+
+  const bucket = String(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  const looksLikeStoragePath = /^Products_img(?:\/|%2F)/i.test(repaired);
+  if (!bucket || !looksLikeStoragePath) return '';
+
+  const [pathPartRaw, queryRaw = ''] = repaired.split('?');
+  const pathPart = pathPartRaw.includes('%2F') ? pathPartRaw : encodeURIComponent(pathPartRaw);
+  const query = queryRaw.trim();
+  const suffix = query ? `?${query}` : '?alt=media';
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${pathPart}${suffix}`;
+}
+
 function getVariantGroups(product: Product): ProductVariant[] {
   return Array.isArray(product.variants)
     ? product.variants.filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
@@ -340,9 +361,13 @@ function toDashboardProduct(product: ApiProduct): Product {
     ?? productRecord.specifications?.sub_category
     ?? ''
   ).trim();
-  const images = Array.isArray(product.images)
-    ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
-    : [];
+  const imageCandidates: unknown[] = Array.isArray(product.images) ? product.images : [];
+  if (typeof (product as { image?: unknown }).image === 'string') {
+    imageCandidates.push((product as { image?: string }).image);
+  }
+  const images = imageCandidates
+    .map((img) => normalizeImageSource(img))
+    .filter((img, index, arr): img is string => Boolean(img) && arr.indexOf(img) === index);
   const variants: ProductVariant[] = Array.isArray(product.variants)
     ? product.variants
       .map((variant): ProductVariant => ({
@@ -407,9 +432,9 @@ function toDashboardProduct(product: ApiProduct): Product {
       return acc;
     }, {})
     : {};
-  const normalizedStock = typeof product.onHandStock === 'number'
-    ? product.onHandStock
-    : (typeof product.stock === 'number' ? product.stock : 0);
+    const normalizedStock = typeof product.onHandStock === 'number'
+      ? product.onHandStock
+      : (typeof product.stock === 'number' ? product.stock : 0);
 
   return {
     id: product.id,
@@ -434,7 +459,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     stock: normalizedStock,
     lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
-    image: images[0] || '[product]',
+    image: images.length > 0 ? images[0] : '[product]',
     images,
     createdAt: product.createdAt || new Date().toISOString(),
     sales: 0,
