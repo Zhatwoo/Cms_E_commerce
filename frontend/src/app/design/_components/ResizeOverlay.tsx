@@ -1095,8 +1095,14 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const nextMarginTopRaw = extraMT !== 0 ? bMT + extraMT : bMT;
         const nextMarginLeftRaw = extraML !== 0 ? bML + extraML : bML;
         const isMarginFlowResize = (d.moveMode ?? "margin") === "margin";
-        const nextMarginTop = isMarginFlowResize ? Math.max(0, nextMarginTopRaw) : nextMarginTopRaw;
-        const nextMarginLeft = isMarginFlowResize ? Math.max(0, nextMarginLeftRaw) : nextMarginLeftRaw;
+        const allowNegativeTopDuringResize = h.includes("n");
+        const allowNegativeLeftDuringResize = h.includes("w");
+        const nextMarginTop = isMarginFlowResize && !allowNegativeTopDuringResize
+          ? Math.max(0, nextMarginTopRaw)
+          : nextMarginTopRaw;
+        const nextMarginLeft = isMarginFlowResize && !allowNegativeLeftDuringResize
+          ? Math.max(0, nextMarginLeftRaw)
+          : nextMarginLeftRaw;
 
         const lastResize = d.lastAppliedResize;
         const unchangedFromLast =
@@ -1431,7 +1437,11 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
                 props.top = `${Math.round(bTop + extraMT)}px`;
               } else {
                 const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-                const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
+                const isMarginMove = (d.moveMode ?? "margin") === "margin";
+                const allowNegativeTopDuringResize = h.includes("n");
+                const nextMT = isMarginMove && !allowNegativeTopDuringResize
+                  ? Math.max(0, bMT + extraMT)
+                  : (bMT + extraMT);
                 props.marginTop = Math.round(nextMT);
               }
             }
@@ -1442,7 +1452,11 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
                 props.left = `${Math.round(bLeft + extraML)}px`;
               } else {
                 const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-                const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
+                const isMarginMove = (d.moveMode ?? "margin") === "margin";
+                const allowNegativeLeftDuringResize = h.includes("w");
+                const nextML = isMarginMove && !allowNegativeLeftDuringResize
+                  ? Math.max(0, bML + extraML)
+                  : (bML + extraML);
                 props.marginLeft = Math.round(nextML);
               }
             }
