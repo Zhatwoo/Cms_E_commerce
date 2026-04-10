@@ -393,7 +393,7 @@ export const CategoryTile = ({
     <>
       <style>{`
         .${tileClassName} {
-          width: ${safeWidth}px;
+          width: min(${safeWidth}px, 100%);
           height: ${safeHeight}px;
           margin: ${safeMarginY}px ${safeMarginX}px;
           border-radius: ${safeRadius}px;
