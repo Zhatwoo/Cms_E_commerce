@@ -16,7 +16,6 @@ function footerLink(text: string) {
     fontSize: 14,
     color: "#cbd5e1",
     marginBottom: 12,
-    fontWeight: "400",
   });
 }
 
@@ -91,20 +90,21 @@ export const MinimalFooter: TemplateEntry = {
         {
           is: Container as any,
           background: "#10b981", // Green button
+          padding: 0,
           paddingTop: 14,
           paddingBottom: 14,
           paddingLeft: 32,
           paddingRight: 32,
+          width: "156px",
+          height: "52px",
           borderRadius: 8,
           canvas: true,
           cursor: "pointer",
-          height: "auto",
           alignItems: "center",
           justifyContent: "center",
         },
         React.createElement(Text as any, {
           text: "Join Now →",
-          fontSize: 16,
           color: "#ffffff",
           fontWeight: "600",
         })
@@ -159,7 +159,6 @@ export const MinimalFooter: TemplateEntry = {
               marginBottom: 24,
               height: "auto",
             },
-            React.createElement(Container as any, { width: "40px", height: "40px", background: "#eab308", borderRadius: 20 }), // Yellow dot logo
             React.createElement(Text as any, { text: "Minimal Footer", fontSize: 24, color: "#ffffff", fontWeight: "700" })
           ),
           React.createElement(Text as any, {
@@ -182,8 +181,8 @@ export const MinimalFooter: TemplateEntry = {
           },
           React.createElement(Text as any, { text: "Company", fontSize: 18, color: "rgba(234, 179, 8, 0.9)", fontWeight: "700", marginBottom: 24 }),
           React.createElement(Text as any, { text: "Company Name", fontSize: 16, color: "#ffffff", fontWeight: "600", marginBottom: 8 }),
-          React.createElement(Text as any, { text: "Zwingen, Switzerland.", fontSize: 14, color: "#cbd5e1", marginBottom: 20 }),
-          iconInfoRow("📞", "+411234567890"),
+          React.createElement(Text as any, { text: "Manila, Philippines", fontSize: 14, color: "#cbd5e1", marginBottom: 20 }),
+          iconInfoRow("📞", "+6390123456789"),
           iconInfoRow("✉", "info@emailid.com")
         ),
 
@@ -218,25 +217,6 @@ export const MinimalFooter: TemplateEntry = {
           iconInfoRow("fb", "Facebook"),
           iconInfoRow("in", "Linkedin")
         )
-      ),
-
-      // COPYRIGHT
-      React.createElement(
-        Element as any,
-        {
-          is: Container as any,
-          width: "100%",
-          marginTop: 60,
-          canvas: true,
-          alignItems: "center",
-          justifyContent: "center",
-          height: "auto",
-        },
-        React.createElement(Text as any, {
-          text: "Copyright © 2023 Company Name. All Rights Reserved",
-          fontSize: 14,
-          color: "rgba(255, 255, 255, 0.4)",
-        })
       )
     ),
     
