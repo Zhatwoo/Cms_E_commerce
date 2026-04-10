@@ -38,12 +38,9 @@ import {
 } from "../../../_assets/shapes/additional_shapes";
 
 // Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
-// Stub components for preview — ProductCard/ProductSlider need DesignProjectProvider
 // context that isn't available in the isolated preview Editor.
-// Render at 1440px (DESKTOP_PREVIEW_WIDTH), no padding — fills the preview area tightly.
 const ProductCardPreviewStub = () => (
   <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
-    {/* 5 card placeholders side by side to fill the width */}
     {[1,2,3,4,5].map((i) => (
       <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 5 ? "1px solid #e5e7eb" : undefined, display: "flex", flexDirection: "column" }}>
         <div style={{ height: 180, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -77,7 +74,6 @@ const ProductSliderPreviewStub = () => (
 );
 const ProductDescriptionCardPreviewStub = () => (
   <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
-    {/* Two side-by-side description cards to fill width */}
     {[1,2].map((i) => (
       <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 2 ? "1px solid #e5e7eb" : undefined, display: "flex" }}>
         <div style={{ width: "45%", background: "#e2e8f0", minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -99,7 +95,16 @@ const ProductDescriptionCardPreviewStub = () => (
 
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
-  ((props: any) => React.createElement("div", props, props?.children));
+  ((props: any) => {
+    // Only pass safe DOM props to the fallback div to avoid "React does not recognize prop" errors
+    const { 
+      background, paddingTop, paddingRight, paddingBottom, paddingLeft, 
+      width, height, borderRadius, borderColor, borderWidth, borderStyle,
+      alignItems, justifyContent, flexDirection, flexWrap, gap, 
+      canvas, isFreeform, anchorPoints, ...domProps 
+    } = props;
+    return <div {...domProps} style={{ background, ...props.style }}>{props.children}</div>;
+  });
 
 const asComponent = (value: unknown): React.ComponentType<any> =>
   typeof value === "function" ? (value as React.ComponentType<any>) : SAFE_CONTAINER;
@@ -112,23 +117,28 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
       if (typeof prop !== "string") return direct;
 
       const normalized = prop.trim().toLowerCase();
+      // Try exact, then lowercase, then CamelCase
       const resolved =
-        Reflect.get(target, prop.trim(), receiver) ||
-        Reflect.get(target, normalized, receiver) ||
-        Reflect.get(target, normalized.charAt(0).toUpperCase() + normalized.slice(1), receiver);
+        target[prop.trim()] ||
+        target[normalized] ||
+        target[normalized.charAt(0).toUpperCase() + normalized.slice(1)];
 
       return resolved || target.Container || SAFE_CONTAINER;
     },
     has(target, prop) {
-      // Craft validates resolver membership eagerly (often via `in`).
-      // Returning `true` ensures unknown nodes fall back to SAFE_CONTAINER in `get()`
-      // instead of crashing the preview list.
       if (Reflect.has(target, prop)) return true;
       if (typeof prop === "string") return true;
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      return !!(target.Container || target.container);
     },
+    ownKeys(target) {
+      return Reflect.ownKeys(target);
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      return Reflect.getOwnPropertyDescriptor(target, prop);
+    }
   }) as T;
 }
+
 export type AssetItem = {
   label: string;
   description?: string;
@@ -150,9 +160,7 @@ class AssetPreviewErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
-  componentDidCatch() {
-    // Prevent one bad asset preview from blocking later assets in the list.
-  }
+  componentDidCatch() { }
 
   render() {
     if (this.state.hasError) return this.props?.fallback ?? null;
@@ -236,6 +244,8 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   Row: asComponent(Row),
   Column: asComponent(Column),
   Icon: asComponent(Icon),
+  icon: asComponent(Icon),
+  ICON: asComponent(Icon),
   Rating: asComponent(Rating),
   rating: asComponent(Rating),
   ProfileLogin: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
@@ -253,6 +263,8 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   ProductDescriptionCard: ProductDescriptionCardPreviewStub,
   productdescriptioncard: ProductDescriptionCardPreviewStub,
   "Product Description Card": ProductDescriptionCardPreviewStub,
+  CategoriesCardCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
+  categoriescardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
   Rectangle: asComponent(Rectangle),
   rectangle: asComponent(Rectangle),
   Diamond: asComponent(Diamond),
@@ -299,8 +311,8 @@ export const AssetLivePreview = ({
     if (!containerEl || !frameEl) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      setContainerWidth(containerEl.clientWidth);
-      setPreviewHeight(frameEl.getBoundingClientRect().height);
+      if (containerEl) setContainerWidth(containerEl.clientWidth);
+      if (frameEl) setPreviewHeight(frameEl.getBoundingClientRect().height);
     });
 
     resizeObserver.observe(containerEl);
@@ -333,14 +345,10 @@ export const AssetLivePreview = ({
   }
 
   if (previewMode === "shape") {
-    const shapePreviewElement = React.cloneElement(item.element as React.ReactElement<any>, {
-      isPreview: true,
+    const shapePreviewElement = item.preview ? React.cloneElement(item.preview as React.ReactElement<any>, {
       width: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 64 : (item.label.toLowerCase() === "kite" ? 36 : 48),
       height: ["rectangle", "trapezoid", "parallelogram"].includes(item.label.toLowerCase()) ? 32 : (item.label.toLowerCase() === "kite" ? 64 : 48),
-      margin: 0,
-      padding: 0,
-      position: "static",
-    });
+    }) : null;
 
     return (
       <div className="h-20 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-[var(--builder-surface-3)] transition-colors">
@@ -455,9 +463,9 @@ export const AssetsPanel = () => {
 
             {activeGroup ? (
               <div
-                className={`grid gap-2 p-0.5 ${isIconFolder(activeGroup.folder)
+                className={`grid gap-2 p-0.5 ${activeGroup.folder.toLowerCase() === "icons"
                   ? "grid-cols-4"
-                  : isShapeFolder(activeGroup.folder)
+                  : activeGroup.folder.toLowerCase() === "shapes"
                     ? "grid-cols-2"
                     : "grid-cols-1"
                   }`}
@@ -563,7 +571,7 @@ export const AssetsPanel = () => {
                         </div>
                       </div>
                     </div>
-                  );
+                   );
                 })}
               </div>
             ) : (

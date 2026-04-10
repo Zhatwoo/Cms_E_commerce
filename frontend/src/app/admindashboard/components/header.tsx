@@ -545,7 +545,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                 }}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' && searchResults.length > 0) {
-                                        event.preventDefault();
+                                        event.preventDefault(); 
                                         handleSearchNavigate(searchResults[0].href);
                                     }
                                 }}
@@ -558,7 +558,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             </div>
                         </div>
 
-                        {isSearchOpen && (
+                        {isSearchOpen && ( 
                             <div className="admin-dashboard-panel absolute left-0 right-0 top-[calc(100%+0.55rem)] max-h-[21rem] overflow-y-auto rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-2 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
                                 {normalize(query).length < 2 ? (
                                     <p className="px-3 py-2 text-xs text-[#7C7393]">Type at least 2 characters to search all admin content.</p>

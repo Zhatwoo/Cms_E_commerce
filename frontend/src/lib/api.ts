@@ -314,12 +314,20 @@ export async function apiFetch<T>(
   // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
   // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
   if (typeof window !== 'undefined' && normalizedPath.startsWith('/api/')) {
-    const res = await fetch(normalizedPath, {
-      ...options,
-      headers,
-      credentials: 'include',
-    });
-    return handleResponse<T>(res);
+    try {
+      const res = await fetch(normalizedPath, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
+      return await handleResponse<T>(res);
+    } catch (error) {
+      // If it's a network error (TypeError), fall through to candidate loop
+      // which might try a direct backend URL (localhost:5001 etc.)
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+    }
   }
 
   const candidates = getApiCandidates();
@@ -1821,6 +1829,7 @@ export type AnalyticsResponse = {
     };
     trends: {
       users: number[];
+      maxActiveUsers: number[];
       websites: number[];
       domains: number[];
       pending: number[];

@@ -261,32 +261,27 @@ function withResolverFallback<T extends Record<string, React.ComponentType>>(bas
     },
     has(target, prop) {
       if (Reflect.has(target, prop)) return true;
-      if (typeof prop !== "string") {
-        return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      if (typeof prop === "string") return true;
+      return !!(target.Container || target.container);
+    },
+    ownKeys(target) {
+      // Ensure "Container" and other core keys appear as own keys
+      const keys = Reflect.ownKeys(target);
+      if (!keys.includes("Container")) keys.push("Container");
+      return keys;
+    },
+    getOwnPropertyDescriptor(target, prop) {
+      const desc = Reflect.getOwnPropertyDescriptor(target, prop);
+      if (desc) return desc;
+      if (typeof prop === "string") {
+        return {
+          enumerable: true,
+          configurable: true,
+          writable: false,
+          value: target.Container || SAFE_CONTAINER,
+        };
       }
-
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-
-      const canonical = VALIDATOR_CANONICAL_NAME_BY_LOWER.get(normalized);
-      if (canonical && Reflect.has(target, canonical)) return true;
-
-      if (
-        normalized.includes("image") ||
-        normalized === "img" ||
-        normalized === "imagecomponent"
-      ) {
-        return (
-          Reflect.has(target, "Image") ||
-          Reflect.has(target, "image") ||
-          Reflect.has(target, "IMAGE") ||
-          Reflect.has(target, "img") ||
-          Reflect.has(target, "Img") ||
-          Reflect.has(target, "ImageComponent")
-        );
-      }
-
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      return undefined;
     },
   }) as T;
 }
@@ -484,9 +479,11 @@ const MIN_PANEL_WIDTH = 200;
 const MAX_PANEL_WIDTH = 600;
 const MIN_CANVAS_VIEWPORT_WIDTH = 760;
 const TOP_PANEL_HEIGHT_PX = 48;
-const INFINITE_CANVAS_WIDTH_VW = 4000;
-const INFINITE_CANVAS_HEIGHT_VH = 4000;
 const INFINITE_CANVAS_PADDING_PX = 30000;
+// Avoid `vw`/`vh` here: browser zoom changes viewport units and makes the canvas appear to "grow".
+// Use large pixel bounds instead so the scrollable area stays stable under Ctrl+Scroll.
+const INFINITE_CANVAS_MIN_WIDTH_PX = INFINITE_CANVAS_PADDING_PX * 2 + PAGE_BASE_WIDTH * 80;
+const INFINITE_CANVAS_MIN_HEIGHT_PX = INFINITE_CANVAS_PADDING_PX * 2 + PAGE_BASE_HEIGHT * 80;
 
 const isEditableTarget = (target: EventTarget | null) => {
   if (!target || !(target instanceof HTMLElement)) return false;
@@ -2806,6 +2803,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Text = asComponent(Text);
     base.text = asComponent(Text);
     base.TEXT = asComponent(Text);
+    base.Icon = asComponent(CRAFT_RESOLVER.Icon ?? Icon);
+    base.icon = asComponent(CRAFT_RESOLVER.icon ?? CRAFT_RESOLVER.Icon ?? Icon);
+    base.ICON = asComponent(CRAFT_RESOLVER.ICON ?? CRAFT_RESOLVER.Icon ?? Icon);
     base.Accordion = asComponent(CRAFT_RESOLVER.Accordion ?? Accordion);
     base.accordion = asComponent(CRAFT_RESOLVER.accordion ?? Accordion);
 
@@ -2982,8 +2982,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       <div
                         className="flex items-start justify-start relative"
                         style={{
-                          minWidth: `${INFINITE_CANVAS_WIDTH_VW}vw`,
-                          minHeight: `${INFINITE_CANVAS_HEIGHT_VH}vh`,
+                          minWidth: `${INFINITE_CANVAS_MIN_WIDTH_PX}px`,
+                          minHeight: `${INFINITE_CANVAS_MIN_HEIGHT_PX}px`,
                           padding: `${INFINITE_CANVAS_PADDING_PX}px`,
                           boxSizing: "border-box",
                           transformOrigin: "top left",

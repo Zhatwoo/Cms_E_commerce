@@ -131,15 +131,7 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
         return Reflect.has(target, "Container") || Reflect.has(target, "container");
       }
 
-      const normalized = prop.trim().toLowerCase();
-      if (Reflect.has(target, normalized)) return true;
-      
-      if (shapes.some(s => normalized.includes(s))) return true;
-
-      const canonical = normalized.charAt(0).toUpperCase() + normalized.slice(1);
-      if (Reflect.has(target, canonical)) return true;
-
-      return Reflect.has(target, "Container") || Reflect.has(target, "container");
+      return true;
     },
   }) as T;
 }
@@ -147,6 +139,9 @@ function withResolverFallback<T extends Record<string, React.ComponentType<any>>
 // Craft validates resolver membership eagerly; ensure PreviewRoot exists as a real key.
 const PREVIEW_CRAFT_RESOLVER = withResolverFallback({
   ...CRAFT_RESOLVER,
+  Icon: asComponent((CRAFT_RESOLVER as Record<string, unknown>).Icon),
+  icon: asComponent((CRAFT_RESOLVER as Record<string, unknown>).icon ?? (CRAFT_RESOLVER as Record<string, unknown>).Icon),
+  ICON: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ICON ?? (CRAFT_RESOLVER as Record<string, unknown>).Icon),
   ProfileLogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
   profilelogin: asComponent((CRAFT_RESOLVER as Record<string, unknown>).profilelogin),
   ProfileLoginNode: asComponent((CRAFT_RESOLVER as Record<string, unknown>).ProfileLoginNode ?? (CRAFT_RESOLVER as Record<string, unknown>).ProfileLogin),
@@ -212,6 +207,7 @@ function canonicalResolvedName(rawName: unknown): string {
   if (lowered === "tab content" || lowered.includes("tabcontent")) return "TabContent";
   if (lowered.includes("tabs")) return "Tabs";
   if (lowered.includes("image")) return "Image";
+  if (lowered.includes("icon")) return "Icon";
   if (lowered.includes("text")) return "Text";
   if (lowered.includes("button")) return "Button";
   if (lowered.includes("divider")) return "Divider";
@@ -329,6 +325,77 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
       nodes,
       linkedNodes,
     };
+  }
+
+  // Backward compatibility for older Syncly footer snapshots.
+  // These snapshots may store Button text in `text` and include a white 240px Container block.
+  const synclyAnchorText = "Ready to start syncing your data?";
+  const anchorTextNodeId = Object.keys(out).find((id) => {
+    const node = out[id];
+    if (node.type?.resolvedName !== "Text") return false;
+    const txt = (node.props as Record<string, unknown>)?.text;
+    return typeof txt === "string" && txt.trim() === synclyAnchorText;
+  });
+
+  const collectSubtreeIds = (rootId: string): Set<string> => {
+    const seen = new Set<string>();
+    const walk = (id: string) => {
+      if (seen.has(id)) return;
+      const node = out[id];
+      if (!node) return;
+      seen.add(id);
+      for (const childId of node.nodes ?? []) walk(childId);
+      for (const linkedId of Object.values(node.linkedNodes ?? {})) walk(linkedId);
+    };
+    walk(rootId);
+    return seen;
+  };
+
+  if (anchorTextNodeId) {
+    let cursor: string | undefined = anchorTextNodeId;
+    let synclySectionId: string | undefined;
+    while (cursor) {
+      const node = out[cursor];
+      if (!node) break;
+      if (node.type?.resolvedName === "Section") {
+        synclySectionId = cursor;
+        break;
+      }
+      cursor = node.parent;
+    }
+
+    if (synclySectionId) {
+      const synclySubtreeIds = collectSubtreeIds(synclySectionId);
+      for (const id of synclySubtreeIds) {
+        const node = out[id];
+        if (!node) continue;
+        const props = (node.props ?? {}) as Record<string, unknown>;
+
+        if (node.type?.resolvedName === "Button") {
+          const legacyText = props.text;
+          const hasLabel = typeof props.label === "string" && props.label.trim().length > 0;
+          if (!hasLabel && typeof legacyText === "string" && legacyText.trim().length > 0) {
+            props.label = legacyText;
+          }
+        }
+
+        if (node.type?.resolvedName === "Container") {
+          const hasChildren = (node.nodes?.length ?? 0) > 0 || Object.keys(node.linkedNodes ?? {}).length > 0;
+          const height = typeof props.height === "string" ? props.height.trim().toLowerCase() : "";
+          const background = typeof props.background === "string" ? props.background.trim().toLowerCase() : "";
+
+          if (height === "240px" && hasChildren) {
+            props.height = "auto";
+          }
+
+          if ((height === "240px" || props.height === "auto") && (background === "#ffffff" || background === "white") && hasChildren) {
+            props.background = "transparent";
+          }
+        }
+
+        node.props = props;
+      }
+    }
   }
 
   return out;
@@ -1382,7 +1449,7 @@ function PreviewContent() {
                   <div
                     ref={previewRef}
                     className="w-full min-w-0 preview-fadein bg-white"
-                    style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle, minHeight: "calc(100vh - 160px)" }}
+                    style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }}
                   >
                     <WebPreview
                       key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
@@ -1416,7 +1483,7 @@ function PreviewContent() {
                         <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
                         <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                       </div>
-                      <div ref={previewRef} style={{ minHeight: "calc(100vh - 240px)" }}>
+                      <div ref={previewRef}>
                         <WebPreview
                           key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
                           doc={effectiveCleanDoc}
@@ -1444,7 +1511,7 @@ function PreviewContent() {
                       style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px" }}
                     >
                       <div className="device-notch"><div className="device-notch-pill" /></div>
-                      <div ref={previewRef} style={{ minHeight: "calc(100vh - 280px)" }}>
+                      <div ref={previewRef}>
                         <WebPreview
                           key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
                           doc={effectiveCleanDoc}
