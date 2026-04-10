@@ -218,7 +218,7 @@ export const HeroBannerCTABlock = ({
         style={{
           width: "min(100%, 1280px)",
           minHeight,
-          padding: "80px 48px",
+          padding: "clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)",
           display: "flex",
           flexDirection: isCloseUp ? "column" : imageOnRight ? "row-reverse" : "row",
           alignItems: "stretch",
@@ -249,8 +249,8 @@ export const HeroBannerCTABlock = ({
             padding: "18px 8px",
           }}
         >
-          <p style={{ margin: 0, fontSize: 80, fontWeight: 700, lineHeight: 1, color: "#ffffff" }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 26, color: "#dbdbdb", maxWidth: 760, whiteSpace: "pre-line" }}>{subtitle}</p>
+          <p style={{ margin: 0, fontSize: "clamp(32px, 8vw, 80px)", fontWeight: 700, lineHeight: 1, color: "#ffffff" }}>{title}</p>
+          <p style={{ margin: 0, fontSize: "clamp(16px, 3vw, 26px)", color: "#dbdbdb", maxWidth: 760, whiteSpace: "pre-line" }}>{subtitle}</p>
           <button
             type="button"
             style={{
