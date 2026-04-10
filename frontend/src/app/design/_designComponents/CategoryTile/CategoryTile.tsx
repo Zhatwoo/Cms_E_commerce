@@ -225,7 +225,6 @@ export const CategoryTile = ({
   };
 
   const onMediaPointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
-    event.stopPropagation();
     const pointX = event.clientX;
     const pointY = event.clientY;
     dragStartRef.current = {
@@ -239,7 +238,6 @@ export const CategoryTile = ({
 
   const onMediaPointerMove: React.PointerEventHandler<HTMLDivElement> = (event) => {
     if (!isFraming || !dragStartRef.current) return;
-    event.stopPropagation();
     const dx = event.clientX - dragStartRef.current.x;
     const dy = event.clientY - dragStartRef.current.y;
     const nextX = Math.max(-300, Math.min(300, Math.round(dragStartRef.current.ox + dx)));
@@ -485,12 +483,6 @@ export const CategoryTile = ({
             event.preventDefault();
             event.stopPropagation();
             setIsEditingLabel(true);
-          }}
-          onMouseDown={(event) => {
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
           }}
           onBlur={() => {
             if (isEditingLabel) flushLabelText();

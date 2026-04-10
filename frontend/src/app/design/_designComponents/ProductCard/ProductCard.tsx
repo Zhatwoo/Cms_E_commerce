@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNode, useEditor } from "@craftjs/core";
-import { listProducts, type ApiProduct } from "@/lib/api";
+import { getProduct, listProducts, type ApiProduct } from "@/lib/api";
 import { useDesignProject } from "../../_context/DesignProjectContext";
 import { ProductCardSettings } from "./ProductCardSettings";
 import { ProductImageOverlays } from "../productOverlays";
@@ -116,24 +116,87 @@ export const ProductCard = ({
   buttonFontSize = 13,
 }: ProductCardProps) => {
   const { id, connectors: { connect, drag } } = useNode();
-  const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
+  const { enabled, query } = useEditor((s) => ({ enabled: s.options.enabled }));
   const { projectSubdomain } = useDesignProject();
 
-  const [product, setProduct] = useState<ApiProduct | null>(null);
-  const [loading, setLoading] = useState(!!boundProductId);
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [explicitProduct, setExplicitProduct] = useState<ApiProduct | null>(null);
+
+  const autoBindIndex = useMemo(() => {
+    try {
+      const state = query.getState();
+      const nodes = state.nodes ?? {};
+      const allProductCards = Object.entries(nodes)
+        .filter(([, node]) => {
+          const displayName = String(node?.data?.displayName || "").trim().toLowerCase();
+          return displayName === "product card" || displayName === "productcard";
+        })
+        .map(([nodeId, node]) => {
+          const props = (node?.data?.props || {}) as Record<string, unknown>;
+          const y = Number(props.canvasY);
+          const x = Number(props.canvasX);
+          return {
+            nodeId,
+            y: Number.isFinite(y) ? y : 0,
+            x: Number.isFinite(x) ? x : 0,
+          };
+        })
+        .sort((a, b) => {
+          if (a.y !== b.y) return a.y - b.y;
+          if (a.x !== b.x) return a.x - b.x;
+          return a.nodeId.localeCompare(b.nodeId);
+        });
+
+      const foundIndex = allProductCards.findIndex((entry) => entry.nodeId === id);
+      return foundIndex >= 0 ? foundIndex : 0;
+    } catch {
+      return 0;
+    }
+  }, [query, id]);
+
+  const resolvedProductId = useMemo(() => {
+    if (boundProductId) return boundProductId;
+    if (products.length === 0) return undefined;
+    return products[autoBindIndex % products.length]?.id;
+  }, [boundProductId, products, autoBindIndex]);
+
+  const product = useMemo(() => {
+    if (explicitProduct) return explicitProduct;
+    if (!resolvedProductId) return null;
+    return products.find((item) => item.id === resolvedProductId) ?? null;
+  }, [explicitProduct, products, resolvedProductId]);
 
   useEffect(() => {
-    if (!boundProductId) { setProduct(null); setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    listProducts({ subdomain: projectSubdomain ?? undefined })
+
+    if (boundProductId) {
+      getProduct(boundProductId)
+        .then((res) => {
+          if (!cancelled) {
+            setExplicitProduct(res.data ?? null);
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setExplicitProduct(null);
+          }
+        });
+    } else {
+      setExplicitProduct(null);
+    }
+
+    listProducts({
+      subdomain: projectSubdomain ?? undefined,
+      status: "active",
+      limit: 100,
+      ignoreActiveProjectScope: !!projectSubdomain,
+    })
       .then((res) => {
-        if (!cancelled) {
-          const found = res.items?.find((p) => p.id === boundProductId) ?? null;
-          setProduct(found);
-        }
+        if (!cancelled) setProducts(res.items ?? []);
       })
-      .catch(() => { if (!cancelled) setProduct(null); })
+      .catch(() => { if (!cancelled) setProducts([]); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [boundProductId, projectSubdomain]);
@@ -145,8 +208,8 @@ export const ProductCard = ({
   const image = product?.images?.[0] ?? "";
   const frameWidth = parsePixelWidth(width);
 
-  // Show placeholder while loading or when no product is bound/found
-  if (!boundProductId || loading || !product) {
+  // Show placeholder while loading or when no product could be resolved
+  if (loading || !product) {
     return (
       <div
         ref={(ref) => { if (ref) connect(drag(ref)); }}
@@ -177,7 +240,7 @@ export const ProductCard = ({
           </svg>
           {enabled && (
             <span style={{ fontSize: 11, color: "#9ca3af", fontWeight: 500 }}>
-              {loading ? "Loading product…" : "No product bound"}
+              {loading ? "Loading product..." : "No product available"}
             </span>
           )}
         </div>
