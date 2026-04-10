@@ -160,6 +160,7 @@ export const BoxSelectionHandler = () => {
       if (!target.closest("[data-canvas-container]")) return;
       if (document.body.dataset.spacePan === "true") return;
       if (document.body.dataset.canvasPan === "true") return;
+      if (document.body.dataset.colorPickerDragging === "true") return;
       if (activeToolRef.current === "hand" || activeToolRef.current === "text") return;
 
       let isEmptyBackground = false;
