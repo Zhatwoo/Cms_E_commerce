@@ -238,9 +238,9 @@ export function CategoriesCardCanvas() {
       ref={(ref) => {
         if (ref) connectors.connect(connectors.drag(ref));
       }}
-      className="w-full box-border bg-[#f9fafb] px-3 py-4 sm:px-4 lg:px-6"
+      className="w-full box-border bg-[#f9fafb] px-2 py-3 sm:px-3 lg:px-4"
     >
-      <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-3">
+      <div className="flex w-full flex-wrap items-center justify-between gap-2">
         <h3
           ref={headingRef}
           data-inline-text-edit
@@ -278,7 +278,7 @@ export function CategoriesCardCanvas() {
       </div>
 
       {categories.length > 0 ? (
-        <div className="mx-auto mt-4 w-full max-w-[1280px]">
+        <div className="mt-3 w-full">
           <div className={layoutConfig.containerClassName}>
             {categories.map((label, idx) => {
               const baseIconType = idx % 3 === 0 ? "shoppingBag" : idx % 3 === 1 ? "home" : "star";
