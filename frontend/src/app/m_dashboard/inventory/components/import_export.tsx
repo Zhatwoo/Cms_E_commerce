@@ -78,6 +78,13 @@ interface ImportExportProps {
 
 export function ImportExportButtons({ theme, search, selectedSubdomain, importing, exporting, onImportComplete, onExportClick, T }: ImportExportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const isDark = theme === 'dark';
+  const [hovered, setHovered] = React.useState<'import' | 'export' | null>(null);
+  const [focused, setFocused] = React.useState<'import' | 'export' | null>(null);
+
+  const railBg = isDark ? 'rgba(20, 20, 70, 0.4)' : '#FFFFFF';
+  const railBorder = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+  const railShadow = isDark ? 'none' : '0 10px 30px rgba(0,0,0,0.04)';
 
   const handleImport = useCallback(() => {
     fileInputRef.current?.click();
@@ -105,50 +112,115 @@ export function ImportExportButtons({ theme, search, selectedSubdomain, importin
   return (
     <>
       <input ref={fileInputRef} type="file" accept=".csv" title="Upload CSV file" style={{ display: 'none' }} onChange={handleFileChange} />
-      <button
-        type="button"
-        onClick={handleImport}
-        disabled={importing}
-        title={importing ? 'Importing…' : 'Import CSV'}
-        className={theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
-          color: theme === 'dark' ? '#ddd1ff' : '#64748b',
-          backgroundColor: theme === 'dark' ? T.card : undefined,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: importing ? 'not-allowed' : 'pointer',
-          opacity: importing ? 0.55 : 1,
-        }}
-      >
-        <Upload size={15} />
-      </button>
-      <button
-        type="button"
-        onClick={onExportClick}
-        disabled={exporting}
-        title={exporting ? 'Exporting…' : 'Export CSV'}
-        className={theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: 12,
-          border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
-          color: theme === 'dark' ? '#ddd1ff' : '#64748b',
-          backgroundColor: theme === 'dark' ? T.card : undefined,
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: exporting ? 'not-allowed' : 'pointer',
-          opacity: exporting ? 0.55 : 1,
-        }}
-      >
-        <Download size={15} />
-      </button>
+      <div className="flex items-center gap-2">
+        <div
+          className="rounded-[1.2rem] border p-1.5 transition-all duration-500"
+          style={{ backgroundColor: railBg, borderColor: railBorder, boxShadow: railShadow }}
+        >
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={handleImport}
+              disabled={importing}
+              aria-label={importing ? 'Importing CSV' : 'Import CSV'}
+              onMouseEnter={() => setHovered('import')}
+              onMouseLeave={() => setHovered((prev) => (prev === 'import' ? null : prev))}
+              onFocus={() => setFocused('import')}
+              onBlur={() => setFocused((prev) => (prev === 'import' ? null : prev))}
+              className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-[0.9rem] inline-flex items-center justify-center transition-colors duration-300 outline-none"
+              style={{
+                color: importing
+                  ? (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)')
+                  : (hovered === 'import' || focused === 'import')
+                    ? (isDark ? '#FFCE00' : '#FFFFFF')
+                    : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'),
+                cursor: importing ? 'not-allowed' : 'pointer',
+                opacity: importing ? 0.75 : 1,
+              }}
+            >
+              <span
+                className="absolute inset-0 rounded-[0.8rem] transition-opacity duration-300"
+                style={{
+                  opacity: hovered === 'import' || focused === 'import' ? 1 : 0,
+                  background: isDark ? 'rgba(255, 206, 0, 0.05)' : 'linear-gradient(135deg, #BD34FE 0%, #F13797 100%)',
+                  boxShadow: isDark
+                    ? '0 0 15px rgba(255, 206, 0, 0.1)'
+                    : '0 4px 12px rgba(189, 52, 254, 0.2)',
+                  border: isDark ? '1px solid rgba(255, 206, 0, 0.15)' : 'none',
+                }}
+              />
+              <Upload size={15} className="relative z-10" />
+            </button>
+            <div
+              role="tooltip"
+              className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+              style={{
+                backgroundColor: isDark ? 'rgba(20, 20, 70, 0.95)' : '#FFFFFF',
+                color: isDark ? '#EDEBFF' : '#14034A',
+                borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(20, 3, 74, 0.08)',
+                boxShadow: isDark ? '0 10px 24px rgba(0,0,0,0.4)' : '0 10px 24px rgba(20,3,74,0.12)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              {importing ? 'Importing CSV data...' : 'Import CSV: upload stock updates by SKU'}
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="rounded-[1.2rem] border p-1.5 transition-all duration-500"
+          style={{ backgroundColor: railBg, borderColor: railBorder, boxShadow: railShadow }}
+        >
+          <div className="relative group">
+            <button
+              type="button"
+              onClick={onExportClick}
+              disabled={exporting}
+              aria-label={exporting ? 'Exporting CSV' : 'Export CSV'}
+              onMouseEnter={() => setHovered('export')}
+              onMouseLeave={() => setHovered((prev) => (prev === 'export' ? null : prev))}
+              onFocus={() => setFocused('export')}
+              onBlur={() => setFocused((prev) => (prev === 'export' ? null : prev))}
+              className="relative h-9 w-9 sm:h-10 sm:w-10 rounded-[0.9rem] inline-flex items-center justify-center transition-colors duration-300 outline-none"
+              style={{
+                color: exporting
+                  ? (isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.25)')
+                  : (hovered === 'export' || focused === 'export')
+                    ? (isDark ? '#FFCE00' : '#FFFFFF')
+                    : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)'),
+                cursor: exporting ? 'not-allowed' : 'pointer',
+                opacity: exporting ? 0.75 : 1,
+              }}
+            >
+              <span
+                className="absolute inset-0 rounded-[0.8rem] transition-opacity duration-300"
+                style={{
+                  opacity: hovered === 'export' || focused === 'export' ? 1 : 0,
+                  background: isDark ? 'rgba(255, 206, 0, 0.05)' : 'linear-gradient(135deg, #BD34FE 0%, #F13797 100%)',
+                  boxShadow: isDark
+                    ? '0 0 15px rgba(255, 206, 0, 0.1)'
+                    : '0 4px 12px rgba(189, 52, 254, 0.2)',
+                  border: isDark ? '1px solid rgba(255, 206, 0, 0.15)' : 'none',
+                }}
+              />
+              <Download size={15} className="relative z-10" />
+            </button>
+            <div
+              role="tooltip"
+              className="pointer-events-none absolute left-1/2 top-full z-50 mt-2 -translate-x-1/2 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100"
+              style={{
+                backgroundColor: isDark ? 'rgba(20, 20, 70, 0.95)' : '#FFFFFF',
+                color: isDark ? '#EDEBFF' : '#14034A',
+                borderColor: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(20, 3, 74, 0.08)',
+                boxShadow: isDark ? '0 10px 24px rgba(0,0,0,0.4)' : '0 10px 24px rgba(20,3,74,0.12)',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              {exporting ? 'Exporting CSV file...' : 'Export CSV: download current inventory'}
+            </div>
+          </div>
+        </div>
+      </div>
     </>
   );
 }
