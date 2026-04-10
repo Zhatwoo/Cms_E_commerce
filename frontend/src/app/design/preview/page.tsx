@@ -30,8 +30,6 @@ import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, sched
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
-import { gsap } from "gsap";
-import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -1175,8 +1173,7 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      // Publish the same normalized document that drives the current Preview output.
-      const docToPublish = effectiveCleanDoc ? migratePublishedContent(effectiveCleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -1232,8 +1229,7 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      // Publish the same normalized document that drives the current Preview output.
-      const docToPublish = effectiveCleanDoc ? migratePublishedContent(effectiveCleanDoc) : null;
+      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
