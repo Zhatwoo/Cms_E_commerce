@@ -29,6 +29,8 @@ import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, sched
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
