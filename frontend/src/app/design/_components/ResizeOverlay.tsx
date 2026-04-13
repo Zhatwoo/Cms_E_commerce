@@ -222,6 +222,23 @@ function parseRotation(value: unknown): number {
   return 0;
 }
 
+function isAngleAlignedTo90(angle: number, tolerance = 1.5): boolean {
+  const normalized = ((angle % 360) + 360) % 360;
+  const remainder = normalized % 90;
+  return remainder <= tolerance || remainder >= 90 - tolerance;
+}
+
+function normalizeRotation(angle: number): number {
+  return ((Math.round(angle) % 360) + 360) % 360;
+}
+
+function snapRotationToWhole(angle: number, snapTolerance = 2): number {
+  const rounded = Math.round(angle);
+  const snapped90 = Math.round(angle / 90) * 90;
+  const snapped = Math.abs(angle - snapped90) <= snapTolerance ? snapped90 : rounded;
+  return normalizeRotation(snapped);
+}
+
 function getRotationFromTransformMatrix(transform: string): number | null {
   const raw = transform.trim();
   if (!raw || raw === "none") return null;
@@ -1175,13 +1192,15 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
         const startRot = parseRotation(d.startProps.rotation);
         const accumulated = (d.accumulatedAngleDeg ?? 0) + deltaDeg;
-        d.accumulatedAngleDeg = accumulated;
-        d.lastPointerAngle = currentAngle;
         const nextRot = startRot + accumulated;
+        const snappedRot = snapRotationToWhole(nextRot);
+
+        d.accumulatedAngleDeg = snappedRot - startRot;
+        d.lastPointerAngle = currentAngle;
 
         // Only update local state for visual feedback during drag
         // Final prop update happens in handleMouseUp
-        setRotateAngle((prev) => (prev == null || Math.abs(prev - nextRot) > 0.1 ? nextRot : prev));
+        setRotateAngle((prev) => (prev == null || Math.abs(prev - snappedRot) > 0.1 ? snappedRot : prev));
       }
 
       if (d.dirty) {
@@ -1471,7 +1490,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const startRot = parseRotation(d.startProps.rotation);
           const finalRot = startRot + (d.accumulatedAngleDeg ?? 0);
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            props.rotation = Math.round(finalRot * 10) / 10;
+            props.rotation = normalizeRotation(finalRot);
           });
         }
       }
@@ -1531,12 +1550,13 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
     if (!hasFlip && Math.abs(propRotation) < 0.01) {
       const domRotation = getRotationFromTransformMatrix(window.getComputedStyle(dom).transform);
       if (domRotation != null && Number.isFinite(domRotation) && Math.abs(domRotation) >= 0.01) {
-        return domRotation;
+        return normalizeRotation(domRotation);
       }
     }
-    return propRotation;
+    return normalizeRotation(propRotation);
   })();
-  const displayAngle = rotateAngle ?? currentRotation;
+  const displayAngle = normalizeRotation(rotateAngle ?? currentRotation);
+  const showRotateGuides = isAngleAlignedTo90(displayAngle);
 
   return ReactDOM.createPortal(
     <div
@@ -1572,30 +1592,34 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
       {isDragging && dragType === "rotate" && !disableRotate && (
         <>
-          <div
-            style={{
-              position: "fixed",
-              left: centerX,
-              top: 0,
-              width: 1,
-              height: window.innerHeight,
-              backgroundColor: "rgba(56, 189, 248, 0.45)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              top: centerY,
-              left: 0,
-              height: 1,
-              width: window.innerWidth,
-              backgroundColor: "rgba(56, 189, 248, 0.45)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />
+          {showRotateGuides && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  left: centerX,
+                  top: 0,
+                  width: 1,
+                  height: window.innerHeight,
+                  backgroundColor: "rgba(56, 189, 248, 0.45)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: centerY,
+                  left: 0,
+                  height: 1,
+                  width: window.innerWidth,
+                  backgroundColor: "rgba(56, 189, 248, 0.45)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+            </>
+          )}
           <div
             style={{
               position: "fixed",
