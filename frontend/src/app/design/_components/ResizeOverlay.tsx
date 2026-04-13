@@ -303,9 +303,26 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
   ]);
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content", "TabContent"]);
   const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
+  const CONTAINER_DISPLAY_NAMES = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content", "TabContent", "Banner"]);
   const isSectionNode = (() => {
     try {
       return query.getState().nodes[nodeId]?.data?.displayName === "Section";
+    } catch {
+      return false;
+    }
+  })();
+  // Detect if this node is a container with children — if so,
+  // use border-only hit areas to let clicks pass through to children.
+  const isContainerWithChildren = (() => {
+    try {
+      const state = query.getState();
+      const node = state.nodes[nodeId];
+      const displayName = node?.data?.displayName as string | undefined;
+      const isCanvas = node?.data?.isCanvas === true;
+      const isContainer = (displayName && CONTAINER_DISPLAY_NAMES.has(displayName)) || isCanvas;
+      if (!isContainer) return false;
+      const childNodes = (node?.data?.nodes as string[] | undefined) ?? [];
+      return childNodes.length > 0;
     } catch {
       return false;
     }
@@ -1639,7 +1656,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           transformOrigin: "center center",
         }}
       >
-        {/* Border = drag to move */}
+        {/* Border = drag to move.
+            For containers with children, check if a child node exists
+            under the cursor. If so, select the child; otherwise start move. */}
         <div
           style={{
             position: "absolute",
@@ -1649,7 +1668,42 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
             cursor: "default",
             pointerEvents: isExternalDragActive ? "none" : "auto",
           }}
-          onMouseDown={(e) => startDrag(e, "move")}
+          onMouseDown={(e) => {
+            if (isContainerWithChildren) {
+              // Check if a child node exists at the click position
+              const elements = document.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[];
+              for (const el of elements) {
+                // Skip overlay elements
+                if (el.closest("[data-panel='resize-overlay']")) continue;
+                if (el.closest("[data-panel]")) continue;
+                const nodeEl = el.closest("[data-node-id]") as HTMLElement | null;
+                const childId = nodeEl?.getAttribute("data-node-id");
+                if (childId && childId !== nodeId && childId !== "ROOT") {
+                  // Check this is actually a descendant of our container
+                  try {
+                    const state = query.getState();
+                    let parentId = state.nodes[childId]?.data?.parent as string | undefined;
+                    let isDescendant = false;
+                    while (parentId) {
+                      if (parentId === nodeId) { isDescendant = true; break; }
+                      parentId = state.nodes[parentId]?.data?.parent as string | undefined;
+                    }
+                    if (isDescendant) {
+                      // A child node is underneath — select it instead of starting drag
+                      e.stopPropagation();
+                      e.preventDefault();
+                      actions.selectNode(childId);
+                      return;
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+            }
+            // No child found (empty container area), or not a container — start move
+            startDrag(e, "move");
+          }}
         />
 
         {/* Resize handles */}
