@@ -222,6 +222,12 @@ function parseRotation(value: unknown): number {
   return 0;
 }
 
+function isAngleAlignedTo90(angle: number, tolerance = 1.5): boolean {
+  const normalized = ((angle % 360) + 360) % 360;
+  const remainder = normalized % 90;
+  return remainder <= tolerance || remainder >= 90 - tolerance;
+}
+
 function getRotationFromTransformMatrix(transform: string): number | null {
   const raw = transform.trim();
   if (!raw || raw === "none") return null;
@@ -1537,6 +1543,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
     return propRotation;
   })();
   const displayAngle = rotateAngle ?? currentRotation;
+  const showRotateGuides = isAngleAlignedTo90(displayAngle);
 
   return ReactDOM.createPortal(
     <div
@@ -1572,30 +1579,34 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
       {isDragging && dragType === "rotate" && !disableRotate && (
         <>
-          <div
-            style={{
-              position: "fixed",
-              left: centerX,
-              top: 0,
-              width: 1,
-              height: window.innerHeight,
-              backgroundColor: "rgba(56, 189, 248, 0.45)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              top: centerY,
-              left: 0,
-              height: 1,
-              width: window.innerWidth,
-              backgroundColor: "rgba(56, 189, 248, 0.45)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />
+          {showRotateGuides && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  left: centerX,
+                  top: 0,
+                  width: 1,
+                  height: window.innerHeight,
+                  backgroundColor: "rgba(56, 189, 248, 0.45)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: centerY,
+                  left: 0,
+                  height: 1,
+                  width: window.innerWidth,
+                  backgroundColor: "rgba(56, 189, 248, 0.45)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+            </>
+          )}
           <div
             style={{
               position: "fixed",
