@@ -303,7 +303,7 @@ export const Container = ({
 };
 
 export const ContainerDefaultProps: Partial<ContainerProps> = {
-  background: "#ffffff",
+  background: "transparent",
   padding: 0,
   paddingTop: 0,
   paddingRight: 0,
