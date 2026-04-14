@@ -371,7 +371,7 @@ export default function DomainsPage() {
           }}
           secondaryAction={{
             label: 'Web Builder',
-            onClick: () => router.push('/m_dashboard/web-builder'),
+            onClick: () => router.push('/m_dashboard/projects'),
           }}
           className="max-w-none! mx-0! py-10!"
         />
