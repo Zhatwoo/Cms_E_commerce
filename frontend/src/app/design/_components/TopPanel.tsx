@@ -28,53 +28,8 @@ import { getStoredUser, getProjectStorage } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
 import { HardDrive } from "lucide-react";
 
-export type DevicePreset = {
-  name: string;
-  width: number;
-  height: number;
-  icon: React.ReactNode;
-};
-
-const MOBILE_PRESET: DevicePreset = {
-  name: "Phone",
-  width: 375,
-  height: 667,
-  icon: <Smartphone className="w-4 h-4" />,
-};
-
-const LAPTOP_PRESET: DevicePreset = {
-  name: "Laptop",
-  width: 1440,
-  height: 900,
-  icon: <Laptop className="w-4 h-4" />,
-};
-
-const DEVICE_PRESETS: DevicePreset[] = [
-  MOBILE_PRESET,
-  {
-    name: "Tablet Portrait",
-    width: 768,
-    height: 1024,
-    icon: <Tablet className="w-4 h-4" />,
-  },
-  {
-    name: "Tablet Landscape",
-    width: 1024,
-    height: 768,
-    icon: <Tablet className="w-4 h-4 rotate-90" />,
-  },
-  LAPTOP_PRESET,
-  {
-    name: "Desktop",
-    width: 1920,
-    height: 1080,
-    icon: <Monitor className="w-4 h-4" />,
-  },
-];
-
 interface TopPanelProps {
   activePageId?: string | null;
-  onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
   projectId?: string;
@@ -91,7 +46,6 @@ interface TopPanelProps {
 
 export const TopPanel: React.FC<TopPanelProps> = ({
   activePageId,
-  onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
   projectId,
@@ -106,8 +60,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onThemeToggle,
 }) => {
   const { actions, query } = useEditor();
-  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{
     displayName: string;
@@ -117,7 +69,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     isSelf?: boolean;
   } | null>(null);
 
-  const sizeDropdownRef = useRef<HTMLDivElement>(null);
   const userModalRef = useRef<HTMLDivElement>(null);
   const collabListRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
@@ -130,16 +81,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   let selfUser: { name?: string; username?: string; email?: string } | null = null;
   try { selfUser = getStoredUser(); } catch { }
   const selfInitial = (selfUser?.name || selfUser?.username || selfUser?.email || "?").charAt(0).toUpperCase();
-
-  // Sync selected preset with current canvas dimensions
-  useEffect(() => {
-    const matchingPreset = DEVICE_PRESETS.find(
-      (p) => p.width === canvasWidth && p.height === canvasHeight
-    );
-    if (matchingPreset) {
-      setSelectedPreset(matchingPreset);
-    }
-  }, [canvasWidth, canvasHeight]);
 
   // Fetch storage usage (requires auth; skip logging when not authorized)
   const fetchStorageUsage = useCallback(async () => {
@@ -172,12 +113,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        sizeDropdownRef.current &&
-        !sizeDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowSizeDropdown(false);
-      }
       if (
         userModalRef.current &&
         !userModalRef.current.contains(event.target as Node)
@@ -256,54 +191,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       console.error("Failed to rotate active page:", error);
     }
   };
-
-  const handlePresetSelect = useCallback((preset: DevicePreset) => {
-    if (projectPermission === "viewer") return;
-    setSelectedPreset(preset);
-
-    // Update all Page nodes with the new width
-    try {
-      const state = query.getState();
-      const nodes = state.nodes ?? {};
-      const rootNode = nodes["ROOT"];
-
-      if (rootNode && Array.isArray(rootNode.data.nodes)) {
-        // Find Viewport node first (ROOT -> Viewport -> Pages)
-        const viewportId = rootNode.data.nodes[0];
-        const viewportNode = nodes[viewportId];
-
-        if (viewportNode && viewportNode.data.displayName === "Viewport") {
-          // Get Page nodes from Viewport
-          const pageIds = viewportNode.data.nodes ?? [];
-          pageIds.forEach((pageId: string) => {
-            const pageNode = nodes[pageId];
-            if (pageNode?.data?.displayName === "Page") {
-              actions.setProp(pageId, (props: Record<string, unknown>) => {
-                props.width = `${preset.width}px`;
-                // Only update width when changing device; preserve page height so content doesn't reset
-              });
-            }
-          });
-        } else {
-          // Fallback: try direct children of ROOT
-          rootNode.data.nodes.forEach((pageId: string) => {
-            const pageNode = nodes[pageId];
-            if (pageNode?.data?.displayName === "Page") {
-              actions.setProp(pageId, (props: Record<string, unknown>) => {
-                props.width = `${preset.width}px`;
-                // Only update width when changing device; preserve page height
-              });
-            }
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to update Page nodes:", error);
-    }
-
-    // Call the parent handler to update canvas state
-    onDevicePresetSelect?.(preset);
-  }, [actions, query, onDevicePresetSelect]);
 
   const zoomPercentage = 100;
   const toolbarTextSmoothingStyle: React.CSSProperties = {
@@ -562,56 +449,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
               <span className="text-xs font-medium">Device</span>
             </button>
           </DesignTooltip>
-
-          {/* Device Preset Dropdown (Breakpoint) */}
-          <div className="relative" ref={sizeDropdownRef}>
-            <DesignTooltip content="Breakpoints" position="bottom">
-              <button
-                onClick={() => setShowSizeDropdown((prev) => !prev)}
-                className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${showSizeDropdown
-                    ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                    : "bg-builder-surface-2 hover:bg-builder-surface-3 border-builder-border text-builder-text"
-                  }`}
-              >
-                <MonitorSmartphone className="w-4 h-4" />
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSizeDropdown ? "rotate-180" : "opacity-50"}`} />
-              </button>
-            </DesignTooltip>
-
-            <div
-              className={`absolute top-full right-0 mt-2 w-48 bg-[var(--builder-surface)]/95 backdrop-blur-xl border border-[var(--builder-border)] rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${showSizeDropdown
-                  ? "opacity-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-                }`}
-            >
-              <div className="px-3 py-2 border-b border-[var(--builder-border)] bg-[var(--builder-surface-3)]">
-                <span className="text-[10px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Breakpoints</span>
-              </div>
-              {DEVICE_PRESETS.map((preset, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    handlePresetSelect(preset);
-                    setShowSizeDropdown(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-[var(--builder-surface-2)] ${selectedPreset?.name === preset.name
-                    ? "text-blue-400 font-bold bg-blue-500/10"
-                    : "text-[var(--builder-text-muted)]"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="opacity-60">{preset.icon}</span>
-                    <span>{preset.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 opacity-40 tabular-nums text-[10px]">
-                    <span>{preset.width}</span>
-                    <span className="text-[8px]">×</span>
-                    <span>{preset.height}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
 
           {/* Divider */}
           <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
