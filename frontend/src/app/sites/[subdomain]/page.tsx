@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
-import { migratePublishedContent } from '@/app/design/_lib/contentMigration';
 import { PREVIEW_TABLET_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
 import { apiFetch } from '@/lib/api';
@@ -102,6 +101,11 @@ function PublicSiteContent() {
     }
   }, [subdomain]);
 
+  const storefrontContext = React.useMemo(
+    () => (products.length > 0 ? { products, addToCart } : null),
+    [products, addToCart]
+  );
+
   useEffect(() => {
     if (!subdomain || typeof subdomain !== 'string') {
       setLoading(false);
@@ -143,7 +147,6 @@ function PublicSiteContent() {
           setLoading(false);
           return;
         }
-        clean = migratePublishedContent(clean) as BuilderDocument;
         setDoc(clean);
       } catch (e) {
         if (!cancelled) {
@@ -208,10 +211,10 @@ function PublicSiteContent() {
           mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
           enableFormInputs
           builderParityMode={false}
-          storeContext={{ products, addToCart }}
+          storeContext={storefrontContext}
         />
-        <CartFab />
-        <CartDrawer />
+        {storefrontContext ? <CartFab /> : null}
+        {storefrontContext ? <CartDrawer /> : null}
       </>
     </StorefrontRenderBoundary>
   );

@@ -3,6 +3,7 @@ const { docToObject } = require('../utils/firestoreHelper');
 
 const ROOT_COLLECTION = 'published_subdomains';
 const PRODUCT_COLLECTION = 'products';
+const CLIENT_ROOT = ['user', 'roles', 'client'];
 
 function normalizeSubdomain(subdomain) {
   return (subdomain || '')
@@ -16,6 +17,58 @@ function getSubdomainProductsRef(subdomain) {
   const normalized = normalizeSubdomain(subdomain);
   if (!normalized) throw new Error('subdomain is required');
   return db.collection(ROOT_COLLECTION).doc(normalized).collection(PRODUCT_COLLECTION);
+}
+
+async function ensurePublishedSubdomainOwner(subdomain, userId) {
+  const normalized = normalizeSubdomain(subdomain);
+  const uid = String(userId || '').trim();
+  if (!normalized || !uid) return;
+
+  const ref = db.collection(ROOT_COLLECTION).doc(normalized);
+  const snap = await ref.get();
+
+  if (!snap.exists) {
+    await ref.set(
+      {
+        subdomain: normalized,
+        user_id: uid,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      { merge: true }
+    );
+    return;
+  }
+
+  const ownerId = snap.get('user_id');
+  if (ownerId && ownerId !== uid) {
+    throw new Error('Access denied for this domain');
+  }
+
+  if (!ownerId) {
+    await ref.set(
+      {
+        user_id: uid,
+        updated_at: new Date(),
+      },
+      { merge: true }
+    );
+  }
+}
+
+function getProjectProductsRef(userId, projectId) {
+  const uid = String(userId || '').trim();
+  const pid = String(projectId || '').trim();
+  if (!uid) throw new Error('userId is required');
+  if (!pid) throw new Error('projectId is required');
+  return db
+    .collection(CLIENT_ROOT[0])
+    .doc(CLIENT_ROOT[1])
+    .collection(CLIENT_ROOT[2])
+    .doc(uid)
+    .collection('projects')
+    .doc(pid)
+    .collection(PRODUCT_COLLECTION);
 }
 
 function toNumber(value, fallback = 0) {
@@ -140,6 +193,11 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   const normalized = normalizeSubdomain(subdomain);
   if (!normalized) throw new Error('subdomain is required');
   if (!userId) throw new Error('userId is required');
+
+  // Ensure published_subdomains/{subdomain} lookup exists so owner-scoped reads work
+  // even if the site publish flow hasn't created the lookup document yet.
+  await ensurePublishedSubdomainOwner(normalized, userId);
+
   const variants = sanitizeVariants(data.variants);
   const hasVariants = !!data.hasVariants && variants.length > 0;
   const variantStocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
@@ -197,6 +255,67 @@ async function createForSubdomain({ subdomain, userId, projectId, domainId, data
   return docToObject(snap);
 }
 
+async function createForProject({ userId, projectId, data }) {
+  if (!userId) throw new Error('userId is required');
+  if (!projectId) throw new Error('projectId is required');
+
+  const variants = sanitizeVariants(data.variants);
+  const hasVariants = !!data.hasVariants && variants.length > 0;
+  const variantStocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
+  const variantPrices = hasVariants ? sanitizeVariantPrices(data.variantPrices) : {};
+
+  const normalizedSubcategory = String(
+    data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+  ).trim();
+
+  const initialInventory = resolveInventorySnapshot({
+    onHandStock: data.onHandStock,
+    stock: data.stock,
+    reservedStock: data.reservedStock,
+    lowStockThreshold: data.lowStockThreshold,
+  });
+
+  const doc = {
+    name: data.name || '',
+    sku: data.sku || '',
+    category: data.category || '',
+    subcategory: normalizedSubcategory,
+    slug: data.slug || '',
+    description: data.description || '',
+    price: toNumber(data.price, 0),
+    base_price: toNullableNumber(data.basePrice),
+    cost_price: toNullableNumber(data.costPrice),
+    final_price: toNullableNumber(data.finalPrice),
+    compare_at_price: data.compareAtPrice != null ? parseFloat(data.compareAtPrice) : null,
+    discount: toNumber(data.discount, 0),
+    discount_type: data.discountType === 'fixed' ? 'fixed' : 'percentage',
+    has_variants: hasVariants,
+    variants: hasVariants ? variants : [],
+    variant_stocks: variantStocks,
+    variant_prices: variantPrices,
+    price_range_min: toNullableNumber(data.priceRangeMin),
+    price_range_max: toNullableNumber(data.priceRangeMax),
+    images: Array.isArray(data.images) ? data.images : [],
+    status: data.status || 'draft',
+    // Backward-compatible legacy stock mirror (same as on_hand_stock)
+    stock: initialInventory.onHandStock,
+    on_hand_stock: initialInventory.onHandStock,
+    reserved_stock: initialInventory.reservedStock,
+    available_stock: initialInventory.availableStock,
+    low_stock_threshold: initialInventory.lowStockThreshold,
+    user_id: userId,
+    subdomain: null,
+    project_id: String(projectId),
+    domain_id: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+  };
+
+  const ref = await getProjectProductsRef(userId, projectId).add(doc);
+  const snap = await ref.get();
+  return docToObject(snap);
+}
+
 function sortByCreatedAtDesc(items) {
   return items.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
 }
@@ -220,6 +339,23 @@ function paginate(items, pagination = {}) {
   return { items: slice, total, page, totalPages: Math.ceil(total / limit) };
 }
 
+async function findAllForSubdomain({ subdomain, status, search } = {}, pagination = {}) {
+  const normalized = normalizeSubdomain(subdomain);
+  if (!normalized) return paginate([], pagination);
+
+  const snap = await getSubdomainProductsRef(normalized).get();
+  let items = snap.docs.map((d) => docToObject(d)).filter(Boolean);
+
+  if (status) {
+    const statusFilter = String(status).toLowerCase();
+    items = items.filter((p) => String(p.status || '').toLowerCase() === statusFilter);
+  }
+
+  items = sortByCreatedAtDesc(items);
+  items = applySearch(items, search);
+  return paginate(items, pagination);
+}
+
 async function findAllForUser(filters = {}, pagination = {}) {
   const subdomains = await getOwnedSubdomains(filters.userId, filters.subdomain);
   if (!subdomains.length) return paginate([], pagination);
@@ -239,6 +375,21 @@ async function findAllForUser(filters = {}, pagination = {}) {
   }
   items = sortByCreatedAtDesc(items);
   items = applySearch(items, filters.search);
+  return paginate(items, pagination);
+}
+
+async function findAllForProject({ userId, projectId, status, search } = {}, pagination = {}) {
+  if (!userId || !projectId) return paginate([], pagination);
+  const snap = await getProjectProductsRef(userId, projectId).get();
+  let items = snap.docs.map((d) => docToObject(d)).filter(Boolean);
+
+  if (status) {
+    const statusFilter = String(status).toLowerCase();
+    items = items.filter((p) => String(p.status || '').toLowerCase() === statusFilter);
+  }
+
+  items = sortByCreatedAtDesc(items);
+  items = applySearch(items, search);
   return paginate(items, pagination);
 }
 
@@ -315,6 +466,29 @@ async function findByIdForUser(id, userId) {
   const ownedDoc = snaps.find((s) => s.exists);
   if (!ownedDoc) return null;
   return docToObject(ownedDoc);
+}
+
+async function findByIdForSubdomain(id, subdomain) {
+  const normalizedId = String(id || '').trim();
+  const normalizedSubdomain = normalizeSubdomain(subdomain);
+  if (!normalizedId || !normalizedSubdomain) return null;
+  const snap = await getSubdomainProductsRef(normalizedSubdomain).doc(normalizedId).get();
+  return docToObject(snap);
+}
+
+async function findByIdForProject(id, userId, projectId) {
+  if (!id || !userId || !projectId) return null;
+  const snap = await getProjectProductsRef(userId, projectId).doc(String(id).trim()).get();
+  return docToObject(snap);
+}
+
+async function findBySlugForProject(slug, userId, projectId) {
+  if (!slug || !userId || !projectId) return null;
+  const normalizedSlug = String(slug).trim();
+  if (!normalizedSlug) return null;
+  const snap = await getProjectProductsRef(userId, projectId).where('slug', '==', normalizedSlug).limit(1).get();
+  if (snap.empty) return null;
+  return docToObject(snap.docs[0]);
 }
 
 async function findBySlugForUser(slug, userId, subdomain) {
@@ -456,6 +630,210 @@ async function updateForUser(id, userId, data) {
     .update(updates);
 
   return findByIdForUser(id, userId);
+}
+
+async function updateForSubdomain(id, subdomain, data) {
+  const existing = await findByIdForSubdomain(id, subdomain);
+  if (!existing) return null;
+
+  const updates = {};
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.sku !== undefined) updates.sku = data.sku;
+  if (data.category !== undefined) updates.category = data.category;
+  if (
+    data.subcategory !== undefined ||
+    data.subCategory !== undefined ||
+    data.sub_category !== undefined
+  ) {
+    updates.subcategory = String(
+      data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+    ).trim();
+  }
+  if (data.slug !== undefined) updates.slug = data.slug;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.price !== undefined) updates.price = toNumber(data.price, 0);
+  if (data.basePrice !== undefined) updates.base_price = toNullableNumber(data.basePrice);
+  if (data.costPrice !== undefined) updates.cost_price = toNullableNumber(data.costPrice);
+  if (data.finalPrice !== undefined) updates.final_price = toNullableNumber(data.finalPrice);
+  if (data.compareAtPrice !== undefined) {
+    updates.compare_at_price = data.compareAtPrice != null ? parseFloat(data.compareAtPrice) : null;
+  }
+  if (data.discount !== undefined) updates.discount = toNumber(data.discount, 0);
+  if (data.discountType !== undefined) updates.discount_type = data.discountType === 'fixed' ? 'fixed' : 'percentage';
+  if (data.hasVariants !== undefined) {
+    updates.has_variants = !!data.hasVariants;
+    if (!updates.has_variants && data.variants === undefined) updates.variants = [];
+  }
+  if (data.variants !== undefined) {
+    const variants = sanitizeVariants(data.variants);
+    const hasVariants = data.hasVariants === undefined ? variants.length > 0 : !!data.hasVariants;
+    updates.has_variants = hasVariants;
+    updates.variants = hasVariants ? variants : [];
+    if (!hasVariants && data.variantStocks === undefined) updates.variant_stocks = {};
+    if (!hasVariants && data.variantPrices === undefined) updates.variant_prices = {};
+  }
+  if (data.variantStocks !== undefined) {
+    const hasVariants =
+      updates.has_variants !== undefined
+        ? !!updates.has_variants
+        : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
+    updates.variant_stocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
+  }
+  if (data.variantPrices !== undefined) {
+    const hasVariants =
+      updates.has_variants !== undefined
+        ? !!updates.has_variants
+        : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
+    updates.variant_prices = hasVariants ? sanitizeVariantPrices(data.variantPrices) : {};
+  }
+  if (data.priceRangeMin !== undefined) updates.price_range_min = toNullableNumber(data.priceRangeMin);
+  if (data.priceRangeMax !== undefined) updates.price_range_max = toNullableNumber(data.priceRangeMax);
+  if (data.images !== undefined) updates.images = Array.isArray(data.images) ? data.images : [];
+  if (data.status !== undefined) updates.status = data.status;
+
+  const existingInventory = resolveInventorySnapshot({
+    onHandStock: existing.onHandStock,
+    stock: existing.stock,
+    reservedStock: existing.reservedStock,
+    lowStockThreshold: existing.lowStockThreshold,
+  });
+  const inventoryInputPresent =
+    data.stock !== undefined ||
+    data.onHandStock !== undefined ||
+    data.reservedStock !== undefined ||
+    data.lowStockThreshold !== undefined;
+  if (inventoryInputPresent) {
+    const nextOnHand =
+      data.onHandStock !== undefined
+        ? toNullableInt(data.onHandStock)
+        : data.stock !== undefined
+          ? toNullableInt(data.stock)
+          : existingInventory.onHandStock;
+    const requestedReserved =
+      data.reservedStock !== undefined
+        ? toNonNegativeInt(data.reservedStock, 0)
+        : existingInventory.reservedStock;
+    const nextReserved = clampReservedToOnHand(nextOnHand, requestedReserved);
+    const nextAvailable = computeAvailable(nextOnHand, nextReserved);
+    const nextThreshold =
+      data.lowStockThreshold !== undefined
+        ? toNonNegativeInt(data.lowStockThreshold, 0)
+        : existingInventory.lowStockThreshold;
+
+    updates.stock = nextOnHand;
+    updates.on_hand_stock = nextOnHand;
+    updates.reserved_stock = nextReserved;
+    updates.available_stock = nextAvailable;
+    updates.low_stock_threshold = nextThreshold;
+  }
+
+  if (Object.keys(updates).length === 0) return existing;
+  updates.updated_at = new Date();
+
+  await getSubdomainProductsRef(existing.subdomain).doc(existing.id).update(updates);
+  return findByIdForSubdomain(id, existing.subdomain);
+}
+
+async function updateForProject(id, userId, projectId, data) {
+  const existing = await findByIdForProject(id, userId, projectId);
+  if (!existing) return null;
+
+  const updates = {};
+  if (data.name !== undefined) updates.name = data.name;
+  if (data.sku !== undefined) updates.sku = data.sku;
+  if (data.category !== undefined) updates.category = data.category;
+  if (
+    data.subcategory !== undefined ||
+    data.subCategory !== undefined ||
+    data.sub_category !== undefined
+  ) {
+    updates.subcategory = String(
+      data.subcategory ?? data.subCategory ?? data.sub_category ?? ''
+    ).trim();
+  }
+  if (data.slug !== undefined) updates.slug = data.slug;
+  if (data.description !== undefined) updates.description = data.description;
+  if (data.price !== undefined) updates.price = toNumber(data.price, 0);
+  if (data.basePrice !== undefined) updates.base_price = toNullableNumber(data.basePrice);
+  if (data.costPrice !== undefined) updates.cost_price = toNullableNumber(data.costPrice);
+  if (data.finalPrice !== undefined) updates.final_price = toNullableNumber(data.finalPrice);
+  if (data.compareAtPrice !== undefined) {
+    updates.compare_at_price = data.compareAtPrice != null ? parseFloat(data.compareAtPrice) : null;
+  }
+  if (data.discount !== undefined) updates.discount = toNumber(data.discount, 0);
+  if (data.discountType !== undefined) updates.discount_type = data.discountType === 'fixed' ? 'fixed' : 'percentage';
+  if (data.hasVariants !== undefined) {
+    updates.has_variants = !!data.hasVariants;
+    if (!updates.has_variants && data.variants === undefined) updates.variants = [];
+  }
+  if (data.variants !== undefined) {
+    const variants = sanitizeVariants(data.variants);
+    const hasVariants = data.hasVariants === undefined ? variants.length > 0 : !!data.hasVariants;
+    updates.has_variants = hasVariants;
+    updates.variants = hasVariants ? variants : [];
+    if (!hasVariants && data.variantStocks === undefined) updates.variant_stocks = {};
+    if (!hasVariants && data.variantPrices === undefined) updates.variant_prices = {};
+  }
+  if (data.variantStocks !== undefined) {
+    const hasVariants =
+      updates.has_variants !== undefined
+        ? !!updates.has_variants
+        : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
+    updates.variant_stocks = hasVariants ? sanitizeVariantStocks(data.variantStocks) : {};
+  }
+  if (data.variantPrices !== undefined) {
+    const hasVariants =
+      updates.has_variants !== undefined
+        ? !!updates.has_variants
+        : (existing.hasVariants !== undefined ? !!existing.hasVariants : Array.isArray(existing.variants) && existing.variants.length > 0);
+    updates.variant_prices = hasVariants ? sanitizeVariantPrices(data.variantPrices) : {};
+  }
+  if (data.priceRangeMin !== undefined) updates.price_range_min = toNullableNumber(data.priceRangeMin);
+  if (data.priceRangeMax !== undefined) updates.price_range_max = toNullableNumber(data.priceRangeMax);
+  if (data.images !== undefined) updates.images = Array.isArray(data.images) ? data.images : [];
+  if (data.status !== undefined) updates.status = data.status;
+
+  const existingInventory = resolveInventorySnapshot({
+    onHandStock: existing.onHandStock,
+    stock: existing.stock,
+    reservedStock: existing.reservedStock,
+    lowStockThreshold: existing.lowStockThreshold,
+  });
+  const inventoryInputPresent =
+    data.stock !== undefined ||
+    data.onHandStock !== undefined ||
+    data.reservedStock !== undefined ||
+    data.lowStockThreshold !== undefined;
+  if (inventoryInputPresent) {
+    const nextOnHand =
+      data.onHandStock !== undefined
+        ? toNullableInt(data.onHandStock)
+        : data.stock !== undefined
+          ? toNullableInt(data.stock)
+          : existingInventory.onHandStock;
+    const requestedReserved =
+      data.reservedStock !== undefined
+        ? toNonNegativeInt(data.reservedStock, 0)
+        : existingInventory.reservedStock;
+    const nextReserved = clampReservedToOnHand(nextOnHand, requestedReserved);
+    const nextAvailable = computeAvailable(nextOnHand, nextReserved);
+    const nextThreshold =
+      data.lowStockThreshold !== undefined
+        ? toNonNegativeInt(data.lowStockThreshold, 0)
+        : existingInventory.lowStockThreshold;
+
+    updates.stock = nextOnHand;
+    updates.on_hand_stock = nextOnHand;
+    updates.reserved_stock = nextReserved;
+    updates.available_stock = nextAvailable;
+    updates.low_stock_threshold = nextThreshold;
+  }
+
+  if (Object.keys(updates).length === 0) return existing;
+  updates.updated_at = new Date();
+
+  await getProjectProductsRef(userId, projectId).doc(existing.id).update(updates);
+  return findByIdForProject(id, userId, projectId);
 }
 
 async function applyInventoryDeltaForUser({
@@ -671,6 +1049,32 @@ async function deleteByIdForUser(id, userId) {
   return true;
 }
 
+async function deleteByIdForSubdomain(id, subdomain) {
+  const existing = await findByIdForSubdomain(id, subdomain);
+  if (!existing) return false;
+  await getSubdomainProductsRef(existing.subdomain).doc(existing.id).delete();
+  return true;
+}
+
+async function deleteByIdForProject(id, userId, projectId) {
+  const existing = await findByIdForProject(id, userId, projectId);
+  if (!existing) return false;
+  await getProjectProductsRef(userId, projectId).doc(existing.id).delete();
+  return true;
+}
+
+async function findPublicByProject(userId, projectId, { limit = 100 } = {}) {
+  if (!userId || !projectId) return [];
+  const ref = getProjectProductsRef(userId, projectId).limit(Math.max(1, parseInt(limit, 10) || 100));
+  const snap = await ref.get();
+  let items = snap.docs.map((d) => docToObject(d));
+  items = sortByCreatedAtDesc(items);
+  return items.filter((p) => {
+    const status = (p.status || '').toString().toLowerCase();
+    return status === 'active' || status === 'published';
+  });
+}
+
 async function findPublicBySubdomain(subdomain, { limit = 100 } = {}) {
   const normalized = normalizeSubdomain(subdomain);
   if (!normalized) return [];
@@ -686,18 +1090,30 @@ async function findPublicBySubdomain(subdomain, { limit = 100 } = {}) {
 }
 
 module.exports = {
+  createForProject,
   createForSubdomain,
+  ensurePublishedSubdomainOwner,
+  findAllForProject,
+  findAllForSubdomain,
   findAllForUser,
   findAllGlobal,
   findByIdGlobal,
+  findByIdForSubdomain,
   findByIdForUser,
+  findByIdForProject,
   findBySlugForUser,
+  findBySlugForProject,
   findBySkuForUser,
+  updateForSubdomain,
+  updateForProject,
   updateForUser,
   applyInventoryDeltaForUser,
   applyVariantInventoryDeltaForUser,
   deleteByIdGlobal,
+  deleteByIdForSubdomain,
   deleteByIdForUser,
+  deleteByIdForProject,
+  findPublicByProject,
   findPublicBySubdomain,
   normalizeSubdomain,
   resolveInventorySnapshot,

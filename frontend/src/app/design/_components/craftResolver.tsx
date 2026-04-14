@@ -48,6 +48,17 @@ import { HeroBannerCTA_v2Block } from "../../_assets/Hero/HeroBannerCTA_v2Block"
 import { HeroBannerCTABlock } from "../../_assets/Hero/HeroBannerCTABlock";
 import { HeroWithImageBlock } from "../../_assets/Hero/HeroWithImageBlock";
 import { CenteredHeroBlock } from "../../_assets/Hero/CenteredHeroBlock";
+import { SplitScreenHeroBlock } from "../../_assets/Hero/SplitScreenHeroBlock";
+import { MinimalTypeHeroBlock } from "../../_assets/Hero/MinimalTypeHeroBlock";
+import { VideoStyleHeroBlock } from "../../_assets/Hero/VideoStyleHeroBlock";
+import { CollectionHeroBlock } from "../../_assets/Hero/CollectionHeroBlock";
+import { FeaturesGridBlock } from "../../_assets/Content/FeaturesGridBlock";
+import { TestimonialBlock } from "../../_assets/Content/TestimonialBlock";
+import { StatsCounterBlock } from "../../_assets/Content/StatsCounterBlock";
+import { NewsletterCTABlock } from "../../_assets/Content/NewsletterCTABlock";
+import { ImageTextBlock } from "../../_assets/Content/ImageTextBlock";
+import { BrandLogosBlock } from "../../_assets/Content/BrandLogosBlock";
+import { CTABannerBlock } from "../../_assets/Content/CTABannerBlock";
 import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
 
@@ -169,6 +180,17 @@ export function buildCraftResolver(): Resolver {
   const HeroBannerCTABlockComp = asComponent(HeroBannerCTABlock, ContainerComp);
   const HeroWithImageBlockComp = asComponent(HeroWithImageBlock, ContainerComp);
   const CenteredHeroBlockComp = asComponent(CenteredHeroBlock, ContainerComp);
+  const SplitScreenHeroBlockComp = asComponent(SplitScreenHeroBlock, ContainerComp);
+  const MinimalTypeHeroBlockComp = asComponent(MinimalTypeHeroBlock, ContainerComp);
+  const VideoStyleHeroBlockComp = asComponent(VideoStyleHeroBlock, ContainerComp);
+  const CollectionHeroBlockComp = asComponent(CollectionHeroBlock, ContainerComp);
+  const FeaturesGridBlockComp = asComponent(FeaturesGridBlock, ContainerComp);
+  const TestimonialBlockComp = asComponent(TestimonialBlock, ContainerComp);
+  const StatsCounterBlockComp = asComponent(StatsCounterBlock, ContainerComp);
+  const NewsletterCTABlockComp = asComponent(NewsletterCTABlock, ContainerComp);
+  const ImageTextBlockComp = asComponent(ImageTextBlock, ContainerComp);
+  const BrandLogosBlockComp = asComponent(BrandLogosBlock, ContainerComp);
+  const CTABannerBlockComp = asComponent(CTABannerBlock, ContainerComp);
   const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
@@ -294,11 +316,44 @@ export function buildCraftResolver(): Resolver {
     CenteredHeroBlock: CenteredHeroBlockComp,
     centeredheroblock: CenteredHeroBlockComp,
     "Centered Hero Block": CenteredHeroBlockComp,
+    SplitScreenHeroBlock: SplitScreenHeroBlockComp,
+    splitscreenheroblock: SplitScreenHeroBlockComp,
+    "Split Screen Hero Block": SplitScreenHeroBlockComp,
+    MinimalTypeHeroBlock: MinimalTypeHeroBlockComp,
+    minimaltypeheroblock: MinimalTypeHeroBlockComp,
+    "Minimal Type Hero Block": MinimalTypeHeroBlockComp,
+    VideoStyleHeroBlock: VideoStyleHeroBlockComp,
+    videostyleheroblock: VideoStyleHeroBlockComp,
+    "Video Style Hero Block": VideoStyleHeroBlockComp,
+    CollectionHeroBlock: CollectionHeroBlockComp,
+    collectionheroblock: CollectionHeroBlockComp,
+    "Collection Hero Block": CollectionHeroBlockComp,
     CategoryTile: CategoryTileComp,
     categorytile: CategoryTileComp,
     "Category Tile": CategoryTileComp,
     CategoriesCardCanvas: CategoriesCardCanvasComp,
     categoriescardcanvas: CategoriesCardCanvasComp,
+    FeaturesGridBlock: FeaturesGridBlockComp,
+    featuresgridblock: FeaturesGridBlockComp,
+    "Features Grid Block": FeaturesGridBlockComp,
+    TestimonialBlock: TestimonialBlockComp,
+    testimonialblock: TestimonialBlockComp,
+    "Testimonial Block": TestimonialBlockComp,
+    StatsCounterBlock: StatsCounterBlockComp,
+    statscounterblock: StatsCounterBlockComp,
+    "Stats Counter Block": StatsCounterBlockComp,
+    NewsletterCTABlock: NewsletterCTABlockComp,
+    newsletterctablock: NewsletterCTABlockComp,
+    "Newsletter CTA Block": NewsletterCTABlockComp,
+    ImageTextBlock: ImageTextBlockComp,
+    imagetextblock: ImageTextBlockComp,
+    "Image Text Block": ImageTextBlockComp,
+    BrandLogosBlock: BrandLogosBlockComp,
+    brandlogosblock: BrandLogosBlockComp,
+    "Brand Logos Block": BrandLogosBlockComp,
+    CTABannerBlock: CTABannerBlockComp,
+    ctabannerblock: CTABannerBlockComp,
+    "CTA Banner Block": CTABannerBlockComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -330,6 +385,17 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "HeroBannerCTABlock", HeroBannerCTABlockComp, ["Hero Banner CTA Block", "herobannerctablock"]);
   addAliases(base, "HeroWithImageBlock", HeroWithImageBlockComp, ["Hero With Image Block", "herowithimageblock"]);
   addAliases(base, "CenteredHeroBlock", CenteredHeroBlockComp, ["Centered Hero Block", "centeredheroblock"]);
+  addAliases(base, "SplitScreenHeroBlock", SplitScreenHeroBlockComp, ["Split Screen Hero Block", "splitscreenheroblock"]);
+  addAliases(base, "MinimalTypeHeroBlock", MinimalTypeHeroBlockComp, ["Minimal Type Hero Block", "minimaltypeheroblock"]);
+  addAliases(base, "VideoStyleHeroBlock", VideoStyleHeroBlockComp, ["Video Style Hero Block", "videostyleheroblock"]);
+  addAliases(base, "CollectionHeroBlock", CollectionHeroBlockComp, ["Collection Hero Block", "collectionheroblock"]);
+  addAliases(base, "FeaturesGridBlock", FeaturesGridBlockComp, ["Features Grid Block", "featuresgridblock"]);
+  addAliases(base, "TestimonialBlock", TestimonialBlockComp, ["Testimonial Block", "testimonialblock"]);
+  addAliases(base, "StatsCounterBlock", StatsCounterBlockComp, ["Stats Counter Block", "statscounterblock"]);
+  addAliases(base, "NewsletterCTABlock", NewsletterCTABlockComp, ["Newsletter CTA Block", "newsletterctablock"]);
+  addAliases(base, "ImageTextBlock", ImageTextBlockComp, ["Image Text Block", "imagetextblock"]);
+  addAliases(base, "BrandLogosBlock", BrandLogosBlockComp, ["Brand Logos Block", "brandlogosblock"]);
+  addAliases(base, "CTABannerBlock", CTABannerBlockComp, ["CTA Banner Block", "ctabannerblock"]);
   return withResolverFallback(base);
 }
 

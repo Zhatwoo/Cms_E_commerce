@@ -5,6 +5,7 @@ import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
 import { useCanvasTool } from "./CanvasToolContext";
 import { getSnapGuides, Rect } from "./snapUtils";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 type Handle = "n" | "s" | "e" | "w" | "ne" | "nw" | "se" | "sw";
 
@@ -656,7 +657,10 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           if (dragRef.current) {
             dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
 
-            const selectedIds = selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]);
+            const selectedIds = filterLeafSelectionIds(
+              selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]),
+              state.nodes
+            );
             const idsToMove = selectedIds.includes(nodeId) ? selectedIds : [nodeId];
             const moveItems = idsToMove
               .map((id) => {
@@ -1091,8 +1095,14 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const nextMarginTopRaw = extraMT !== 0 ? bMT + extraMT : bMT;
         const nextMarginLeftRaw = extraML !== 0 ? bML + extraML : bML;
         const isMarginFlowResize = (d.moveMode ?? "margin") === "margin";
-        const nextMarginTop = isMarginFlowResize ? Math.max(0, nextMarginTopRaw) : nextMarginTopRaw;
-        const nextMarginLeft = isMarginFlowResize ? Math.max(0, nextMarginLeftRaw) : nextMarginLeftRaw;
+        const allowNegativeTopDuringResize = h.includes("n");
+        const allowNegativeLeftDuringResize = h.includes("w");
+        const nextMarginTop = isMarginFlowResize && !allowNegativeTopDuringResize
+          ? Math.max(0, nextMarginTopRaw)
+          : nextMarginTopRaw;
+        const nextMarginLeft = isMarginFlowResize && !allowNegativeLeftDuringResize
+          ? Math.max(0, nextMarginLeftRaw)
+          : nextMarginLeftRaw;
 
         const lastResize = d.lastAppliedResize;
         const unchangedFromLast =
@@ -1117,22 +1127,18 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const currentNode = query.getState().nodes[nodeId];
         const isTextNode = currentNode?.data?.displayName === "Text";
         const isAccordionNode = currentNode?.data?.displayName === "Accordion";
-        const startFontSize = parsePxOrAuto(d.startProps.fontSize);
-        const nextFontSize = isTextNode
-          ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
-          : null;
 
         // Smooth preview: apply direct DOM style during drag, commit once on mouseup.
         if (!isSectionNode) {
           dom.style.width = `${newW}px`;
         }
-        if (isTextNode || isAccordionNode) {
+        if (isTextNode) {
+          dom.style.height = `${Math.round(newH)}px`;
+          dom.style.removeProperty("min-height");
+          dom.style.removeProperty("max-height");
+        } else if (isAccordionNode) {
           dom.style.height = "auto";
-          if (isAccordionNode) {
-            dom.style.minHeight = `${Math.round(newH)}px`;
-          } else {
-            dom.style.removeProperty("min-height");
-          }
+          dom.style.minHeight = `${Math.round(newH)}px`;
           dom.style.removeProperty("max-height");
         } else {
           dom.style.height = `${newH}px`;
@@ -1150,9 +1156,6 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           } else {
             dom.style.marginLeft = `${nextMarginLeft}px`;
           }
-        }
-        if (isTextNode && nextFontSize != null) {
-          dom.style.fontSize = `${Math.round(nextFontSize * 10) / 10}px`;
         }
       } else if (d.type === "rotate" && d.startAngle != null) {
         const cx = d.startRect.left + d.startRect.width / 2;
@@ -1397,29 +1400,22 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const isAccordionNode = currentNode?.data?.displayName === "Accordion";
         const isImageNode = currentNode?.data?.displayName === "Image";
         const isSection = currentNode?.data?.displayName === "Section";
-        const startFontSize = parsePxOrAuto(d.startProps.fontSize);
-        const nextFontSize = isTextNode
-          ? computeTextFontSizeForResize(h, startW, startH, newW, newH, startFontSize)
-          : null;
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
           if (!isSection) {
             props.width = `${Math.round(newW)}px`;
           }
-          if (isTextNode || isAccordionNode) {
+          if (isTextNode) {
+            props.height = `${Math.round(newH)}px`;
+            delete props.minHeight;
+            delete props.maxHeight;
+          } else if (isAccordionNode) {
             props.height = "auto";
-            if (isAccordionNode) {
-              props.minHeight = `${Math.round(newH)}px`;
-            } else {
-              delete props.minHeight;
-              }
-              delete props.maxHeight;
-            } else {
-              props.height = `${Math.round(newH)}px`;
-            }
-            if (isTextNode && nextFontSize != null) {
-              props.fontSize = Math.round(nextFontSize * 10) / 10;
-            }
+            props.minHeight = `${Math.round(newH)}px`;
+            delete props.maxHeight;
+          } else {
+            props.height = `${Math.round(newH)}px`;
+          }
             if (extraMT !== 0) {
               const isOffset = (d.moveMode ?? "margin") === "offset";
               if (isOffset) {
@@ -1427,7 +1423,11 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
                 props.top = `${Math.round(bTop + extraMT)}px`;
               } else {
                 const bMT = typeof d.startProps.marginTop === "number" ? d.startProps.marginTop as number : 0;
-                const nextMT = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bMT + extraMT) : (bMT + extraMT);
+                const isMarginMove = (d.moveMode ?? "margin") === "margin";
+                const allowNegativeTopDuringResize = h.includes("n");
+                const nextMT = isMarginMove && !allowNegativeTopDuringResize
+                  ? Math.max(0, bMT + extraMT)
+                  : (bMT + extraMT);
                 props.marginTop = Math.round(nextMT);
               }
             }
@@ -1438,7 +1438,11 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
                 props.left = `${Math.round(bLeft + extraML)}px`;
               } else {
                 const bML = typeof d.startProps.marginLeft === "number" ? d.startProps.marginLeft as number : 0;
-                const nextML = (d.moveMode ?? "margin") === "margin" ? Math.max(0, bML + extraML) : (bML + extraML);
+                const isMarginMove = (d.moveMode ?? "margin") === "margin";
+                const allowNegativeLeftDuringResize = h.includes("w");
+                const nextML = isMarginMove && !allowNegativeLeftDuringResize
+                  ? Math.max(0, bML + extraML)
+                  : (bML + extraML);
                 props.marginLeft = Math.round(nextML);
               }
             }

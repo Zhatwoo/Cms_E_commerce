@@ -20,6 +20,7 @@ import { Divider } from "../_designComponents/Divider/Divider";
 import { Banner } from "../_designComponents/Banner/banner";
 import { Badge } from "../_designComponents/Badge/badge";
 import { Pagination } from "../_designComponents/Pagination/Pagination";
+import { Icon } from "../_designComponents/Icon/Icon";
 import { Accordion } from "../_designComponents/Accordion/Accordion";
 import { BooleanField } from "../_designComponents/BooleanField/BooleanField";
 import { Tabs } from "../_designComponents/Tabs/Tabs";
@@ -49,7 +50,6 @@ import { SnapMarkers } from "./SnapMarkers";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
-import { migratePublishedContent } from "../_lib/contentMigration";
 import { slugFromName } from "../_lib/slug";
 import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -190,6 +190,9 @@ const VALIDATOR_RESOLVER: Record<string, React.ComponentType<any>> = {
   Image: asComponent(Image),
   image: asComponent(Image),
   IMAGE: asComponent(Image),
+  Icon: asComponent(Icon),
+  icon: asComponent(Icon),
+  ICON: asComponent(Icon),
   Page: asComponent(Page),
   page: asComponent(Page),
   Viewport: asComponent(Viewport),
@@ -2203,13 +2206,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         };
 
         const applyMigration = (raw: string | object): string => {
-          try {
-            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-            const migrated = migratePublishedContent(parsed);
-            return typeof migrated === "string" ? migrated : JSON.stringify(migrated);
-          } catch {
-            return typeof raw === "string" ? raw : JSON.stringify(raw);
-          }
+          return typeof raw === "string" ? raw : JSON.stringify(raw);
         };
 
         const normalizeToCraftJson = (input: unknown): string | null => {
@@ -2921,7 +2918,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     <ShapeToolHandler />
                     <DoubleClickTransformHandler />
                     <SnapMarkers />
-                    <PrototypeFlowLines />
+                    <PrototypeFlowLines scale={scale} />
                     {/* Top Panel */}
                     {panelsReady && (
                       <TopPanel

@@ -1,8 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../design/_components/rightPanel/settings/DesignSection";
+import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
+import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
+import { useDesignProject } from "../../design/_context/DesignProjectContext";
+import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 
 export type HeroCtaLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
@@ -14,6 +18,9 @@ export interface HeroBannerCTABlockProps {
   backgroundImage?: string;
   minHeight?: number;
   overlayColor?: string;
+  buttonColor?: string;
+  titleColor?: string;
+  subtitleColor?: string;
 }
 
 const LayoutThumb = ({
@@ -122,10 +129,29 @@ export const HeroBannerCTABlockSettings = () => {
     actions: { setProp },
   } = useNode((node) => ({ props: node.data.props as HeroBannerCTABlockProps }));
 
+  const { projectId } = useDesignProject();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
   const set = <K extends keyof HeroBannerCTABlockProps>(key: K, val: HeroBannerCTABlockProps[K]) =>
     setProp((p: HeroBannerCTABlockProps) => {
       p[key] = val;
     });
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+    setUploading(true);
+    try {
+      const item = await addFileToMediaLibrary(projectId, file);
+      set("backgroundImage", item.url);
+    } catch {}
+    setUploading(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const inputCls =
+    "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
 
   return (
     <div className="flex flex-col gap-0">
@@ -155,24 +181,75 @@ export const HeroBannerCTABlockSettings = () => {
         <div className="flex flex-col gap-2">
           <label className="text-[11px] text-builder-text-muted">Title</label>
           <input
-            className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent"
+            className={inputCls}
             value={props.title ?? "Title"}
             onChange={(e) => set("title", e.target.value)}
           />
 
           <label className="text-[11px] text-builder-text-muted">Subtitle</label>
           <input
-            className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent"
+            className={inputCls}
             value={props.subtitle ?? "Lorem ipsum dolor sit amet, consectetur adipiscing elit"}
             onChange={(e) => set("subtitle", e.target.value)}
           />
 
           <label className="text-[11px] text-builder-text-muted">Button label</label>
           <input
-            className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent"
+            className={inputCls}
             value={props.buttonLabel ?? "Navigation     →"}
             onChange={(e) => set("buttonLabel", e.target.value)}
           />
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Background" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image</label>
+            <div className="flex gap-1.5">
+              <input
+                className={inputCls + " flex-1 min-w-0"}
+                value={props.backgroundImage ?? ""}
+                onChange={(e) => set("backgroundImage", e.target.value)}
+                placeholder="https://..."
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50"
+                title="Upload image"
+              >
+                {uploading ? "..." : "Upload"}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+            </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Overlay color</label>
+            <ColorPicker value={props.overlayColor ?? "rgba(0,0,0,0.5)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Min height</label>
+            <NumericInput value={props.minHeight ?? 450} onChange={(val) => set("minHeight", val)} min={200} max={1200} step={10} unit="px" />
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Colors" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Title color</label>
+            <ColorPicker value={props.titleColor ?? "#ffffff"} onChange={(val) => set("titleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Subtitle color</label>
+            <ColorPicker value={props.subtitleColor ?? "#dbdbdb"} onChange={(val) => set("subtitleColor", val)} className="w-full" />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Button color</label>
+            <ColorPicker value={props.buttonColor ?? "#1a1a1a"} onChange={(val) => set("buttonColor", val)} className="w-full" />
+          </div>
         </div>
       </DesignSection>
     </div>
@@ -187,6 +264,9 @@ export const HeroBannerCTABlock = ({
   backgroundImage = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop",
   minHeight = 450,
   overlayColor = "rgba(0,0,0,0.5)",
+  buttonColor = "#1a1a1a",
+  titleColor = "#ffffff",
+  subtitleColor = "#dbdbdb",
 }: HeroBannerCTABlockProps) => {
   const {
     id,
@@ -218,7 +298,7 @@ export const HeroBannerCTABlock = ({
         style={{
           width: "min(100%, 1280px)",
           minHeight,
-          padding: "80px 48px",
+          padding: "clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)",
           display: "flex",
           flexDirection: isCloseUp ? "column" : imageOnRight ? "row-reverse" : "row",
           alignItems: "stretch",
@@ -249,14 +329,14 @@ export const HeroBannerCTABlock = ({
             padding: "18px 8px",
           }}
         >
-          <p style={{ margin: 0, fontSize: 80, fontWeight: 700, lineHeight: 1, color: "#ffffff" }}>{title}</p>
-          <p style={{ margin: 0, fontSize: 26, color: "#dbdbdb", maxWidth: 760, whiteSpace: "pre-line" }}>{subtitle}</p>
+          <p style={{ margin: 0, fontSize: "clamp(32px, 8vw, 80px)", fontWeight: 700, lineHeight: 1, color: titleColor }}>{title}</p>
+          <p style={{ margin: 0, fontSize: "clamp(16px, 3vw, 26px)", color: subtitleColor, maxWidth: 760, whiteSpace: "pre-line" }}>{subtitle}</p>
           <button
             type="button"
             style={{
               marginTop: 10,
               border: "none",
-              background: "#1a1a1a",
+              background: buttonColor,
               color: "#ffffff",
               fontSize: 16,
               fontWeight: 600,
@@ -283,6 +363,9 @@ HeroBannerCTABlock.craft = {
     backgroundImage: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop",
     minHeight: 450,
     overlayColor: "rgba(0,0,0,0.5)",
+    buttonColor: "#1a1a1a",
+    titleColor: "#ffffff",
+    subtitleColor: "#dbdbdb",
   },
   custom: {},
   related: { settings: HeroBannerCTABlockSettings },

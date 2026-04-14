@@ -119,15 +119,13 @@ export const Container = ({
   const scaleX = canScale && wPx != null ? wPx / designWidth : 1;
   const scaleY = canScale && hPx != null ? hPx / designHeight : 1;
 
-  // Resolve padding
-  const p = typeof padding === 'number' ? padding : 0;
+  const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft !== undefined ? paddingLeft : p;
   const pr = paddingRight !== undefined ? paddingRight : p;
   const pt = paddingTop !== undefined ? paddingTop : p;
   const pb = paddingBottom !== undefined ? paddingBottom : p;
 
-  // Resolve margin
-  const m = typeof margin === 'number' ? margin : 0;
+  const m = typeof margin === "number" ? margin : 0;
   const ml = marginLeft !== undefined ? marginLeft : m;
   const mr = marginRight !== undefined ? marginRight : m;
   const mt = marginTop !== undefined ? marginTop : m;
@@ -159,7 +157,6 @@ export const Container = ({
     [rotation, flipHorizontal, flipVertical]
   );
 
-  // Resolve border radius
   const br = borderRadius || 0;
   const rtl = radiusTopLeft !== undefined ? radiusTopLeft : br;
   const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
@@ -204,7 +201,13 @@ export const Container = ({
   const isGridDisplay = effectiveDisplay === "grid";
 
   const shouldFlexFill = width === "100%" && isFlexRowParent;
-  const resolvedPosition = position === "static" ? "relative" : position;
+
+  // Only use positioning offsets for non-static positions
+  const isPositioned = position !== "static";
+
+  // Background video needs a positioned ancestor
+  const resolvedPosition = hasBackgroundVideo && position === "static" ? "relative" : position;
+  const showPlaceholderMinHeight = !hasChildren && resolvedHeight === "auto";
 
   return (
     <div
@@ -214,7 +217,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
+      className={`${resolvedPosition !== "static" ? "relative" : ""} ${showPlaceholderMinHeight ? "min-h-[120px]" : ""} ${customClassName}`}
       style={{
         background: resolvedBackground,
         isolation: "isolate",
@@ -223,7 +226,7 @@ export const Container = ({
         height: resolvedHeight,
         flex: shouldFlexFill ? "1 1 0%" : undefined,
         boxSizing: "border-box",
-        maxWidth: position === "static" ? "100%" : undefined,
+        maxWidth: !isPositioned ? "100%" : undefined,
         minWidth: 0,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
@@ -238,11 +241,10 @@ export const Container = ({
         display: effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,
-        top: position !== "static" ? top : undefined,
-        right: position !== "static" ? posRight : undefined,
-        bottom: position !== "static" ? bottom : undefined,
-        left: position !== "static" ? posLeft : undefined,
-        // Flex properties
+        top: isPositioned ? top : undefined,
+        right: isPositioned ? posRight : undefined,
+        bottom: isPositioned ? bottom : undefined,
+        left: isPositioned ? posLeft : undefined,
         flexDirection: isFlexDisplay ? flexDirection : undefined,
         flexWrap: isFlexDisplay ? flexWrap : undefined,
         alignItems: isFlexDisplay || isGridDisplay ? alignItems : undefined,
@@ -257,7 +259,6 @@ export const Container = ({
           : isGridDisplay
             ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
-        // Grid properties
         gridTemplateColumns: isGridDisplay ? gridTemplateColumns : undefined,
         gridTemplateRows: isGridDisplay ? gridTemplateRows : undefined,
         gridAutoRows: isGridDisplay ? gridAutoRows : undefined,
@@ -349,13 +350,13 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
-  cursor: "default"
+  cursor: "default",
 };
 
 Container.craft = {
   displayName: "Container",
   props: ContainerDefaultProps,
   related: {
-    settings: ContainerSettings
-  }
+    settings: ContainerSettings,
+  },
 };

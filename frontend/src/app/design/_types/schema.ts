@@ -58,6 +58,9 @@ export interface PageNode {
 /** Supported component types in the builder. */
 export type ComponentType =
   | "Container"
+  | "CategoriesCardCanvas"
+  | "CategoryTile"
+  | "ProductCard"
   | "Text"
   | "Image"
   | "Video"

@@ -75,7 +75,7 @@ export const Rating = ({
   cursor = "default",
   overflow = "visible",
 }: RatingProps) => {
-  const { connectors: { connect, drag }, actions } = useNode();
+  const { id, connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
 
   const effectiveDisplay =
@@ -118,6 +118,7 @@ export const Rating = ({
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
+      data-node-id={id}
       data-fluid-space="true"
       className={`inline-flex ${customClassName}`}
       style={{

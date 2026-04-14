@@ -20,7 +20,7 @@ import {
   Ungroup,
   Pencil,
 } from "lucide-react";
-import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard, deleteNodesPreservingCanvasScroll } from "../../_lib/canvasActions";
+import { duplicateNodes, selectedToIds, selectedToLeafIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard, deleteNodesPreservingCanvasScroll } from "../../_lib/canvasActions";
 import { slugFromName } from "../../_lib/slug";
 import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
@@ -333,20 +333,20 @@ export const FilesPanel = () => {
   );
 
   const handleGroup = useCallback(() => {
-    const ids = selectedToIds(selected);
+    const ids = selectedToLeafIds(selected, nodes);
     if (ids.length >= 2) {
       groupSelection(actions as any, query as any, ids, Container, Element);
     }
     setContextMenu(null);
-  }, [actions, query, selected]);
+  }, [actions, query, selected, nodes]);
 
   const handleUngroup = useCallback(() => {
-    const ids = selectedToIds(selected);
+    const ids = selectedToLeafIds(selected, nodes);
     if (ids.length === 1) {
       ungroupSelection(actions as any, query as any, ids);
     }
     setContextMenu(null);
-  }, [actions, query, selected]);
+  }, [actions, query, selected, nodes]);
 
   const isProtected = (nodeId: string): boolean => {
     if (nodeId === "ROOT") return true;
@@ -746,11 +746,12 @@ export const FilesPanel = () => {
             // State update in transition
             startTransition(() => {
               if (isMulti) {
-                const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
-                const next = new Set(selArr);
+                const leafSel = selectedToLeafIds(selected, nodes);
+                const next = new Set(leafSel);
                 if (next.has(nodeId)) next.delete(nodeId);
                 else next.add(nodeId);
-                actions.selectNode(next.size === 0 ? undefined : Array.from(next));
+                const nextIds = Array.from(next);
+                actions.selectNode(nextIds.length === 0 ? undefined : nextIds);
               } else {
                 actions.selectNode(nodeId);
               }
@@ -954,7 +955,7 @@ export const FilesPanel = () => {
     const contextIndex = nodeNameIndexMap.indexById[contextMenu.nodeId] ?? 1;
     const contextTotal = nodeNameIndexMap.totalByName[contextBaseName] ?? 1;
     const nodeName = contextTotal > 1 ? `${contextBaseName} ${contextIndex}` : contextBaseName;
-    const selectedIds = selectedToIds(selected);
+    const selectedIds = selectedToLeafIds(selected, nodes);
 
     const UNGROUPABLE_TYPES = new Set([
       "Container", "Section", "Row", "Column", "Banner", "Frame",

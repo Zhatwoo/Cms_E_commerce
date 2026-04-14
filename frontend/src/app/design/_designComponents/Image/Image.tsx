@@ -250,6 +250,7 @@ export const Image = ({
           (containerRef as any).current = ref;
         }
       }}
+      data-node-id={id}
       data-fluid-media="true"
       data-fluid-space="true"
       className={`relative group ${customClassName}`}

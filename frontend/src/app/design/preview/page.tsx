@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Editor, Frame } from "@craftjs/core";
 import { deserializeCleanToCraft, serializeCraftToClean } from "../_lib/serializer";
 import { parseContentToCleanDoc } from "../_lib/contentParser";
-import { migratePublishedContent } from "../_lib/contentMigration";
 import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT, PREVIEW_MOBILE_VIEWPORT_WIDTH, PREVIEW_TABLET_VIEWPORT_WIDTH } from "../_lib/viewportConstants";
@@ -678,9 +677,8 @@ function PreviewContent() {
       });
       const content = data?.data?.content;
       if (!content) return null;
-      let clean = parseContentToCleanDoc(content);
+      const clean = parseContentToCleanDoc(content);
       if (!clean) return null;
-      clean = migratePublishedContent(clean) as any;
       return JSON.stringify(clean);
     } catch {
       return null;
@@ -876,6 +874,7 @@ function PreviewContent() {
     if (!craftPreviewData) return null;
     return readPageDimensionsFromCraftSnapshot(craftPreviewData, selectedPreviewPageSlug);
   }, [craftPreviewData, selectedPreviewPageSlug]);
+  const canUseCraftCanvasPreview = Boolean(craftPreviewData);
 
   const craftDesktopPreviewStyle = useMemo<React.CSSProperties>(() => {
     const fallback: React.CSSProperties = { width: "100%" };
@@ -1172,7 +1171,7 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const docToPublish = cleanDoc ?? null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -1228,7 +1227,7 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const docToPublish = cleanDoc ? migratePublishedContent(cleanDoc) : null;
+      const docToPublish = cleanDoc ?? null;
       const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
       if (snapshot) {
         await autoSavePage(snapshot, projectId);
@@ -1451,17 +1450,24 @@ function PreviewContent() {
                     className="w-full min-w-0 preview-fadein bg-white"
                     style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }}
                   >
-                    <WebPreview
-                      key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
-                      doc={effectiveCleanDoc}
-                      pageIndex={selectedPreviewPageIndex}
-                      initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                      mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                      enableFormInputs
-                      builderParityMode={true}
-                      fillViewport={false}
-                      storeContext={previewStoreContext}
-                    />
+                    {canUseCraftCanvasPreview && craftPreviewData ? (
+                      <CraftCanvasPreview
+                        key={`preview-craft-desktop-${selectedPreviewPage?.slug ?? "default"}`}
+                        data={craftPreviewData}
+                      />
+                    ) : (
+                      <WebPreview
+                        key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
+                        doc={effectiveCleanDoc}
+                        pageIndex={selectedPreviewPageIndex}
+                        initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                        enableFormInputs
+                        builderParityMode={true}
+                        fillViewport={false}
+                        storeContext={previewStoreContext}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -1484,19 +1490,26 @@ function PreviewContent() {
                         <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                       </div>
                       <div ref={previewRef}>
-                        <WebPreview
-                          key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
-                          doc={effectiveCleanDoc}
-                          pageIndex={selectedPreviewPageIndex}
-                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
-                          enableFormInputs
-                          builderParityMode={true}
-                          fillViewport
-                          storeContext={previewStoreContext}
-                          simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                          responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                        />
+                        {canUseCraftCanvasPreview && craftPreviewData ? (
+                          <CraftCanvasPreview
+                            key={`preview-craft-tablet-${selectedPreviewPage?.slug ?? "default"}`}
+                            data={craftPreviewData}
+                          />
+                        ) : (
+                          <WebPreview
+                            key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
+                            doc={effectiveCleanDoc}
+                            pageIndex={selectedPreviewPageIndex}
+                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                            mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
+                            enableFormInputs
+                            builderParityMode={true}
+                            fillViewport
+                            storeContext={previewStoreContext}
+                            simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                            responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                          />
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1512,19 +1525,26 @@ function PreviewContent() {
                     >
                       <div className="device-notch"><div className="device-notch-pill" /></div>
                       <div ref={previewRef}>
-                        <WebPreview
-                          key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
-                          doc={effectiveCleanDoc}
-                          pageIndex={selectedPreviewPageIndex}
-                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                          enableFormInputs
-                          builderParityMode={true}
-                          fillViewport
-                          storeContext={previewStoreContext}
-                          simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                          responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                        />
+                        {canUseCraftCanvasPreview && craftPreviewData ? (
+                          <CraftCanvasPreview
+                            key={`preview-craft-mobile-${selectedPreviewPage?.slug ?? "default"}`}
+                            data={craftPreviewData}
+                          />
+                        ) : (
+                          <WebPreview
+                            key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
+                            doc={effectiveCleanDoc}
+                            pageIndex={selectedPreviewPageIndex}
+                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                            mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                            enableFormInputs
+                            builderParityMode={true}
+                            fillViewport
+                            storeContext={previewStoreContext}
+                            simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                            responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                          />
+                        )}
                       </div>
                       <div className="device-home-bar"><div className="device-home-pill" /></div>
                     </div>
