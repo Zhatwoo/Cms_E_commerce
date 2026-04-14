@@ -278,7 +278,6 @@ export const TEMPLATES: TemplateEntry[] = [
   MarketplaceFooter,
   DarkCommerceFooter,
   BrutalistFooter,
-  NeoFooter,
   SynclyFooter,
   MinimalFooter,
   FacebookIcon,

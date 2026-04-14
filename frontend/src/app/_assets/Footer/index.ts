@@ -9,4 +9,4 @@ export { CentricFooter } from "./centric-footer/centric-footer";
 export { BrutalistFooter } from "./brutalist-footer/brutalist-footer";
 export { NeoFooter } from "./neo-footer/neo-footer";
 export { SynclyFooter } from "./syncly-footer/syncly-footer";
-export { MinimalFooter } from "./minimal-footer/minimal-footer";
+export { MinimalFooter } from "./minimal-footer/minimal-footer";
