@@ -23,6 +23,7 @@ type ProductWithLegacySubcategory = ApiProduct & {
 
 type CategoryMatcher = (product: ApiProduct) => boolean;
 type CategoriesCardLayoutMode = "auto" | "compact" | "featured" | "list";
+type CategoriesCardSourceMode = "auto" | "manual";
 
 const LAYOUT_OPTIONS: Array<{ value: CategoriesCardLayoutMode; label: string; description: string }> = [
   { value: "auto", label: "Auto grid", description: "Balanced responsive grid" },
@@ -30,6 +31,118 @@ const LAYOUT_OPTIONS: Array<{ value: CategoriesCardLayoutMode; label: string; de
   { value: "featured", label: "Featured grid", description: "Larger cards with more spacing" },
   { value: "list", label: "List layout", description: "Single-column stacked cards" },
 ];
+
+const LayoutThumb = ({
+  layout,
+  active,
+  onClick,
+  label,
+  description,
+}: {
+  layout: CategoriesCardLayoutMode;
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  description: string;
+}) => {
+  const boxClassName = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
+    active
+      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+  }`;
+
+  const cardBlock = (width: string, height: string, tone = "#cbd5e1") => (
+    <div
+      style={{
+        width,
+        height,
+        borderRadius: 6,
+        background: active ? "var(--builder-accent)" : tone,
+        opacity: active ? 0.75 : 0.65,
+        flexShrink: 0,
+      }}
+    />
+  );
+
+  let inner: React.ReactNode;
+  if (layout === "compact") {
+    inner = (
+      <div className="grid h-full w-full grid-cols-3 gap-1 p-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded"
+            style={{
+              background: active ? "var(--builder-accent)" : index % 2 === 0 ? "#dbe4f0" : "#cbd5e1",
+              opacity: active ? 0.72 : 0.7,
+            }}
+          />
+        ))}
+      </div>
+    );
+  } else if (layout === "featured") {
+    inner = (
+      <div className="flex h-full w-full flex-col gap-1 p-2">
+        <div className="flex flex-1 gap-1">
+          {cardBlock("58%", "100%", "#bfdbfe")}
+          <div className="flex flex-1 flex-col gap-1">
+            {cardBlock("100%", "48%", "#dbe4f0")}
+            {cardBlock("100%", "48%", "#cbd5e1")}
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {cardBlock("32%", "10px", "#dbe4f0")}
+          {cardBlock("52%", "10px", "#cbd5e1")}
+        </div>
+      </div>
+    );
+  } else if (layout === "list") {
+    inner = (
+      <div className="flex h-full w-full flex-col gap-1 p-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-2 rounded-md bg-transparent">
+            <div
+              className="rounded-sm"
+              style={{
+                width: 28,
+                height: 28,
+                background: active ? "var(--builder-accent)" : index === 0 ? "#bfdbfe" : "#cbd5e1",
+                opacity: active ? 0.72 : 0.7,
+                flexShrink: 0,
+              }}
+            />
+            <div className="flex flex-1 flex-col gap-1">
+              <div className="h-2.5 rounded-full" style={{ width: "72%", background: active ? "var(--builder-accent)" : "#cbd5e1", opacity: active ? 0.72 : 0.7 }} />
+              <div className="h-2 rounded-full" style={{ width: "48%", background: active ? "var(--builder-accent)" : "#dbe4f0", opacity: active ? 0.55 : 0.6 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  } else {
+    inner = (
+      <div className="flex h-full w-full flex-col gap-1 p-2">
+        <div className="flex flex-1 gap-1">
+          {cardBlock("48%", "100%", "#bfdbfe")}
+          <div className="flex flex-1 flex-col gap-1">
+            {cardBlock("100%", "48%", "#dbe4f0")}
+            {cardBlock("100%", "48%", "#cbd5e1")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className="flex cursor-pointer flex-col items-center gap-1 text-left group" onClick={onClick}>
+      <div className={boxClassName}>{inner}</div>
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${active ? "text-builder-accent" : "text-builder-text-faint"}`}>
+        {label}
+      </span>
+      <span className="text-center text-[9px] leading-tight text-builder-text-faint">{description}</span>
+    </button>
+  );
+};
 
 function normalizeComparable(value: unknown): string {
   return String(value || "")
@@ -165,10 +278,14 @@ export function CategoriesCardCanvas() {
     connectors,
     headingText,
     layoutMode,
+    categoryMode,
+    selectedCategories,
     actions: { setProp },
   } = useNode((node) => ({
     headingText: node.data.props.headingText as string,
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
+    categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
+    selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
   }));
   const { projectIndustry, projectSubdomain } = useDesignProject();
   const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
@@ -206,12 +323,19 @@ export function CategoriesCardCanvas() {
     };
   }, [projectIndustry, projectSubdomain]);
 
-  const categories = React.useMemo(() => {
+  const autoCategories = React.useMemo(() => {
     const preset = getIndustryCategories(projectIndustry || FALLBACK_INDUSTRY);
     const raw = [...(productSubcategories || []), ...(preset || [])];
     // Apply smart grouping to intelligently cluster related subcategories
     return smartGroupCategories(raw);
   }, [projectIndustry, productSubcategories]);
+
+  const categories = React.useMemo(() => {
+    if (categoryMode === "manual") {
+      return uniqueNonEmpty(selectedCategories || []);
+    }
+    return autoCategories;
+  }, [autoCategories, categoryMode, selectedCategories]);
 
   React.useEffect(() => {
     if (!isEditingHeading || !headingRef.current) return;
@@ -273,7 +397,11 @@ export function CategoriesCardCanvas() {
           {headingText || "Shop by Category"}
         </h3>
         <p className="m-0 text-sm font-semibold text-[#6366f1]">
-          {projectIndustry ? `Subcategories for ${projectIndustry}` : "Previewing clothing & apparel subcategories"}
+          {categoryMode === "manual"
+            ? "Manually selected categories"
+            : projectIndustry
+              ? `Subcategories for ${projectIndustry}`
+              : "Previewing clothing & apparel subcategories"}
         </p>
       </div>
 
@@ -308,7 +436,7 @@ export function CategoriesCardCanvas() {
           </div>
         </div>
       ) : (
-        <div className="mx-auto mt-4 max-w-[640px] rounded-2xl bg-white p-5 text-center text-sm font-semibold text-[#6b7280] shadow-[0_10px_24px_rgba(0,0,0,0.05)] sm:p-6">
+        <div className="mx-auto mt-4 max-w-160 rounded-2xl bg-white p-5 text-center text-sm font-semibold text-[#6b7280] shadow-[0_10px_24px_rgba(0,0,0,0.05)] sm:p-6">
           No subcategories are configured for this store type yet.
         </div>
       )}
@@ -319,41 +447,237 @@ export function CategoriesCardCanvas() {
 export const CategoriesCardSettings = () => {
   const {
     layoutMode,
+    categoryMode,
+    selectedCategories,
     actions: { setProp },
   } = useNode((node) => ({
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
+    categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
+    selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
   }));
+  const { projectIndustry, projectSubdomain } = useDesignProject();
+  const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
+  const [categoryToAdd, setCategoryToAdd] = React.useState("");
+  const [customCategory, setCustomCategory] = React.useState("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadSubcategories = async () => {
+      if (!projectSubdomain) {
+        if (!cancelled) setProductSubcategories([]);
+        return;
+      }
+
+      try {
+        const res = await listProducts({ subdomain: projectSubdomain, page: 1, limit: 500 });
+        if (!cancelled && res?.success) {
+          const selectedCategoryMatcher = getSelectedCategoryMatcher(projectIndustry || FALLBACK_INDUSTRY);
+          const filteredItems = selectedCategoryMatcher
+            ? (res.items || []).filter(selectedCategoryMatcher)
+            : (res.items || []);
+          const extracted = filteredItems.map(extractSubcategory);
+          setProductSubcategories(uniqueNonEmpty(extracted));
+        }
+      } catch {
+        if (!cancelled) setProductSubcategories([]);
+      }
+    };
+
+    loadSubcategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectIndustry, projectSubdomain]);
+
+  const availableCategories = React.useMemo(() => {
+    const preset = getIndustryCategories(projectIndustry || FALLBACK_INDUSTRY);
+    const raw = [...(productSubcategories || []), ...(preset || [])];
+    return smartGroupCategories(raw);
+  }, [projectIndustry, productSubcategories]);
+
+  const selectedCategorySet = React.useMemo(
+    () => new Set((selectedCategories || []).map((value) => value.trim().toLowerCase()).filter(Boolean)),
+    [selectedCategories]
+  );
+
+  const selectableCategories = React.useMemo(
+    () => availableCategories.filter((value) => !selectedCategorySet.has(value.trim().toLowerCase())),
+    [availableCategories, selectedCategorySet]
+  );
+
+  const upsertSelectedCategories = React.useCallback((next: string[]) => {
+    setProp((props: { selectedCategories?: string[] }) => {
+      props.selectedCategories = uniqueNonEmpty(next);
+    });
+  }, [setProp]);
+
+  const addSelectedCategory = React.useCallback((value: string) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) return;
+    upsertSelectedCategories([...(selectedCategories || []), normalized]);
+  }, [selectedCategories, upsertSelectedCategories]);
+
+  const removeSelectedCategory = React.useCallback((value: string) => {
+    const key = value.trim().toLowerCase();
+    upsertSelectedCategories((selectedCategories || []).filter((item) => item.trim().toLowerCase() !== key));
+  }, [selectedCategories, upsertSelectedCategories]);
 
   return (
     <div className="flex flex-col gap-0">
       <DesignSection title="Layout" defaultOpen>
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
-          Select how the categories are arranged
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">
+          Select layout style
         </p>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           {LAYOUT_OPTIONS.map((option) => {
             const active = layoutMode === option.value;
             return (
-              <button
+              <LayoutThumb
                 key={option.value}
-                type="button"
+                layout={option.value}
+                active={active}
+                label={option.label}
+                description={option.description}
                 onClick={() => {
                   setProp((props: { layoutMode?: CategoriesCardLayoutMode }) => {
                     props.layoutMode = option.value;
                   });
                 }}
-                className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+              />
+            );
+          })}
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Categories" defaultOpen>
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+          Choose how categories are sourced
+        </p>
+
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          {([
+            { value: "auto", label: "Auto" },
+            { value: "manual", label: "Manual" },
+          ] as Array<{ value: CategoriesCardSourceMode; label: string }>).map((option) => {
+            const active = categoryMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setProp((props: { categoryMode?: CategoriesCardSourceMode }) => {
+                    props.categoryMode = option.value;
+                  });
+                }}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                   active
-                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10 text-[var(--builder-text)]"
+                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:border-[var(--builder-border-mid)]"
                 }`}
               >
-                <div className="text-xs font-semibold text-[var(--builder-text)]">{option.label}</div>
-                <div className="mt-1 text-[11px] text-[var(--builder-text-muted)]">{option.description}</div>
+                {option.label}
               </button>
             );
           })}
         </div>
+
+        {categoryMode === "manual" ? (
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+              Add categories one by one. You can choose from detected categories or type a custom one.
+            </p>
+
+            <div className="flex gap-2">
+              <select
+                value={categoryToAdd}
+                onChange={(event) => setCategoryToAdd(event.target.value)}
+                title="Select category"
+                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none"
+              >
+                <option value="">Select category</option>
+                {selectableCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!categoryToAdd) return;
+                  addSelectedCategory(categoryToAdd);
+                  setCategoryToAdd("");
+                }}
+                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(event) => setCustomCategory(event.target.value)}
+                placeholder="Custom category"
+                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] placeholder:text-[var(--builder-text-faint)] focus:border-[var(--builder-accent)] focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const value = customCategory.trim();
+                  if (!value) return;
+                  addSelectedCategory(value);
+                  setCustomCategory("");
+                }}
+                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+              >
+                Add custom
+              </button>
+            </div>
+
+            <div className="mt-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[var(--builder-text)]">Selected categories</span>
+                <button
+                  type="button"
+                  onClick={() => upsertSelectedCategories([])}
+                  className="text-[10px] font-semibold text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                >
+                  Clear
+                </button>
+              </div>
+
+              {selectedCategories.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCategories.map((category) => (
+                    <span
+                      key={category}
+                      className="inline-flex items-center gap-1 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
+                    >
+                      {category}
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedCategory(category)}
+                        className="text-[10px] font-bold leading-none text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                        aria-label={`Remove ${category}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="m-0 text-[10px] text-[var(--builder-text-faint)]">No categories selected yet.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+            Auto mode uses smart grouped subcategories from your project industry and products.
+          </p>
+        )}
       </DesignSection>
 
     </div>
@@ -365,6 +689,8 @@ CategoriesCardCanvas.craft = {
   props: {
     headingText: "Shop by Category",
     layoutMode: "auto",
+    categoryMode: "auto",
+    selectedCategories: [],
   },
   related: {
     settings: CategoriesCardSettings,

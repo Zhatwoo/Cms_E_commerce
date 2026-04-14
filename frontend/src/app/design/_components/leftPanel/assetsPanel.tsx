@@ -323,6 +323,8 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   "Product Description Card": ProductDescriptionCardPreviewStub,
   CategoriesCardCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
   categoriescardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
+  CategoriesCard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
+  categoriescard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
   Rectangle: asComponent(Rectangle),
   rectangle: asComponent(Rectangle),
   Diamond: asComponent(Diamond),
