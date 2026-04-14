@@ -223,15 +223,6 @@ Page.craft = {
     canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelper) => {
       for (const node of incomingNodes) {
         if (node.data.displayName === "Page" || node.data.displayName === "Viewport") return false;
-        try {
-          const ancestorIds = helper(node.id).ancestors();
-          for (const aid of ancestorIds) {
-            const an = helper(aid).get();
-            if (an?.data?.displayName === "Page" && aid !== currentNode.id) return false;
-          }
-        } catch {
-          // New node from panel may not be in tree yet — allow
-        }
       }
       return true;
     },
