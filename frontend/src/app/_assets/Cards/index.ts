@@ -6,5 +6,4 @@ export { ProductDescription } from "./ProductDescription/ProductDescription";
 export { FeaturedProduct } from "./FeaturedProduct/FeaturedProduct"; 
 export { ProductDescriptionCard } from "./ProductDescriptionCard/ProductDescriptionCard";
 export { CategoriesCard } from "./CategoriesCard/CategoriesCard";
-export { BrowseCategory } from "./BrowseCategory/BrowseCategory";
 export { ProductsOverview } from "./DiscoverProducts/productsOverview";

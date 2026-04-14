@@ -31,6 +31,118 @@ const LAYOUT_OPTIONS: Array<{ value: CategoriesCardLayoutMode; label: string; de
   { value: "list", label: "List layout", description: "Single-column stacked cards" },
 ];
 
+const LayoutThumb = ({
+  layout,
+  active,
+  onClick,
+  label,
+  description,
+}: {
+  layout: CategoriesCardLayoutMode;
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  description: string;
+}) => {
+  const boxClassName = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
+    active
+      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+  }`;
+
+  const cardBlock = (width: string, height: string, tone = "#cbd5e1") => (
+    <div
+      style={{
+        width,
+        height,
+        borderRadius: 6,
+        background: active ? "var(--builder-accent)" : tone,
+        opacity: active ? 0.75 : 0.65,
+        flexShrink: 0,
+      }}
+    />
+  );
+
+  let inner: React.ReactNode;
+  if (layout === "compact") {
+    inner = (
+      <div className="grid h-full w-full grid-cols-3 gap-1 p-2">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <div
+            key={index}
+            className="rounded"
+            style={{
+              background: active ? "var(--builder-accent)" : index % 2 === 0 ? "#dbe4f0" : "#cbd5e1",
+              opacity: active ? 0.72 : 0.7,
+            }}
+          />
+        ))}
+      </div>
+    );
+  } else if (layout === "featured") {
+    inner = (
+      <div className="flex h-full w-full flex-col gap-1 p-2">
+        <div className="flex flex-1 gap-1">
+          {cardBlock("58%", "100%", "#bfdbfe")}
+          <div className="flex flex-1 flex-col gap-1">
+            {cardBlock("100%", "48%", "#dbe4f0")}
+            {cardBlock("100%", "48%", "#cbd5e1")}
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {cardBlock("32%", "10px", "#dbe4f0")}
+          {cardBlock("52%", "10px", "#cbd5e1")}
+        </div>
+      </div>
+    );
+  } else if (layout === "list") {
+    inner = (
+      <div className="flex h-full w-full flex-col gap-1 p-2">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={index} className="flex items-center gap-2 rounded-md bg-transparent">
+            <div
+              className="rounded-sm"
+              style={{
+                width: 28,
+                height: 28,
+                background: active ? "var(--builder-accent)" : index === 0 ? "#bfdbfe" : "#cbd5e1",
+                opacity: active ? 0.72 : 0.7,
+                flexShrink: 0,
+              }}
+            />
+            <div className="flex flex-1 flex-col gap-1">
+              <div className="h-2.5 rounded-full" style={{ width: "72%", background: active ? "var(--builder-accent)" : "#cbd5e1", opacity: active ? 0.72 : 0.7 }} />
+              <div className="h-2 rounded-full" style={{ width: "48%", background: active ? "var(--builder-accent)" : "#dbe4f0", opacity: active ? 0.55 : 0.6 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  } else {
+    inner = (
+      <div className="flex h-full w-full flex-col gap-1 p-2">
+        <div className="flex flex-1 gap-1">
+          {cardBlock("48%", "100%", "#bfdbfe")}
+          <div className="flex flex-1 flex-col gap-1">
+            {cardBlock("100%", "48%", "#dbe4f0")}
+            {cardBlock("100%", "48%", "#cbd5e1")}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" className="flex cursor-pointer flex-col items-center gap-1 text-left group" onClick={onClick}>
+      <div className={boxClassName}>{inner}</div>
+      <span className={`text-[9px] font-semibold uppercase tracking-wide ${active ? "text-builder-accent" : "text-builder-text-faint"}`}>
+        {label}
+      </span>
+      <span className="text-center text-[9px] leading-tight text-builder-text-faint">{description}</span>
+    </button>
+  );
+};
+
 function normalizeComparable(value: unknown): string {
   return String(value || "")
     .trim()
@@ -308,7 +420,7 @@ export function CategoriesCardCanvas() {
           </div>
         </div>
       ) : (
-        <div className="mx-auto mt-4 max-w-[640px] rounded-2xl bg-white p-5 text-center text-sm font-semibold text-[#6b7280] shadow-[0_10px_24px_rgba(0,0,0,0.05)] sm:p-6">
+        <div className="mx-auto mt-4 max-w-160 rounded-2xl bg-white p-5 text-center text-sm font-semibold text-[#6b7280] shadow-[0_10px_24px_rgba(0,0,0,0.05)] sm:p-6">
           No subcategories are configured for this store type yet.
         </div>
       )}
@@ -327,30 +439,25 @@ export const CategoriesCardSettings = () => {
   return (
     <div className="flex flex-col gap-0">
       <DesignSection title="Layout" defaultOpen>
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
-          Select how the categories are arranged
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">
+          Select layout style
         </p>
-        <div className="grid grid-cols-1 gap-2">
+        <div className="grid grid-cols-2 gap-2 mb-3">
           {LAYOUT_OPTIONS.map((option) => {
             const active = layoutMode === option.value;
             return (
-              <button
+              <LayoutThumb
                 key={option.value}
-                type="button"
+                layout={option.value}
+                active={active}
+                label={option.label}
+                description={option.description}
                 onClick={() => {
                   setProp((props: { layoutMode?: CategoriesCardLayoutMode }) => {
                     props.layoutMode = option.value;
                   });
                 }}
-                className={`rounded-xl border px-3 py-2 text-left transition-colors ${
-                  active
-                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
-                }`}
-              >
-                <div className="text-xs font-semibold text-[var(--builder-text)]">{option.label}</div>
-                <div className="mt-1 text-[11px] text-[var(--builder-text-muted)]">{option.description}</div>
-              </button>
+              />
             );
           })}
         </div>
