@@ -15,6 +15,11 @@ export const Page = ({
   width = "1440px",
   height = "900px",
   background = "#ffffff",
+  backgroundImage = "",
+  backgroundSize = "cover",
+  backgroundPosition = "center",
+  backgroundRepeat = "no-repeat",
+  backgroundOverlay = "",
   pageRotation = 0,
   canvasX = 0,
   canvasY = 0,
@@ -71,7 +76,16 @@ export const Page = ({
         width,
         height: height === "auto" ? "auto" : height,
         minHeight: "800px",
-        backgroundColor: background,
+        background: (() => {
+          if (backgroundImage && backgroundImage.trim()) {
+            const overlayLayer = backgroundOverlay && backgroundOverlay !== "transparent"
+              ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), `
+              : "";
+            const imageLayer = `url(${backgroundImage}) ${backgroundPosition} / ${backgroundSize} ${backgroundRepeat}`;
+            return `${overlayLayer}${imageLayer}${background ? `, ${background}` : ""}`;
+          }
+          return background;
+        })(),
         overflow: "hidden",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
         transformOrigin: "center center",
@@ -209,6 +223,11 @@ export const PageDefaultProps: Partial<PageProps> = {
   width: "1440px",
   height: "900px",
   background: "#ffffff",
+  backgroundImage: "",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
+  backgroundOverlay: "",
   pageRotation: 0,
   canvasX: 0,
   canvasY: 0,

@@ -245,7 +245,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
-export interface PageProps extends AnimatableProps, InteractableProps {
+export interface PageProps extends AnimatableProps, InteractableProps, AppearanceProps {
   width?: string;
   height?: string;
   background?: string;
