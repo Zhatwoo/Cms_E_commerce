@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter, useSearchParams } from "next/navigation";
+import { DesignTooltip } from "../DesignTooltip";
 import {
   ChevronDown,
   ChevronRight,
@@ -706,38 +707,44 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
         {/* Navigation Tabs */}
         <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-1.5 px-2 gap-1 min-h-0 border-b border-[var(--builder-border)]">
-          <button
-            type="button"
-            onClick={() => setActivePanel("files")}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
-              ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
-          >
-            <FileStack className="w-4 h-4 shrink-0" />
-            <span>Files</span>
-          </button>
-          {permission !== "viewer" && (
+          <DesignTooltip content="Layers — view and organize canvas elements" position="bottom">
             <button
               type="button"
-              onClick={() => setActivePanel("components")}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+              onClick={() => setActivePanel("files")}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
                 ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
                 : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
             >
-              <Component className="w-4 h-4 shrink-0" />
-              <span>Components</span>
+              <FileStack className="w-4 h-4 shrink-0" />
+              <span>Files</span>
             </button>
+          </DesignTooltip>
+          {permission !== "viewer" && (
+            <DesignTooltip content="Components — drag building blocks to canvas" position="bottom">
+              <button
+                type="button"
+                onClick={() => setActivePanel("components")}
+                className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+                  ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                  : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+              >
+                <Component className="w-4 h-4 shrink-0" />
+                <span>Components</span>
+              </button>
+            </DesignTooltip>
           )}
-          <button
-            type="button"
-            onClick={() => setActivePanel("media")}
-            className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
-              ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
-          >
-            <ImageIcon className="w-4 h-4 shrink-0" />
-            <span>Media</span>
-          </button>
+          <DesignTooltip content="Media library — manage images and files" position="bottom">
+            <button
+              type="button"
+              onClick={() => setActivePanel("media")}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
+                ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+            >
+              <ImageIcon className="w-4 h-4 shrink-0" />
+              <span>Media</span>
+            </button>
+          </DesignTooltip>
         </div>
       </div>
 
@@ -795,19 +802,21 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 className="hidden"
                 onChange={(e) => handleUploadFiles(e.target.files)}
               />
-              <button
-                type="button"
-                onClick={() => mediaInputRef.current?.click()}
-                disabled={uploading}
-                className="flex-1 bg-[var(--builder-purple)] hover:bg-[var(--builder-purple-light)] text-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
-              >
-                {uploading ? (
-                  <div className="w-3.5 h-3.5 border-2 border-transparent border-t-white rounded-full animate-spin" />
-                ) : (
-                  <Plus className="w-4 h-4" />
-                )}
-                <span>Import media</span>
-              </button>
+              <DesignTooltip content="Upload images, videos, or audio files from your device" position="top">
+                <button
+                  type="button"
+                  onClick={() => mediaInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex-1 bg-[var(--builder-purple)] hover:bg-[var(--builder-purple-light)] text-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+                >
+                  {uploading ? (
+                    <div className="w-3.5 h-3.5 border-2 border-transparent border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4" />
+                  )}
+                  <span>Import media</span>
+                </button>
+              </DesignTooltip>
             </div>
 
             <div className="text-[9px] uppercase tracking-[0.18em] text-[var(--builder-text-faint)] -mt-2">
