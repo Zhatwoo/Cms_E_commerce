@@ -224,6 +224,8 @@ export function buildCraftResolver(): Resolver {
     Video: VideoComp,
     video: VideoComp,
     VIDEO: VideoComp,
+    VideoComponent: VideoComp,
+    "Video Component": VideoComp,
     Button: ButtonComp,
     button: ButtonComp,
     Divider: DividerComp,
@@ -363,6 +365,9 @@ export function buildCraftResolver(): Resolver {
   base.text = TextComp;
   base.Container = ContainerComp;
   base.container = ContainerComp;
+  base.Video = VideoComp;
+  base.video = VideoComp;
+  addAliases(base, "Video", VideoComp, ["video component", "Video Component"]);
   addAliases(base, "Button", ButtonComp);
   addAliases(base, "Divider", DividerComp);
   addAliases(base, "Banner", BannerComp);
