@@ -20,7 +20,7 @@ const createProductDescriptionItem = (
       is: Container as any,
       canvas: true,
       background: "#FFFFFF",
-      width: "min(calc((100% - 48px) / 4), 100%)",
+      width: "clamp(220px, calc((100% - 32px) / 2), calc((100% - 48px) / 4))",
       minWidth: "220px",
       flexShrink: 0,
       borderRadius: 12,
