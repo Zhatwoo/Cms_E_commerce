@@ -213,6 +213,33 @@ const buildAssetKey = (folder: string, label: string, idx: number) => `${folder}
 const isIconFolder = (folder: string) => folder.toLowerCase() === "icons";
 const isShapeFolder = (folder: string) => folder.toLowerCase() === "shapes";
 
+const SOCIAL_ICON_LABELS = new Set([
+  "facebook", "google", "instagram", "twitter", "youtube", "tiktok", "linkedin", "pinterest",
+  "snapchat", "reddit", "telegram", "discord", "whatsapp", "messenger", "threads", "line",
+  "wechat", "viber", "signal", "twitch", "github", "dribbble", "behance", "medium", "vimeo",
+  "tumblr", "xing",
+]);
+
+const SUPPORT_ICON_LABELS = new Set([
+  "headset", "chat support", "help circle", "phone call", "mail support",
+]);
+
+const NAVIGATION_ICON_LABELS = new Set([
+  "search", "home", "menu", "close", "settings", "heart", "plus", "trash", "star", "check",
+  "chevron right", "arrow left", "arrow right", "user", "bell",
+]);
+
+const ICON_GROUP_ORDER = ["Social", "Commerce", "Support", "Navigation", "Other"] as const;
+
+function classifyIconLabel(label: string): (typeof ICON_GROUP_ORDER)[number] {
+  const normalized = label.replace(/\s*icon$/i, "").trim().toLowerCase();
+  if (SOCIAL_ICON_LABELS.has(normalized)) return "Social";
+  if (SUPPORT_ICON_LABELS.has(normalized)) return "Support";
+  if (NAVIGATION_ICON_LABELS.has(normalized)) return "Navigation";
+  if (normalized.length) return "Commerce";
+  return "Other";
+}
+
 const ASSET_ICONS: Record<string, React.ReactNode> = {
   Header: <Layout className="w-5 h-5" />,
   Hero: <Star className="w-5 h-5" />,
@@ -423,6 +450,25 @@ export const AssetsPanel = () => {
     [activeFolder],
   );
 
+  const groupedIconItems = useMemo(() => {
+    if (!activeGroup || !isIconFolder(activeGroup.folder)) return null;
+
+    const buckets: Record<(typeof ICON_GROUP_ORDER)[number], Array<{ item: AssetItem; idx: number }>> = {
+      Social: [],
+      Commerce: [],
+      Support: [],
+      Navigation: [],
+      Other: [],
+    };
+
+    activeGroup.items.forEach((item: AssetItem, idx: number) => {
+      const key = classifyIconLabel(item.label);
+      buckets[key].push({ item, idx });
+    });
+
+    return buckets;
+  }, [activeGroup]);
+
   useEffect(() => {
     if (!activeGroup) {
       setSelectedAsset(null);
@@ -493,19 +539,14 @@ export const AssetsPanel = () => {
             </div>
 
             {activeGroup ? (
-              <div
-                className={`grid gap-2 p-0.5 ${activeGroup.folder.toLowerCase() === "icons"
-                  ? "grid-cols-4"
-                  : activeGroup.folder.toLowerCase() === "shapes"
-                    ? "grid-cols-2"
-                    : "grid-cols-1"
-                  }`}
-              >
-                {activeGroup.items.map((item: AssetItem, idx: number) => {
+              (() => {
+                const shapeFolder = isShapeFolder(activeGroup.folder);
+                const iconFolder = isIconFolder(activeGroup.folder);
+
+                const renderAssetCard = (item: AssetItem, idx: number) => {
                   const assetKey = buildAssetKey(activeGroup.folder, item.label, idx);
                   const isSelected = selectedAsset?.key === assetKey;
-                  const shapeFolder = isShapeFolder(activeGroup.folder);
-                  const iconFolder = isIconFolder(activeGroup.folder);
+
                   return (
                     <div
                       key={assetKey}
@@ -602,9 +643,38 @@ export const AssetsPanel = () => {
                         </div>
                       </div>
                     </div>
-                   );
-                })}
-              </div>
+                  );
+                };
+
+                if (iconFolder && groupedIconItems) {
+                  return (
+                    <div className="space-y-4 p-0.5">
+                      {ICON_GROUP_ORDER.map((groupName) => {
+                        const items = groupedIconItems[groupName];
+                        if (!items.length) return null;
+                        return (
+                          <div key={groupName} className="space-y-2">
+                            <div className="px-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                              {groupName}
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                              {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div
+                    className={`grid gap-2 p-0.5 ${shapeFolder ? "grid-cols-2" : "grid-cols-1"}`}
+                  >
+                    {activeGroup.items.map((item: AssetItem, idx: number) => renderAssetCard(item, idx))}
+                  </div>
+                );
+              })()
             ) : (
               <div className="rounded-sm border border-transparent bg-transparent p-4 text-center text-xs text-[var(--builder-text-faint)]">
                 Select a category.
