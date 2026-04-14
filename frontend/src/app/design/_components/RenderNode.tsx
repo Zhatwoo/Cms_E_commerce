@@ -181,6 +181,18 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
           const clickedIsGroup = clickedIsCanvas || (clickedDisplayName && selectableGroupNames.has(clickedDisplayName));
 
           if (clickedIsGroup && !clickedIsPageLike) {
+            // If this container is already selected, let the click pass
+            // through so the user can select child components inside it.
+            const state = query.getState();
+            const currentSelected = state.events.selected;
+            const alreadySelected =
+              (currentSelected instanceof Set && currentSelected.has(id)) ||
+              (Array.isArray(currentSelected) && currentSelected.includes(id));
+            if (alreadySelected) {
+              // Don't block — allow child selection
+              return;
+            }
+
             if (event.cancelable) event.preventDefault();
             event.stopPropagation();
             if (typeof event.stopImmediatePropagation === "function" && clickedDisplayName !== "Section") {
