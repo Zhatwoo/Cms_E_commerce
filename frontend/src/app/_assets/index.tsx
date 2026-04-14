@@ -18,7 +18,6 @@ import {
   FeaturedProduct,
   ProductDescriptionCard,
   CategoriesCard,
-  BrowseCategory,
    ProductsOverview,
 } from "./Cards";
 import {
@@ -278,7 +277,6 @@ export const TEMPLATES: TemplateEntry[] = [
   MarketplaceFooter,
   DarkCommerceFooter,
   BrutalistFooter,
-  NeoFooter,
   SynclyFooter,
   MinimalFooter,
   FacebookIcon,
@@ -419,7 +417,6 @@ export const GROUPED_TEMPLATES = [
       ProductDescription,
       FeaturedProduct,
       CategoriesCard,
-      BrowseCategory,
     ],
   },
   {
