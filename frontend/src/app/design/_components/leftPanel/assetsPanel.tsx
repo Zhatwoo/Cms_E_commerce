@@ -96,14 +96,45 @@ const ProductDescriptionCardPreviewStub = () => (
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
   ((props: any) => {
-    // Only pass safe DOM props to the fallback div to avoid "React does not recognize prop" errors
     const { 
-      background, paddingTop, paddingRight, paddingBottom, paddingLeft, 
+      background, paddingTop, paddingRight, paddingBottom, paddingLeft, padding,
       width, height, borderRadius, borderColor, borderWidth, borderStyle,
       alignItems, justifyContent, flexDirection, flexWrap, gap, 
-      canvas, isFreeform, anchorPoints, ...domProps 
+      display, position, top, right, bottom, left, zIndex,
+      opacity, overflow, rotation, canvas, isFreeform, anchorPoints, ...domProps 
     } = props;
-    return <div {...domProps} style={{ background, ...props.style }}>{props.children}</div>;
+
+    const style: React.CSSProperties = {
+      background: background ?? "transparent",
+      paddingTop: paddingTop ?? padding ?? 0,
+      paddingRight: paddingRight ?? padding ?? 0,
+      paddingBottom: paddingBottom ?? padding ?? 0,
+      paddingLeft: paddingLeft ?? padding ?? 0,
+      width,
+      height,
+      borderRadius,
+      borderColor,
+      borderWidth,
+      borderStyle,
+      alignItems,
+      justifyContent,
+      flexDirection,
+      flexWrap,
+      gap,
+      display: display ?? "flex",
+      position: position ?? "relative",
+      top,
+      right,
+      bottom,
+      left,
+      zIndex,
+      opacity,
+      overflow,
+      transform: rotation ? `rotate(${rotation}deg)` : undefined,
+      ...props.style,
+    };
+
+    return <div {...domProps} style={style}>{props.children}</div>;
   });
 
 const asComponent = (value: unknown): React.ComponentType<any> =>
