@@ -82,9 +82,31 @@ export const VideoSettings = () => {
             setUploading(true);
             setUploadProgress(0);
             try {
-                // Use addFileToMediaLibrary to ensure this upload shows up in the 'Media' tab in the left panel
-                const item = await addFileToMediaLibrary(projectId, file);
-                typedSetProp((props) => { props.src = item.url; });
+                // Use uploadMediaApi directly with progress tracking for better reliability
+                const { url } = await uploadMediaApi(projectId, file, {
+                    folder: 'videos',
+                    onProgress: (percent) => setUploadProgress(percent),
+                });
+                typedSetProp((props) => { props.src = url; });
+
+                // Also add to media library for the Media tab
+                try {
+                    const mediaStorageKey = `media_library_${projectId}`;
+                    const existing = localStorage.getItem(mediaStorageKey);
+                    const items = existing ? JSON.parse(existing) : [];
+                    const newItem = {
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        name: file.name,
+                        url,
+                        mimeType: file.type,
+                        size: file.size,
+                        createdAt: Date.now(),
+                    };
+                    items.unshift(newItem);
+                    localStorage.setItem(mediaStorageKey, JSON.stringify(items));
+                } catch (e) {
+                    // Ignore media library caching errors
+                }
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 console.error("Upload failed:", err);
