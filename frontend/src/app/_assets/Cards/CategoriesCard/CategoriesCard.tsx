@@ -192,7 +192,7 @@ function getSelectedCategoryMatcher(projectIndustry?: string | null): CategoryMa
 function getLayoutConfig(layoutMode: CategoriesCardLayoutMode) {
   if (layoutMode === "compact") {
     return {
-      containerClassName: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
+      containerClassName: "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
       tileWidth: 160,
       tileHeight: 154,
       mediaHeight: 102,
@@ -205,10 +205,10 @@ function getLayoutConfig(layoutMode: CategoriesCardLayoutMode) {
 
   if (layoutMode === "featured") {
     return {
-      containerClassName: "grid gap-4 sm:grid-cols-2 xl:grid-cols-3",
-      tileWidth: 220,
-      tileHeight: 194,
-      mediaHeight: 132,
+      containerClassName: "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3",
+      tileWidth: 240,
+      tileHeight: 224,
+      mediaHeight: 160,
       fontSize: 13,
       borderRadius: 16,
       mediaScale: 1,
@@ -218,7 +218,7 @@ function getLayoutConfig(layoutMode: CategoriesCardLayoutMode) {
 
   if (layoutMode === "list") {
     return {
-      containerClassName: "grid grid-cols-1 gap-3",
+      containerClassName: "grid grid-cols-1 gap-4",
       tileWidth: 420,
       tileHeight: 138,
       mediaHeight: 90,
@@ -230,10 +230,10 @@ function getLayoutConfig(layoutMode: CategoriesCardLayoutMode) {
   }
 
   return {
-    containerClassName: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4",
-    tileWidth: 180,
-    tileHeight: 170,
-    mediaHeight: 120,
+    containerClassName: "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3",
+    tileWidth: 200,
+    tileHeight: 190,
+    mediaHeight: 135,
     fontSize: 12,
     borderRadius: 14,
     mediaScale: 1,

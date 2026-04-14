@@ -1932,73 +1932,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     setScale((prev) => clampScale(nextScale, prev));
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (deviceSwitchRafRef.current != null) {
-        cancelAnimationFrame(deviceSwitchRafRef.current);
-      }
-      if (deviceSwitchTimeoutRef.current != null) {
-        window.clearTimeout(deviceSwitchTimeoutRef.current);
-      }
-      if (deviceSwitchEndTimeoutRef.current != null) {
-        window.clearTimeout(deviceSwitchEndTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Handle device preset selection - only width changes; preserve page height so it doesn't reset
-  // and keep the page visible by fitting/recentering with the selected preset dimensions.
-  const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
-    if (deviceSwitchRafRef.current != null) {
-      cancelAnimationFrame(deviceSwitchRafRef.current);
-      deviceSwitchRafRef.current = null;
-    }
-    if (deviceSwitchTimeoutRef.current != null) {
-      window.clearTimeout(deviceSwitchTimeoutRef.current);
-      deviceSwitchTimeoutRef.current = null;
-    }
-    if (deviceSwitchEndTimeoutRef.current != null) {
-      window.clearTimeout(deviceSwitchEndTimeoutRef.current);
-      deviceSwitchEndTimeoutRef.current = null;
-    }
-
-    setIsDeviceSwitching(true);
-    setCanvasWidth(preset.width);
-
-    const fitAndCenter = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const effectiveWidth = Math.max(1, preset.width);
-      const effectiveHeight = Math.max(1, canvasHeight || PAGE_BASE_HEIGHT);
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      if (containerWidth <= 0 || containerHeight <= 0) return;
-
-      // Keep interaction smooth: only zoom out as needed so the selected device always stays visible.
-      const fitScaleX = (containerWidth * 0.9) / effectiveWidth;
-      const fitScaleY = (containerHeight * 0.9) / effectiveHeight;
-      const fitScale = clampScale(Math.min(fitScaleX, fitScaleY, 1), 1);
-
-      setScale((prev) => {
-        const safePrev = clampScale(prev, 1);
-        return safePrev > fitScale ? fitScale : safePrev;
-      });
-
-      // Recenter after width/scale settle so page never appears "lost" off-screen.
-      requestAnimationFrame(() => {
-        centerCanvasInView();
-      });
-    };
-
-    deviceSwitchRafRef.current = requestAnimationFrame(() => {
-      fitAndCenter();
-      deviceSwitchTimeoutRef.current = window.setTimeout(fitAndCenter, 120);
-      deviceSwitchEndTimeoutRef.current = window.setTimeout(() => {
-        setIsDeviceSwitching(false);
-      }, 220);
-    });
-  }, [canvasHeight, centerCanvasInView]);
 
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -2931,7 +2864,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     {panelsReady && (
                       <TopPanel
                         activePageId={currentPageId}
-                        onDevicePresetSelect={handleDevicePresetSelect}
                         showDualView={showDualView}
                         onDualViewToggle={() => setShowDualView((v) => !v)}
                         projectId={projectId}
