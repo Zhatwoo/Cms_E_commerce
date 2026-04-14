@@ -59,11 +59,19 @@ export interface SpacingProps {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  pt?: number;
+  pr?: number;
+  pb?: number;
+  pl?: number;
   margin?: number | string;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
   marginLeft?: number;
+  mt?: number;
+  mr?: number;
+  mb?: number;
+  ml?: number;
 }
 
 /** Dimension properties → SizePositionGroup */
