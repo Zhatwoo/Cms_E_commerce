@@ -179,6 +179,12 @@ type DragState = {
   moveLastY?: number;
   previousTransition?: string;
   previousWillChange?: string;
+  previousPosition?: string;
+  previousLeft?: string;
+  previousTop?: string;
+  previousRight?: string;
+  previousBottom?: string;
+  parentIsFreeform?: boolean;
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
@@ -416,7 +422,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       values: { newW: number; newH: number; extraMT: number; extraML: number }
     ) => {
       const bounds = d.guideBounds;
-      if (!bounds || !Number.isFinite(d.zoom) || d.zoom <= 0) return values;
+      if (!bounds || !Number.isFinite(d.zoom) || d.zoom <= 0 || d.disableClamp) return values;
 
       const startW = d.startRect.width / d.zoom;
       const startH = d.startRect.height / d.zoom;
@@ -641,10 +647,23 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       // Auto-injecting designWidth/designHeight here can lock them into scale mode,
       // which causes content distortion/overlap when resizing out and back.
 
+      const state = query.getState();
+      const parentId = state.nodes[nodeId]?.data?.parent as string | undefined;
+      const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+      const parentDisplayName = parentId ? (state.nodes[parentId]?.data?.displayName as string | undefined) : undefined;
+      const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+      const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+      const parentIsFreeform =
+        parentProps.isFreeform === true ||
+        (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+      const position = String(startProps.position ?? "static").toLowerCase();
+      const isAbsoluteLike = position === "absolute" || position === "fixed";
+      const initialMoveMode = getMoveModeForNode(nodeId, state);
+
       dragRef.current = {
         type,
         handle,
-        moveMode: "margin",
+        moveMode: initialMoveMode,
         originX: e.clientX,
         originY: e.clientY,
         moveStarted: type !== "move",
@@ -669,12 +688,38 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         moveLastY: type === "move" ? e.clientY : undefined,
         previousTransition: type === "move" ? dom.style.transition : undefined,
         previousWillChange: type === "resize" ? dom.style.willChange : undefined,
+        previousPosition: type === "resize" ? dom.style.position : undefined,
+        previousLeft: type === "resize" ? dom.style.left : undefined,
+        previousTop: type === "resize" ? dom.style.top : undefined,
+        previousRight: type === "resize" ? dom.style.right : undefined,
+        previousBottom: type === "resize" ? dom.style.bottom : undefined,
+        parentIsFreeform,
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
         lastAppliedResize: undefined,
         moveItems: undefined,
       };
+
+      if (type === "resize" && parentIsFreeform) {
+        const resizeMoveMode = getMoveModeForNode(nodeId, state);
+        if (resizeMoveMode === "offset" && !isAbsoluteLike) {
+          const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
+          if (parentDom) {
+            const parentRect = parentDom.getBoundingClientRect();
+            const nodeRect = dom.getBoundingClientRect();
+            const relativeLeft = Math.round(nodeRect.left - parentRect.left);
+            const relativeTop = Math.round(nodeRect.top - parentRect.top);
+            dom.style.position = "absolute";
+            dom.style.left = `${relativeLeft}px`;
+            dom.style.top = `${relativeTop}px`;
+            dom.style.right = "auto";
+            dom.style.bottom = "auto";
+            dragRef.current.startProps.top = relativeTop;
+            dragRef.current.startProps.left = relativeLeft;
+          }
+        }
+      }
 
       if (type === "move") {
         applyOverlayRect(startRect);
@@ -690,6 +735,15 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           let hasPageCanvasMove = false;
           if (dragRef.current) {
             dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
+            const parentId = state.nodes[nodeId]?.data?.parent as string | undefined;
+            const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+            const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+            const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+            const parentDisplayName = parentId ? (state.nodes[parentId]?.data?.displayName as string | undefined) : undefined;
+            const parentIsFreeform =
+              parentProps.isFreeform === true ||
+              (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+            dragRef.current.disableClamp = parentIsFreeform;
 
             const selectedIds = filterLeafSelectionIds(
               selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]),
@@ -782,9 +836,21 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const nodeDisplayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
           const childCount = (((state.nodes[nodeId] as any)?.data?.nodes as string[] | undefined) ?? []).length;
           const bypassBoundsForResize = nodeDisplayName === "Section" || (nodeDisplayName === "Container" && childCount > 0);
-          const parentId = state.nodes[nodeId]?.data?.parent;
+          const parentId = state.nodes[nodeId]?.data?.parent as string | undefined;
           const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
-          if (dragRef.current && parentDom && !bypassBoundsForResize) {
+          const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+          const parentDisplayName = parentId ? (state.nodes[parentId]?.data?.displayName as string | undefined) : undefined;
+          const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+          const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+          const parentIsFreeform =
+            parentProps.isFreeform === true ||
+            (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+
+          if (dragRef.current) {
+            dragRef.current.disableClamp = parentIsFreeform;
+          }
+
+          if (dragRef.current && parentDom && !bypassBoundsForResize && !parentIsFreeform) {
             const parentRect = parentDom.getBoundingClientRect();
             dragRef.current.guideBounds = {
               left: parentRect.left,
@@ -1436,8 +1502,19 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const isAccordionNode = currentNode?.data?.displayName === "Accordion";
         const isImageNode = currentNode?.data?.displayName === "Image";
         const isSection = currentNode?.data?.displayName === "Section";
+        const shouldForceAbsolute = (d.moveMode ?? "margin") === "offset" && d.parentIsFreeform === true;
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
+          if (shouldForceAbsolute) {
+            props.position = "absolute";
+            props.right = "auto";
+            props.bottom = "auto";
+            const resolvedTop = parsePxOrAuto(d.startProps.top);
+            const resolvedLeft = parsePxOrAuto(d.startProps.left);
+            if (props.top == null) props.top = `${Math.round(resolvedTop)}px`;
+            if (props.left == null) props.left = `${Math.round(resolvedLeft)}px`;
+          }
+
           if (!isSection) {
             props.width = `${Math.round(newW)}px`;
           }
