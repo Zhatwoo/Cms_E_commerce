@@ -333,6 +333,8 @@ export function buildCraftResolver(): Resolver {
     "Category Tile": CategoryTileComp,
     CategoriesCardCanvas: CategoriesCardCanvasComp,
     categoriescardcanvas: CategoriesCardCanvasComp,
+    CategoriesCard: CategoriesCardCanvasComp,
+    categoriescard: CategoriesCardCanvasComp,
     FeaturesGridBlock: FeaturesGridBlockComp,
     featuresgridblock: FeaturesGridBlockComp,
     "Features Grid Block": FeaturesGridBlockComp,
@@ -378,6 +380,7 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
   addAliases(base, "CategoriesCardCanvas", CategoriesCardCanvasComp, ["Categories Card Canvas", "categoriescardcanvas"]);
+  addAliases(base, "CategoriesCard", CategoriesCardCanvasComp, ["Categories Card", "categoriescard"]);
   addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);

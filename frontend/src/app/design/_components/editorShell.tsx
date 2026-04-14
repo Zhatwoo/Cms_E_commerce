@@ -2849,6 +2849,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Radio = booleanFieldComp;
     base.radio = booleanFieldComp;
 
+    const categoriesCardComp = asComponent(CRAFT_RESOLVER.CategoriesCardCanvas ?? CRAFT_RESOLVER.CategoriesCard ?? SAFE_CONTAINER);
+    base.CategoriesCardCanvas = categoriesCardComp;
+    base.categoriescardcanvas = categoriesCardComp;
+    base["Categories Card Canvas"] = categoriesCardComp;
+    base.CategoriesCard = categoriesCardComp;
+    base.categoriescard = categoriesCardComp;
+    base["Categories Card"] = categoriesCardComp;
+
     return withResolverFallback(base);
   }, []);
 

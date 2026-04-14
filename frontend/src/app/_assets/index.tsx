@@ -18,7 +18,6 @@ import {
   FeaturedProduct,
   ProductDescriptionCard,
   CategoriesCard,
-  BrowseCategory,
    ProductsOverview,
 } from "./Cards";
 import {
@@ -419,7 +418,6 @@ export const GROUPED_TEMPLATES = [
       ProductDescription,
       FeaturedProduct,
       CategoriesCard,
-      BrowseCategory,
     ],
   },
   {
