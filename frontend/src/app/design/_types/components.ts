@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { AnimationConfig } from "./animation";
 import type { PrototypeConfig } from "./prototype";
+import type { Interaction } from "./prototype";
 
 /**
  * Shared type definitions for web builder components.
@@ -381,11 +382,17 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   customClassName?: string;
 }
 
+export interface AccordionOption {
+  label: string;
+  interactions?: Interaction[];
+}
+
 export interface AccordionItem {
-  title: string;
-  content: string;
-  mediaType?: "none" | "image" | "video";
-  mediaUrl?: string;
+  header: string;
+  options: AccordionOption[];
+  /** Legacy fallback fields preserved for existing documents. */
+  title?: string;
+  content?: string;
 }
 
 export interface AccordionProps extends PositionProps, TypographyProps, TransformProps, EffectsProps {
@@ -398,6 +405,8 @@ export interface AccordionProps extends PositionProps, TypographyProps, Transfor
   animationDurationMs?: number;
   // Container
   width?: string;
+  height?: string;
+  maxWidth?: string;
   minHeight?: number | string;
   marginTop?: number;
   marginRight?: number;
@@ -432,4 +441,12 @@ export interface AccordionProps extends PositionProps, TypographyProps, Transfor
   borderWidth?: number;
   // Icon
   iconColor?: string;
+  iconPosition?: "left" | "right";
+  headerGap?: number;
+  headerPaddingX?: number;
+  headerPaddingY?: number;
+  textOffsetX?: number;
+  textOffsetY?: number;
+  iconOffsetX?: number;
+  iconOffsetY?: number;
 }
