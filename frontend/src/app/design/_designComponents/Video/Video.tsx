@@ -305,7 +305,7 @@ export const Video = ({
                         boxShadow,
                         display: "block",
                     }}
-                    className="cursor-pointer pointer-events-none"
+                    className="cursor-pointer"
                 />
             ) : (
                 <div
