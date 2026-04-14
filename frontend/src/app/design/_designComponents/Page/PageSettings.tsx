@@ -1,18 +1,24 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
+import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { slugFromName } from "../../_lib/slug";
 import type { PageProps, SetProp } from "../../_types";
 
 export const PageSettings = () => {
   const {
-    width, height, background, pageName, pageSlug,
+    width, height, background, backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
+    pageName, pageSlug,
     actions: { setProp }
   } = useNode(node => ({
     width: node.data.props.width,
     height: node.data.props.height,
     background: node.data.props.background,
+    backgroundImage: node.data.props.backgroundImage,
+    backgroundSize: node.data.props.backgroundSize,
+    backgroundPosition: node.data.props.backgroundPosition,
+    backgroundRepeat: node.data.props.backgroundRepeat,
+    backgroundOverlay: node.data.props.backgroundOverlay,
     pageName: node.data.props.pageName,
     pageSlug: node.data.props.pageSlug,
   }));
@@ -123,14 +129,16 @@ export const PageSettings = () => {
           </div>
 
           {/* Background */}
-          <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
-            <ColorPicker
-              value={background ?? "#ffffff"}
-              onChange={(val) => typedSetProp((props) => { props.background = val; })}
-              className="w-full"
-            />
-          </div>
+          <AppearanceGroup
+            background={background}
+            backgroundImage={backgroundImage}
+            backgroundSize={backgroundSize}
+            backgroundPosition={backgroundPosition}
+            backgroundRepeat={backgroundRepeat}
+            backgroundOverlay={backgroundOverlay}
+            enableMediaFillModes
+            setProp={typedSetProp as any}
+          />
         </div>
       </DesignSection>
     </div>

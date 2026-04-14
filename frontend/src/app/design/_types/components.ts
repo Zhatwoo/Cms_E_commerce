@@ -59,11 +59,19 @@ export interface SpacingProps {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  pt?: number;
+  pr?: number;
+  pb?: number;
+  pl?: number;
   margin?: number | string;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
   marginLeft?: number;
+  mt?: number;
+  mr?: number;
+  mb?: number;
+  ml?: number;
 }
 
 /** Dimension properties → SizePositionGroup */
@@ -245,7 +253,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
-export interface PageProps extends AnimatableProps, InteractableProps {
+export interface PageProps extends AnimatableProps, InteractableProps, AppearanceProps {
   width?: string;
   height?: string;
   background?: string;
