@@ -179,6 +179,12 @@ type DragState = {
   moveLastY?: number;
   previousTransition?: string;
   previousWillChange?: string;
+  previousPosition?: string;
+  previousLeft?: string;
+  previousTop?: string;
+  previousRight?: string;
+  previousBottom?: string;
+  parentIsFreeform?: boolean;
   dirty: boolean;
   constrainRatio?: boolean;
   resizeFromCenter?: boolean;
@@ -220,6 +226,23 @@ function parseRotation(value: unknown): number {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+function isAngleAlignedTo90(angle: number, tolerance = 1.5): boolean {
+  const normalized = ((angle % 360) + 360) % 360;
+  const remainder = normalized % 90;
+  return remainder <= tolerance || remainder >= 90 - tolerance;
+}
+
+function normalizeRotation(angle: number): number {
+  return ((Math.round(angle) % 360) + 360) % 360;
+}
+
+function snapRotationToWhole(angle: number, snapTolerance = 2): number {
+  const rounded = Math.round(angle);
+  const snapped90 = Math.round(angle / 90) * 90;
+  const snapped = Math.abs(angle - snapped90) <= snapTolerance ? snapped90 : rounded;
+  return normalizeRotation(snapped);
 }
 
 function getRotationFromTransformMatrix(transform: string): number | null {
@@ -303,9 +326,26 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
   ]);
   const MOVE_TARGET_TYPES = new Set(["Page", "Section", "Container", "Row", "Column", "Button", "Frame", "Tab Content", "TabContent"]);
   const FREEFORM_PARENT_DISPLAY_NAMES = new Set(["Page", "Viewport"]);
+  const CONTAINER_DISPLAY_NAMES = new Set(["Container", "Section", "Row", "Column", "Frame", "Tab Content", "TabContent", "Banner"]);
   const isSectionNode = (() => {
     try {
       return query.getState().nodes[nodeId]?.data?.displayName === "Section";
+    } catch {
+      return false;
+    }
+  })();
+  // Detect if this node is a container with children — if so,
+  // use border-only hit areas to let clicks pass through to children.
+  const isContainerWithChildren = (() => {
+    try {
+      const state = query.getState();
+      const node = state.nodes[nodeId];
+      const displayName = node?.data?.displayName as string | undefined;
+      const isCanvas = node?.data?.isCanvas === true;
+      const isContainer = (displayName && CONTAINER_DISPLAY_NAMES.has(displayName)) || isCanvas;
+      if (!isContainer) return false;
+      const childNodes = (node?.data?.nodes as string[] | undefined) ?? [];
+      return childNodes.length > 0;
     } catch {
       return false;
     }
@@ -382,7 +422,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       values: { newW: number; newH: number; extraMT: number; extraML: number }
     ) => {
       const bounds = d.guideBounds;
-      if (!bounds || !Number.isFinite(d.zoom) || d.zoom <= 0) return values;
+      if (!bounds || !Number.isFinite(d.zoom) || d.zoom <= 0 || d.disableClamp) return values;
 
       const startW = d.startRect.width / d.zoom;
       const startH = d.startRect.height / d.zoom;
@@ -607,10 +647,23 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
       // Auto-injecting designWidth/designHeight here can lock them into scale mode,
       // which causes content distortion/overlap when resizing out and back.
 
+      const state = query.getState();
+      const parentId = state.nodes[nodeId]?.data?.parent as string | undefined;
+      const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+      const parentDisplayName = parentId ? (state.nodes[parentId]?.data?.displayName as string | undefined) : undefined;
+      const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+      const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+      const parentIsFreeform =
+        parentProps.isFreeform === true ||
+        (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+      const position = String(startProps.position ?? "static").toLowerCase();
+      const isAbsoluteLike = position === "absolute" || position === "fixed";
+      const initialMoveMode = getMoveModeForNode(nodeId, state);
+
       dragRef.current = {
         type,
         handle,
-        moveMode: "margin",
+        moveMode: initialMoveMode,
         originX: e.clientX,
         originY: e.clientY,
         moveStarted: type !== "move",
@@ -635,12 +688,38 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         moveLastY: type === "move" ? e.clientY : undefined,
         previousTransition: type === "move" ? dom.style.transition : undefined,
         previousWillChange: type === "resize" ? dom.style.willChange : undefined,
+        previousPosition: type === "resize" ? dom.style.position : undefined,
+        previousLeft: type === "resize" ? dom.style.left : undefined,
+        previousTop: type === "resize" ? dom.style.top : undefined,
+        previousRight: type === "resize" ? dom.style.right : undefined,
+        previousBottom: type === "resize" ? dom.style.bottom : undefined,
+        parentIsFreeform,
         dirty: false,
         constrainRatio: e.shiftKey,
         resizeFromCenter: e.altKey,
         lastAppliedResize: undefined,
         moveItems: undefined,
       };
+
+      if (type === "resize" && parentIsFreeform) {
+        const resizeMoveMode = getMoveModeForNode(nodeId, state);
+        if (resizeMoveMode === "offset" && !isAbsoluteLike) {
+          const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
+          if (parentDom) {
+            const parentRect = parentDom.getBoundingClientRect();
+            const nodeRect = dom.getBoundingClientRect();
+            const relativeLeft = Math.round(nodeRect.left - parentRect.left);
+            const relativeTop = Math.round(nodeRect.top - parentRect.top);
+            dom.style.position = "absolute";
+            dom.style.left = `${relativeLeft}px`;
+            dom.style.top = `${relativeTop}px`;
+            dom.style.right = "auto";
+            dom.style.bottom = "auto";
+            dragRef.current.startProps.top = relativeTop;
+            dragRef.current.startProps.left = relativeLeft;
+          }
+        }
+      }
 
       if (type === "move") {
         applyOverlayRect(startRect);
@@ -656,6 +735,15 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           let hasPageCanvasMove = false;
           if (dragRef.current) {
             dragRef.current.moveMode = getMoveModeForNode(nodeId, state);
+            const parentId = state.nodes[nodeId]?.data?.parent as string | undefined;
+            const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+            const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+            const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+            const parentDisplayName = parentId ? (state.nodes[parentId]?.data?.displayName as string | undefined) : undefined;
+            const parentIsFreeform =
+              parentProps.isFreeform === true ||
+              (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+            dragRef.current.disableClamp = parentIsFreeform;
 
             const selectedIds = filterLeafSelectionIds(
               selectedToIds(state.events.selected).filter((id) => id !== "ROOT" && !!state.nodes[id]),
@@ -748,9 +836,21 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const nodeDisplayName = state.nodes[nodeId]?.data?.displayName as string | undefined;
           const childCount = (((state.nodes[nodeId] as any)?.data?.nodes as string[] | undefined) ?? []).length;
           const bypassBoundsForResize = nodeDisplayName === "Section" || (nodeDisplayName === "Container" && childCount > 0);
-          const parentId = state.nodes[nodeId]?.data?.parent;
+          const parentId = state.nodes[nodeId]?.data?.parent as string | undefined;
           const parentDom = parentId ? getNodeContentHost(query.node(parentId).get()?.dom ?? null) : null;
-          if (dragRef.current && parentDom && !bypassBoundsForResize) {
+          const parentProps = parentId ? (state.nodes[parentId]?.data?.props ?? {}) as Record<string, unknown> : {};
+          const parentDisplayName = parentId ? (state.nodes[parentId]?.data?.displayName as string | undefined) : undefined;
+          const parentDisplay = String(parentProps.display ?? "").toLowerCase();
+          const parentIsFlexOrGrid = parentDisplay === "flex" || parentDisplay === "grid";
+          const parentIsFreeform =
+            parentProps.isFreeform === true ||
+            (!parentIsFlexOrGrid && !!parentDisplayName && FREEFORM_PARENT_DISPLAY_NAMES.has(parentDisplayName));
+
+          if (dragRef.current) {
+            dragRef.current.disableClamp = parentIsFreeform;
+          }
+
+          if (dragRef.current && parentDom && !bypassBoundsForResize && !parentIsFreeform) {
             const parentRect = parentDom.getBoundingClientRect();
             dragRef.current.guideBounds = {
               left: parentRect.left,
@@ -1175,13 +1275,15 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
         const startRot = parseRotation(d.startProps.rotation);
         const accumulated = (d.accumulatedAngleDeg ?? 0) + deltaDeg;
-        d.accumulatedAngleDeg = accumulated;
-        d.lastPointerAngle = currentAngle;
         const nextRot = startRot + accumulated;
+        const snappedRot = snapRotationToWhole(nextRot);
+
+        d.accumulatedAngleDeg = snappedRot - startRot;
+        d.lastPointerAngle = currentAngle;
 
         // Only update local state for visual feedback during drag
         // Final prop update happens in handleMouseUp
-        setRotateAngle((prev) => (prev == null || Math.abs(prev - nextRot) > 0.1 ? nextRot : prev));
+        setRotateAngle((prev) => (prev == null || Math.abs(prev - snappedRot) > 0.1 ? snappedRot : prev));
       }
 
       if (d.dirty) {
@@ -1400,8 +1502,19 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         const isAccordionNode = currentNode?.data?.displayName === "Accordion";
         const isImageNode = currentNode?.data?.displayName === "Image";
         const isSection = currentNode?.data?.displayName === "Section";
+        const shouldForceAbsolute = (d.moveMode ?? "margin") === "offset" && d.parentIsFreeform === true;
 
         actions.setProp(nodeId, (props: Record<string, unknown>) => {
+          if (shouldForceAbsolute) {
+            props.position = "absolute";
+            props.right = "auto";
+            props.bottom = "auto";
+            const resolvedTop = parsePxOrAuto(d.startProps.top);
+            const resolvedLeft = parsePxOrAuto(d.startProps.left);
+            if (props.top == null) props.top = `${Math.round(resolvedTop)}px`;
+            if (props.left == null) props.left = `${Math.round(resolvedLeft)}px`;
+          }
+
           if (!isSection) {
             props.width = `${Math.round(newW)}px`;
           }
@@ -1471,7 +1584,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           const startRot = parseRotation(d.startProps.rotation);
           const finalRot = startRot + (d.accumulatedAngleDeg ?? 0);
           actions.setProp(nodeId, (props: Record<string, unknown>) => {
-            props.rotation = Math.round(finalRot * 10) / 10;
+            props.rotation = normalizeRotation(finalRot);
           });
         }
       }
@@ -1531,12 +1644,13 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
     if (!hasFlip && Math.abs(propRotation) < 0.01) {
       const domRotation = getRotationFromTransformMatrix(window.getComputedStyle(dom).transform);
       if (domRotation != null && Number.isFinite(domRotation) && Math.abs(domRotation) >= 0.01) {
-        return domRotation;
+        return normalizeRotation(domRotation);
       }
     }
-    return propRotation;
+    return normalizeRotation(propRotation);
   })();
-  const displayAngle = rotateAngle ?? currentRotation;
+  const displayAngle = normalizeRotation(rotateAngle ?? currentRotation);
+  const showRotateGuides = isAngleAlignedTo90(displayAngle);
 
   return ReactDOM.createPortal(
     <div
@@ -1572,30 +1686,34 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
 
       {isDragging && dragType === "rotate" && !disableRotate && (
         <>
-          <div
-            style={{
-              position: "fixed",
-              left: centerX,
-              top: 0,
-              width: 1,
-              height: window.innerHeight,
-              backgroundColor: "rgba(56, 189, 248, 0.45)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              top: centerY,
-              left: 0,
-              height: 1,
-              width: window.innerWidth,
-              backgroundColor: "rgba(56, 189, 248, 0.45)",
-              pointerEvents: "none",
-              zIndex: 10000,
-            }}
-          />
+          {showRotateGuides && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  left: centerX,
+                  top: 0,
+                  width: 1,
+                  height: window.innerHeight,
+                  backgroundColor: "rgba(56, 189, 248, 0.45)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: centerY,
+                  left: 0,
+                  height: 1,
+                  width: window.innerWidth,
+                  backgroundColor: "rgba(56, 189, 248, 0.45)",
+                  pointerEvents: "none",
+                  zIndex: 10000,
+                }}
+              />
+            </>
+          )}
           <div
             style={{
               position: "fixed",
@@ -1639,7 +1757,9 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
           transformOrigin: "center center",
         }}
       >
-        {/* Border = drag to move */}
+        {/* Border = drag to move.
+            For containers with children, check if a child node exists
+            under the cursor. If so, select the child; otherwise start move. */}
         <div
           style={{
             position: "absolute",
@@ -1649,7 +1769,42 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
             cursor: "default",
             pointerEvents: isExternalDragActive ? "none" : "auto",
           }}
-          onMouseDown={(e) => startDrag(e, "move")}
+          onMouseDown={(e) => {
+            if (isContainerWithChildren) {
+              // Check if a child node exists at the click position
+              const elements = document.elementsFromPoint(e.clientX, e.clientY) as HTMLElement[];
+              for (const el of elements) {
+                // Skip overlay elements
+                if (el.closest("[data-panel='resize-overlay']")) continue;
+                if (el.closest("[data-panel]")) continue;
+                const nodeEl = el.closest("[data-node-id]") as HTMLElement | null;
+                const childId = nodeEl?.getAttribute("data-node-id");
+                if (childId && childId !== nodeId && childId !== "ROOT") {
+                  // Check this is actually a descendant of our container
+                  try {
+                    const state = query.getState();
+                    let parentId = state.nodes[childId]?.data?.parent as string | undefined;
+                    let isDescendant = false;
+                    while (parentId) {
+                      if (parentId === nodeId) { isDescendant = true; break; }
+                      parentId = state.nodes[parentId]?.data?.parent as string | undefined;
+                    }
+                    if (isDescendant) {
+                      // A child node is underneath — select it instead of starting drag
+                      e.stopPropagation();
+                      e.preventDefault();
+                      actions.selectNode(childId);
+                      return;
+                    }
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+            }
+            // No child found (empty container area), or not a container — start move
+            startDrag(e, "move");
+          }}
         />
 
         {/* Resize handles */}

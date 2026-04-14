@@ -14,6 +14,7 @@ function footerLink(text: string) {
   return React.createElement(Text as any, {
     text,
     fontSize: 14,
+    fontFamily: "Outfit",
     color: "#cbd5e1",
     marginBottom: 12,
   });
@@ -30,15 +31,15 @@ function iconInfoRow(icon: string, text: string) {
       marginBottom: 12,
       height: "auto",
     },
-    React.createElement(Text as any, { text: icon, fontSize: 16, color: "#cbd5e1" }),
-    React.createElement(Text as any, { text, fontSize: 14, color: "#cbd5e1" })
+    React.createElement(Text as any, { text: icon, fontSize: 16, fontFamily: "Outfit", color: "#ffffff", position: "relative", display: "block", zIndex: 2 }),
+    React.createElement(Text as any, { text, fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 })
   );
 }
 
 export const MinimalFooter: TemplateEntry = {
   label: "Minimal Footer",
   description: "Two-tone footer with CTA section and detailed links",
-  preview: "Minimal",
+  preview: null,
   element: React.createElement(
     Element as any,
     {
@@ -46,16 +47,16 @@ export const MinimalFooter: TemplateEntry = {
       width: "100%",
       background: "#121212",
       paddingTop: 0,
+      paddingRight: 0,
       paddingBottom: 0,
       paddingLeft: 0,
-      paddingRight: 0,
       canvas: true,
       height: "auto",
       isFreeform: false,
-      alignItems: "center",
-      justifyContent: "center",
+      position: "relative",
+      zIndex: 0,
     },
-    // CTA SECTION (Upper)
+    // Upper CTA Section
     React.createElement(
       Element as any,
       {
@@ -63,55 +64,64 @@ export const MinimalFooter: TemplateEntry = {
         width: "100%",
         background: "#333333",
         paddingTop: 80,
+        paddingRight: 0,
         paddingBottom: 80,
-        canvas: true,
+        paddingLeft: 0,
+        height: "auto",
         alignItems: "center",
         justifyContent: "center",
-        height: "auto",
+        canvas: true,
       },
       React.createElement(Text as any, {
         text: "Become A Part Of Our Team",
         fontSize: 36,
-        color: "#ffffff",
+        fontFamily: "Outfit",
         fontWeight: "700",
+        color: "#ffffff",
         marginBottom: 20,
         textAlign: "center",
+        position: "relative",
+        display: "block",
+        zIndex: 2,
       }),
       React.createElement(Text as any, {
         text: "Here's your opportunity to join a unique, global company with an incredible, life-changing mission",
         fontSize: 18,
+        fontFamily: "Outfit",
         color: "rgba(255, 255, 255, 0.7)",
         marginBottom: 32,
         textAlign: "center",
         maxWidth: "600px",
+        position: "relative",
+        display: "block",
+        zIndex: 2,
       }),
       React.createElement(
         Element as any,
         {
           is: Container as any,
-          background: "#10b981", // Green button
-          padding: 0,
-          paddingTop: 14,
-          paddingBottom: 14,
-          paddingLeft: 32,
-          paddingRight: 32,
           width: "156px",
           height: "52px",
+          background: "#10b981",
           borderRadius: 8,
-          canvas: true,
-          cursor: "pointer",
           alignItems: "center",
           justifyContent: "center",
+          canvas: true,
+          cursor: "pointer",
         },
         React.createElement(Text as any, {
           text: "Join Now →",
-          color: "#ffffff",
+          fontSize: 16,
+          fontFamily: "Outfit",
           fontWeight: "600",
+          color: "#ffffff",
+          position: "relative",
+          display: "block",
+          zIndex: 2,
         })
       )
     ),
-
-    // LINKS SECTION (Lower)
+    // Lower Links Section
     React.createElement(
       Element as any,
       {
@@ -119,108 +129,136 @@ export const MinimalFooter: TemplateEntry = {
         width: "100%",
         maxWidth: "1280px",
         background: "transparent",
-        paddingTop: 48,
-        paddingBottom: 40,
-        paddingLeft: 24,
-        paddingRight: 24,
-        canvas: true,
+        paddingTop: 80,
+        paddingRight: 60,
+        paddingBottom: 60,
+        paddingLeft: 60,
         height: "auto",
         alignItems: "stretch",
+        justifyContent: "center",
+        canvas: true,
       },
       React.createElement(
         Element as any,
         {
           is: Row as any,
-          canvas: true,
-          gap: 60,
+          width: "100%",
+          gap: 20,
           alignItems: "flex-start",
           justifyContent: "space-between",
-          height: "auto",
+          flexWrap: "nowrap",
+          canvas: true,
         },
-        // Branding Column
+        // Column 1: Branding
         React.createElement(
           Element as any,
           {
             is: Column as any,
-            width: "35%",
-            padding: 0,
-            canvas: true,
+            width: "25%",
+            gap: 24,
             alignItems: "flex-start",
-            height: "auto",
+            canvas: true,
           },
-          // Placeholder Logo
           React.createElement(
             Element as any,
             {
               is: Row as any,
-              canvas: true,
+              marginBottom: 24,
               gap: 12,
               alignItems: "center",
-              marginBottom: 24,
-              height: "auto",
+              canvas: true,
             },
-            React.createElement(Text as any, { text: "Minimal Footer", fontSize: 24, color: "#ffffff", fontWeight: "700" })
+            React.createElement(Text as any, {
+              text: "Minimal Footer",
+              fontSize: 24,
+              fontFamily: "Outfit",
+              fontWeight: "700",
+              color: "#ffffff",
+              position: "relative",
+              display: "block",
+              zIndex: 2,
+            })
           ),
           React.createElement(Text as any, {
             text: "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s.",
             fontSize: 14,
+            fontFamily: "Outfit",
             color: "rgba(255, 255, 255, 0.6)",
             lineHeight: 1.6,
+            position: "relative",
+            display: "block",
+            zIndex: 2,
           })
         ),
-
-        // Company Column
+        // Column 2: Company
         React.createElement(
           Element as any,
           {
             is: Column as any,
-            width: "auto",
-            canvas: true,
+            width: "20%",
+            gap: 0,
             alignItems: "flex-start",
-            height: "auto",
+            canvas: true,
           },
-          React.createElement(Text as any, { text: "Company", fontSize: 18, color: "rgba(234, 179, 8, 0.9)", fontWeight: "700", marginBottom: 24 }),
-          React.createElement(Text as any, { text: "Company Name", fontSize: 16, color: "#ffffff", fontWeight: "600", marginBottom: 8 }),
-          React.createElement(Text as any, { text: "Manila, Philippines", fontSize: 14, color: "#cbd5e1", marginBottom: 20 }),
-          iconInfoRow("📞", "+6390123456789"),
-          iconInfoRow("✉", "info@emailid.com")
+          React.createElement(Text as any, { text: "Company", fontSize: 18, fontFamily: "Outfit", fontWeight: "700", color: "rgba(234, 179, 8, 0.9)", position: "relative", display: "block", zIndex: 2, marginBottom: 24 }),
+          React.createElement(Text as any, { text: "Company Name", fontSize: 16, fontFamily: "Outfit", fontWeight: "600", color: "#ffffff", position: "relative", display: "block", zIndex: 2, marginBottom: 8 }),
+          React.createElement(Text as any, { text: "Manila, Philippines", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2, marginBottom: 20 }),
+          React.createElement(
+            Element as any,
+            { is: Row as any, gap: 12, alignItems: "center", marginBottom: 12, canvas: true },
+            React.createElement(Text as any, { text: "📞", fontSize: 16, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 }),
+            React.createElement(Text as any, { text: "+6390123456789", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 })
+          ),
+          React.createElement(
+            Element as any,
+            { is: Row as any, gap: 12, alignItems: "center", marginBottom: 12, canvas: true },
+            React.createElement(Text as any, { text: "✉", fontSize: 16, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 }),
+            React.createElement(Text as any, { text: "info@emailid.com", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 })
+          )
         ),
-
-        // Quick Links Column
+        // Column 3: Quick Links
         React.createElement(
           Element as any,
           {
             is: Column as any,
             width: "auto",
-            canvas: true,
+            gap: 12,
             alignItems: "flex-start",
-            height: "auto",
+            canvas: true,
           },
-          React.createElement(Text as any, { text: "Quick Links", fontSize: 18, color: "rgba(234, 179, 8, 0.9)", fontWeight: "700", marginBottom: 24 }),
-          footerLink("About Us"),
-          footerLink("FAQ"),
-          footerLink("Privacy"),
-          footerLink("Terms & Conditions")
+          React.createElement(Text as any, { text: "Quick Links", fontSize: 18, fontFamily: "Outfit", fontWeight: "700", color: "rgba(234, 179, 8, 0.9)", position: "relative", display: "block", zIndex: 2, marginBottom: 24 }),
+          React.createElement(Text as any, { text: "About Us", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2, marginBottom: 12 }),
+          React.createElement(Text as any, { text: "FAQ", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2, marginBottom: 12 }),
+          React.createElement(Text as any, { text: "Privacy", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2, marginBottom: 12 }),
+          React.createElement(Text as any, { text: "Terms & Conditions", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2, marginBottom: 12 })
         ),
-
-        // Social Media Column
+        // Column 4: Social Media
         React.createElement(
           Element as any,
           {
             is: Column as any,
             width: "auto",
-            canvas: true,
+            gap: 12,
             alignItems: "flex-start",
-            height: "auto",
+            canvas: true,
           },
-          React.createElement(Text as any, { text: "Social Media", fontSize: 18, color: "rgba(234, 179, 8, 0.9)", fontWeight: "700", marginBottom: 24 }),
-          iconInfoRow("fb", "Facebook"),
-          iconInfoRow("in", "Linkedin")
+          React.createElement(Text as any, { text: "Social Media", fontSize: 18, fontFamily: "Outfit", fontWeight: "700", color: "rgba(234, 179, 8, 0.9)", position: "relative", display: "block", zIndex: 2, marginBottom: 24 }),
+          React.createElement(
+            Element as any,
+            { is: Row as any, gap: 12, alignItems: "center", marginBottom: 12, canvas: true },
+            React.createElement(Text as any, { text: "fb", fontSize: 16, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 }),
+            React.createElement(Text as any, { text: "Facebook", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 })
+          ),
+          React.createElement(
+            Element as any,
+            { is: Row as any, gap: 12, alignItems: "center", marginBottom: 12, canvas: true },
+            React.createElement(Text as any, { text: "in", fontSize: 16, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 }),
+            React.createElement(Text as any, { text: "Linkedin", fontSize: 14, fontFamily: "Outfit", color: "#cbd5e1", position: "relative", display: "block", zIndex: 2 })
+          )
         )
       )
     ),
-    
-    // Bottom Right Anchor Button
+    // Back to top button
     React.createElement(
       Element as any,
       {
@@ -232,11 +270,11 @@ export const MinimalFooter: TemplateEntry = {
         position: "absolute",
         bottom: "20px",
         right: "20px",
-        canvas: true,
         alignItems: "center",
         justifyContent: "center",
+        canvas: true,
       },
-      React.createElement(Text as any, { text: "︿", fontSize: 20, color: "#ffffff", fontWeight: "bold" })
+      React.createElement(Text as any, { text: "︿", fontSize: 20, color: "#ffffff", fontWeight: "700", position: "relative", display: "block", zIndex: 2 })
     )
   ),
   category: "footer",

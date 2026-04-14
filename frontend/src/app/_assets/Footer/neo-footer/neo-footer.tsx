@@ -9,50 +9,10 @@ import { Column } from "../../../design/_designComponents/Column/Column";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { TemplateEntry } from "../../_types";
 
-// Helper for Footer Links
-function footerLink(text: string, isUnderlined: boolean = false) {
-  return React.createElement(Text as any, {
-    text,
-    fontSize: 16,
-    fontFamily: "Outfit",
-    color: "#cbd5e1",
-    marginBottom: 24,
-    lineHeight: 1.4,
-    textDecoration: isUnderlined ? "underline" : "none",
-    fontWeight: "400",
-  });
-}
-
-// Social Icon helper
-function socialIcon(symbol: string) {
-  return React.createElement(
-    Element as any,
-    {
-      is: Container as any,
-      width: "48px",
-      height: "auto",
-      background: "transparent",
-      borderRadius: 0,
-      padding: 0,
-      canvas: true,
-      alignItems: "center",
-      justifyContent: "center",
-      marginRight: 24,
-    },
-    React.createElement(Text as any, {
-      text: symbol,
-      fontSize: 24,
-      fontFamily: "Outfit",
-      color: "#ffffff",
-      fontWeight: "500",
-    })
-  );
-}
-
 export const NeoFooter: TemplateEntry = {
   label: "Neo Footer",
   description: "High-fidelity Finding Neo branded footer",
-  preview: "Neo",
+  preview: null,
   element: React.createElement(
     Element as any,
     {
@@ -60,323 +20,157 @@ export const NeoFooter: TemplateEntry = {
       width: "100%",
       background: "#0d2c25",
       paddingTop: 0,
+      paddingRight: 0,
       paddingBottom: 0,
       paddingLeft: 0,
-      paddingRight: 0,
       canvas: true,
-      height: "auto",
-      isFreeform: false,
       alignItems: "center",
       justifyContent: "center",
-      overflow: "hidden",
+      isFreeform: false,
       position: "relative",
+      zIndex: 0,
+      overflow: "hidden",
     },
-    // BACKGROUND V-SHAPE DECORATIONS
+    // Background Decoration 1
+    React.createElement(Element as any, {
+      is: Container as any,
+      background: "transparent",
+      padding: 0,
+      width: "1000px",
+      height: "1000px",
+      borderColor: "rgba(255,255,255,0.05)",
+      borderWidth: 1,
+      position: "absolute",
+      top: "-200px",
+      right: "-200px",
+      rotation: 45,
+      canvas: true,
+    }),
+    // Background Decoration 2
+    React.createElement(Element as any, {
+      is: Container as any,
+      background: "transparent",
+      padding: 0,
+      width: "800px",
+      height: "800px",
+      borderColor: "rgba(255,255,255,0.03)",
+      borderWidth: 1,
+      position: "absolute",
+      bottom: "-300px",
+      left: "20%",
+      rotation: -45,
+      canvas: true,
+    }),
+    // Main Content (Iz1iaUPk9U)
     React.createElement(
       Element as any,
       {
         is: Container as any,
-        width: "1000px",
-        height: "1000px",
         background: "transparent",
-        borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.05)",
-        position: "absolute",
-        top: "-200px",
-        right: "-200px",
-        rotation: 45,
-        canvas: true,
-      }
-    ),
-    React.createElement(
-      Element as any,
-      {
-        is: Container as any,
-        width: "800px",
-        height: "800px",
-        background: "transparent",
-        borderWidth: 1,
-        borderColor: "rgba(255,255,255,0.03)",
-        position: "absolute",
-        bottom: "-300px",
-        left: "20%",
-        rotation: -45,
-        canvas: true,
-      }
-    ),
-    
-    // CONTENT CONTAINER
-    React.createElement(
-      Element as any,
-      {
-        is: Container as any,
-        width: "100%",
-        maxWidth: "1380px",
-        background: "transparent",
-        paddingTop: 120,
+        paddingTop: 120, // Reverted to exact user structure
+        paddingRight: 80,
         paddingBottom: 80,
         paddingLeft: 80,
-        paddingRight: 80,
-        canvas: true,
         height: "auto",
-        alignItems: "stretch",
-        justifyContent: "flex-start",
+        maxWidth: "1380px",
         position: "relative",
         zIndex: 10,
+        canvas: true,
+        alignItems: "stretch",
       },
       React.createElement(
         Element as any,
         {
           is: Row as any,
-          canvas: true,
-          gap: 60,
-          flexWrap: "wrap",
+          flexWrap: "nowrap",
           alignItems: "flex-start",
           justifyContent: "space-between",
-          height: "auto",
+          gap: 60,
+          canvas: true,
         },
-        
-        // LEFT: Branding & Socials
+        // Column 1 (gEou-EoA3O)
         React.createElement(
           Element as any,
           {
             is: Column as any,
-            width: "50%",
             padding: 0,
+            width: "50%",
             gap: 0,
             canvas: true,
-            alignItems: "flex-start",
-            height: "auto",
           },
-          // Logo
+          // Logo Row (ISZKU-wllA)
           React.createElement(
             Element as any,
-            {
-              is: Row as any,
-              canvas: true,
-              gap: 0,
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              marginBottom: 48,
-              height: "auto",
-            },
+            { is: Row as any, marginBottom: 48, alignItems: "center", flexWrap: "nowrap", canvas: true },
             React.createElement(
               Element as any,
-              {
-                is: Container as any,
-                width: "54px",
-                height: "54px",
-                background: "transparent",
-                canvas: true,
-                position: "relative",
-                alignItems: "center",
-                justifyContent: "center",
-              },
+              { is: Container as any, width: "54px", height: "54px", background: "transparent", canvas: true, alignItems: "center", justifyContent: "center", position: "relative" },
               React.createElement(
                 Element as any,
-                {
-                  is: Column as any,
-                  width: "18px",
-                  height: "14px",
-                  position: "absolute",
-                  bottom: "12px",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 3,
-                  canvas: true,
-                },
-                React.createElement(Container as any, { width: "100%", height: "2px", background: "#0d2c25" }),
-                React.createElement(Container as any, { width: "100%", height: "2px", background: "#0d2c25" }),
-                React.createElement(Container as any, { width: "100%", height: "2px", background: "#0d2c25" })
+                { is: Column as any, width: "18px", height: "14px", alignItems: "center", justifyContent: "center", gap: 3, position: "absolute", bottom: "12px", canvas: true },
+                React.createElement(Element as any, { is: Container as any, background: "#ffffff", height: "2px", width: "100%", canvas: true }),
+                React.createElement(Element as any, { is: Container as any, background: "#ffffff", height: "2px", width: "100%", canvas: true }),
+                React.createElement(Element as any, { is: Container as any, background: "#ffffff", height: "2px", width: "100%", canvas: true })
               )
             ),
-            React.createElement(Text as any, {
-              text: "FINDING NEO",
-              fontSize: 32,
-              fontFamily: "Outfit",
-              color: "#ffffff",
-              fontWeight: "600",
-              letterSpacing: "5px",
-              top: "0px",
-              left: "-47px",
-              marginLeft: -18.374536871269317,
-            })
+            React.createElement(Text as any, { text: "FINDING NEO", fontSize: 32, fontFamily: "Outfit", fontWeight: "600", letterSpacing: "5px", color: "#ffffff", position: "relative", left: "-47px", marginLeft: -18.37 })
           ),
-          
-          React.createElement(Text as any, {
-            text: "Empowering physicians with advanced multi-modal tools to improve treatment selection and patient outcomes.",
-            fontSize: 22,
-            fontFamily: "Outfit",
-            color: "#ffffff",
-            marginBottom: 64,
-            lineHeight: 1.6,
-            width: "90%",
-            fontWeight: "400",
-          }),
-          
-          // Socials
+          // Tagline (Qd6LkO7AQH)
+          React.createElement(Text as any, { text: "Empowering physicians with advanced multi-modal tools to improve treatment selection and patient outcomes.", fontSize: 22, fontFamily: "Outfit", color: "#ffffff", lineHeight: 1.6, width: "90%", marginBottom: 64 }),
+          // Socials Row (q4rBo25e5Q)
           React.createElement(
             Element as any,
-            {
-              is: Row as any,
-              canvas: true,
-              gap: 0,
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "flex-start",
-              marginBottom: 80,
-              height: "auto",
-            },
-            socialIcon("𝕏"),
-            socialIcon("in"),
-            socialIcon("📷"),
-            socialIcon("fb")
+            { is: Row as any, marginBottom: 80, alignItems: "center", canvas: true },
+            ...["𝕏", "in", "📷", "fb"].map((sym) =>
+              React.createElement(
+                Element as any,
+                { is: Container as any, width: "48px", height: "auto", background: "transparent", marginRight: 24, canvas: true, alignItems: "center", justifyContent: "center" },
+                React.createElement(Text as any, { text: sym, fontSize: 24, fontFamily: "Outfit", color: "#ffffff", fontWeight: "500" })
+              )
+            )
           ),
-          
-          // Back to Top
+          // Button (dLWvpzmcZa)
           React.createElement(
             Element as any,
-            {
-              is: Container as any,
-              borderWidth: 1,
-              borderColor: "#ffffff",
-              background: "transparent",
-              paddingTop: 18,
-              paddingBottom: 18,
-              paddingLeft: 32,
-              paddingRight: 32,
-              width: "184px",
-              height: "68px",
-              canvas: true,
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-            },
+            { is: Container as any, width: "184px", height: "68px", background: "transparent", borderWidth: 1, borderColor: "#ffffff", canvas: true, alignItems: "center", justifyContent: "center", cursor: "pointer" },
             React.createElement(
               Element as any,
-              {
-                is: Row as any,
-                canvas: true,
-                gap: 12,
-                alignItems: "center",
-                justifyContent: "center",
-                height: "auto",
-              },
-              React.createElement(Text as any, {
-                text: "︿",
-                fontSize: 20,
-                fontFamily: "Outfit",
-                color: "#ffffff",
-                fontWeight: "900",
-                top: "-4px",
-                left: "0px",
-              }),
-              React.createElement(Text as any, {
-                text: "BACK TO TOP",
-                fontSize: 14,
-                fontFamily: "Outfit",
-                color: "#ffffff",
-                fontWeight: "700",
-                letterSpacing: "3px",
-              })
+              { is: Row as any, gap: 12, alignItems: "center", justifyContent: "center", canvas: true },
+              React.createElement(Text as any, { text: "︿", fontSize: 20, fontFamily: "Outfit", fontWeight: "900", color: "#ffffff", position: "relative", top: "-4px" }),
+              React.createElement(Text as any, { text: "BACK TO TOP", fontSize: 14, fontFamily: "Outfit", fontWeight: "700", letterSpacing: "3px", color: "#ffffff" })
             )
           )
         ),
-        
-        // RIGHT: Links
+        // Column 2 & 3: Navs (uAMlr7n-v2)
         React.createElement(
           Element as any,
-          {
-            is: Row as any,
-            width: "45%",
-            padding: 0,
-            gap: 100,
-            canvas: true,
-            alignItems: "flex-start",
-            justifyContent: "flex-end",
-            height: "auto",
-          },
-          // Column 1
+          { is: Row as any, width: "45%", alignItems: "flex-start", justifyContent: "flex-end", gap: 100, canvas: true },
+          // Site Map (ZkAS6taqaD)
           React.createElement(
             Element as any,
-            {
-              is: Column as any,
-              width: "auto",
-              padding: 0,
-              gap: 0,
-              canvas: true,
-              alignItems: "flex-start",
-              height: "auto",
-            },
-            React.createElement(Text as any, {
-              text: "Site Map",
-              fontSize: 18,
-              fontFamily: "Outfit",
-              color: "#ffffff",
-              fontWeight: "700",
-              marginBottom: 40,
-              letterSpacing: "1px",
-            }),
-            footerLink("Homepage", true),
-            footerLink("Technology"),
-            footerLink("Techneo"),
-            footerLink("Resources & news"),
-            footerLink("Careers"),
-            footerLink("Contact Us"),
-            footerLink("Portal")
+            { is: Column as any, width: "auto", canvas: true },
+            React.createElement(Text as any, { text: "Site Map", fontSize: 18, fontFamily: "Outfit", fontWeight: "700", letterSpacing: "1px", color: "#ffffff", marginBottom: 40 }),
+            ...["Homepage", "Technology", "Techneo", "Resources & news", "Careers", "Contact Us", "Portal"].map((link) =>
+              React.createElement(Text as any, { text: link, fontFamily: "Outfit", color: "#cbd5e1", lineHeight: 1.4, marginBottom: 24, textDecoration: link === "Homepage" ? "underline" : "none" })
+            )
           ),
-          // Column 2
+          // Legal (-YgT477JAX)
           React.createElement(
             Element as any,
-            {
-              is: Column as any,
-              width: "auto",
-              padding: 0,
-              gap: 0,
-              canvas: true,
-              alignItems: "flex-start",
-              height: "auto",
-            },
-            React.createElement(Text as any, {
-              text: "Legal",
-              fontSize: 18,
-              fontFamily: "Outfit",
-              color: "#ffffff",
-              fontWeight: "700",
-              marginBottom: 40,
-              letterSpacing: "1px",
-            }),
-            footerLink("Privacy Policy"),
-            footerLink("Terms of Services"),
-            footerLink("Lawyer's Corners")
+            { is: Column as any, width: "auto", canvas: true },
+            React.createElement(Text as any, { text: "Legal", fontSize: 18, fontFamily: "Outfit", fontWeight: "700", letterSpacing: "1px", color: "#ffffff", marginBottom: 40 }),
+            ...["Privacy Policy", "Terms of Services", "Lawyers Corner"].map((link) =>
+              React.createElement(Text as any, { text: link, fontFamily: "Outfit", color: "#cbd5e1", lineHeight: 1.4, marginBottom: 24 })
+            )
           )
         )
       )
     ),
-    
-    // COPYRIGHT BAR
+    // Copyright Bar (dvMf_hh5dR)
     React.createElement(
       Element as any,
-      {
-        is: Container as any,
-        width: "100%",
-        background: "#d2983b",
-        paddingTop: 16,
-        paddingBottom: 16,
-        canvas: true,
-        alignItems: "center",
-        justifyContent: "center",
-        height: "auto",
-        zIndex: 20,
-      },
-      React.createElement(Text as any, {
-        text: "Copyright © 2026, Finding Neo, All Rights Reserved.",
-        fontSize: 14,
-        fontFamily: "Outfit",
-        color: "#000000",
-        fontWeight: "500",
-      })
+      { is: Container as any, width: "100%", background: "#d2983b", padding: 0, paddingTop: 16, paddingBottom: 16, canvas: true, alignItems: "center", justifyContent: "center", zIndex: 20 },
+      React.createElement(Text as any, { text: "Copyright © 2026, Finding Neo, All Rights Reserved.", fontSize: 14, fontFamily: "Outfit", fontWeight: "500", color: "#000000" })
     )
   ),
   category: "footer",
