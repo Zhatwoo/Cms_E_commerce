@@ -23,6 +23,7 @@ type ProductWithLegacySubcategory = ApiProduct & {
 
 type CategoryMatcher = (product: ApiProduct) => boolean;
 type CategoriesCardLayoutMode = "auto" | "compact" | "featured" | "list";
+type CategoriesCardSourceMode = "auto" | "manual";
 
 const LAYOUT_OPTIONS: Array<{ value: CategoriesCardLayoutMode; label: string; description: string }> = [
   { value: "auto", label: "Auto grid", description: "Balanced responsive grid" },
@@ -165,10 +166,14 @@ export function CategoriesCardCanvas() {
     connectors,
     headingText,
     layoutMode,
+    categoryMode,
+    selectedCategories,
     actions: { setProp },
   } = useNode((node) => ({
     headingText: node.data.props.headingText as string,
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
+    categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
+    selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
   }));
   const { projectIndustry, projectSubdomain } = useDesignProject();
   const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
@@ -206,12 +211,19 @@ export function CategoriesCardCanvas() {
     };
   }, [projectIndustry, projectSubdomain]);
 
-  const categories = React.useMemo(() => {
+  const autoCategories = React.useMemo(() => {
     const preset = getIndustryCategories(projectIndustry || FALLBACK_INDUSTRY);
     const raw = [...(productSubcategories || []), ...(preset || [])];
     // Apply smart grouping to intelligently cluster related subcategories
     return smartGroupCategories(raw);
   }, [projectIndustry, productSubcategories]);
+
+  const categories = React.useMemo(() => {
+    if (categoryMode === "manual") {
+      return uniqueNonEmpty(selectedCategories || []);
+    }
+    return autoCategories;
+  }, [autoCategories, categoryMode, selectedCategories]);
 
   React.useEffect(() => {
     if (!isEditingHeading || !headingRef.current) return;
@@ -273,7 +285,11 @@ export function CategoriesCardCanvas() {
           {headingText || "Shop by Category"}
         </h3>
         <p className="m-0 text-sm font-semibold text-[#6366f1]">
-          {projectIndustry ? `Subcategories for ${projectIndustry}` : "Previewing clothing & apparel subcategories"}
+          {categoryMode === "manual"
+            ? "Manually selected categories"
+            : projectIndustry
+              ? `Subcategories for ${projectIndustry}`
+              : "Previewing clothing & apparel subcategories"}
         </p>
       </div>
 
@@ -319,10 +335,81 @@ export function CategoriesCardCanvas() {
 export const CategoriesCardSettings = () => {
   const {
     layoutMode,
+    categoryMode,
+    selectedCategories,
     actions: { setProp },
   } = useNode((node) => ({
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
+    categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
+    selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
   }));
+  const { projectIndustry, projectSubdomain } = useDesignProject();
+  const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
+  const [categoryToAdd, setCategoryToAdd] = React.useState("");
+  const [customCategory, setCustomCategory] = React.useState("");
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const loadSubcategories = async () => {
+      if (!projectSubdomain) {
+        if (!cancelled) setProductSubcategories([]);
+        return;
+      }
+
+      try {
+        const res = await listProducts({ subdomain: projectSubdomain, page: 1, limit: 500 });
+        if (!cancelled && res?.success) {
+          const selectedCategoryMatcher = getSelectedCategoryMatcher(projectIndustry || FALLBACK_INDUSTRY);
+          const filteredItems = selectedCategoryMatcher
+            ? (res.items || []).filter(selectedCategoryMatcher)
+            : (res.items || []);
+          const extracted = filteredItems.map(extractSubcategory);
+          setProductSubcategories(uniqueNonEmpty(extracted));
+        }
+      } catch {
+        if (!cancelled) setProductSubcategories([]);
+      }
+    };
+
+    loadSubcategories();
+    return () => {
+      cancelled = true;
+    };
+  }, [projectIndustry, projectSubdomain]);
+
+  const availableCategories = React.useMemo(() => {
+    const preset = getIndustryCategories(projectIndustry || FALLBACK_INDUSTRY);
+    const raw = [...(productSubcategories || []), ...(preset || [])];
+    return smartGroupCategories(raw);
+  }, [projectIndustry, productSubcategories]);
+
+  const selectedCategorySet = React.useMemo(
+    () => new Set((selectedCategories || []).map((value) => value.trim().toLowerCase()).filter(Boolean)),
+    [selectedCategories]
+  );
+
+  const selectableCategories = React.useMemo(
+    () => availableCategories.filter((value) => !selectedCategorySet.has(value.trim().toLowerCase())),
+    [availableCategories, selectedCategorySet]
+  );
+
+  const upsertSelectedCategories = React.useCallback((next: string[]) => {
+    setProp((props: { selectedCategories?: string[] }) => {
+      props.selectedCategories = uniqueNonEmpty(next);
+    });
+  }, [setProp]);
+
+  const addSelectedCategory = React.useCallback((value: string) => {
+    const normalized = String(value || "").trim();
+    if (!normalized) return;
+    upsertSelectedCategories([...(selectedCategories || []), normalized]);
+  }, [selectedCategories, upsertSelectedCategories]);
+
+  const removeSelectedCategory = React.useCallback((value: string) => {
+    const key = value.trim().toLowerCase();
+    upsertSelectedCategories((selectedCategories || []).filter((item) => item.trim().toLowerCase() !== key));
+  }, [selectedCategories, upsertSelectedCategories]);
 
   return (
     <div className="flex flex-col gap-0">
@@ -356,6 +443,136 @@ export const CategoriesCardSettings = () => {
         </div>
       </DesignSection>
 
+      <DesignSection title="Categories" defaultOpen>
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+          Choose how categories are sourced
+        </p>
+
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          {([
+            { value: "auto", label: "Auto" },
+            { value: "manual", label: "Manual" },
+          ] as Array<{ value: CategoriesCardSourceMode; label: string }>).map((option) => {
+            const active = categoryMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  setProp((props: { categoryMode?: CategoriesCardSourceMode }) => {
+                    props.categoryMode = option.value;
+                  });
+                }}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                  active
+                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10 text-[var(--builder-text)]"
+                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:border-[var(--builder-border-mid)]"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {categoryMode === "manual" ? (
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+              Add categories one by one. You can choose from detected categories or type a custom one.
+            </p>
+
+            <div className="flex gap-2">
+              <select
+                value={categoryToAdd}
+                onChange={(event) => setCategoryToAdd(event.target.value)}
+                title="Select category"
+                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none"
+              >
+                <option value="">Select category</option>
+                {selectableCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!categoryToAdd) return;
+                  addSelectedCategory(categoryToAdd);
+                  setCategoryToAdd("");
+                }}
+                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(event) => setCustomCategory(event.target.value)}
+                placeholder="Custom category"
+                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] placeholder:text-[var(--builder-text-faint)] focus:border-[var(--builder-accent)] focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const value = customCategory.trim();
+                  if (!value) return;
+                  addSelectedCategory(value);
+                  setCustomCategory("");
+                }}
+                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+              >
+                Add custom
+              </button>
+            </div>
+
+            <div className="mt-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[var(--builder-text)]">Selected categories</span>
+                <button
+                  type="button"
+                  onClick={() => upsertSelectedCategories([])}
+                  className="text-[10px] font-semibold text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                >
+                  Clear
+                </button>
+              </div>
+
+              {selectedCategories.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedCategories.map((category) => (
+                    <span
+                      key={category}
+                      className="inline-flex items-center gap-1 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
+                    >
+                      {category}
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedCategory(category)}
+                        className="text-[10px] font-bold leading-none text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                        aria-label={`Remove ${category}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="m-0 text-[10px] text-[var(--builder-text-faint)]">No categories selected yet.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+            Auto mode uses smart grouped subcategories from your project industry and products.
+          </p>
+        )}
+      </DesignSection>
+
     </div>
   );
 };
@@ -365,6 +582,8 @@ CategoriesCardCanvas.craft = {
   props: {
     headingText: "Shop by Category",
     layoutMode: "auto",
+    categoryMode: "auto",
+    selectedCategories: [],
   },
   related: {
     settings: CategoriesCardSettings,

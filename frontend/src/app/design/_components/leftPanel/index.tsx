@@ -104,6 +104,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isMediaDropActive, setIsMediaDropActive] = useState(false);
 
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
@@ -128,6 +129,94 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const mediaStorageKey = projectId
     ? `${MEDIA_LIBRARY_KEY_PREFIX}_${projectId}`
     : MEDIA_LIBRARY_KEY_PREFIX;
+
+  const inferFileExtension = (mimeType: string) => {
+    if (mimeType.includes("png")) return "png";
+    if (mimeType.includes("jpeg") || mimeType.includes("jpg")) return "jpg";
+    if (mimeType.includes("webp")) return "webp";
+    if (mimeType.includes("gif")) return "gif";
+    if (mimeType.includes("svg")) return "svg";
+    if (mimeType.includes("avif")) return "avif";
+    if (mimeType.includes("mp4")) return "mp4";
+    if (mimeType.includes("webm")) return "webm";
+    if (mimeType.includes("ogg")) return "ogg";
+    return "bin";
+  };
+
+  const extractDroppedUrls = (dataTransfer: DataTransfer): string[] => {
+    const urls = new Set<string>();
+
+    const uriList = dataTransfer.getData("text/uri-list");
+    if (uriList) {
+      uriList
+        .split("\n")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry && !entry.startsWith("#"))
+        .forEach((entry) => urls.add(entry));
+    }
+
+    const plainText = dataTransfer.getData("text/plain");
+    if (plainText) {
+      const rawTokens = plainText.split(/\s+/).map((entry) => entry.trim());
+      rawTokens.forEach((token) => {
+        try {
+          const parsed = new URL(token);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            urls.add(parsed.toString());
+          }
+        } catch {
+          // Ignore non-url plain text payloads.
+        }
+      });
+    }
+
+    const html = dataTransfer.getData("text/html");
+    if (html) {
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      doc.querySelectorAll("img").forEach((img) => {
+        const src = img.getAttribute("src")?.trim();
+        if (!src) return;
+        try {
+          const parsed = new URL(src);
+          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+            urls.add(parsed.toString());
+          }
+        } catch {
+          // Ignore invalid image src values.
+        }
+      });
+    }
+
+    return Array.from(urls);
+  };
+
+  const toUploadableFile = async (resourceUrl: string): Promise<File | null> => {
+    try {
+      const response = await fetch(resourceUrl, { mode: "cors" });
+      if (!response.ok) return null;
+
+      const mimeType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+      const isAllowedType =
+        mimeType.startsWith("image/") ||
+        mimeType.startsWith("video/") ||
+        mimeType.startsWith("audio/");
+
+      if (!isAllowedType) return null;
+
+      const blob = await response.blob();
+      const parsedUrl = new URL(resourceUrl);
+      const nameFromPath = parsedUrl.pathname.split("/").pop()?.trim();
+      const fallbackName = `dropped-${Date.now()}.${inferFileExtension(mimeType)}`;
+      const fileName = nameFromPath && nameFromPath.length > 0 ? nameFromPath : fallbackName;
+
+      return new File([blob], fileName, {
+        type: mimeType || blob.type || "application/octet-stream",
+        lastModified: Date.now(),
+      });
+    } catch {
+      return null;
+    }
+  };
 
   const handleTitleDoubleClick = () => {
     if (permission === "viewer") return;
@@ -275,16 +364,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
   const allSelected = filteredMedia.length > 0 && filteredMedia.every(i => selectedItems.has(i.id));
 
 
-  const handleUploadFiles = async (fileList: FileList | null) => {
-    if (!fileList || fileList.length === 0) return;
+  const uploadFilesFromArray = async (files: File[]) => {
+    if (files.length === 0) return;
     if (permission === "viewer") return;
     if (!projectId) {
       setUploadError("No project selected.");
       return;
     }
-
-    const files = Array.from(fileList);
-    if (files.length === 0) return;
 
     setUploading(true);
     setUploadError(null);
@@ -330,6 +416,38 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
       setUploadProgress(0);
       if (mediaInputRef.current) mediaInputRef.current.value = "";
     }
+  };
+
+  const handleUploadFiles = async (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    await uploadFilesFromArray(Array.from(fileList));
+  };
+
+  const handleMediaDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsMediaDropActive(false);
+
+    if (uploading || permission === "viewer") return;
+    if (e.dataTransfer.types.includes("media-library-url")) return;
+
+    const droppedFiles = Array.from(e.dataTransfer.files || []).filter(
+      (file) => file.type.startsWith("image/") || file.type.startsWith("video/") || file.type.startsWith("audio/")
+    );
+
+    const droppedUrls = extractDroppedUrls(e.dataTransfer);
+    const convertedFiles = await Promise.all(droppedUrls.map((url) => toUploadableFile(url)));
+    const remoteFiles = convertedFiles.filter((file): file is File => !!file);
+    const filesToUpload = [...droppedFiles, ...remoteFiles];
+
+    if (filesToUpload.length === 0) {
+      if (droppedUrls.length > 0) {
+        setUploadError("Could not import dropped URL. Some websites block direct image access (CORS).");
+      }
+      return;
+    }
+
+    await uploadFilesFromArray(filesToUpload);
   };
 
   useEffect(() => {
@@ -628,7 +746,33 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         {activePanel === "files" && (canMountFilesPanel ? <FilesPanel /> : null)}
         {activePanel === "components" && <ComponentsPanel />}
         {activePanel === "media" && (
-          <div className="h-full flex flex-col gap-5 px-3 pb-4 bg-builder-surface">
+          <div
+            className="h-full flex flex-col gap-5 px-3 pb-4 bg-builder-surface relative"
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (!isMediaDropActive) setIsMediaDropActive(true);
+            }}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              if (!isMediaDropActive) setIsMediaDropActive(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              const nextTarget = e.relatedTarget as Node | null;
+              if (!nextTarget || !e.currentTarget.contains(nextTarget)) {
+                setIsMediaDropActive(false);
+              }
+            }}
+            onDrop={handleMediaDrop}
+          >
+            {isMediaDropActive && (
+              <div className="absolute inset-2 z-30 border-2 border-dashed border-[var(--builder-purple)] bg-[var(--builder-purple)]/10 rounded-xl pointer-events-none flex items-center justify-center">
+                <div className="px-4 py-3 rounded-lg bg-[var(--builder-surface)]/80 border border-[var(--builder-border)] text-center">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--builder-text)]">Drop to import media</div>
+                  <div className="text-[9px] mt-1 text-[var(--builder-text-faint)]">Works with local files and image links dragged from websites</div>
+                </div>
+              </div>
+            )}
             {/* Search Bar - Integrated with Brand Theme */}
             <div className="relative group shrink-0 mt-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--builder-text-faint)] group-focus-within:text-[var(--builder-text)] transition-colors" />
@@ -664,6 +808,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 )}
                 <span>Import media</span>
               </button>
+            </div>
+
+            <div className="text-[9px] uppercase tracking-[0.18em] text-[var(--builder-text-faint)] -mt-2">
+              Tip: Drag image files or image links from other websites into this panel.
             </div>
 
             {/* Selection & Toolbar (Minimalist Style) */}
@@ -823,7 +971,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       return (
                         <div
                           key={item.id}
-                          className={`group relative aspect-video rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-[var(--builder-purple)] ring-1 ring-[var(--builder-purple)]" : "border-[var(--builder-border)] bg-builder-surface-2"
+                          className={`group relative aspect-[4/3] rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-[var(--builder-purple)] ring-1 ring-[var(--builder-purple)]" : "border-[var(--builder-border)] bg-builder-surface-2"
                             }`}
                           draggable
                           onDragStart={(e) => {
@@ -856,7 +1004,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                                     alt={item.name}
                                     width="220px"
                                     height="180px"
-                                    objectFit="cover"
+                                    objectFit="contain"
                                     _isDraggingSource={true}
                                   />
                                 )
@@ -882,7 +1030,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                               <Music className="w-5 h-5 text-builder-text-muted" />
                             </div>
                           ) : item.mimeType.startsWith("image/") ? (
-                            <img src={item.url} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            <img src={item.url} alt={item.name} className="w-full h-full object-contain bg-[var(--builder-surface-3)] p-1 transition-transform duration-500 group-hover:scale-105" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <FileStack className="w-5 h-5 text-[var(--builder-text-faint)]" />
