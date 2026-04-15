@@ -61,6 +61,8 @@ import { BrandLogosBlock } from "../../_assets/Content/BrandLogosBlock";
 import { CTABannerBlock } from "../../_assets/Content/CTABannerBlock";
 import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
+import { FeaturedProductCanvas } from "../../_assets/Cards/FeaturedProduct/FeaturedProduct";
+import { ProductDescriptionCanvas } from "../../_assets/Cards/ProductDescription/ProductDescription";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -193,6 +195,8 @@ export function buildCraftResolver(): Resolver {
   const CTABannerBlockComp = asComponent(CTABannerBlock, ContainerComp);
   const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
+  const FeaturedProductCanvasComp = asComponent(FeaturedProductCanvas, ContainerComp);
+  const ProductDescriptionCanvasComp = asComponent(ProductDescriptionCanvas, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -337,6 +341,16 @@ export function buildCraftResolver(): Resolver {
     categoriescardcanvas: CategoriesCardCanvasComp,
     CategoriesCard: CategoriesCardCanvasComp,
     categoriescard: CategoriesCardCanvasComp,
+    FeaturedProductCanvas: FeaturedProductCanvasComp,
+    featuredproductcanvas: FeaturedProductCanvasComp,
+    FeaturedProduct: FeaturedProductCanvasComp,
+    featuredproduct: FeaturedProductCanvasComp,
+    "Featured Product": FeaturedProductCanvasComp,
+    ProductDescriptionCanvas: ProductDescriptionCanvasComp,
+    productdescriptioncanvas: ProductDescriptionCanvasComp,
+    ProductDescription: ProductDescriptionCanvasComp,
+    productdescription: ProductDescriptionCanvasComp,
+    "Product Description": ProductDescriptionCanvasComp,
     FeaturesGridBlock: FeaturesGridBlockComp,
     featuresgridblock: FeaturesGridBlockComp,
     "Features Grid Block": FeaturesGridBlockComp,
@@ -386,6 +400,8 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
   addAliases(base, "CategoriesCardCanvas", CategoriesCardCanvasComp, ["Categories Card Canvas", "categoriescardcanvas"]);
   addAliases(base, "CategoriesCard", CategoriesCardCanvasComp, ["Categories Card", "categoriescard"]);
+  addAliases(base, "FeaturedProductCanvas", FeaturedProductCanvasComp, ["Featured Product", "featuredproduct", "FeaturedProduct"]);
+  addAliases(base, "ProductDescriptionCanvas", ProductDescriptionCanvasComp, ["Product Description", "productdescription", "ProductDescription"]);
   addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);

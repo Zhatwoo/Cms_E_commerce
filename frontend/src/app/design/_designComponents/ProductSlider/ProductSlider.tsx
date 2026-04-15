@@ -7,6 +7,8 @@ import { useDesignProject } from "../../_context/DesignProjectContext";
 import { ProductSliderSettings } from "./ProductSliderSettings";
 import { ProductImageOverlays } from "../productOverlays";
 
+export type ProductSliderSourceMode = "auto" | "manual";
+
 export interface ProductSliderProps {
   position?: string;
   top?: string;
@@ -14,6 +16,10 @@ export interface ProductSliderProps {
   right?: string;
   bottom?: string;
   zIndex?: number;
+
+  // Product source
+  productSourceMode?: ProductSliderSourceMode;
+  selectedProductIds?: string[];
 
   // General
   showTitle?: boolean;
@@ -65,6 +71,8 @@ export const ProductSlider = ({
   right,
   bottom,
   zIndex,
+  productSourceMode = "auto",
+  selectedProductIds = [],
   showTitle = true,
   title = "Our Products",
   titleFontSize = 28,
@@ -118,6 +126,31 @@ export const ProductSlider = ({
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listProducts({ subdomain: projectSubdomain ?? undefined, status: "active", limit: 500 })
+      .then((res) => { if (!cancelled) setProducts(res.items ?? []); })
+      .catch(() => { if (!cancelled) setProducts([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectSubdomain]);
+
+  const displayedProducts = React.useMemo(() => {
+    if (productSourceMode !== "manual") return products;
+
+    const selectedIds = (Array.isArray(selectedProductIds) ? selectedProductIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean);
+
+    if (selectedIds.length === 0) return [];
+
+    const productById = new Map(products.map((product) => [String(product.id), product]));
+    return selectedIds
+      .map((id) => productById.get(id))
+      .filter((product): product is ApiProduct => Boolean(product));
+  }, [productSourceMode, products, selectedProductIds]);
+
   // Responsive card count & width: fills full inner width at every breakpoint
   const responsiveCardWidth = (() => {
     if (containerWidth <= 0) return cardWidth;
@@ -130,7 +163,7 @@ export const ProductSlider = ({
     else if (inner <= 1024) targetCount = 3;   // tablet landscape
     else if (inner <= 1440) targetCount = 4;   // laptop
     else                    targetCount = 5;   // desktop 1920+
-    const visibleCount = Math.max(1, Math.min(targetCount, products.length || targetCount));
+    const visibleCount = Math.max(1, Math.min(targetCount, displayedProducts.length || targetCount));
     return Math.floor((inner - gap * (visibleCount - 1)) / visibleCount);
   })();
 
@@ -139,17 +172,7 @@ export const ProductSlider = ({
     ? imageHeight
     : Math.round(responsiveCardWidth * (imageHeight / Math.max(cardWidth, 1)));
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    listProducts({ subdomain: projectSubdomain ?? undefined, status: "active" })
-      .then((res) => { if (!cancelled) setProducts(res.items ?? []); })
-      .catch(() => { if (!cancelled) setProducts([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [projectSubdomain]);
-
-  const isEmpty = !loading && products.length === 0;
+  const isEmpty = !loading && displayedProducts.length === 0;
 
   const isFluidWidth = typeof width === "string" && width.trim().endsWith("%");
 
@@ -196,14 +219,18 @@ export const ProductSlider = ({
       {/* Empty state */}
       {!loading && isEmpty && enabled && (
         <div style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: 32, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
-          No active products found. Add products in your dashboard to see them here.
+          {productSourceMode === "manual"
+            ? (selectedProductIds.length > 0
+              ? "Selected products are not active or no longer available."
+              : "No products selected yet. Open Product Slider settings and add products to display.")
+            : "No active products found. Add products in your dashboard to see them here."}
         </div>
       )}
 
       {/* Slider */}
       {!loading && !isEmpty && (
         <div style={{ display: "flex", gap, overflowX: "hidden", paddingBottom: 4, flexWrap: "nowrap" }}>
-          {products.map((product) => {
+          {displayedProducts.map((product) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;
             const compareAt = product.compareAtPrice;
@@ -294,6 +321,8 @@ ProductSlider.craft = {
   displayName: "Product Slider",
   props: {
     position: "relative", top: "auto", left: "auto", right: "auto", bottom: "auto",
+    productSourceMode: "auto",
+    selectedProductIds: [],
     showTitle: true, title: "Our Products", titleFontSize: 28, titleColor: "#111827", titleAlign: "center",
     background: "#f9fafb", width: "100%",
     paddingTop: 48, paddingBottom: 48, paddingLeft: 0, paddingRight: 0,
