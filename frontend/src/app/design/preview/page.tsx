@@ -337,8 +337,8 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
   // These snapshots may store Button text in `text` and include a white 240px Container block.
   const synclyAnchorText = "Ready to start syncing your data?";
   const anchorTextNodeId = Object.keys(out).find((id) => {
-    const node = out[id];
-    if (node.type?.resolvedName !== "Text") return false;
+    const node: CraftStorageNode | undefined = out[id];
+    if (!node || node.type?.resolvedName !== "Text") return false;
     const txt = (node.props as Record<string, unknown>)?.text;
     return typeof txt === "string" && txt.trim() === synclyAnchorText;
   });
@@ -347,7 +347,7 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
     const seen = new Set<string>();
     const walk = (id: string) => {
       if (seen.has(id)) return;
-      const node = out[id];
+      const node: CraftStorageNode | undefined = out[id];
       if (!node) return;
       seen.add(id);
       for (const childId of node.nodes ?? []) walk(childId);
@@ -361,7 +361,7 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
     let cursor: string | undefined = anchorTextNodeId;
     let synclySectionId: string | undefined;
     while (cursor) {
-      const node = out[cursor];
+      const node: CraftStorageNode | undefined = out[cursor];
       if (!node) break;
       if (node.type?.resolvedName === "Section") {
         synclySectionId = cursor;
@@ -373,7 +373,7 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
     if (synclySectionId) {
       const synclySubtreeIds = collectSubtreeIds(synclySectionId);
       for (const id of synclySubtreeIds) {
-        const node = out[id];
+        const node: CraftStorageNode | undefined = out[id];
         if (!node) continue;
         const props = (node.props ?? {}) as Record<string, unknown>;
 
