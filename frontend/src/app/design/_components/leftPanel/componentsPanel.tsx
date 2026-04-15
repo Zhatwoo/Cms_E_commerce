@@ -2,9 +2,9 @@
 import React, { useState, useMemo } from "react";
 import { useEditor, Element } from "@craftjs/core";
 import {
-  ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
-  AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
-  RectangleHorizontal, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
+  ChevronLeft, ChevronRight, Box, Layers, Minus,
+  ImageIcon, CheckSquare,
+  RectangleHorizontal, Type, ChevronDown, LayoutTemplate, FileCode,
   Plus, Search, X, Video as VideoIcon,
 } from "lucide-react";
 import { DesignTooltip } from "../DesignTooltip";
@@ -20,19 +20,9 @@ import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
 import { Video } from "../../_designComponents/Video/Video";
 import { Button } from "../../_designComponents/Button/Button";
-import { Divider } from "../../_designComponents/Divider/Divider";
-import { Section } from "../../_designComponents/Section/Section";
-import { Row } from "../../_designComponents/Row/Row";
-import { Column } from "../../_designComponents/Column/Column";
-import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
-import { Banner } from "../../_designComponents/Banner/banner";
-import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
-import { Spacer } from "../../_designComponents/Spacer/Spacer";
-import { Pagination } from "../../_designComponents/Pagination/Pagination";
-import { Rating } from "../../_designComponents/Rating/Rating";
 import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 
 interface ComponentVariant {
@@ -50,43 +40,23 @@ interface ComponentVariant {
 // Each component gets a vivid color pair: bg (subtle) + icon color + solid hover color
 // Uses *-500 for icons so they're visible on both light and dark backgrounds
 const COMP_STYLES: Record<string, { base: string; hoverColor: string }> = {
-  Section:            { base: "bg-violet-500/15 text-violet-500",  hoverColor: "#8b5cf6" },
   Container:          { base: "bg-purple-500/15 text-purple-500",  hoverColor: "#a855f7" },
-  Row:                { base: "bg-orange-500/15 text-orange-500",  hoverColor: "#f97316" },
-  Banner:             { base: "bg-rose-500/15 text-rose-500",      hoverColor: "#f43f5e" },
-  Badge:              { base: "bg-emerald-500/15 text-emerald-500",hoverColor: "#10b981" },
-  Column:             { base: "bg-cyan-500/15 text-cyan-500",      hoverColor: "#06b6d4" },
   Text:               { base: "bg-pink-500/15 text-pink-500",      hoverColor: "#ec4899" },
   Image:              { base: "bg-yellow-500/15 text-yellow-500",  hoverColor: "#eab308" },
   Video:              { base: "bg-indigo-500/15 text-indigo-500",  hoverColor: "#6366f1" },
-  Spacer:             { base: "bg-slate-500/15 text-slate-500",    hoverColor: "#64748b" },
   Button:             { base: "bg-red-500/15 text-red-500",        hoverColor: "#ef4444" },
   "Checkbox / Radio": { base: "bg-lime-500/15 text-lime-600",      hoverColor: "#84cc16" },
-  Pagination:         { base: "bg-blue-500/15 text-blue-500",      hoverColor: "#3b82f6" },
-  Rating:             { base: "bg-amber-500/15 text-amber-500",    hoverColor: "#f59e0b" },
-  Divider:            { base: "bg-gray-500/15 text-gray-500",      hoverColor: "#6b7280" },
-  Tabs:               { base: "bg-teal-500/15 text-teal-500",      hoverColor: "#14b8a6" },
   Accordion:          { base: "bg-fuchsia-500/15 text-fuchsia-500",hoverColor: "#d946ef" },
   "New Page":         { base: "bg-builder-accent/10 text-builder-accent", hoverColor: "#FFCC00" },
 };
 
 const COMPONENT_TOOLTIPS: Record<string, string> = {
-  Section: "Full-width layout block for organizing page sections",
   Container: "Flexible box for grouping and nesting elements",
-  Row: "Horizontal layout — arrange elements side by side",
-  Banner: "Alert-style announcement bar or notification strip",
-  Badge: "Small label or tag to highlight status or categories",
-  Column: "Vertical layout column — stack elements top to bottom",
   Text: "Add editable text — headings, paragraphs, labels",
   Image: "Add an image — upload from device or enter a URL",
   Video: "Embed a video — YouTube, Vimeo, or direct URL",
-  Spacer: "Invisible spacing block to create gaps between elements",
   Button: "Clickable button with customizable text, color and link",
   "Checkbox / Radio": "Form input — checkbox, radio button or toggle",
-  Pagination: "Navigation controls for multi-page content",
-  Rating: "Star rating display for products or reviews",
-  Divider: "Horizontal rule to separate content sections",
-  Tabs: "Tabbed content switcher — show one panel at a time",
   Accordion: "Expandable/collapsible content panels",
   "New Page": "Add a new blank page to the canvas",
 };
@@ -101,7 +71,7 @@ export const ComponentsPanel = () => {
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const FLOW_LAYOUT_COMPONENTS = new Set<unknown>([
-    Section, Container, Row, Column, Banner, BadgeComponent, Spacer, Tabs, Accordion, pageComponent,
+    Container, Accordion, pageComponent,
   ]);
 
   const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement => {
@@ -116,28 +86,12 @@ export const ComponentsPanel = () => {
   };
 
   const WORKING_COMPONENTS: ComponentVariant[] = useMemo(() => [
-    { label: "Section",   icon: <Box />,           iconStyle: COMP_STYLES.Section.base,   hoverColor: COMP_STYLES.Section.hoverColor,   element: <Element is={Section} canvas /> },
     { label: "Container", icon: <Layers />,         iconStyle: COMP_STYLES.Container.base, hoverColor: COMP_STYLES.Container.hoverColor, element: <Element is={Container} padding={20} canvas /> },
-    { label: "Row",       icon: <Minus />,          iconStyle: COMP_STYLES.Row.base,       hoverColor: COMP_STYLES.Row.hoverColor,       element: <Element is={Row} canvas /> },
-    { label: "Banner",    icon: <AlertCircle />,    iconStyle: COMP_STYLES.Banner.base,    hoverColor: COMP_STYLES.Banner.hoverColor,
-      element: <Banner background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8} text="FLASH SALE: Up to 70% off - Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" textAlign="center" lineHeight={1.2} />,
-    },
-    { label: "Badge",     icon: <Badge />,          iconStyle: COMP_STYLES.Badge.base,     hoverColor: COMP_STYLES.Badge.hoverColor,
-      // Badge is a leaf node (it renders its own label from `text`).
-      // Creating it as a canvas with a child Text node can corrupt Craft's tree and crash the Frame render.
-      element: <BadgeComponent text="Badge" background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8} />,
-    },
-    { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
     { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" /> },
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
-    { label: "Spacer",    icon: <Maximize />,       iconStyle: COMP_STYLES.Spacer.base,    hoverColor: COMP_STYLES.Spacer.hoverColor,    element: <Spacer /> },
     { label: "Button",    icon: <RectangleHorizontal />, iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
     { label: "Checkbox / Radio", icon: <CheckSquare />, iconStyle: COMP_STYLES["Checkbox / Radio"].base, hoverColor: COMP_STYLES["Checkbox / Radio"].hoverColor, element: <BooleanField label="Option" controlType="checkbox" /> },
-    { label: "Pagination",icon: <ListIcon />,       iconStyle: COMP_STYLES.Pagination.base,hoverColor: COMP_STYLES.Pagination.hoverColor,element: <Pagination /> },
-    { label: "Rating",    icon: <Star />,           iconStyle: COMP_STYLES.Rating.base,    hoverColor: COMP_STYLES.Rating.hoverColor,    element: <Rating value={2} /> },
-    { label: "Divider",   icon: <Minus />,          iconStyle: COMP_STYLES.Divider.base,   hoverColor: COMP_STYLES.Divider.hoverColor,   element: <Divider /> },
-    { label: "Tabs",      icon: <Layout />,         iconStyle: COMP_STYLES.Tabs.base,      hoverColor: COMP_STYLES.Tabs.hoverColor,      element: <Element is={Tabs} tabs={[{ id: "tab-1", title: "Tab 1", content: "tab-content-tab-1" }]} activeTabId="tab-1" canvas /> },
     { label: "Accordion", icon: <ChevronDown />,    iconStyle: COMP_STYLES.Accordion.base, hoverColor: COMP_STYLES.Accordion.hoverColor, element: <Accordion /> },
     { label: "New Page",  icon: <LayoutTemplate />, iconStyle: COMP_STYLES["New Page"].base, hoverColor: COMP_STYLES["New Page"].hoverColor, isNewPage: true, dragElement: <Element is={pageComponent} canvas /> },
   ], [pageComponent]);
