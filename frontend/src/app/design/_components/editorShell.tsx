@@ -2790,6 +2790,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.categoriescard = categoriesCardComp;
     base["Categories Card"] = categoriesCardComp;
 
+    const featuredProductComp = asComponent(CRAFT_RESOLVER.FeaturedProductCanvas ?? CRAFT_RESOLVER.FeaturedProduct ?? SAFE_CONTAINER);
+    base.FeaturedProductCanvas = featuredProductComp;
+    base.featuredproductcanvas = featuredProductComp;
+    base["Featured Product Canvas"] = featuredProductComp;
+    base.FeaturedProduct = featuredProductComp;
+    base.featuredproduct = featuredProductComp;
+    base["Featured Product"] = featuredProductComp;
+
     return withResolverFallback(base);
   }, []);
 
