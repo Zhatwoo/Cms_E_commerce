@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
 import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
+import { DesignTooltip } from "../DesignTooltip";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { buildCraftResolver } from "../craftResolver";
 import { Container } from "../../_designComponents/Container/Container";
@@ -251,6 +252,17 @@ const ASSET_ICONS: Record<string, React.ReactNode> = {
   Shapes: <ShapesIcon className="w-5 h-5" />,
 };
 
+const ASSET_FOLDER_TOOLTIPS: Record<string, string> = {
+  Header: "Pre-built header templates — navigation bars and top menus",
+  Hero: "Hero sections — full-width banners with headlines and CTAs",
+  Content: "Content blocks — features, testimonials, stats, and CTAs",
+  Cards: "Card components — product, team member, and category cards",
+  Forms: "Form templates — login, signup, contact, and more",
+  Footer: "Pre-built footer templates — links, socials, and copyright",
+  Icons: "Icon library — drag icons onto your canvas",
+  Shapes: "Geometric shapes — circles, rectangles, and polygons",
+};
+
 const BASE_CRAFT_RESOLVER = buildCraftResolver();
 
 const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverFallback({
@@ -497,16 +509,17 @@ export const AssetsPanel = () => {
         >
           <div className="grid grid-cols-1 gap-2">
             {GROUPED_TEMPLATES.map((group) => (
-              <button
-                key={group.folder}
-                type="button"
-                onClick={() => {
-                  setActiveFolder(group.folder);
-                  setPanelView("items");
-                  setSelectedAsset(null);
-                }}
-                className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
-              >
+              <DesignTooltip key={`tooltip-${group.folder}`} content={ASSET_FOLDER_TOOLTIPS[group.folder] || group.folder} position="right">
+                <button
+                  key={group.folder}
+                  type="button"
+                  onClick={() => {
+                    setActiveFolder(group.folder);
+                    setPanelView("items");
+                    setSelectedAsset(null);
+                  }}
+                  className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
+                >
                 <div className="flex h-full items-center p-2.5 gap-3">
                   <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
                     {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
@@ -518,7 +531,8 @@ export const AssetsPanel = () => {
                   </div>
                   <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
                 </div>
-              </button>
+                </button>
+              </DesignTooltip>
             ))}
           </div>
         </div>
@@ -530,13 +544,15 @@ export const AssetsPanel = () => {
         >
           <div className="h-full overflow-y-auto">
             <div className="flex items-center gap-2 px-1 pb-2 border-b border-[var(--builder-border)] mb-4 sticky top-0 bg-[var(--builder-surface)] z-10">
-              <button
-                type="button"
-                onClick={() => setPanelView("folders")}
-                className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+              <DesignTooltip content="Back to folders" position="right">
+                <button
+                  type="button"
+                  onClick={() => setPanelView("folders")}
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+              </DesignTooltip>
               <div className="text-xs font-bold text-[var(--builder-text)]">{activeGroup?.folder}</div>
             </div>
 
@@ -550,50 +566,51 @@ export const AssetsPanel = () => {
                   const isSelected = selectedAsset?.key === assetKey;
 
                   return (
-                    <div
-                      key={assetKey}
-                      data-drag-source="asset"
-                      data-asset-category={item.category}
-                      data-asset-label={item.label}
-                      ref={(ref) => {
-                        if (!ref || !item?.element) return;
+                    <DesignTooltip key={`tooltip-${assetKey}`} content="Drag to add to canvas" position="right">
+                      <div
+                        key={assetKey}
+                        data-drag-source="asset"
+                        data-asset-category={item.category}
+                        data-asset-label={item.label}
+                        ref={(ref) => {
+                          if (!ref || !item?.element) return;
 
-                        const dragElement = iconFolder
-                          ? React.cloneElement(item.element as React.ReactElement<any>, {
-                              color: "#000000",
-                            })
-                          : item.element;
+                          const dragElement = iconFolder
+                            ? React.cloneElement(item.element as React.ReactElement<any>, {
+                                color: "#000000",
+                              })
+                            : item.element;
 
-                        connectors.create(ref, dragElement);
-                      }}
-                      onDragStart={() => {
-                        if (typeof document !== "undefined") {
-                          document.body.dataset.assetDragCategory = item.category;
-                          document.body.dataset.assetDragLabel = item.label;
-                        }
-                      }}
-                      onMouseDown={() => {
-                        if (typeof document !== "undefined") {
-                          document.body.dataset.assetDragCategory = item.category;
-                          document.body.dataset.assetDragLabel = item.label;
-                        }
-                      }}
-                      onDragEnd={() => {
-                        if (typeof document !== "undefined") {
-                          delete document.body.dataset.assetDragCategory;
-                          delete document.body.dataset.assetDragLabel;
-                        }
-                      }}
-                      onClick={() => {
-                        setSelectedAsset({
-                          folder: activeGroup.folder,
-                          item,
-                          key: assetKey,
-                        });
-                      }}
-                      className={`group bg-[var(--builder-surface-2)] p-3 rounded-xl hover:bg-[var(--builder-surface-3)] transition-all border cursor-move shadow-sm ${isSelected ? "border-[var(--builder-accent)] bg-[var(--builder-surface-3)]" : "border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]"
-                        }`}
-                    >
+                          connectors.create(ref, dragElement);
+                        }}
+                        onDragStart={() => {
+                          if (typeof document !== "undefined") {
+                            document.body.dataset.assetDragCategory = item.category;
+                            document.body.dataset.assetDragLabel = item.label;
+                          }
+                        }}
+                        onMouseDown={() => {
+                          if (typeof document !== "undefined") {
+                            document.body.dataset.assetDragCategory = item.category;
+                            document.body.dataset.assetDragLabel = item.label;
+                          }
+                        }}
+                        onDragEnd={() => {
+                          if (typeof document !== "undefined") {
+                            delete document.body.dataset.assetDragCategory;
+                            delete document.body.dataset.assetDragLabel;
+                          }
+                        }}
+                        onClick={() => {
+                          setSelectedAsset({
+                            folder: activeGroup.folder,
+                            item,
+                            key: assetKey,
+                          });
+                        }}
+                        className={`group bg-[var(--builder-surface-2)] p-3 rounded-xl hover:bg-[var(--builder-surface-3)] transition-all border cursor-move shadow-sm ${isSelected ? "border-[var(--builder-accent)] bg-[var(--builder-surface-3)]" : "border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]"
+                          }`}
+                      >
                       <div className="flex flex-col gap-2">
                         {!iconFolder && (
                           <div className="flex items-center justify-between gap-2 mb-1">
@@ -644,7 +661,8 @@ export const AssetsPanel = () => {
                           )}
                         </div>
                       </div>
-                    </div>
+                      </div>
+                    </DesignTooltip>
                   );
                 };
 

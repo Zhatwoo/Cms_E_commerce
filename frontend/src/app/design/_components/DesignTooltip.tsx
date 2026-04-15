@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface DesignTooltipProps {
@@ -17,11 +17,39 @@ export const DesignTooltip: React.FC<DesignTooltipProps> = ({
     position = "bottom",
 }) => {
     const [isVisible, setIsVisible] = useState(false);
+    const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+    const triggerRef = useRef<HTMLDivElement>(null);
     let timeout: NodeJS.Timeout;
 
     const handleMouseEnter = () => {
         timeout = setTimeout(() => {
             setIsVisible(true);
+            if (triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                const offset = 8;
+
+                let top = rect.top;
+                let left = rect.left + rect.width / 2;
+
+                switch (position) {
+                    case "top":
+                        top = rect.top - offset;
+                        break;
+                    case "bottom":
+                        top = rect.bottom + offset;
+                        break;
+                    case "left":
+                        left = rect.left - offset;
+                        top = rect.top + rect.height / 2;
+                        break;
+                    case "right":
+                        left = rect.right + offset;
+                        top = rect.top + rect.height / 2;
+                        break;
+                }
+
+                setTooltipPos({ top, left });
+            }
         }, delay * 1000);
     };
 
@@ -30,46 +58,42 @@ export const DesignTooltip: React.FC<DesignTooltipProps> = ({
         setIsVisible(false);
     };
 
-    const positions = {
-        top: "bottom-full left-1/2 -translate-x-1/2 mb-2",
-        bottom: "top-full left-1/2 -translate-x-1/2 mt-2",
-        left: "right-full top-1/2 -translate-y-1/2 mr-2",
-        right: "left-full top-1/2 -translate-y-1/2 ml-2",
-    };
-
     return (
-        <div
-            className="relative flex items-center"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-        >
-            {children}
+        <>
+            <div
+                ref={triggerRef}
+                className="w-full"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                {children}
+            </div>
             <AnimatePresence>
                 {isVisible && (
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: position === "top" ? 5 : -5 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: position === "top" ? 5 : -5 }}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
                         transition={{ duration: 0.15, ease: "easeOut" }}
-                        className={`absolute z-[9999] pointer-events-none ${positions[position]}`}
+                        className={`fixed z-[9999] pointer-events-none`}
+                        style={{
+                            top: position === "top" ? `${Math.max(10, tooltipPos.top - 8)}px` : `${tooltipPos.top}px`,
+                            left: `${Math.min(window.innerWidth - 250, Math.max(10, tooltipPos.left - 125))}px`,
+                            transform: position === "left" || position === "right"
+                                ? "translateY(-50%)"
+                                : "translateX(-50%)",
+                        }}
                     >
-                        <div className="px-2 py-1 bg-brand-black/90 backdrop-blur-md border border-transparent rounded-md shadow-xl whitespace-nowrap">
-                            <span className="text-[10px] font-medium text-brand-light tracking-wide">
+                        <div className={`px-3 py-2 bg-brand-black/95 backdrop-blur-md border border-brand-white/10 rounded-md shadow-2xl max-w-[200px] ${
+                            position === "bottom" ? "mt-3" : position === "top" ? "mb-3" : ""
+                        }`}>
+                            <span className="text-[11px] font-medium text-brand-light tracking-wide leading-snug">
                                 {content}
                             </span>
                         </div>
-                        {/* Arrow */}
-                        <div
-                            className={`absolute w-1.5 h-1.5 bg-brand-black/90 border-transparent rotate-45 pointer-events-none
-                ${position === "top" ? "bottom-[-4px] left-1/2 -translate-x-1/2 border-r border-b" : ""}
-                ${position === "bottom" ? "top-[-4px] left-1/2 -translate-x-1/2 border-l border-t" : ""}
-                ${position === "left" ? "right-[-4px] top-1/2 -translate-y-1/2 border-r border-t" : ""}
-                ${position === "right" ? "left-[-4px] top-1/2 -translate-y-1/2 border-l border-b" : ""}
-              `}
-                        />
                     </motion.div>
                 )}
             </AnimatePresence>
-        </div>
+        </>
     );
 };
