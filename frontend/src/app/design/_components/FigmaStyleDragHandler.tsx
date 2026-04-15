@@ -1277,11 +1277,7 @@ export const FigmaStyleDragHandler = () => {
           handledSectionReorder = true;
         }
 
-        if (!handledSectionReorder && (
-          dropTargetId &&
-          dropTargetId !== currentParentId &&
-          ids.every((id) => canAcceptNode(nodes, dropTargetId, id))
-        )) {
+        if (!handledSectionReorder && dropTargetId && ids.every((id) => canAcceptNode(nodes, dropTargetId, id))) {
           try {
             const insertIndex = d.currentInsertIndex ?? computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
             const dropTargetDom = getNodeContentHost(queryRef.current.node(dropTargetId).get()?.dom ?? null);
@@ -1368,7 +1364,7 @@ export const FigmaStyleDragHandler = () => {
               left: d.initialSelectionRect.left + dx * d.zoom,
               top: d.initialSelectionRect.top + dy * d.zoom,
               right: d.initialSelectionRect.right + dx * d.zoom,
-              bottom: d.initialSelectionRect.bottom + dx * d.zoom,
+              bottom: d.initialSelectionRect.bottom + dy * d.zoom,
               centerX: d.initialSelectionRect.centerX + dx * d.zoom,
               centerY: d.initialSelectionRect.centerY + dy * d.zoom,
             };

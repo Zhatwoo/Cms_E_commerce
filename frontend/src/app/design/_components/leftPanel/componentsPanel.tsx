@@ -23,7 +23,6 @@ import { Button } from "../../_designComponents/Button/Button";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
-import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 
 interface ComponentVariant {
   label: string;
@@ -45,7 +44,6 @@ const COMP_STYLES: Record<string, { base: string; hoverColor: string }> = {
   Image:              { base: "bg-yellow-500/15 text-yellow-500",  hoverColor: "#eab308" },
   Video:              { base: "bg-indigo-500/15 text-indigo-500",  hoverColor: "#6366f1" },
   Button:             { base: "bg-red-500/15 text-red-500",        hoverColor: "#ef4444" },
-  "Checkbox / Radio": { base: "bg-lime-500/15 text-lime-600",      hoverColor: "#84cc16" },
   Accordion:          { base: "bg-fuchsia-500/15 text-fuchsia-500",hoverColor: "#d946ef" },
   "New Page":         { base: "bg-builder-accent/10 text-builder-accent", hoverColor: "#FFCC00" },
 };
@@ -56,7 +54,6 @@ const COMPONENT_TOOLTIPS: Record<string, string> = {
   Image: "Add an image — upload from device or enter a URL",
   Video: "Embed a video — YouTube, Vimeo, or direct URL",
   Button: "Clickable button with customizable text, color and link",
-  "Checkbox / Radio": "Form input — checkbox, radio button or toggle",
   Accordion: "Expandable/collapsible content panels",
   "New Page": "Add a new blank page to the canvas",
 };
@@ -91,7 +88,6 @@ export const ComponentsPanel = () => {
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
     { label: "Button",    icon: <RectangleHorizontal />, iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
-    { label: "Checkbox / Radio", icon: <CheckSquare />, iconStyle: COMP_STYLES["Checkbox / Radio"].base, hoverColor: COMP_STYLES["Checkbox / Radio"].hoverColor, element: <BooleanField label="Option" controlType="checkbox" /> },
     { label: "Accordion", icon: <ChevronDown />,    iconStyle: COMP_STYLES.Accordion.base, hoverColor: COMP_STYLES.Accordion.hoverColor, element: <Accordion /> },
     { label: "New Page",  icon: <LayoutTemplate />, iconStyle: COMP_STYLES["New Page"].base, hoverColor: COMP_STYLES["New Page"].hoverColor, isNewPage: true, dragElement: <Element is={pageComponent} canvas /> },
   ], [pageComponent]);
