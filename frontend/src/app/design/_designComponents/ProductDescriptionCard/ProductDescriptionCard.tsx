@@ -126,6 +126,7 @@ export const ProductDescriptionCard = ({
         const direct = await getProduct(boundProductId);
         if (!cancelled && direct.data) {
           setProduct(direct.data);
+          setLoading(false);
           return;
         }
       } catch {
