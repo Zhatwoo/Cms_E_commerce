@@ -1,11 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
-import type { ProductSliderProps } from "./ProductSlider";
+import { listProducts, type ApiProduct } from "@/lib/api";
+import { useDesignProject } from "../../_context/DesignProjectContext";
+import type { ProductSliderProps, ProductSliderSourceMode } from "./ProductSlider";
 
 // ── Reusable primitives ──────────────────────────────────────────────────────
 
@@ -72,12 +74,174 @@ const AlignButtons = ({
 
 export const ProductSliderSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as ProductSliderProps }));
+  const { projectSubdomain } = useDesignProject();
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [productToAdd, setProductToAdd] = useState("");
 
   const set = <K extends keyof ProductSliderProps>(key: K, val: ProductSliderProps[K]) =>
     setProp((p: ProductSliderProps) => { p[key] = val; });
 
+  useEffect(() => {
+    let cancelled = false;
+
+    listProducts({ subdomain: projectSubdomain ?? undefined, status: "active", limit: 500 })
+      .then((res) => {
+        if (!cancelled) setProducts(res.items ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setProducts([]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectSubdomain]);
+
+  const sourceMode: ProductSliderSourceMode = props.productSourceMode === "manual" ? "manual" : "auto";
+  const selectedProductIds = useMemo(
+    () => (Array.isArray(props.selectedProductIds) ? props.selectedProductIds.map((id) => String(id || "").trim()).filter(Boolean) : []),
+    [props.selectedProductIds]
+  );
+
+  const selectedProductSet = useMemo(() => new Set(selectedProductIds), [selectedProductIds]);
+
+  const selectedProductEntries = useMemo(
+    () => selectedProductIds.map((id) => {
+      const product = products.find((item) => String(item.id) === id);
+      return { id, label: product?.name ?? `Unavailable product (${id.slice(0, 8)})` };
+    }),
+    [products, selectedProductIds]
+  );
+
+  const selectableProducts = useMemo(
+    () => products.filter((product) => !selectedProductSet.has(String(product.id))),
+    [products, selectedProductSet]
+  );
+
+  const upsertSelectedProductIds = (next: string[]) => {
+    const normalized = Array.from(new Set(next.map((id) => String(id || "").trim()).filter(Boolean)));
+    set("selectedProductIds", normalized);
+  };
+
+  const addSelectedProduct = (productId: string) => {
+    const normalized = String(productId || "").trim();
+    if (!normalized) return;
+    upsertSelectedProductIds([...selectedProductIds, normalized]);
+  };
+
+  const removeSelectedProduct = (productId: string) => {
+    const normalized = String(productId || "").trim();
+    if (!normalized) return;
+    upsertSelectedProductIds(selectedProductIds.filter((id) => id !== normalized));
+  };
+
   return (
     <div className="flex flex-col gap-0">
+
+      {/* ── Products ── */}
+      <DesignSection title="Products" defaultOpen>
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+          Choose how products are displayed
+        </p>
+
+        <div className="mb-3 grid grid-cols-2 gap-2">
+          {([
+            { value: "auto", label: "Auto" },
+            { value: "manual", label: "Manual" },
+          ] as Array<{ value: ProductSliderSourceMode; label: string }>).map((option) => {
+            const active = sourceMode === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => set("productSourceMode", option.value)}
+                className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
+                  active
+                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10 text-[var(--builder-text)]"
+                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:border-[var(--builder-border-mid)]"
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {sourceMode === "manual" ? (
+          <div className="flex flex-col gap-2">
+            <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+              Add products one by one to control exactly what appears in this slider.
+            </p>
+
+            <div className="flex gap-2">
+              <select
+                value={productToAdd}
+                onChange={(event) => setProductToAdd(event.target.value)}
+                title="Select product"
+                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none"
+              >
+                <option value="">Select product</option>
+                {selectableProducts.map((product) => (
+                  <option key={product.id} value={product.id}>
+                    {product.name}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!productToAdd) return;
+                  addSelectedProduct(productToAdd);
+                  setProductToAdd("");
+                }}
+                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+              >
+                Add
+              </button>
+            </div>
+
+            <div className="mt-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[11px] font-semibold text-[var(--builder-text)]">Selected products</span>
+                <button
+                  type="button"
+                  onClick={() => upsertSelectedProductIds([])}
+                  className="text-[10px] font-semibold text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                >
+                  Clear
+                </button>
+              </div>
+
+              {selectedProductEntries.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedProductEntries.map((entry) => (
+                    <span
+                      key={entry.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
+                    >
+                      {entry.label}
+                      <button
+                        type="button"
+                        onClick={() => removeSelectedProduct(entry.id)}
+                        className="text-[10px] font-bold leading-none text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                        aria-label={`Remove ${entry.label}`}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="m-0 text-[10px] text-[var(--builder-text-faint)]">No products selected yet.</p>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+            Auto mode shows all active products from this project.
+          </p>
+        )}
+      </DesignSection>
 
       {/* ── General ── */}
       <DesignSection title="General" defaultOpen>
