@@ -15,7 +15,9 @@ interface ProductDescriptionCanvasProps {
   maxItems?: number;
   background?: string;
   cardBackground?: string;
+  showProductName?: boolean;
   showDescription?: boolean;
+  showPrice?: boolean;
 }
 
 const formatPrice = (price: number) =>
@@ -46,7 +48,9 @@ export function ProductDescriptionCanvas({
   maxItems = 4,
   background = "#F5F3F0",
   cardBackground = "#FFFFFF",
+  showProductName = true,
   showDescription = true,
+  showPrice = true,
 }: ProductDescriptionCanvasProps) {
   const { connectors } = useNode();
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
@@ -156,9 +160,11 @@ export function ProductDescriptionCanvas({
                 </div>
 
                 <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
-                  <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827", lineHeight: 1.3 }}>
-                    {product.name}
-                  </p>
+                  {showProductName && (
+                    <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827", lineHeight: 1.3 }}>
+                      {product.name}
+                    </p>
+                  )}
                   {showDescription && (
                     <p
                       style={{
@@ -176,9 +182,11 @@ export function ProductDescriptionCanvas({
                       {product.description || "No description available."}
                     </p>
                   )}
-                  <p style={{ margin: "auto 0 0", fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1 }}>
-                    {formatPrice(price)}
-                  </p>
+                  {showPrice && (
+                    <p style={{ margin: "auto 0 0", fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1 }}>
+                      {formatPrice(price)}
+                    </p>
+                  )}
                 </div>
               </article>
             );
@@ -194,13 +202,17 @@ export const ProductDescriptionSettings = () => {
     productSourceMode,
     selectedProductIds,
     maxItems,
+    showProductName,
     showDescription,
+    showPrice,
     actions: { setProp },
   } = useNode((node) => ({
     productSourceMode: (node.data.props.productSourceMode as ProductDescriptionSourceMode | undefined) || "auto",
     selectedProductIds: (node.data.props.selectedProductIds as string[] | undefined) || [],
     maxItems: (node.data.props.maxItems as number | undefined) || 4,
+    showProductName: node.data.props.showProductName !== false,
     showDescription: node.data.props.showDescription !== false,
+    showPrice: node.data.props.showPrice !== false,
   }));
 
   const { projectSubdomain } = useDesignProject();
@@ -385,6 +397,24 @@ export const ProductDescriptionSettings = () => {
           />
         </div>
 
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+          What&apos;s displayed?
+        </p>
+
+        <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
+          <input
+            type="checkbox"
+            checked={showProductName}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setProp((props: ProductDescriptionCanvasProps) => {
+                props.showProductName = checked;
+              });
+            }}
+          />
+          <span className="text-[12px] text-[var(--builder-text)]">Product name</span>
+        </label>
+
         <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
           <input
             type="checkbox"
@@ -397,6 +427,20 @@ export const ProductDescriptionSettings = () => {
             }}
           />
           <span className="text-[12px] text-[var(--builder-text)]">Show description</span>
+        </label>
+
+        <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
+          <input
+            type="checkbox"
+            checked={showPrice}
+            onChange={(event) => {
+              const checked = event.target.checked;
+              setProp((props: ProductDescriptionCanvasProps) => {
+                props.showPrice = checked;
+              });
+            }}
+          />
+          <span className="text-[12px] text-[var(--builder-text)]">Product price</span>
         </label>
       </DesignSection>
     </div>
@@ -411,7 +455,9 @@ ProductDescriptionCanvas.craft = {
     maxItems: 4,
     background: "#F5F3F0",
     cardBackground: "#FFFFFF",
+    showProductName: true,
     showDescription: true,
+    showPrice: true,
   },
   related: {
     settings: ProductDescriptionSettings,
