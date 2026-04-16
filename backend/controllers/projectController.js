@@ -45,6 +45,27 @@ exports.list = async (req, res) => {
   }
 };
 
+// @desc    List shared template library projects (status=template across users)
+// @route   GET /api/projects/templates/library
+// @access  Private
+exports.listTemplateLibrary = async (req, res) => {
+  try {
+    const requestedLimit = Number.parseInt(String(req.query.limit || ''), 10);
+    const items = await Project.listTemplateLibrary(Number.isFinite(requestedLimit) ? requestedLimit : 60);
+
+    res.status(200).json({
+      success: true,
+      templates: items,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
 // @desc    Create a new project
 // @route   POST /api/projects
 // @access  Private
@@ -618,6 +639,7 @@ module.exports = {
   create: exports.create,
   getOne: exports.getOne,
   getBySubdomain: exports.getBySubdomain,
+  listTemplateLibrary: exports.listTemplateLibrary,
   update: exports.update,
   delete: exports.delete,
   listTrash: exports.listTrash,

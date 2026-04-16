@@ -14,6 +14,7 @@ import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbn
 import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
+import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
@@ -103,6 +104,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -287,6 +289,46 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return INDUSTRY_CONFIG[(foundKey || 'creative') as keyof typeof INDUSTRY_CONFIG].icon;
   };
 
+  const handleApplyTemplate = async (templateProjectId: string) => {
+    if (!selectedProject?.id) {
+      showAlert('Select a destination project in Your Designs first.');
+      return;
+    }
+
+    if (selectedProject.id === templateProjectId) {
+      showAlert('You are already on this project. Pick a different destination project.');
+      return;
+    }
+
+    setApplyingTemplateId(templateProjectId);
+    try {
+      const templateDraftRes = await getDraft(templateProjectId);
+      const templateContent = templateDraftRes?.data?.content;
+
+      if (!templateDraftRes.success || !templateContent) {
+        showAlert('Template has no saved draft content yet. Open it in the builder and save once, then try again.');
+        return;
+      }
+
+      const contentString = typeof templateContent === 'string'
+        ? templateContent
+        : JSON.stringify(templateContent);
+
+      const applyResult = await autoSavePage(contentString, selectedProject.id);
+      if (!applyResult.success) {
+        showAlert(applyResult.error || 'Failed to apply template to the selected project.');
+        return;
+      }
+
+      showAlert('Template applied. Opening your builder project...');
+      router.push(`/design?projectId=${selectedProject.id}`);
+    } catch {
+      showAlert('Failed to apply template. Please try again.');
+    } finally {
+      setApplyingTemplateId(null);
+    }
+  };
+
   return (
     <section className="dashboard-landing-light relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif]">
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
@@ -420,6 +462,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               theme={theme}
               industries={INDUSTRIES}
               getIndustryIcon={getIndustryIcon}
+              projects={allProjects}
+              selectedProject={selectedProject}
+              searchQuery={searchQuery}
+              applyingTemplateId={applyingTemplateId}
+              onApplyTemplate={handleApplyTemplate}
             />
           )}
         </AnimatePresence>

@@ -704,6 +704,15 @@ export async function listProjects(): Promise<{ success: boolean; projects: Proj
   return res;
 }
 
+export async function listTemplateLibrary(limit = 60): Promise<{ success: boolean; templates: Project[] }> {
+  const query = new URLSearchParams();
+  if (Number.isFinite(limit)) query.set('limit', String(limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; templates: Project[] }>(
+    qs ? `/api/projects/templates/library?${qs}` : '/api/projects/templates/library'
+  );
+}
+
 export async function createProject(params: {
   title?: string;
   industry?: string | null;
