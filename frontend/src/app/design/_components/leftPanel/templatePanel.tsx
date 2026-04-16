@@ -292,7 +292,7 @@ export const TemplatePanel = () => {
                     type="button"
                     onClick={() => void applySavedTemplate(template.projectId)}
                     disabled={applyingId === template.projectId}
-                    className="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded bg-brand-medium/30 text-brand-light hover:bg-brand-medium/40 disabled:opacity-60"
+                    className="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded text-white transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed bg-[linear-gradient(135deg,#6c8fff,#a78bfa)] shadow-[0_2px_8px_rgba(108,143,255,0.35)]"
                   >
                     {applyingId === template.projectId ? "Applying..." : "Apply"}
                   </button>
