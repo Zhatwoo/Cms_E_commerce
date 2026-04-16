@@ -226,12 +226,14 @@ export const ComponentsPanel = () => {
 
   // ── Back button shared style ─────────────────────────────────────────────────
   const backBtn = (onClick: () => void) => (
-    <DesignTooltip content="Back to components" position="right">
-      <button onClick={onClick}
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all border border-[var(--builder-border)]">
-        <ChevronLeft className="w-4 h-4" />
-      </button>
-    </DesignTooltip>
+    <div className="shrink-0 w-8">
+      <DesignTooltip content="Back to components" position="right">
+        <button onClick={onClick}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all border border-[var(--builder-border)]">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </DesignTooltip>
+    </div>
   );
 
   // ── Resource row ─────────────────────────────────────────────────────────────
