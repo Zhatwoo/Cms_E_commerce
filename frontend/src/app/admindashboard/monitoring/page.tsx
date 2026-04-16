@@ -530,7 +530,7 @@ const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingPro
         {/* Footer Meta */}
         <div className="mt-auto flex items-center justify-between pt-3 border-t border-[rgba(166,61,255,0.06)]">
           <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${status === 'published' ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <div className={`h-2 w-2 rounded-full ${status === 'published' ? 'bg-[#00C438]' : 'bg-[#B2AEBF]'}`} />
             <span className="text-[9px] font-black uppercase tracking-widest opacity-60" style={{ color: '#4a1a8a' }}>{status}</span>
           </div>
           {p.createdAt && (
