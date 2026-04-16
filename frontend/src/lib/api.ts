@@ -759,7 +759,13 @@ export async function restoreProject(id: string): Promise<{ success: boolean; pr
 
 /** Get project storage usage (bytes and human readable). */
 export async function getProjectStorage(id: string): Promise<{ success: boolean; storageBytes: number; storageReadable: string }> {
-  return apiFetch<{ success: boolean; storageBytes: number; storageReadable: string }>(`/api/projects/${id}/storage`);
+  return apiFetch<{ success: boolean; storageBytes: number; storageReadable: string }>(`/api/projects/${id}/storage`, {
+    headers: {
+      // The project is already explicit in the route param.
+      // Skip implicit active project header injection for this request.
+      'x-skip-active-project-scope': '1',
+    },
+  });
 }
 
 /** Permanently purge a project from the database. This action cannot be undone. */
