@@ -443,7 +443,7 @@ function ModerationComplianceBoard() {
                                                         <p className="text-xl font-black tracking-tight" style={{ color: '#471396' }}>{rpt.site}</p>
                                                         <div className="flex items-center gap-3 mt-1.5">
                                                             <p className="text-sm font-bold opacity-60" style={{ color: '#8A86A4' }}>{rpt.violationType}</p>
-                                                            <div className="h-1 w-1 rounded-full bg-gray-300" />
+                                                            <div className="h-1 w-1 rounded-full bg-[#B2AEBF]" />
                                                             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: severityStyles[rpt.severity].color }}>{rpt.severity}</p>
                                                         </div>
                                                     </div>
