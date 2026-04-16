@@ -39,6 +39,7 @@ export function TeamMemberCardCanvas({
       style={{ width: "100%", display: "flex", justifyContent: "center" }}
     >
       <Element
+        id="team-member-card-root"
         is={Section as any}
         canvas
         background="#ffffff"
