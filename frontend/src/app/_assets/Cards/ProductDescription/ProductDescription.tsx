@@ -15,13 +15,58 @@ interface ProductDescriptionCanvasProps {
   maxItems?: number;
   background?: string;
   cardBackground?: string;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
   showProductName?: boolean;
+  showDivider?: boolean;
   showDescription?: boolean;
   showPrice?: boolean;
+  showComparePrice?: boolean;
+  showDiscountBadge?: boolean;
+  descriptionLines?: number;
+  showSku?: boolean;
+  showStock?: boolean;
+  showAddToCart?: boolean;
+  showQuantitySelector?: boolean;
 }
 
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(price);
+
+const Row = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`flex items-center gap-2 mb-2 ${className}`}>{children}</div>
+);
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
+const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) => (
+  <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
+    <div
+      onClick={() => onChange(!checked)}
+      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? "bg-[var(--builder-accent)] border-[var(--builder-accent)]" : "border-[var(--builder-border-mid)] bg-transparent"}`}
+    >
+      {checked && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </div>
+    <span className="text-[12px] text-[var(--builder-text)]">{label}</span>
+  </label>
+);
+
+const getStockStatus = (product: ApiProduct) => {
+  const available = product.availableStock ?? product.stock ?? product.onHandStock ?? 0;
+  const lowThreshold = product.lowStockThreshold ?? 0;
+
+  if (available <= 0) return "Out of Stock";
+  if (lowThreshold > 0 && available <= lowThreshold) return "Low Stock";
+  return "In Stock";
+};
 
 function getDisplayedProducts(
   products: ApiProduct[],
@@ -48,15 +93,28 @@ export function ProductDescriptionCanvas({
   maxItems = 4,
   background = "#F5F3F0",
   cardBackground = "#FFFFFF",
+  paddingTop = 16,
+  paddingRight = 24,
+  paddingBottom = 16,
+  paddingLeft = 24,
   showProductName = true,
+  showDivider = true,
   showDescription = true,
   showPrice = true,
+  showComparePrice = true,
+  showDiscountBadge = true,
+  descriptionLines = 6,
+  showSku = false,
+  showStock = false,
+  showAddToCart = true,
+  showQuantitySelector = false,
 }: ProductDescriptionCanvasProps) {
   const { connectors } = useNode();
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
   const { projectSubdomain } = useDesignProject();
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [qty, setQty] = React.useState(1);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -99,7 +157,7 @@ export function ProductDescriptionCanvas({
         width: "100%",
         minHeight: "420px",
         background,
-        padding: "16px 24px",
+        padding: `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`,
         boxSizing: "border-box",
       }}
     >
@@ -135,6 +193,9 @@ export function ProductDescriptionCanvas({
           {displayedProducts.map((product) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;
+            const compareAt = product.compareAtPrice;
+            const hasDiscount = !!compareAt && compareAt > price;
+            const stockStatus = getStockStatus(product);
 
             return (
               <article
@@ -157,14 +218,20 @@ export function ProductDescriptionCanvas({
                       No image
                     </div>
                   )}
+                  {showDiscountBadge && hasDiscount && (
+                    <span style={{ position: "absolute", top: 12, left: 12, background: "#C2410C", color: "#fff", fontSize: 10, fontWeight: 800, letterSpacing: 1, padding: "5px 12px" }}>
+                      {Math.max(1, Math.round(((compareAt! - price) / compareAt!) * 100))}% OFF
+                    </span>
+                  )}
                 </div>
 
-                <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                <div style={{ padding: 14, display: "flex", flexDirection: "column", gap: 10, flex: 1 }}>
                   {showProductName && (
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "#111827", lineHeight: 1.3 }}>
                       {product.name}
                     </p>
                   )}
+                  {showDivider && showProductName && showPrice && <div style={{ width: 44, height: 2, background: "#E5E7EB", borderRadius: 999 }} />}
                   {showDescription && (
                     <p
                       style={{
@@ -174,7 +241,7 @@ export function ProductDescriptionCanvas({
                         color: "#6B7280",
                         lineHeight: 1.5,
                         display: "-webkit-box",
-                        WebkitLineClamp: 2,
+                        WebkitLineClamp: descriptionLines,
                         WebkitBoxOrient: "vertical",
                         overflow: "hidden",
                       }}
@@ -182,10 +249,42 @@ export function ProductDescriptionCanvas({
                       {product.description || "No description available."}
                     </p>
                   )}
-                  {showPrice && (
-                    <p style={{ margin: "auto 0 0", fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1 }}>
-                      {formatPrice(price)}
+                  {showSku && product.sku && (
+                    <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>SKU: {product.sku}</p>
+                  )}
+                  {showStock && (
+                    <p style={{ margin: 0, fontSize: 11, fontWeight: 700, lineHeight: 1.4, color: stockStatus === "Out of Stock" ? "#DC2626" : stockStatus === "Low Stock" ? "#D97706" : "#16A34A" }}>
+                      {stockStatus}
                     </p>
+                  )}
+                  {(showPrice || showAddToCart) && (
+                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
+                      {showPrice && (
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                          <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1 }}>{formatPrice(price)}</p>
+                          {showComparePrice && hasDiscount && (
+                            <p style={{ margin: 0, fontSize: 12, fontWeight: 400, color: "#D1D5DB", lineHeight: 1, textDecoration: "line-through" }}>
+                              {formatPrice(compareAt || 0)}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {showAddToCart && (
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          {showQuantitySelector && (
+                            <div style={{ display: "flex", alignItems: "center", border: "1px solid #E5E7EB", borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                              <button type="button" onClick={() => setQty((current) => Math.max(1, current - 1))} style={{ width: 32, height: 40, background: "#F9FAFB", border: "none", cursor: "pointer", fontSize: 16, color: "#374151" }}>-</button>
+                              <span style={{ width: 36, textAlign: "center", fontSize: 13, fontWeight: 600, color: "#111827" }}>{qty}</span>
+                              <button type="button" onClick={() => setQty((current) => current + 1)} style={{ width: 32, height: 40, background: "#F9FAFB", border: "none", cursor: "pointer", fontSize: 16, color: "#374151" }}>+</button>
+                            </div>
+                          )}
+                          <button type="button" style={{ flex: 1, minWidth: 120, background: "#111827", color: "#fff", fontSize: 12, fontWeight: 700, border: "none", padding: "10px 18px", cursor: "pointer" }}>
+                            Add to Cart
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               </article>
@@ -202,17 +301,41 @@ export const ProductDescriptionSettings = () => {
     productSourceMode,
     selectedProductIds,
     maxItems,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
     showProductName,
+    showDivider,
     showDescription,
     showPrice,
+    showComparePrice,
+    showDiscountBadge,
+    descriptionLines,
+    showSku,
+    showStock,
+    showAddToCart,
+    showQuantitySelector,
     actions: { setProp },
   } = useNode((node) => ({
     productSourceMode: (node.data.props.productSourceMode as ProductDescriptionSourceMode | undefined) || "auto",
     selectedProductIds: (node.data.props.selectedProductIds as string[] | undefined) || [],
     maxItems: (node.data.props.maxItems as number | undefined) || 4,
+    paddingTop: (node.data.props.paddingTop as number | undefined) ?? 16,
+    paddingRight: (node.data.props.paddingRight as number | undefined) ?? 24,
+    paddingBottom: (node.data.props.paddingBottom as number | undefined) ?? 16,
+    paddingLeft: (node.data.props.paddingLeft as number | undefined) ?? 24,
     showProductName: node.data.props.showProductName !== false,
+    showDivider: node.data.props.showDivider !== false,
     showDescription: node.data.props.showDescription !== false,
     showPrice: node.data.props.showPrice !== false,
+    showComparePrice: node.data.props.showComparePrice !== false,
+    showDiscountBadge: node.data.props.showDiscountBadge !== false,
+    descriptionLines: (node.data.props.descriptionLines as number | undefined) ?? 6,
+    showSku: node.data.props.showSku === true,
+    showStock: node.data.props.showStock === true,
+    showAddToCart: node.data.props.showAddToCart !== false,
+    showQuantitySelector: node.data.props.showQuantitySelector === true,
   }));
 
   const { projectSubdomain } = useDesignProject();
@@ -397,51 +520,59 @@ export const ProductDescriptionSettings = () => {
           />
         </div>
 
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">Spacing</p>
+        <Row>
+          <Label>Top</Label>
+          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: ProductDescriptionCanvasProps) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+        <Row>
+          <Label>Right</Label>
+          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: ProductDescriptionCanvasProps) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+        <Row>
+          <Label>Bottom</Label>
+          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: ProductDescriptionCanvasProps) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+        <Row>
+          <Label>Left</Label>
+          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: ProductDescriptionCanvasProps) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+
         <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
           What&apos;s displayed?
         </p>
 
-        <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
-          <input
-            type="checkbox"
-            checked={showProductName}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              setProp((props: ProductDescriptionCanvasProps) => {
-                props.showProductName = checked;
-              });
-            }}
-          />
-          <span className="text-[12px] text-[var(--builder-text)]">Product name</span>
-        </label>
-
-        <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
-          <input
-            type="checkbox"
-            checked={showDescription}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              setProp((props: ProductDescriptionCanvasProps) => {
-                props.showDescription = checked;
-              });
-            }}
-          />
-          <span className="text-[12px] text-[var(--builder-text)]">Show description</span>
-        </label>
-
-        <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
-          <input
-            type="checkbox"
-            checked={showPrice}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              setProp((props: ProductDescriptionCanvasProps) => {
-                props.showPrice = checked;
-              });
-            }}
-          />
-          <span className="text-[12px] text-[var(--builder-text)]">Product price</span>
-        </label>
+        <Toggle checked={!!showProductName} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showProductName = value; })} label="Product name" />
+        <Toggle checked={!!showDivider} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showDivider = value; })} label="Name & price divider" />
+        <Toggle checked={!!showPrice} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showPrice = value; })} label="Product price" />
+        {showPrice && <Toggle checked={!!showComparePrice} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showComparePrice = value; })} label="Compare-at price" />}
+        <Toggle checked={!!showDiscountBadge} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showDiscountBadge = value; })} label="Discount badge" />
+        <Toggle checked={!!showDescription} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showDescription = value; })} label="Description" />
+        {showDescription && (
+          <div className="pl-6 mb-1">
+            <Row>
+              <Label>Max lines</Label>
+              <input
+                type="number"
+                min={1}
+                max={6}
+                value={descriptionLines ?? 6}
+                onChange={(event) => {
+                  const next = Number.parseInt(event.target.value || "6", 10);
+                  const safe = Number.isFinite(next) ? Math.max(1, Math.min(next, 6)) : 6;
+                  setProp((props: ProductDescriptionCanvasProps) => {
+                    props.descriptionLines = safe;
+                  });
+                }}
+                className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+              />
+            </Row>
+          </div>
+        )}
+        <Toggle checked={!!showSku} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showSku = value; })} label="SKU" />
+        <Toggle checked={!!showStock} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showStock = value; })} label="Stock status" />
+        <Toggle checked={!!showAddToCart} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showAddToCart = value; })} label="Add to Cart button" />
+        {showAddToCart && <Toggle checked={!!showQuantitySelector} onChange={(value) => setProp((props: ProductDescriptionCanvasProps) => { props.showQuantitySelector = value; })} label="Quantity selector" />}
       </DesignSection>
     </div>
   );
@@ -455,9 +586,21 @@ ProductDescriptionCanvas.craft = {
     maxItems: 4,
     background: "#F5F3F0",
     cardBackground: "#FFFFFF",
+    paddingTop: 16,
+    paddingRight: 24,
+    paddingBottom: 16,
+    paddingLeft: 24,
     showProductName: true,
+    showDivider: true,
     showDescription: true,
     showPrice: true,
+    showComparePrice: true,
+    showDiscountBadge: true,
+    descriptionLines: 6,
+    showSku: false,
+    showStock: false,
+    showAddToCart: true,
+    showQuantitySelector: false,
   },
   related: {
     settings: ProductDescriptionSettings,
