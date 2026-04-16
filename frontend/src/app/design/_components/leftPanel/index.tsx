@@ -707,44 +707,50 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
         {/* Navigation Tabs */}
         <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-1.5 px-2 gap-1 min-h-0 border-b border-[var(--builder-border)]">
-          <DesignTooltip content="Layers — view and organize canvas elements" position="bottom">
-            <button
-              type="button"
-              onClick={() => setActivePanel("files")}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
-                ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
-            >
-              <FileStack className="w-4 h-4 shrink-0" />
-              <span>Files</span>
-            </button>
-          </DesignTooltip>
-          {permission !== "viewer" && (
-            <DesignTooltip content="Components — drag building blocks to canvas" position="bottom">
+          <div className="flex-1 min-w-0">
+            <DesignTooltip content="Layers — view and organize canvas elements" position="bottom">
               <button
                 type="button"
-                onClick={() => setActivePanel("components")}
-                className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+                onClick={() => setActivePanel("files")}
+                className={`w-full flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
                   ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
                   : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
               >
-                <Component className="w-4 h-4 shrink-0" />
-                <span>Components</span>
+                <FileStack className="w-4 h-4 shrink-0" />
+                <span>Files</span>
               </button>
             </DesignTooltip>
+          </div>
+          {permission !== "viewer" && (
+            <div className="flex-1 min-w-0">
+              <DesignTooltip content="Components — drag building blocks to canvas" position="bottom">
+                <button
+                  type="button"
+                  onClick={() => setActivePanel("components")}
+                  className={`w-full flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
+                    ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                    : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+                >
+                  <Component className="w-4 h-4 shrink-0" />
+                  <span>Components</span>
+                </button>
+              </DesignTooltip>
+            </div>
           )}
-          <DesignTooltip content="Media library — manage images and files" position="bottom">
-            <button
-              type="button"
-              onClick={() => setActivePanel("media")}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
-                ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
-            >
-              <ImageIcon className="w-4 h-4 shrink-0" />
-              <span>Media</span>
-            </button>
-          </DesignTooltip>
+          <div className="flex-1 min-w-0">
+            <DesignTooltip content="Media library — manage images and files" position="bottom">
+              <button
+                type="button"
+                onClick={() => setActivePanel("media")}
+                className={`w-full flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
+                  ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                  : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+              >
+                <ImageIcon className="w-4 h-4 shrink-0" />
+                <span>Media</span>
+              </button>
+            </DesignTooltip>
+          </div>
         </div>
       </div>
 
