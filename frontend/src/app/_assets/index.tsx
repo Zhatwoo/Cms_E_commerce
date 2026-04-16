@@ -14,7 +14,6 @@ import { FeaturesGrid, Testimonial, StatsCounter, NewsletterCTA, ImageText, Bran
 import {
   ProductCard,
   TeamMemberCard,
-  GridViewCard,
   ProductDescription,
   FeaturedProduct,
   ProductDescriptionCard,
@@ -453,7 +452,6 @@ export const GROUPED_TEMPLATES = [
       ProductDescription,
       FeaturedProduct,
       CategoriesCard,
-      GridViewCard,
     ],
   },
   {

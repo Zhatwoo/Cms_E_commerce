@@ -17,6 +17,21 @@ interface FeaturedProductProps {
   selectedProductIds?: string[];
   background?: string;
   cardBackground?: string;
+  paddingTop?: number;
+  paddingRight?: number;
+  paddingBottom?: number;
+  paddingLeft?: number;
+  showProductName?: boolean;
+  showDivider?: boolean;
+  showPrice?: boolean;
+  showComparePrice?: boolean;
+  showDiscountBadge?: boolean;
+  showDescription?: boolean;
+  descriptionLines?: number;
+  showSku?: boolean;
+  showStock?: boolean;
+  showAddToCart?: boolean;
+  showQuantitySelector?: boolean;
 }
 
 const BADGE_LABELS = ["NEW ARRIVAL", "BEST SELLER", "EDITOR'S PICK"];
@@ -25,6 +40,39 @@ const BADGE_COLORS = ["#C2410C", "#A16207", "#1D4ED8"];
 const formatPrice = (price: number) =>
   new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP" }).format(price);
 
+const Row = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`flex items-center gap-2 mb-2 ${className}`}>{children}</div>
+);
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
+const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) => (
+  <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
+    <div
+      onClick={() => onChange(!checked)}
+      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? "bg-[var(--builder-accent)] border-[var(--builder-accent)]" : "border-[var(--builder-border-mid)] bg-transparent"}`}
+    >
+      {checked && (
+        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+          <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      )}
+    </div>
+    <span className="text-[12px] text-[var(--builder-text)]">{label}</span>
+  </label>
+);
+
+const getStockStatus = (product: ApiProduct) => {
+  const available = product.availableStock ?? product.stock ?? product.onHandStock ?? 0;
+  const lowThreshold = product.lowStockThreshold ?? 0;
+
+  if (available <= 0) return "Out of Stock";
+  if (lowThreshold > 0 && available <= lowThreshold) return "Low Stock";
+  return "In Stock";
+};
+
 function getDisplayedProducts(
   products: ApiProduct[],
   mode: FeaturedProductSourceMode,
@@ -32,7 +80,7 @@ function getDisplayedProducts(
   maxItems: number
 ): ApiProduct[] {
   const limitedMax = Math.max(1, Math.min(maxItems, 6));
-  if (mode !== "manual") {
+  if (mode === "auto") {
     return products.slice(0, limitedMax);
   }
 
@@ -52,12 +100,28 @@ export function FeaturedProductCanvas({
   selectedProductIds = [],
   background = "#F7F4F0",
   cardBackground = "#FFFFFF",
+  paddingTop = 24,
+  paddingRight = 24,
+  paddingBottom = 12,
+  paddingLeft = 24,
+  showProductName = true,
+  showDivider = true,
+  showPrice = true,
+  showComparePrice = true,
+  showDiscountBadge = true,
+  showDescription = true,
+  descriptionLines = 6,
+  showSku = false,
+  showStock = false,
+  showAddToCart = true,
+  showQuantitySelector = false,
 }: FeaturedProductProps) {
   const { connectors, actions: { setProp } } = useNode();
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
   const { projectSubdomain } = useDesignProject();
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [qty, setQty] = React.useState(1);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -99,7 +163,7 @@ export function FeaturedProductCanvas({
       style={{
         width: "100%",
         background,
-        padding: "24px 24px 12px",
+        padding: `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`,
         display: "flex",
         flexDirection: "column",
         gap: 24,
@@ -171,6 +235,7 @@ export function FeaturedProductCanvas({
             const price = product.finalPrice ?? product.price ?? 0;
             const compareAt = product.compareAtPrice;
             const hasDiscount = !!compareAt && compareAt > price;
+            const stockStatus = getStockStatus(product);
 
             return (
               <article
@@ -191,57 +256,117 @@ export function FeaturedProductCanvas({
                       No image
                     </div>
                   )}
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: 12,
-                      left: 12,
-                      background: BADGE_COLORS[index % BADGE_COLORS.length],
-                      color: "#fff",
-                      fontSize: 10,
-                      fontWeight: 800,
-                      letterSpacing: 1,
-                      padding: "5px 12px",
-                    }}
-                  >
-                    {BADGE_LABELS[index % BADGE_LABELS.length]}
-                  </span>
+                  {showDiscountBadge && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 12,
+                        left: 12,
+                        background: BADGE_COLORS[index % BADGE_COLORS.length],
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 800,
+                        letterSpacing: 1,
+                        padding: "5px 12px",
+                      }}
+                    >
+                      {hasDiscount
+                        ? `${Math.max(1, Math.round(((compareAt! - price) / compareAt!) * 100))}% OFF`
+                        : BADGE_LABELS[index % BADGE_LABELS.length]}
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>
-                      {product.name}
-                    </h3>
-                    <p style={{ margin: 0, fontSize: 12, color: "#9CA3AF", lineHeight: 1.5 }}>
-                      {product.description || "Store highlight product"}
-                    </p>
+                    {showProductName && (
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>
+                        {product.name}
+                      </h3>
+                    )}
+                    {showDivider && showProductName && showPrice && (
+                      <div style={{ width: 44, height: 2, background: "#E5E7EB", borderRadius: 999 }} />
+                    )}
+                    {showDescription && (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 12,
+                          color: "#9CA3AF",
+                          lineHeight: 1.5,
+                          display: "-webkit-box",
+                          WebkitLineClamp: descriptionLines,
+                          WebkitBoxOrient: "vertical",
+                          overflow: "hidden",
+                        }}
+                      >
+                        {product.description || "Store highlight product"}
+                      </p>
+                    )}
+                    {showSku && product.sku && (
+                      <p style={{ margin: 0, fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>
+                        SKU: {product.sku}
+                      </p>
+                    )}
+                    {showStock && (
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 11,
+                          fontWeight: 700,
+                          lineHeight: 1.4,
+                          color: stockStatus === "Out of Stock" ? "#DC2626" : stockStatus === "Low Stock" ? "#D97706" : "#16A34A",
+                        }}
+                      >
+                        {stockStatus}
+                      </p>
+                    )}
                   </div>
 
-                  <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                      <span style={{ fontSize: 20, fontWeight: 700, color: "#111827", lineHeight: 1 }}>
-                        {formatPrice(price)}
-                      </span>
-                      <span style={{ fontSize: 12, fontWeight: 400, color: "#D1D5DB", lineHeight: 1, textDecoration: hasDiscount ? "line-through" : "none" }}>
-                        {hasDiscount ? formatPrice(compareAt || 0) : ""}
-                      </span>
+                  {(showPrice || showAddToCart) && (
+                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: 12 }}>
+                      {showPrice && (
+                        <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 20, fontWeight: 700, color: "#111827", lineHeight: 1 }}>
+                            {formatPrice(price)}
+                          </span>
+                          {showComparePrice && hasDiscount && (
+                            <span style={{ fontSize: 12, fontWeight: 400, color: "#D1D5DB", lineHeight: 1, textDecoration: "line-through" }}>
+                              {formatPrice(compareAt || 0)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {showAddToCart && (
+                        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                          {showQuantitySelector && (
+                            <div style={{ display: "flex", alignItems: "center", border: "1px solid #E5E7EB", borderRadius: 8, overflow: "hidden", flexShrink: 0 }}>
+                              <button type="button" onClick={() => setQty((current) => Math.max(1, current - 1))} style={{ width: 32, height: 40, background: "#F9FAFB", border: "none", cursor: "pointer", fontSize: 16, color: "#374151" }}>-</button>
+                              <span style={{ width: 36, textAlign: "center", fontSize: 13, fontWeight: 600, color: "#111827" }}>{qty}</span>
+                              <button type="button" onClick={() => setQty((current) => current + 1)} style={{ width: 32, height: 40, background: "#F9FAFB", border: "none", cursor: "pointer", fontSize: 16, color: "#374151" }}>+</button>
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            style={{
+                              flex: 1,
+                              minWidth: 120,
+                              background: "#111827",
+                              color: "#fff",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              border: "none",
+                              padding: "10px 18px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Add to Cart
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      style={{
-                        background: "#111827",
-                        color: "#fff",
-                        fontSize: 12,
-                        fontWeight: 700,
-                        border: "none",
-                        padding: "10px 18px",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Add to Cart
-                    </button>
-                  </div>
+                  )}
                 </div>
               </article>
             );
@@ -257,11 +382,41 @@ export const FeaturedProductSettings = () => {
     productSourceMode,
     selectedProductIds,
     maxItems,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
+    showProductName,
+    showDivider,
+    showPrice,
+    showComparePrice,
+    showDiscountBadge,
+    showDescription,
+    descriptionLines,
+    showSku,
+    showStock,
+    showAddToCart,
+    showQuantitySelector,
     actions: { setProp },
   } = useNode((node) => ({
     productSourceMode: (node.data.props.productSourceMode as FeaturedProductSourceMode | undefined) || "auto",
     selectedProductIds: (node.data.props.selectedProductIds as string[] | undefined) || [],
     maxItems: (node.data.props.maxItems as number | undefined) || 3,
+    paddingTop: (node.data.props.paddingTop as number | undefined) ?? 24,
+    paddingRight: (node.data.props.paddingRight as number | undefined) ?? 24,
+    paddingBottom: (node.data.props.paddingBottom as number | undefined) ?? 12,
+    paddingLeft: (node.data.props.paddingLeft as number | undefined) ?? 24,
+    showProductName: (node.data.props.showProductName as boolean | undefined) ?? true,
+    showDivider: (node.data.props.showDivider as boolean | undefined) ?? true,
+    showPrice: (node.data.props.showPrice as boolean | undefined) ?? true,
+    showComparePrice: (node.data.props.showComparePrice as boolean | undefined) ?? true,
+    showDiscountBadge: (node.data.props.showDiscountBadge as boolean | undefined) ?? true,
+    showDescription: (node.data.props.showDescription as boolean | undefined) ?? true,
+    descriptionLines: (node.data.props.descriptionLines as number | undefined) ?? 6,
+    showSku: (node.data.props.showSku as boolean | undefined) ?? false,
+    showStock: (node.data.props.showStock as boolean | undefined) ?? false,
+    showAddToCart: (node.data.props.showAddToCart as boolean | undefined) ?? true,
+    showQuantitySelector: (node.data.props.showQuantitySelector as boolean | undefined) ?? false,
   }));
 
   const { projectSubdomain } = useDesignProject();
@@ -445,6 +600,66 @@ export const FeaturedProductSettings = () => {
             className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
           />
         </div>
+
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">Spacing</p>
+        <Row>
+          <Label>Top</Label>
+          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+        <Row>
+          <Label>Right</Label>
+          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+        <Row>
+          <Label>Bottom</Label>
+          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+        <Row>
+          <Label>Left</Label>
+          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </Row>
+      </DesignSection>
+
+      <DesignSection title="What's Displayed" defaultOpen>
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+          Configure the featured product card content
+        </p>
+
+        <Toggle checked={!!showProductName} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showProductName = value; })} label="Product name" />
+        <Toggle checked={!!showDivider} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showDivider = value; })} label="Name & price divider" />
+        <Toggle checked={!!showPrice} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showPrice = value; })} label="Product price" />
+        {showPrice && (
+          <Toggle checked={!!showComparePrice} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showComparePrice = value; })} label="Compare-at price" />
+        )}
+        <Toggle checked={!!showDiscountBadge} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showDiscountBadge = value; })} label="Discount badge" />
+        <Toggle checked={!!showDescription} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showDescription = value; })} label="Description" />
+        {showDescription && (
+          <div className="pl-6 mb-1">
+            <Row>
+              <Label>Max lines</Label>
+              <input
+                type="number"
+                min={1}
+                max={6}
+                value={descriptionLines ?? 6}
+                onChange={(event) => {
+                  const next = Number.parseInt(event.target.value || "6", 10);
+                  const safe = Number.isFinite(next) ? Math.max(1, Math.min(next, 6)) : 6;
+                  setProp((props: FeaturedProductProps) => {
+                    props.descriptionLines = safe;
+                  });
+                }}
+                className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+              />
+            </Row>
+          </div>
+        )}
+        <Toggle checked={!!showSku} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showSku = value; })} label="SKU" />
+        <Toggle checked={!!showStock} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showStock = value; })} label="Stock status" />
+        <Toggle checked={!!showAddToCart} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showAddToCart = value; })} label="Add to Cart button" />
+        {showAddToCart && (
+          <Toggle checked={!!showQuantitySelector} onChange={(value) => setProp((props: FeaturedProductProps) => { props.showQuantitySelector = value; })} label="Quantity selector" />
+        )}
       </DesignSection>
     </div>
   );
@@ -460,6 +675,21 @@ FeaturedProductCanvas.craft = {
     selectedProductIds: [],
     background: "#F7F4F0",
     cardBackground: "#FFFFFF",
+    paddingTop: 24,
+    paddingRight: 24,
+    paddingBottom: 12,
+    paddingLeft: 24,
+    showProductName: true,
+    showDivider: true,
+    showPrice: true,
+    showComparePrice: true,
+    showDiscountBadge: true,
+    showDescription: true,
+    descriptionLines: 6,
+    showSku: false,
+    showStock: false,
+    showAddToCart: true,
+    showQuantitySelector: false,
   },
   related: {
     settings: FeaturedProductSettings,
@@ -472,7 +702,7 @@ FeaturedProductCanvas.craft = {
 
 export const FeaturedProduct: TemplateEntry = {
   label: "Featured Product",
-  description: "Three featured products with badges, price, and add to cart button",
+  description: "Three featured products with display toggles, badges, price, and add to cart button",
   preview: "🏷️",
   category: "card",
   element: React.createElement(FeaturedProductCanvas),
