@@ -36,6 +36,7 @@ import html2canvas from "html2canvas";
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
+const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
 function looksLikeCraftRawSnapshot(value: string): boolean {
   try {
@@ -603,6 +604,7 @@ function PreviewContent() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get("projectId") || DEFAULT_PROJECT_ID;
   const initialPageSlug = searchParams.get("page") ?? undefined;
+  const initialPageId = searchParams.get("pageId") ?? undefined;
   const { showAlert } = useAlert();
   const [rawJson, setRawJson] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -632,6 +634,7 @@ function PreviewContent() {
   const [previewLastAddedAt, setPreviewLastAddedAt] = useState(0);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
+  const [preferredPageIdFromEditor, setPreferredPageIdFromEditor] = useState<string | undefined>(undefined);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
 
@@ -641,6 +644,28 @@ function PreviewContent() {
       if (res.success && res.user) setCurrentUser(res.user);
     });
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (initialPageId) {
+      setPreferredPageIdFromEditor(undefined);
+      return;
+    }
+
+    try {
+      const uiStateKey = `${UI_STATE_KEY_PREFIX}_${projectId}`;
+      const raw = window.sessionStorage.getItem(uiStateKey) || window.localStorage.getItem(uiStateKey);
+      if (!raw) {
+        setPreferredPageIdFromEditor(undefined);
+        return;
+      }
+      const parsed = JSON.parse(raw) as { currentPageId?: string | null };
+      const pageId = typeof parsed.currentPageId === "string" ? parsed.currentPageId.trim() : "";
+      setPreferredPageIdFromEditor(pageId || undefined);
+    } catch {
+      setPreferredPageIdFromEditor(undefined);
+    }
+  }, [projectId, initialPageId]);
 
   const readSessionSnapshot = (targetProjectId: string): string | null => {
     if (typeof window === "undefined") return null;
@@ -938,10 +963,32 @@ function PreviewContent() {
       const rawName = page?.name ?? pageProps.pageName;
       const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
       const rawSlug = page?.slug ?? pageProps.pageSlug;
-      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index + 1}`;
+      // Keep fallback slugs aligned with renderer/publish logic (`page-${index}`),
+      // otherwise selected page slugs can fail to resolve and always fall back to page 0.
+      const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index}`;
       return { id, slug, name };
     });
   }, [effectiveCleanDoc]);
+
+  const selectedPreviewPageForPublish = useMemo(() => {
+    if (!effectiveCleanDoc?.pages?.length || !selectedPreviewPageSlug) return effectiveCleanDoc ?? null;
+    const pages = effectiveCleanDoc.pages;
+    const targetIndex = pages.findIndex((page, index) => {
+      const slug = (page?.slug as string | undefined)?.trim() || `page-${index}`;
+      return slug === selectedPreviewPageSlug;
+    });
+    if (targetIndex <= 0) {
+      return {
+        ...effectiveCleanDoc,
+        homePageSlug: selectedPreviewPageSlug,
+      } as typeof effectiveCleanDoc & { homePageSlug: string };
+    }
+    return {
+      ...effectiveCleanDoc,
+      homePageSlug: selectedPreviewPageSlug,
+      pages: [pages[targetIndex], ...pages.slice(0, targetIndex), ...pages.slice(targetIndex + 1)],
+    } as typeof effectiveCleanDoc & { homePageSlug: string };
+  }, [effectiveCleanDoc, selectedPreviewPageSlug]);
 
   useEffect(() => {
     if (previewPages.length === 0) {
@@ -954,12 +1001,28 @@ function PreviewContent() {
       : false;
 
     if (!hasSelected) {
+      const homeSlug = typeof (effectiveCleanDoc as unknown as { homePageSlug?: unknown })?.homePageSlug === "string"
+        ? ((effectiveCleanDoc as unknown as { homePageSlug?: string }).homePageSlug || "").trim()
+        : "";
       const initialMatch = initialPageSlug
         ? previewPages.find((p) => p.slug === initialPageSlug)
         : undefined;
-      setSelectedPreviewPageSlug(initialMatch?.slug ?? previewPages[0]?.slug);
+      const initialIdMatch = (initialPageId || preferredPageIdFromEditor)
+        ? previewPages.find((p) => p.id === (initialPageId || preferredPageIdFromEditor))
+        : undefined;
+      const homeMatch = homeSlug
+        ? previewPages.find((p) => p.slug === homeSlug)
+        : undefined;
+      setSelectedPreviewPageSlug(initialMatch?.slug ?? initialIdMatch?.slug ?? homeMatch?.slug ?? previewPages[0]?.slug);
     }
-  }, [previewPages, selectedPreviewPageSlug, initialPageSlug]);
+  }, [previewPages, selectedPreviewPageSlug, initialPageSlug, initialPageId, preferredPageIdFromEditor, effectiveCleanDoc]);
+
+  useEffect(() => {
+    if (!preferredPageIdFromEditor || initialPageId || initialPageSlug || previewPages.length === 0) return;
+    const preferred = previewPages.find((p) => p.id === preferredPageIdFromEditor);
+    if (!preferred) return;
+    setSelectedPreviewPageSlug((prev) => (prev === preferred.slug ? prev : preferred.slug));
+  }, [preferredPageIdFromEditor, initialPageId, initialPageSlug, previewPages]);
 
   const selectedPreviewPage = useMemo(() => {
     if (previewPages.length === 0) return null;
@@ -1185,13 +1248,15 @@ function PreviewContent() {
     setPublishDomainError("");
     setPublishing(true);
     try {
-      const docToPublish = cleanDoc ?? null;
-      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
-      if (snapshot) {
-        await autoSavePage(snapshot, projectId);
+      const draftSnapshotDoc = cleanDoc ?? null;
+      const publishSnapshotDoc = selectedPreviewPageForPublish ?? cleanDoc ?? null;
+      const draftSnapshot = draftSnapshotDoc ? JSON.stringify(draftSnapshotDoc) : null;
+      const publishSnapshot = publishSnapshotDoc ? JSON.stringify(publishSnapshotDoc) : null;
+      if (draftSnapshot) {
+        await autoSavePage(draftSnapshot, projectId);
       }
 
-      const res = await publishProject(projectId, domain, snapshot);
+      const res = await publishProject(projectId, domain, publishSnapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
@@ -1241,12 +1306,14 @@ function PreviewContent() {
     setPublishDomainError("");
     setScheduling(true);
     try {
-      const docToPublish = cleanDoc ?? null;
-      const snapshot = docToPublish ? JSON.stringify(docToPublish) : null;
-      if (snapshot) {
-        await autoSavePage(snapshot, projectId);
+      const draftSnapshotDoc = cleanDoc ?? null;
+      const publishSnapshotDoc = selectedPreviewPageForPublish ?? cleanDoc ?? null;
+      const draftSnapshot = draftSnapshotDoc ? JSON.stringify(draftSnapshotDoc) : null;
+      const publishSnapshot = publishSnapshotDoc ? JSON.stringify(publishSnapshotDoc) : null;
+      if (draftSnapshot) {
+        await autoSavePage(draftSnapshot, projectId);
       }
-      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain, snapshot);
+      const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), domain, publishSnapshot);
       if (res.success) {
         setShowPublishDialog(false);
         setPublishDomainName("");
@@ -1463,26 +1530,19 @@ function PreviewContent() {
                   <div
                     ref={previewRef}
                     className="w-full min-w-0 preview-fadein bg-white"
-                    style={{ ...craftDesktopPreviewStyle, ...craftDesktopPreviewHeightStyle }}
+                    style={{ width: "100%", minWidth: 0 }}
                   >
-                    {canUseCraftCanvasPreview && craftPreviewData ? (
-                      <CraftCanvasPreview
-                        key={`preview-craft-desktop-${selectedPreviewPage?.slug ?? "default"}`}
-                        data={craftPreviewData}
-                      />
-                    ) : (
-                      <WebPreview
-                        key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
-                        doc={effectiveCleanDoc}
-                        pageIndex={selectedPreviewPageIndex}
-                        initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                        enableFormInputs
-                        builderParityMode={true}
-                        fillViewport={false}
-                        storeContext={previewStoreContext}
-                      />
-                    )}
+                    <WebPreview
+                      key={`preview-web-desktop-${selectedPreviewPage?.slug ?? "default"}`}
+                      doc={effectiveCleanDoc}
+                      pageIndex={selectedPreviewPageIndex}
+                      initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                      mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                      enableFormInputs
+                      builderParityMode={false}
+                      fillViewport={false}
+                      storeContext={previewStoreContext}
+                    />
                   </div>
                 )}
 
@@ -1505,26 +1565,19 @@ function PreviewContent() {
                         <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                       </div>
                       <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
-                        {canUseCraftCanvasPreview && craftPreviewData ? (
-                          <CraftCanvasPreview
-                            key={`preview-craft-tablet-${selectedPreviewPage?.slug ?? "default"}`}
-                            data={craftPreviewData}
-                          />
-                        ) : (
-                          <WebPreview
-                            key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
-                            doc={effectiveCleanDoc}
-                            pageIndex={selectedPreviewPageIndex}
-                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                            mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
-                            enableFormInputs
-                            builderParityMode={true}
-                            fillViewport
-                            storeContext={previewStoreContext}
-                            simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                            responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                          />
-                        )}
+                        <WebPreview
+                          key={`preview-web-tablet-${selectedPreviewPage?.slug ?? "default"}`}
+                          doc={effectiveCleanDoc}
+                          pageIndex={selectedPreviewPageIndex}
+                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
+                          enableFormInputs
+                          builderParityMode={false}
+                          fillViewport
+                          storeContext={previewStoreContext}
+                          simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                          responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                        />
                       </div>
                     </div>
                   </div>
@@ -1540,26 +1593,19 @@ function PreviewContent() {
                     >
                       <div className="device-notch"><div className="device-notch-pill" /></div>
                       <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
-                        {canUseCraftCanvasPreview && craftPreviewData ? (
-                          <CraftCanvasPreview
-                            key={`preview-craft-mobile-${selectedPreviewPage?.slug ?? "default"}`}
-                            data={craftPreviewData}
-                          />
-                        ) : (
-                          <WebPreview
-                            key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
-                            doc={effectiveCleanDoc}
-                            pageIndex={selectedPreviewPageIndex}
-                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                            mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                            enableFormInputs
-                            builderParityMode={true}
-                            fillViewport
-                            storeContext={previewStoreContext}
-                            simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                            responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                          />
-                        )}
+                        <WebPreview
+                          key={`preview-web-mobile-${selectedPreviewPage?.slug ?? "default"}`}
+                          doc={effectiveCleanDoc}
+                          pageIndex={selectedPreviewPageIndex}
+                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                          enableFormInputs
+                          builderParityMode={false}
+                          fillViewport
+                          storeContext={previewStoreContext}
+                          simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                          responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                        />
                       </div>
                       <div className="device-home-bar"><div className="device-home-pill" /></div>
                     </div>

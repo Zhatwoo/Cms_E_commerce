@@ -2960,15 +2960,18 @@ function RenderNode({
       const effectiveContainerHeight =
         isDesktopEmptyCardShell
           ? "0px"
-          : (shouldReleaseDesktopProductHeight ? "auto" : resolvedContainerHeight);
+          : (builderParityMode
+              ? (shouldReleaseDesktopProductHeight ? "auto" : resolvedContainerHeight)
+              : "auto");
       const resolvedContainerBackground = shouldAutoFixLegacySynclyContainer && (rawContainerBackground === "#ffffff" || rawContainerBackground === "white")
         ? "transparent"
         : ((props.background || props.backgroundColor || "transparent") as string);
       const requestedOverflow = (props.overflow as string) || "visible";
-      const effectiveOverflow =
-        containsProductCards && requestedOverflow === "hidden"
-          ? "visible"
-          : requestedOverflow;
+      const effectiveOverflow = builderParityMode
+        ? (containsProductCards && requestedOverflow === "hidden"
+            ? "visible"
+            : requestedOverflow)
+        : "visible";
 
       const containerStyle: React.CSSProperties = {
         background: resolvedContainerBackground,
@@ -3087,12 +3090,15 @@ function RenderNode({
         containsProductCards &&
         Number.isFinite(parsedSectionHeightPx) &&
         parsedSectionHeightPx >= 260;
-      const effectiveSectionHeight = shouldReleaseDesktopSectionHeight ? "auto" : rawSectionHeight;
+      const effectiveSectionHeight = builderParityMode
+        ? (shouldReleaseDesktopSectionHeight ? "auto" : rawSectionHeight)
+        : "auto";
       const requestedSectionOverflow = (props.overflow as string) || "hidden";
-      const effectiveSectionOverflow =
-        containsProductCards && requestedSectionOverflow === "hidden"
-          ? "visible"
-          : requestedSectionOverflow;
+      const effectiveSectionOverflow = builderParityMode
+        ? (containsProductCards && requestedSectionOverflow === "hidden"
+            ? "visible"
+            : requestedSectionOverflow)
+        : "visible";
       return wrap(
         <section
           data-fluid-space="true"
@@ -5257,17 +5263,17 @@ export function WebPreview({
                 : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
             height: builderParityMode
               ? `${pageHeightPx}px`
-              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight)),
+              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : "auto"),
             minHeight: builderParityMode
               ? `${pageHeightPx}px`
-              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "100vh" : minHeight)),
+              : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : "auto"),
             background: "transparent",
             margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
             position: "relative",
             isolation: "isolate",
-            overflow: builderParityMode ? "hidden" : (isScaling ? "visible" : "hidden"),
+            overflow: "visible",
             transition: "transform 0.2s ease, width 0.3s ease",
             ...transitionStyle,
           }}
@@ -5496,12 +5502,13 @@ export function LiveSite({
           style={{
             width: shouldStretchDesktopPage ? "100%" : (isScaling ? pageWidthPx : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width)),
             maxWidth: shouldStretchDesktopPage ? "100%" : ((isPhoneSize || fillViewport || shouldUseResponsiveViewport) ? "100%" : width),
-            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
-            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (isPhoneSize ? "auto" : minHeight),
+            height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : "auto",
+            minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : "auto",
             background: "transparent",
             margin: shouldStretchDesktopPage ? "0" : "0 auto",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: shouldStretchDesktopPage ? "top left" : "top center",
+            overflow: "visible",
           }}
         >
           {isPhoneSize ? (
