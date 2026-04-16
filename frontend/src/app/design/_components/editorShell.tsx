@@ -244,6 +244,10 @@ function normalizeResolvedName(rawName: unknown): string {
   if (lowered.includes("container")) return "Container";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
+  if (lowered.includes("categoriescard") || (lowered.includes("categories") && lowered.includes("card"))) return "CategoriesCardCanvas";
+  if (lowered.includes("featuredproduct") || (lowered.includes("featured") && lowered.includes("product"))) return "FeaturedProductCanvas";
+  if (lowered.includes("productdescription") || (lowered.includes("product") && lowered.includes("description"))) return "ProductDescriptionCanvas";
+  if (lowered.includes("productslider") || (lowered.includes("product") && lowered.includes("slider"))) return "ProductSlider";
   return "Container";
 }
 

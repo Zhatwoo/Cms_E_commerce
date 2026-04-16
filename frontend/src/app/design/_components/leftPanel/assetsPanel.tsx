@@ -42,10 +42,10 @@ import {
 // context that isn't available in the isolated preview Editor.
 const ProductCardPreviewStub = () => (
   <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
-    {[1,2,3,4,5].map((i) => (
+    {[1, 2, 3, 4, 5].map((i) => (
       <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 5 ? "1px solid #e5e7eb" : undefined, display: "flex", flexDirection: "column" }}>
         <div style={{ height: 180, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
         <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ height: 11, background: "#e2e8f0", borderRadius: 3, width: "75%" }} />
@@ -60,7 +60,7 @@ const ProductSliderPreviewStub = () => (
   <div style={{ width: 1440, background: "#f8fafc", padding: "24px", boxSizing: "border-box" }}>
     <div style={{ height: 16, background: "#e2e8f0", borderRadius: 4, width: 160, margin: "0 auto 16px" }} />
     <div style={{ display: "flex", gap: 12 }}>
-      {[1,2,3,4,5].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} style={{ flex: 1, background: "#ffffff", borderRadius: 6, border: "1px solid #e5e7eb", overflow: "hidden" }}>
           <div style={{ height: 140, background: "#e2e8f0" }} />
           <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 5 }}>
@@ -75,10 +75,10 @@ const ProductSliderPreviewStub = () => (
 );
 const ProductDescriptionCardPreviewStub = () => (
   <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
-    {[1,2].map((i) => (
+    {[1, 2].map((i) => (
       <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 2 ? "1px solid #e5e7eb" : undefined, display: "flex" }}>
         <div style={{ width: "45%", background: "#e2e8f0", minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
         <div style={{ flex: 1, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
           <div style={{ height: 14, background: "#e2e8f0", borderRadius: 3, width: "85%" }} />
@@ -97,12 +97,12 @@ const ProductDescriptionCardPreviewStub = () => (
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
   ((props: any) => {
-    const { 
+    const {
       background, paddingTop, paddingRight, paddingBottom, paddingLeft, padding,
       width, height, borderRadius, borderColor, borderWidth, borderStyle,
-      alignItems, justifyContent, flexDirection, flexWrap, gap, 
+      alignItems, justifyContent, flexDirection, flexWrap, gap,
       display, position, top, right, bottom, left, zIndex,
-      opacity, overflow, rotation, canvas, isFreeform, anchorPoints, ...domProps 
+      opacity, overflow, rotation, canvas, isFreeform, anchorPoints, ...domProps
     } = props;
 
     const style: React.CSSProperties = {
@@ -402,6 +402,11 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   FeaturedProduct: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
   featuredproduct: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
   "Featured Product": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  ProductDescriptionCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  productdescriptioncanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  ProductDescription: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  productdescription: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  "Product Description": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
   Rectangle: asComponent(Rectangle),
   rectangle: asComponent(Rectangle),
   Diamond: asComponent(Diamond),
@@ -646,17 +651,17 @@ export const AssetsPanel = () => {
                   }}
                   className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
                 >
-                <div className="flex h-full items-center p-2.5 gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
-                    {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="text-sm font-semibold text-[var(--builder-text)] group-hover:translate-x-1 transition-transform">
-                      {group.folder}
+                  <div className="flex h-full items-center p-2.5 gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
+                      {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
                     </div>
+                    <div className="flex-1 text-left">
+                      <div className="text-sm font-semibold text-[var(--builder-text)] group-hover:translate-x-1 transition-transform">
+                        {group.folder}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
-                </div>
                 </button>
               </DesignTooltip>
             ))}
@@ -705,8 +710,8 @@ export const AssetsPanel = () => {
 
                           const dragElement = iconFolder
                             ? React.cloneElement(item.element as React.ReactElement<any>, {
-                                color: "#000000",
-                              })
+                              color: "#000000",
+                            })
                             : item.element;
 
                           connectors.create(ref, dragElement);
@@ -739,71 +744,69 @@ export const AssetsPanel = () => {
                         className={`group bg-[var(--builder-surface-2)] p-3 rounded-xl hover:bg-[var(--builder-surface-3)] transition-all border cursor-move shadow-sm ${isSelected ? "border-[var(--builder-accent)] bg-[var(--builder-surface-3)]" : "border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]"
                           }`}
                       >
-                      <div className="flex flex-col gap-2">
-                        {!iconFolder && (
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <div className="text-sm text-[var(--builder-text)] font-medium leading-tight line-clamp-1">
-                              {item?.label ?? ""}
+                        <div className="flex flex-col gap-2">
+                          {!iconFolder && (
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="text-sm text-[var(--builder-text)] font-medium leading-tight line-clamp-1">
+                                {item?.label ?? ""}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-center">
-                          {(item.label === "Product Card" || item.label === "Product Description Card" || item.label === "Product Slider") ? (
-                            <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
-                              {item.label === "Product Card" ? (
-                                <div style={{ display: "flex", height: "100%", gap: 1 }}>
-                                  {[1,2,3].map((i) => (
-                                    <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
-                                      <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                      </div>
-                                      <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
-                                        <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
-                                        <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
-                                        <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : item.label === "Product Description Card" ? (
-                                <div style={{ display: "flex", height: "100%" }}>
-                                  <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                  </div>
-                                  <div style={{ flex: 1, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 5, justifyContent: "center", background: "var(--builder-surface-2)" }}>
-                                    <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "85%" }} />
-                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2 }} />
-                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "90%" }} />
-                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "70%" }} />
-                                    <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "40%", marginTop: 2 }} />
-                                    <div style={{ height: 14, border: "1px solid var(--builder-border-mid)", borderRadius: 3 }} />
-                                  </div>
-                                </div>
-                              ) : (
-                                <div style={{ display: "flex", height: "100%", gap: 1 }}>
-                                  {[1,2,3].map((i) => (
-                                    <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
-                                      <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                      </div>
-                                      <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
-                                        <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
-                                        <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
-                                        <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <AssetLivePreview
-                              item={item}
-                              previewMode={iconFolder ? "icon" : itemIsShape ? "shape" : "full"}
-                            />
                           )}
+                          <div className="flex items-center justify-center">
+                            {(item.label === "Product Card" || item.label === "Product Description Card" || item.label === "Product Slider") ? (
+                              <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
+                                {item.label === "Product Card" ? (
+                                  <div style={{ display: "flex", height: "100%", gap: 1 }}>
+                                    {[1, 2, 3].map((i) => (
+                                      <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
+                                        <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                                        </div>
+                                        <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
+                                          <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
+                                          <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
+                                          <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : item.label === "Product Slider" ? (
+                                  <div style={{ display: "flex", height: "100%", gap: 2, padding: "8px", boxSizing: "border-box", background: "var(--builder-surface-2)" }}>
+                                    {[1, 2, 3].map((i) => (
+                                      <div key={i} style={{ flex: 1, background: "var(--builder-surface-3)", borderRadius: 4, border: "1px solid var(--builder-border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                                        <div style={{ flex: 1, background: "var(--builder-border)", opacity: 0.5 }} />
+                                        <div style={{ padding: "4px", display: "flex", flexDirection: "column", gap: 2 }}>
+                                          <div style={{ height: 3, background: "var(--builder-border-mid)", borderRadius: 1, width: "70%" }} />
+                                          <div style={{ height: 3, background: "var(--builder-border)", borderRadius: 1, width: "40%" }} />
+                                          <div style={{ height: 8, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.2 }} />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", height: "100%" }}>
+                                    <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                                    </div>
+                                    <div style={{ flex: 1, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 5, justifyContent: "center", background: "var(--builder-surface-2)" }}>
+                                      <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "85%" }} />
+                                      <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2 }} />
+                                      <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "90%" }} />
+                                      <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "70%" }} />
+                                      <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "40%", marginTop: 2 }} />
+                                      <div style={{ height: 14, border: "1px solid var(--builder-border-mid)", borderRadius: 3 }} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <AssetLivePreview
+                                item={item}
+                                previewMode={iconFolder ? "icon" : itemIsShape ? "shape" : "full"}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
                       </div>
                     </DesignTooltip>
                   );

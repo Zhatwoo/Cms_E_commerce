@@ -60,6 +60,7 @@ export interface ProductCardProps {
   buttonBorderColor?: string;
   buttonBorderWidth?: number;
   buttonFontSize?: number;
+  contentAlign?: "left" | "center" | "right";
 }
 
 const formatPrice = (price: number) =>
@@ -114,6 +115,7 @@ export const ProductCard = ({
   buttonBorderColor = "transparent",
   buttonBorderWidth = 0,
   buttonFontSize = 13,
+  contentAlign = "left",
 }: ProductCardProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const { enabled, query } = useEditor((s) => ({ enabled: s.options.enabled }));
@@ -306,7 +308,7 @@ export const ProductCard = ({
       )}
 
       {/* Body */}
-      <div style={{ padding: cardPadding, display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+      <div style={{ padding: cardPadding, display: "flex", flexDirection: "column", gap: 6, flex: 1, textAlign: contentAlign, alignItems: contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start" }}>
         {showProductName && (
           <p style={{ fontSize: nameFontSize, fontWeight: nameFontWeight, color: nameColor, margin: 0, lineHeight: 1.4 }}>
             {product!.name}
@@ -323,7 +325,7 @@ export const ProductCard = ({
           </p>
         )}
         {showPrice && (
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: contentAlign === "center" ? "center" : contentAlign === "right" ? "flex-end" : "flex-start" }}>
             <span style={{ fontSize: priceFontSize, fontWeight: 600, color: priceColor }}>{formatPrice(price)}</span>
             {hasDiscount && (
               <span style={{ fontSize: priceFontSize - 2, color: "#9ca3af", textDecoration: "line-through" }}>{formatPrice(compareAt!)}</span>
