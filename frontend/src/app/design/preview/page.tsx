@@ -27,6 +27,7 @@ import {
   Kite,
 } from "../../_assets/shapes/additional_shapes";
 import { templateService } from "@/lib/templateService";
+import { upsertTemplateProjectEntry } from "@/lib/templateProjectRegistry";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
@@ -1104,6 +1105,20 @@ function PreviewContent() {
 
     setSaving(true);
     try {
+      const persistTemplateSnapshot = (targetProjectId: string, snapshot: string) => {
+        if (typeof window === "undefined") return;
+        try {
+          window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`, snapshot);
+        } catch {
+          // Ignore storage failures and keep the template save flow going.
+        }
+        try {
+          window.localStorage.setItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`, snapshot);
+        } catch {
+          // Ignore storage failures and keep the template save flow going.
+        }
+      };
+
       const template = templateService.saveTemplate(
         templateName.trim(),
         templateCategory,
@@ -1112,6 +1127,30 @@ function PreviewContent() {
       );
 
       if (template) {
+        persistTemplateSnapshot(projectId, rawJson);
+        try {
+          const saveResult = await autoSavePage(rawJson, projectId);
+          if (!saveResult.success) {
+            console.warn("Template snapshot save warning:", saveResult.error);
+          }
+        } catch (error) {
+          console.warn("Template snapshot save failed:", error);
+        }
+
+        upsertTemplateProjectEntry({
+          projectId,
+          name: templateName.trim(),
+          category: templateCategory,
+          description: templateDescription.trim(),
+        });
+        try {
+          const updated = await updateProject(projectId, { status: 'template' });
+          if (updated?.success && updated.project) {
+            setProject(updated.project);
+          }
+        } catch {
+          // Keep local template save even if project status update fails.
+        }
         showAlert("Template saved successfully!");
         setShowSaveDialog(false);
         setTemplateName("");
