@@ -1186,7 +1186,8 @@ function PreviewContent() {
         templateName.trim(),
         templateCategory,
         templateDescription.trim(),
-        rawJson
+        rawJson,
+        projectId
       );
 
       if (template) {
@@ -1207,7 +1208,10 @@ function PreviewContent() {
           description: templateDescription.trim(),
         });
         try {
-          const updated = await updateProject(projectId, { status: 'template' });
+          const updated = await updateProject(projectId, {
+            status: 'template',
+            templateName: templateName.trim(),
+          });
           if (updated?.success && updated.project) {
             setProject(updated.project);
           }
