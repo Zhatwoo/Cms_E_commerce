@@ -1148,6 +1148,7 @@ function PreviewContent() {
           const updated = await updateProject(projectId, {
             status: 'template',
             templateName: templateName.trim(),
+            templateContent: rawJson,
           });
           if (updated?.success && updated.project) {
             setProject(updated.project);

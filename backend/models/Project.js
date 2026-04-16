@@ -64,6 +64,7 @@ async function update(userId, projectId, data) {
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
   if (data.templateName !== undefined) updates.template_name = (data.templateName || '').toString().trim() || null;
+  if (data.templateContent !== undefined) updates.template_content = data.templateContent || null;
   if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
