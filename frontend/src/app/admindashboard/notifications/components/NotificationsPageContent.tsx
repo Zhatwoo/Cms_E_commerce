@@ -114,7 +114,7 @@ export default function NotificationsPageContent() {
   };
 
   const getIcon = (type: string, read: boolean) => {
-    const color = read ? 'text-[#94a3b8]' : 'text-[#b13bff]';
+    const color = read ? 'text-[#A48ABF]' : 'text-[#b13bff]';
     switch (type) {
       case 'success': return <CheckCircle size={20} className={color} />;
       case 'warning': return <AlertTriangle size={20} className={color} />;
