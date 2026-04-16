@@ -18,6 +18,7 @@ type SavedTemplateItem = {
   description: string;
   category: string;
   thumbnail?: string | null;
+  content?: string | Record<string, unknown> | null;
   savedAt?: string;
 };
 
@@ -88,6 +89,7 @@ export const TemplatePanel = () => {
             description: entry.description || "Saved from builder preview.",
             category: entry.category || "Project Template",
             thumbnail: null,
+            content: null,
             savedAt: entry.savedAt,
           });
         });
@@ -118,6 +120,7 @@ export const TemplatePanel = () => {
               description: "Saved from builder preview.",
               category: "Project Template",
               thumbnail: project.thumbnail || null,
+              content: project.templateContent || null,
               savedAt: project.updatedAt || project.createdAt,
             });
           });
@@ -131,6 +134,7 @@ export const TemplatePanel = () => {
             description: entry.description || "Saved from builder preview.",
             category: entry.category || "Project Template",
             thumbnail: project.thumbnail || null,
+            content: project.templateContent || null,
             savedAt: entry.savedAt || project.updatedAt || project.createdAt,
           });
         });
@@ -173,7 +177,7 @@ export const TemplatePanel = () => {
       const selectedTemplate = savedTemplates.find((template) => template.projectId === templateProjectId) || null;
       const localSnapshot = readStoredTemplateSnapshot(templateProjectId);
       const result = localSnapshot ? null : await getDraft(templateProjectId);
-      let content = localSnapshot ?? result?.data?.content ?? result?.data;
+      let content = localSnapshot ?? result?.data?.content ?? result?.data ?? selectedTemplate?.content ?? null;
 
       if (!content && selectedTemplate) {
         const localTemplate = templateService.getTemplates().find((template) => {

@@ -682,6 +682,7 @@ export type Project = {
   id: string;
   title: string;
   templateName?: string | null;
+  templateContent?: string | Record<string, unknown> | null;
   status: string;
   industry?: string | null;
   templateId?: string | null;
@@ -746,6 +747,7 @@ export async function updateProject(
     title?: string;
     status?: string;
     templateName?: string | null;
+    templateContent?: string | Record<string, unknown> | null;
     industry?: string | null;
     subdomain?: string | null;
     thumbnail?: string | null;
