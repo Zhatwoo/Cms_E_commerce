@@ -748,7 +748,7 @@ export const AssetsPanel = () => {
                           </div>
                         )}
                         <div className="flex items-center justify-center">
-                          {(item.label === "Product Card" || item.label === "Product Description Card") ? (
+                          {(item.label === "Product Card" || item.label === "Product Description Card" || item.label === "Product Slider") ? (
                             <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
                               {item.label === "Product Card" ? (
                                 <div style={{ display: "flex", height: "100%", gap: 1 }}>
@@ -765,7 +765,7 @@ export const AssetsPanel = () => {
                                     </div>
                                   ))}
                                 </div>
-                              ) : (
+                              ) : item.label === "Product Description Card" ? (
                                 <div style={{ display: "flex", height: "100%" }}>
                                   <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
@@ -778,6 +778,21 @@ export const AssetsPanel = () => {
                                     <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "40%", marginTop: 2 }} />
                                     <div style={{ height: 14, border: "1px solid var(--builder-border-mid)", borderRadius: 3 }} />
                                   </div>
+                                </div>
+                              ) : (
+                                <div style={{ display: "flex", height: "100%", gap: 1 }}>
+                                  {[1,2,3].map((i) => (
+                                    <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
+                                      <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                                      </div>
+                                      <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
+                                        <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
+                                        <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
+                                        <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
+                                      </div>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </div>
