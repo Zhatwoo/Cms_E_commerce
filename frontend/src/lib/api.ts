@@ -681,6 +681,7 @@ export async function createUser(params: {
 export type Project = {
   id: string;
   title: string;
+  templateName?: string | null;
   status: string;
   industry?: string | null;
   templateId?: string | null;
@@ -741,7 +742,14 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 
 export async function updateProject(
   id: string,
-  params: { title?: string; status?: string; industry?: string | null; subdomain?: string | null; thumbnail?: string | null }
+  params: {
+    title?: string;
+    status?: string;
+    templateName?: string | null;
+    industry?: string | null;
+    subdomain?: string | null;
+    thumbnail?: string | null;
+  }
 ): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
     method: 'PATCH',

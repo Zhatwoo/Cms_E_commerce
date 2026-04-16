@@ -212,13 +212,14 @@ exports.update = async (req, res) => {
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail, subdomain, industry, general_access, general_access_role } = req.body;
+    const { title, status, thumbnail, subdomain, industry, general_access, general_access_role, templateName } = req.body;
     const project = await Project.update(userId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
       ...(industry !== undefined && { industry }),
       ...(subdomain !== undefined && { subdomain }),
       ...(thumbnail !== undefined && { thumbnail }),
+      ...(templateName !== undefined && { templateName }),
       ...(general_access !== undefined && { general_access }),
       ...(general_access_role !== undefined && { general_access_role }),
     });

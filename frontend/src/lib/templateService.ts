@@ -4,6 +4,7 @@ export interface Template {
   id: string;
   name: string;
   title: string; // For backward compatibility
+  sourceProjectId?: string;
   category: string;
   description: string;
   desc: string; // For backward compatibility  
@@ -91,7 +92,13 @@ class TemplateService {
    * @param description - Template description
    * @param content - Optional: current design JSON (Craft or clean format). If not provided, falls back to sessionStorage 'craftjs_preview_json'.
    */
-  saveTemplate(name: string, category: string, description: string, content?: string | null): Template | null {
+  saveTemplate(
+    name: string,
+    category: string,
+    description: string,
+    content?: string | null,
+    sourceProjectId?: string
+  ): Template | null {
     if (typeof window === 'undefined') return null;
 
     // Use provided content (e.g. from preview page) or fall back to sessionStorage
@@ -115,6 +122,7 @@ class TemplateService {
         id: `template-${Date.now()}`,
         name,
         title: name,
+        sourceProjectId: (sourceProjectId || '').trim() || undefined,
         category,
         description,
         desc: description,

@@ -114,7 +114,7 @@ export const TemplatePanel = () => {
             if (project.id === currentProjectId) return;
             merge.set(project.id, {
               projectId: project.id,
-              title: (project.title || "Untitled Template").trim(),
+              title: (project.templateName || project.title || "Untitled Template").trim(),
               description: "Saved from builder preview.",
               category: "Project Template",
               thumbnail: project.thumbnail || null,
@@ -127,7 +127,7 @@ export const TemplatePanel = () => {
           if (!project || project.id === currentProjectId) return;
           merge.set(entry.projectId, {
             projectId: entry.projectId,
-            title: entry.name || project.title || "Untitled Template",
+            title: entry.name || project.templateName || project.title || "Untitled Template",
             description: entry.description || "Saved from builder preview.",
             category: entry.category || "Project Template",
             thumbnail: project.thumbnail || null,
@@ -177,6 +177,7 @@ export const TemplatePanel = () => {
 
       if (!content && selectedTemplate) {
         const localTemplate = templateService.getTemplates().find((template) => {
+          if (!template.isBuiltIn && template.sourceProjectId === templateProjectId) return true;
           const title = String(template.title || template.name || "").trim().toLowerCase();
           return !template.isBuiltIn && title === selectedTemplate.title.trim().toLowerCase();
         });
@@ -248,15 +249,15 @@ export const TemplatePanel = () => {
 
             {!savedLoading && !savedError && savedTemplates.map((template) => (
               <div key={template.projectId} className="bg-brand-white/5 p-3 rounded border border-brand-medium/30">
-                <div className="flex items-start gap-2">
-                  <div className="h-12 w-16 overflow-hidden rounded border border-brand-medium/30 bg-brand-white/10 shrink-0">
+                <div className="space-y-2">
+                  <div className="h-28 w-full overflow-hidden rounded border border-brand-medium/30 bg-brand-white/10">
                     {template.thumbnail ? (
                       <img src={template.thumbnail} alt={template.title} className="h-full w-full object-cover" />
                     ) : (
                       <div className="h-full w-full flex items-center justify-center text-[10px] text-brand-medium">No thumb</div>
                     )}
                   </div>
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0">
                     <div className="text-xs font-semibold text-brand-light truncate">{template.title}</div>
                     <div className="text-[10px] text-brand-medium truncate">{template.category}</div>
                     <div className="text-[10px] text-brand-medium mt-0.5 line-clamp-2">{template.description}</div>
@@ -270,6 +271,7 @@ export const TemplatePanel = () => {
                       const existingSnapshot = readStoredTemplateSnapshot(template.projectId);
                       if (!existingSnapshot) {
                         const localTemplate = templateService.getTemplates().find((entry) => {
+                          if (!entry.isBuiltIn && entry.sourceProjectId === template.projectId) return true;
                           const title = String(entry.title || entry.name || "").trim().toLowerCase();
                           return !entry.isBuiltIn && title === template.title.trim().toLowerCase();
                         });
