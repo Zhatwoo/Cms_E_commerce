@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 import { WebPreview } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
@@ -70,8 +70,10 @@ function CartFab() {
 
 function PublicSiteContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const { setSiteTitle, addToCart } = useStorefront();
   const subdomain = (params?.subdomain as string) || '';
+  const requestedPageSlug = (searchParams?.get('page') || '').trim().toLowerCase();
   const [viewportWidth, setViewportWidth] = useState<number>(
     typeof window === 'undefined' ? 1440 : window.innerWidth
   );
@@ -105,6 +107,20 @@ function PublicSiteContent() {
     () => (products.length > 0 ? { products, addToCart } : null),
     [products, addToCart]
   );
+
+  const selectedPageIndex = React.useMemo(() => {
+    if (!doc?.pages?.length) return 0;
+    const storedHomeSlug = typeof (doc as unknown as { homePageSlug?: unknown }).homePageSlug === 'string'
+      ? ((doc as unknown as { homePageSlug?: string }).homePageSlug || '').trim().toLowerCase()
+      : '';
+    const effectiveSlug = requestedPageSlug || storedHomeSlug;
+    if (!effectiveSlug) return 0;
+    const idx = doc.pages.findIndex((page, index) => {
+      const slug = (page?.slug as string | undefined)?.trim().toLowerCase() || `page-${index}`;
+      return slug === effectiveSlug;
+    });
+    return idx >= 0 ? idx : 0;
+  }, [doc, requestedPageSlug]);
 
   useEffect(() => {
     if (!subdomain || typeof subdomain !== 'string') {
@@ -207,7 +223,7 @@ function PublicSiteContent() {
       <>
         <WebPreview
           doc={doc}
-          pageIndex={0}
+          pageIndex={selectedPageIndex}
           mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
           enableFormInputs
           builderParityMode={false}

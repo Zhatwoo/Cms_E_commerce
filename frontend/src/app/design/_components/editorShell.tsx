@@ -1403,6 +1403,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     });
     try {
       window.sessionStorage.setItem(uiStateStorageKey, payload);
+      // Mirror UI state to localStorage so preview opened in a different tab
+      // can still resolve the last active page for this project.
+      window.localStorage?.setItem(uiStateStorageKey, payload);
     } catch {
       // Ignore UI state persistence errors
     }
@@ -2469,14 +2472,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         }
 
         await autoSavePage(snapshot, projectId);
-        router.push(`/design/preview?projectId=${projectId}`);
+        const previewUrl = currentPageId
+          ? `/design/preview?projectId=${projectId}&pageId=${encodeURIComponent(currentPageId)}`
+          : `/design/preview?projectId=${projectId}`;
+        router.push(previewUrl);
       }
     } catch (e) {
       console.error("[Editor] Preview failed:", e);
     } finally {
       setIsPreviewing(false);
     }
-  }, [projectId, router, mirrorToSession, showAlert]);
+  }, [projectId, router, mirrorToSession, showAlert, currentPageId]);
 
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
