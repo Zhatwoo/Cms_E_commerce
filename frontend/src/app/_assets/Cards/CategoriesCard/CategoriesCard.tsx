@@ -280,12 +280,22 @@ export function CategoriesCardCanvas() {
     layoutMode,
     categoryMode,
     selectedCategories,
+    position,
+    top,
+    left,
+    right,
+    bottom,
     actions: { setProp },
   } = useNode((node) => ({
     headingText: node.data.props.headingText as string,
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
     categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
     selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
+    position: node.data.props.position as string | undefined,
+    top: node.data.props.top as string | undefined,
+    left: node.data.props.left as string | undefined,
+    right: node.data.props.right as string | undefined,
+    bottom: node.data.props.bottom as string | undefined,
   }));
   const { projectIndustry, projectSubdomain } = useDesignProject();
   const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
@@ -363,6 +373,13 @@ export function CategoriesCardCanvas() {
         if (ref) connectors.connect(connectors.drag(ref));
       }}
       className="w-full box-border bg-[#f9fafb] px-2 py-3 sm:px-3 lg:px-4"
+      style={{
+        position: position as any,
+        top: top ?? undefined,
+        left: left ?? undefined,
+        right: right ?? undefined,
+        bottom: bottom ?? undefined,
+      }}
     >
       <div className="flex w-full flex-wrap items-center justify-between gap-2">
         <h3
@@ -691,6 +708,9 @@ CategoriesCardCanvas.craft = {
     layoutMode: "auto",
     categoryMode: "auto",
     selectedCategories: [],
+    position: "absolute",
+    top: "0px",
+    left: "0px",
   },
   related: {
     settings: CategoriesCardSettings,

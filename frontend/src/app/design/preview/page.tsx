@@ -12,6 +12,7 @@ import { autoSavePage, getDraft } from "../_lib/pageApi";
 import { WebPreview } from "../_lib/webRenderer";
 import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT, PREVIEW_MOBILE_VIEWPORT_WIDTH, PREVIEW_TABLET_VIEWPORT_WIDTH } from "../_lib/viewportConstants";
 import { CRAFT_RESOLVER } from "../_components/craftResolver";
+import { DesignProjectProvider } from "../_context/DesignProjectContext";
 import {
   Diamond,
   Heart,
@@ -1269,8 +1270,9 @@ function PreviewContent() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d0f] text-brand-lighter font-sans flex flex-col">
-      {/* Animations */}
+    <DesignProjectProvider projectId={projectId} pageId={selectedPreviewPageSlug ?? null}>
+      <div className="min-h-screen bg-[#0d0d0f] text-brand-lighter font-sans flex flex-col">
+        {/* Animations */}
       <style>{`
         .preview-fadein { animation: previewFadeIn 0.5s cubic-bezier(.4,0,.2,1); }
         @keyframes previewFadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
@@ -1490,7 +1492,7 @@ function PreviewContent() {
                     <p className="text-xs text-zinc-600 mb-1">{PREVIEW_TABLET_VIEWPORT_WIDTH}px · Tablet</p>
                     <div
                       className="device-frame-tablet flex flex-col bg-white"
-                      style={{ width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px" }}
+                      style={{ width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px", minHeight: "1024px", position: "relative" }}
                     >
                       {/* Top bar of tablet */}
                       <div className="flex-shrink-0 h-8 bg-[#18181b] flex items-center justify-between px-4">
@@ -1502,7 +1504,7 @@ function PreviewContent() {
                         <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
                         <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                       </div>
-                      <div ref={previewRef}>
+                      <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
                         {canUseCraftCanvasPreview && craftPreviewData ? (
                           <CraftCanvasPreview
                             key={`preview-craft-tablet-${selectedPreviewPage?.slug ?? "default"}`}
@@ -1534,10 +1536,10 @@ function PreviewContent() {
                     <p className="text-xs text-zinc-600 mb-1">{PREVIEW_MOBILE_VIEWPORT_WIDTH}px · Mobile</p>
                     <div
                       className="device-frame-mobile flex flex-col bg-white"
-                      style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px" }}
+                      style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px", minHeight: "844px", position: "relative" }}
                     >
                       <div className="device-notch"><div className="device-notch-pill" /></div>
-                      <div ref={previewRef}>
+                      <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
                         {canUseCraftCanvasPreview && craftPreviewData ? (
                           <CraftCanvasPreview
                             key={`preview-craft-mobile-${selectedPreviewPage?.slug ?? "default"}`}
@@ -1921,7 +1923,8 @@ function PreviewContent() {
           )}
         </>
       )}
-    </div>
+      </div>
+    </DesignProjectProvider>
   );
 }
 

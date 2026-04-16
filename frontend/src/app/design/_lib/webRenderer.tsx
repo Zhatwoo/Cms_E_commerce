@@ -10,6 +10,7 @@ import { getComponentDefaults } from "./serializer";
 import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/design/_lib/viewportConstants";
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
+import { smartGroupCategories } from "@/lib/smartCategories";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
@@ -2109,6 +2110,8 @@ function RenderNode({
   const normalizedTypeMap: Record<string, ComponentType> = {
     categoriescardcanvas: "CategoriesCardCanvas",
     "categories card canvas": "CategoriesCardCanvas",
+    categoriescard: "CategoriesCardCanvas",
+    "categories card": "CategoriesCardCanvas",
     categorytile: "CategoryTile",
     "category tile": "CategoryTile",
     productcard: "ProductCard",
@@ -2273,7 +2276,10 @@ function RenderNode({
   switch (type) {
     case "CategoriesCardCanvas":
     case "Categories Card Canvas":
-    case "CATEGORIESCARDCANVAS": {
+    case "CATEGORIESCARDCANVAS":
+    case "CategoriesCard":
+    case "Categories Card":
+    case "CATEGORIESCARD": {
       const linkedNodes = ((node as unknown as { linkedNodes?: Record<string, string> })?.linkedNodes) ?? {};
       const linkedIds = Object.values(linkedNodes).filter((id) => Boolean(nodes[id]));
       const orderedIds = [...childIds, ...linkedIds.filter((id) => !childIds.includes(id))];
@@ -2283,12 +2289,24 @@ function RenderNode({
 
       const headingText = String((props.headingText as string) || "Shop by Category");
       const canvasPosition = (props.position as React.CSSProperties["position"]) || "relative";
+      const layoutMode = (props.layoutMode as string) || "auto";
+      const categoryMode = (props.categoryMode as string) || "auto";
+      
+      const finalTileNodes = tileNodes;
+
+      const containerClassName = layoutMode === "compact" 
+        ? "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+        : layoutMode === "featured"
+        ? "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+        : layoutMode === "list"
+        ? "grid grid-cols-1 gap-4"
+        : "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3";
+
+      const mergedClassName = `w-full box-border bg-[#f9fafb] px-2 py-3 sm:px-3 lg:px-4 ${((props.customClassName as string) || "").trim()}`.trim();
 
       return wrap(
         <div
-          data-fluid-space="true"
-          data-layout="column"
-          className={((props.customClassName as string) || "").trim() || undefined}
+          className={mergedClassName}
           style={{
             position: canvasPosition,
             top: canvasPosition !== "static" ? (props.top as React.CSSProperties["top"]) : undefined,
@@ -2297,40 +2315,43 @@ function RenderNode({
             bottom: canvasPosition !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
             width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || "100%",
             maxWidth: "100%",
-            background: "#f5f3ff",
-            padding: isNarrowPreview ? "16px" : "24px",
             boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
-            gap: "14px",
           }}
           onClick={interactiveClick}
         >
-          <h3
-            style={{
-              margin: 0,
-              color: "#111827",
-              fontSize: isNarrowPreview ? 34 : 40,
-              fontWeight: 700,
-              lineHeight: 1.15,
-              letterSpacing: "-0.02em",
-            }}
-          >
-            {headingText}
-          </h3>
-          <div
-            data-fluid-space="true"
-            style={{
-              display: "flex",
-              flexWrap: isNarrowPreview ? "wrap" : "nowrap",
-              gap: "16px",
-              alignItems: "stretch",
-              overflowX: isNarrowPreview ? "auto" : "visible",
-              paddingBottom: isNarrowPreview ? "4px" : undefined,
-            }}
-          >
-            {tileNodes.length > 0 ? tileNodes : children}
+          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+            <h3
+              style={{
+                margin: 0,
+                color: "#111827",
+                fontSize: 28,
+                fontWeight: 700,
+                lineHeight: 1.2,
+              }}
+            >
+              {headingText}
+            </h3>
+            <p className="m-0 text-sm font-semibold text-[#6366f1]">
+              {categoryMode === "manual" ? "Custom Categories" : "Auto Categories"}
+            </p>
           </div>
+          {finalTileNodes.length > 0 ? (
+            <div className="mt-3 w-full">
+              <div className={containerClassName} style={{ width: "100%" }}>
+                {finalTileNodes.map((tileNode, idx) => (
+                  <div key={idx} className="w-full">
+                    {tileNode}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="mt-3 w-full">
+              {children}
+            </div>
+          )}
         </div>
       );
     }
@@ -2449,9 +2470,45 @@ function RenderNode({
       const buttonLabel = String((props.buttonLabel as string) || "Add to Cart");
       const imageObjectFit = String((props.imageObjectFit as string) || "cover");
       const position = (props.position as React.CSSProperties["position"]) || "relative";
-      const boundImage = productBinding?.product.images?.[0];
-      const boundName = productBinding?.product.name || "Product name";
-      const boundPrice = typeof productBinding?.product.price === "number" ? formatStorePrice(productBinding.product.price) : "PHP 0.00";
+      
+      let finalProduct = productBinding?.product;
+      
+      if (!finalProduct && storeContext?.products && storeContext.products.length > 0) {
+        const boundProductId = props.boundProductId as string | undefined;
+        if (boundProductId) {
+          finalProduct = storeContext.products.find(p => p.id === boundProductId);
+        } else {
+          const allProductCards = Object.entries(nodes)
+            .filter(([, n]) => {
+              const t = String(n?.type || "").toLowerCase();
+              return t === "productcard" || t === "product card";
+            })
+            .map(([nid, n]) => {
+              const np = n?.props || {};
+              const y = Number(np.canvasY);
+              const x = Number(np.canvasX);
+              return { 
+                nid, 
+                y: Number.isFinite(y) ? y : 0, 
+                x: Number.isFinite(x) ? x : 0 
+              };
+            })
+            .sort((a, b) => {
+              if (a.y !== b.y) return a.y - b.y;
+              if (a.x !== b.x) return a.x - b.x;
+              return a.nid.localeCompare(b.nid);
+            });
+            
+          const foundIndex = allProductCards.findIndex(entry => entry.nid === nodeId);
+          if (foundIndex >= 0) {
+            finalProduct = storeContext.products[foundIndex % storeContext.products.length];
+          }
+        }
+      }
+
+      const boundImage = finalProduct?.images?.[0];
+      const boundName = finalProduct?.name || "Product name";
+      const boundPrice = typeof finalProduct?.price === "number" ? formatStorePrice(finalProduct.price) : "PHP 0.00";
 
       return wrap(
         <div
