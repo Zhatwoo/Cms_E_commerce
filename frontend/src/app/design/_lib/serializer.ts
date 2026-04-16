@@ -44,7 +44,9 @@ function normalizeComponentType(rawType: unknown): ComponentType {
   const name = typeof rawType === "string" ? rawType.trim() : "";
   const lowered = name.toLowerCase();
   if (!lowered) return "Container";
-  if (lowered === "categoriescardcanvas" || lowered === "categories card canvas" || lowered.includes("categoriescardcanvas")) return "CategoriesCardCanvas";
+  if (lowered.includes("categoriescard") || lowered.includes("categories card")) return "CategoriesCardCanvas";
+  if (lowered.includes("featuredproduct") || lowered.includes("featured product")) return "FeaturedProductCanvas";
+  if (lowered.includes("productdescription") && !lowered.includes("productdescriptioncard")) return "ProductDescriptionCanvas";
   if (lowered === "categorytile" || lowered === "category tile" || lowered.includes("categorytile")) return "CategoryTile";
   if (lowered === "productcard" || lowered === "product card" || lowered.includes("productcard")) return "ProductCard";
   if (lowered === "tabcontent" || lowered === "tab content") return "TabContent";
