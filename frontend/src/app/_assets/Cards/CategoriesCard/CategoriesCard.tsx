@@ -481,7 +481,40 @@ export function CategoriesCardCanvas() {
   );
 }
 
-export const CategoriesCardSettings = () => {
+const Row = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`flex items-center gap-2 mb-2 ${className}`}>{children}</div>
+);
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
+export const AlignButtons = ({
+  value,
+  onChange,
+}: {
+  value: "left" | "center" | "right";
+  onChange: (v: "left" | "center" | "right") => void;
+}) => (
+  <div className="flex gap-1">
+    {(["left", "center", "right"] as const).map((a) => (
+      <button
+        key={a}
+        type="button"
+        onClick={() => onChange(a)}
+        className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
+          value === a
+            ? "bg-[var(--builder-accent)] text-white"
+            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+        }`}
+      >
+        {a[0].toUpperCase()}
+      </button>
+    ))}
+  </div>
+);
+
+const CategoriesCardSettings = () => {
   const {
     layoutMode,
     categoryMode,
@@ -490,6 +523,7 @@ export const CategoriesCardSettings = () => {
     paddingRight,
     paddingBottom,
     paddingLeft,
+    headerAlign,
     actions: { setProp },
   } = useNode((node) => ({
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
@@ -499,6 +533,7 @@ export const CategoriesCardSettings = () => {
     paddingRight: (node.data.props.paddingRight as number | undefined) ?? 12,
     paddingBottom: (node.data.props.paddingBottom as number | undefined) ?? 12,
     paddingLeft: (node.data.props.paddingLeft as number | undefined) ?? 12,
+    headerAlign: (node.data.props.headerAlign as "left" | "center" | "right" | undefined) || "left",
   }));
   const { projectIndustry, projectSubdomain } = useDesignProject();
   const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
@@ -741,6 +776,13 @@ export const CategoriesCardSettings = () => {
             Auto mode uses smart grouped subcategories from your project industry and products.
           </p>
         )}
+      </DesignSection>
+
+      <DesignSection title="Layout" defaultOpen={false}>
+        <Row>
+          <Label>Header Align</Label>
+          <AlignButtons value={headerAlign || "left"} onChange={(v) => setProp((p: { headerAlign?: string }) => { p.headerAlign = v; })} />
+        </Row>
       </DesignSection>
 
     </div>

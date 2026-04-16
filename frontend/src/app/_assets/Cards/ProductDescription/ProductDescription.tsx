@@ -12,6 +12,12 @@ type ProductDescriptionSourceMode = "auto" | "manual";
 interface ProductDescriptionCanvasProps {
   productSourceMode?: ProductDescriptionSourceMode;
   selectedProductIds?: string[];
+  position?: string;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  zIndex?: number;
   maxItems?: number;
   background?: string;
   cardBackground?: string;
@@ -30,6 +36,8 @@ interface ProductDescriptionCanvasProps {
   showStock?: boolean;
   showAddToCart?: boolean;
   showQuantitySelector?: boolean;
+  headerAlign?: "left" | "center" | "right";
+  cardsAlign?: "left" | "center" | "right";
 }
 
 const formatPrice = (price: number) =>
@@ -41,6 +49,31 @@ const Row = ({ children, className = "" }: { children: React.ReactNode; classNam
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
+const AlignButtons = ({
+  value,
+  onChange,
+}: {
+  value: "left" | "center" | "right";
+  onChange: (v: "left" | "center" | "right") => void;
+}) => (
+  <div className="flex gap-1">
+    {(["left", "center", "right"] as const).map((a) => (
+      <button
+        key={a}
+        type="button"
+        onClick={() => onChange(a)}
+        className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
+          value === a
+            ? "bg-[var(--builder-accent)] text-white"
+            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+        }`}
+      >
+        {a[0].toUpperCase()}
+      </button>
+    ))}
+  </div>
 );
 
 const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) => (
@@ -108,8 +141,32 @@ export function ProductDescriptionCanvas({
   showStock = false,
   showAddToCart = true,
   showQuantitySelector = false,
+  position = "relative",
+  top,
+  left,
+  right,
+  bottom,
+  zIndex,
+  headerAlign,
+  cardsAlign,
 }: ProductDescriptionCanvasProps) {
-  const { connectors } = useNode();
+  const { 
+    connectors, 
+    id,
+    nodePosition,
+    nodeTop,
+    nodeLeft,
+    nodeRight,
+    nodeBottom,
+    nodeZIndex
+  } = useNode((node) => ({
+    nodePosition: node.data.props.position,
+    nodeTop: node.data.props.top,
+    nodeLeft: node.data.props.left,
+    nodeRight: node.data.props.right,
+    nodeBottom: node.data.props.bottom,
+    nodeZIndex: node.data.props.zIndex,
+  }));
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
   const { projectSubdomain } = useDesignProject();
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
@@ -159,6 +216,12 @@ export function ProductDescriptionCanvas({
         background,
         padding: `${paddingTop}px ${paddingRight}px ${paddingBottom}px ${paddingLeft}px`,
         boxSizing: "border-box",
+        position: (nodePosition || position) as React.CSSProperties["position"],
+        top: nodeTop ?? top ?? undefined,
+        left: nodeLeft ?? left ?? undefined,
+        right: nodeRight ?? right ?? undefined,
+        bottom: nodeBottom ?? bottom ?? undefined,
+        zIndex: (nodeZIndex || zIndex) ?? undefined,
       }}
     >
       {loading && (
@@ -189,7 +252,13 @@ export function ProductDescriptionCanvas({
       )}
 
       {!loading && !isEmpty && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 220px), 280px))`, 
+          gap: 16,
+          justifyContent: cardsAlign === "center" ? "center" : cardsAlign === "right" ? "end" : "start",
+          justifyItems: cardsAlign === "center" ? "center" : cardsAlign === "right" ? "end" : "start",
+        }}>
           {displayedProducts.map((product) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;
@@ -208,6 +277,8 @@ export function ProductDescriptionCanvas({
                   display: "flex",
                   flexDirection: "column",
                   minHeight: 320,
+                  maxWidth: 360,
+                  width: "100%",
                 }}
               >
                 <div style={{ width: "100%", height: 220, background: "#F5F3F0", overflow: "hidden" }}>
@@ -316,6 +387,8 @@ export const ProductDescriptionSettings = () => {
     showStock,
     showAddToCart,
     showQuantitySelector,
+    headerAlign,
+    cardsAlign,
     actions: { setProp },
   } = useNode((node) => ({
     productSourceMode: (node.data.props.productSourceMode as ProductDescriptionSourceMode | undefined) || "auto",
@@ -336,6 +409,8 @@ export const ProductDescriptionSettings = () => {
     showStock: node.data.props.showStock === true,
     showAddToCart: node.data.props.showAddToCart !== false,
     showQuantitySelector: node.data.props.showQuantitySelector === true,
+    headerAlign: node.data.props.headerAlign as "left" | "center" | "right" | undefined,
+    cardsAlign: node.data.props.cardsAlign as "left" | "center" | "right" | undefined,
   }));
 
   const { projectSubdomain } = useDesignProject();
@@ -502,6 +577,14 @@ export const ProductDescriptionSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout" defaultOpen={false}>
+        <Row>
+          <Label>Header Align</Label>
+          <AlignButtons value={headerAlign || "left"} onChange={(v) => setProp((p: ProductDescriptionCanvasProps) => { p.headerAlign = v; })} />
+        </Row>
+        <Row>
+          <Label>Card Align</Label>
+          <AlignButtons value={cardsAlign || "left"} onChange={(v) => setProp((p: ProductDescriptionCanvasProps) => { p.cardsAlign = v; })} />
+        </Row>
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">Cards shown</span>
           <input

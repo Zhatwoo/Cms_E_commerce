@@ -46,9 +46,11 @@ function normalizeComponentType(rawType: unknown): ComponentType {
   if (!lowered) return "Container";
   if (lowered.includes("categoriescard") || lowered.includes("categories card")) return "CategoriesCardCanvas";
   if (lowered.includes("featuredproduct") || lowered.includes("featured product")) return "FeaturedProductCanvas";
+  if (lowered.includes("productdescriptioncard")) return "ProductDescriptionCard";
   if (lowered.includes("productdescription") && !lowered.includes("productdescriptioncard")) return "ProductDescriptionCanvas";
   if (lowered === "categorytile" || lowered === "category tile" || lowered.includes("categorytile")) return "CategoryTile";
   if (lowered === "productcard" || lowered === "product card" || lowered.includes("productcard")) return "ProductCard";
+  if (lowered === "productslider" || lowered === "product slider" || lowered.includes("productslider")) return "ProductSlider";
   if (lowered === "tabcontent" || lowered === "tab content") return "TabContent";
   if (lowered.includes("tabcontent")) return "TabContent";
   if (lowered === "tabs") return "Tabs";

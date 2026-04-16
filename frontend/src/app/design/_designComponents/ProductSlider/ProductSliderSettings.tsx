@@ -135,6 +135,14 @@ export const ProductSliderSettings = () => {
     upsertSelectedProductIds(selectedProductIds.filter((id) => id !== normalized));
   };
 
+  const moveSelectedProduct = (index: number, direction: "up" | "down") => {
+    const nextIds = [...selectedProductIds];
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= nextIds.length) return;
+    [nextIds[index], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[index]];
+    upsertSelectedProductIds(nextIds);
+  };
+
   return (
     <div className="flex flex-col gap-0">
 
@@ -214,22 +222,42 @@ export const ProductSliderSettings = () => {
 
               {selectedProductEntries.length > 0 ? (
                 <div className="flex flex-wrap gap-1.5">
-                  {selectedProductEntries.map((entry) => (
-                    <span
-                      key={entry.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
-                    >
-                      {entry.label}
-                      <button
-                        type="button"
-                        onClick={() => removeSelectedProduct(entry.id)}
-                        className="text-[10px] font-bold leading-none text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
-                        aria-label={`Remove ${entry.label}`}
+                    {selectedProductEntries.map((entry, idx) => (
+                      <span
+                        key={`${entry.id}-${idx}`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
                       >
-                        ×
-                      </button>
-                    </span>
-                  ))}
+                        <div className="flex gap-0.5 mr-0.5 border-r border-[var(--builder-border)] pr-1">
+                          <button
+                            type="button"
+                            onClick={() => moveSelectedProduct(idx, "up")}
+                            disabled={idx === 0}
+                            className="text-[10px] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] disabled:opacity-30"
+                            title="Move up"
+                          >
+                            ↑
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveSelectedProduct(idx, "down")}
+                            disabled={idx === selectedProductEntries.length - 1}
+                            className="text-[10px] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] disabled:opacity-30"
+                            title="Move down"
+                          >
+                            ↓
+                          </button>
+                        </div>
+                        <span className="max-w-[120px] truncate">{entry.label}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSelectedProduct(entry.id)}
+                          className="ml-0.5 text-[10px] font-bold text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                          aria-label={`Remove ${entry.label}`}
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
                 </div>
               ) : (
                 <p className="m-0 text-[10px] text-[var(--builder-text-faint)]">No products selected yet.</p>
@@ -332,6 +360,14 @@ export const ProductSliderSettings = () => {
 
       {/* ── Layout ── */}
       <DesignSection title="Layout" defaultOpen={false}>
+        <Row>
+          <Label>Header Align</Label>
+          <AlignButtons value={props.titleAlign || "left"} onChange={(v) => set("titleAlign", v)} />
+        </Row>
+        <Row>
+          <Label>Card Align</Label>
+          <AlignButtons value={props.cardAlign || "left"} onChange={(v) => set("cardAlign", v)} />
+        </Row>
         <Row>
           <Label>Card width</Label>
           <NumericInput value={props.cardWidth ?? 240} min={160} max={480} unit="px" onChange={(v) => set("cardWidth", v)} />

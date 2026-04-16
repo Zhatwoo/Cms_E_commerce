@@ -11,6 +11,7 @@ import { PREVIEW_MOBILE_BREAKPOINT, PREVIEW_TABLET_BREAKPOINT } from "@/app/desi
 import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
 import { smartGroupCategories } from "@/lib/smartCategories";
+import { getIndustryCategories } from "@/lib/industryCatalog";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
@@ -94,6 +95,14 @@ function collectSubtreeNodeIds(rootNodeId: string, nodes: Record<string, CleanNo
 function looksLikePriceText(text: string): boolean {
   const normalized = text.trim().toLowerCase();
   return /(php|₱|p\s?\d|price)/i.test(normalized) || /\d[\d,]*(\.\d{1,2})?/.test(normalized);
+}
+
+function formatStorePrice(price: number) {
+  return new Intl.NumberFormat("en-PH", {
+    style: "currency",
+    currency: "PHP",
+    minimumFractionDigits: 2,
+  }).format(price);
 }
 
 function looksLikeBadgeText(text: string): boolean {
@@ -338,9 +347,6 @@ function resolveProductFieldForNode(
   return null;
 }
 
-function formatStorePrice(price: number): string {
-  return `PHP ${price.toFixed(2)}`;
-}
 
 /** Default links for common nav/CTA labels so the storefront viewport is functional without editing each button. */
 function getDefaultLinkForLabel(label: string): string {
@@ -756,7 +762,7 @@ function ResponsiveNav({ children, containerStyle, onClick, className, dataMobil
       style={{ ...containerStyle, position: "relative" }}
       onClick={onClick}
     >
-      <div 
+      <div
         className={`nav-menu ${isOpen ? "open" : ""}`}
         style={{
           display: "flex",
@@ -1785,57 +1791,57 @@ function PrototypeWrapper({
       (children.props as Record<string, unknown>)?.style as React.CSSProperties | undefined;
     const existingOnClickCapture =
       (children.props as Record<string, unknown>)?.onClickCapture as
-        | ((e: React.MouseEvent) => void)
-        | undefined;
+      | ((e: React.MouseEvent) => void)
+      | undefined;
     const existingOnDoubleClickCapture =
       (children.props as Record<string, unknown>)?.onDoubleClickCapture as
-        | ((e: React.MouseEvent) => void)
-        | undefined;
+      | ((e: React.MouseEvent) => void)
+      | undefined;
     const existingOnMouseEnter =
       (children.props as Record<string, unknown>)?.onMouseEnter as
-        | ((e: React.MouseEvent) => void)
-        | undefined;
+      | ((e: React.MouseEvent) => void)
+      | undefined;
     const existingOnMouseLeave =
       (children.props as Record<string, unknown>)?.onMouseLeave as
-        | ((e: React.MouseEvent) => void)
-        | undefined;
+      | ((e: React.MouseEvent) => void)
+      | undefined;
     const existingOnKeyDown =
       (children.props as Record<string, unknown>)?.onKeyDown as
-        | ((e: React.KeyboardEvent) => void)
-        | undefined;
+      | ((e: React.KeyboardEvent) => void)
+      | undefined;
 
     return React.cloneElement(children as React.ReactElement<Record<string, unknown>>, {
       ...(hasClick
         ? {
-            onClickCapture: (e: React.MouseEvent) => {
-              existingOnClickCapture?.(e);
-              if (!e.defaultPrevented) handleClick(e);
-            },
-          }
+          onClickCapture: (e: React.MouseEvent) => {
+            existingOnClickCapture?.(e);
+            if (!e.defaultPrevented) handleClick(e);
+          },
+        }
         : {}),
       ...(hasDblClick
         ? {
-            onDoubleClickCapture: (e: React.MouseEvent) => {
-              existingOnDoubleClickCapture?.(e);
-              if (!e.defaultPrevented) handleDblClick(e);
-            },
-          }
+          onDoubleClickCapture: (e: React.MouseEvent) => {
+            existingOnDoubleClickCapture?.(e);
+            if (!e.defaultPrevented) handleDblClick(e);
+          },
+        }
         : {}),
       ...(hasHover
         ? {
-            onMouseEnter: (e: React.MouseEvent) => {
-              existingOnMouseEnter?.(e);
-              run("hover");
-            },
-          }
+          onMouseEnter: (e: React.MouseEvent) => {
+            existingOnMouseEnter?.(e);
+            run("hover");
+          },
+        }
         : {}),
       ...(hasMouseLeave
         ? {
-            onMouseLeave: (e: React.MouseEvent) => {
-              existingOnMouseLeave?.(e);
-              run("mouseLeave");
-            },
-          }
+          onMouseLeave: (e: React.MouseEvent) => {
+            existingOnMouseLeave?.(e);
+            run("mouseLeave");
+          },
+        }
         : {}),
       style: { ...existingStyle, cursor: "pointer" },
       onKeyDown: (e: React.KeyboardEvent) => {
@@ -2112,10 +2118,22 @@ function RenderNode({
     "categories card canvas": "CategoriesCardCanvas",
     categoriescard: "CategoriesCardCanvas",
     "categories card": "CategoriesCardCanvas",
+    featuredproductcanvas: "FeaturedProductCanvas",
+    "featured product canvas": "FeaturedProductCanvas",
+    featuredproduct: "FeaturedProductCanvas",
+    "featured product": "FeaturedProductCanvas",
+    productdescriptioncanvas: "ProductDescriptionCanvas",
+    "product description canvas": "ProductDescriptionCanvas",
+    productdescription: "ProductDescriptionCanvas",
+    "product description": "ProductDescriptionCanvas",
+    productdescriptioncard: "ProductDescriptionCard",
+    "product description card": "ProductDescriptionCard",
     categorytile: "CategoryTile",
     "category tile": "CategoryTile",
     productcard: "ProductCard",
     "product card": "ProductCard",
+    productslider: "ProductSlider",
+    "product slider": "ProductSlider",
     text: "Text",
     container: "Container",
     section: "Section",
@@ -2283,24 +2301,40 @@ function RenderNode({
       const linkedNodes = ((node as unknown as { linkedNodes?: Record<string, string> })?.linkedNodes) ?? {};
       const linkedIds = Object.values(linkedNodes).filter((id) => Boolean(nodes[id]));
       const orderedIds = [...childIds, ...linkedIds.filter((id) => !childIds.includes(id))];
-      const tileNodes = orderedIds
-        .map((id) => renderChildNode(id))
-        .filter((entry): entry is React.ReactNode => Boolean(entry));
 
       const headingText = String((props.headingText as string) || "Shop by Category");
       const canvasPosition = (props.position as React.CSSProperties["position"]) || "relative";
       const layoutMode = (props.layoutMode as string) || "auto";
       const categoryMode = (props.categoryMode as string) || "auto";
-      
-      const finalTileNodes = tileNodes;
+      const projectIndustry = (props.projectIndustry as string) || "clothing-apparel";
 
-      const containerClassName = layoutMode === "compact" 
+      const autoCategories = (() => {
+        const productSubcategories = storeContext?.products
+          ? Array.from(new Set(storeContext.products.map(p => (p as any).subcategory).filter(Boolean))) as string[]
+          : [];
+        const preset = getIndustryCategories(projectIndustry);
+        const raw = [...productSubcategories, ...preset];
+        return smartGroupCategories(raw);
+      })();
+
+      const categoriesToShow = categoryMode === "manual"
+        ? (props.selectedCategories as string[] || [])
+        : autoCategories;
+
+      // If we have saved children (CategoryTiles), we use them. 
+      // But if it's Auto mode and we want it to be dynamic, we might need to generate tiles.
+      // For parity with standard blocks, we'll favor the saved children if they exist.
+      const tileNodes = orderedIds
+        .map((id) => renderChildNode(id))
+        .filter((entry): entry is React.ReactNode => Boolean(entry));
+
+      const containerClassName = layoutMode === "compact"
         ? "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
         : layoutMode === "featured"
-        ? "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-        : layoutMode === "list"
-        ? "grid grid-cols-1 gap-4"
-        : "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3";
+          ? "grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+          : layoutMode === "list"
+            ? "grid grid-cols-1 gap-4"
+            : "grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3";
 
       const mergedClassName = `w-full box-border bg-[#f9fafb] px-2 py-3 sm:px-3 lg:px-4 ${((props.customClassName as string) || "").trim()}`.trim();
 
@@ -2313,6 +2347,7 @@ function RenderNode({
             left: canvasPosition !== "static" ? (props.left as React.CSSProperties["left"]) : undefined,
             right: canvasPosition !== "static" ? (props.right as React.CSSProperties["right"]) : undefined,
             bottom: canvasPosition !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
+            zIndex: props.zIndex as any,
             width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || "100%",
             maxWidth: "100%",
             boxSizing: "border-box",
@@ -2321,7 +2356,15 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          <div className="flex w-full flex-wrap items-center justify-between gap-2">
+          <div 
+            className="flex w-full flex-wrap items-center justify-between gap-2"
+            style={{ 
+              textAlign: (props.headerAlign as any) || "left",
+              justifyContent: props.headerAlign === "center" ? "center" : props.headerAlign === "right" ? "flex-end" : "space-between",
+              flexDirection: props.headerAlign === "left" ? "row" : "column",
+              alignItems: props.headerAlign === "center" ? "center" : props.headerAlign === "right" ? "flex-end" : "center"
+            }}
+          >
             <h3
               style={{
                 margin: 0,
@@ -2337,10 +2380,10 @@ function RenderNode({
               {categoryMode === "manual" ? "Custom Categories" : "Auto Categories"}
             </p>
           </div>
-          {finalTileNodes.length > 0 ? (
+          {tileNodes.length > 0 ? (
             <div className="mt-3 w-full">
               <div className={containerClassName} style={{ width: "100%" }}>
-                {finalTileNodes.map((tileNode, idx) => (
+                {tileNodes.map((tileNode, idx) => (
                   <div key={idx} className="w-full">
                     {tileNode}
                   </div>
@@ -2374,7 +2417,6 @@ function RenderNode({
       const imageFit = String((props.imageFit as string) || "cover") === "contain" ? "contain" : "cover";
       const iconBg = iconTheme === "indigo" ? "#eef2ff" : "#f3f4f6";
       const iconColor = iconTheme === "indigo" ? "#6366f1" : "#8b5cf6";
-
       const glyph = iconType === "home" ? "⌂" : iconType === "star" ? "☆" : "⌂";
 
       return wrap(
@@ -2450,6 +2492,325 @@ function RenderNode({
       );
     }
 
+    case "FeaturedProductCanvas":
+    case "Featured Product": {
+      const title = String((props.title as string) || "Featured Products");
+      const subtitle = String((props.subtitle as string) || "Handpicked pieces worth every peso.");
+      const maxItems = toNumber(props.maxItems, 3);
+      const background = String((props.background as string) || "#F7F4F0");
+      const cardBackground = String((props.cardBackground as string) || "#FFFFFF");
+      const pTop = toNumber(props.paddingTop, 24);
+      const pRight = toNumber(props.paddingRight, 24);
+      const pBottom = toNumber(props.paddingBottom, 12);
+      const pLeft = toNumber(props.paddingLeft, 24);
+      const showProductName = props.showProductName !== false;
+      const showDivider = props.showDivider !== false;
+      const showPrice = props.showPrice !== false;
+      const showComparePrice = props.showComparePrice !== false;
+      const showDiscountBadge = props.showDiscountBadge !== false;
+      const showDescription = props.showDescription !== false;
+      const descriptionLines = toNumber(props.descriptionLines, 6);
+      const showSku = !!props.showSku;
+      const showStock = !!props.showStock;
+      const showAddToCart = props.showAddToCart !== false;
+      const showQuantitySelector = !!props.showQuantitySelector;
+
+      const productSourceMode = (props.productSourceMode as string) || "auto";
+      const selectedProductIds = (Array.isArray(props.selectedProductIds) ? props.selectedProductIds : [])
+        .map(id => String(id || "").trim())
+        .filter(Boolean);
+
+      let displayedProducts: ApiProduct[] = [];
+      if (storeContext?.products) {
+        if (productSourceMode === "manual" && selectedProductIds.length > 0) {
+          const byId = new Map(storeContext.products.map(p => [String(p.id), p]));
+          displayedProducts = selectedProductIds.map(id => byId.get(id)).filter((p): p is ApiProduct => !!p);
+        } else {
+          displayedProducts = storeContext.products.slice(0, maxItems);
+        }
+      }
+      displayedProducts = displayedProducts.slice(0, Math.min(6, maxItems));
+
+      return wrap(
+        <section
+          style={{
+            position: (props.position as any) || "relative",
+            top: props.top as any,
+            left: props.left as any,
+            right: props.right as any,
+            bottom: props.bottom as any,
+            zIndex: props.zIndex as any,
+            width: "100%",
+            background,
+            padding: `${pTop}px ${pRight}px ${pBottom}px ${pLeft}px`,
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ 
+            maxWidth: "560px", 
+            display: "flex", 
+            flexDirection: "column", 
+            gap: "8px",
+            textAlign: (props.headerAlign as any) || "left",
+            alignItems: props.headerAlign === "center" ? "center" : props.headerAlign === "right" ? "flex-end" : "flex-start",
+            alignSelf: props.headerAlign === "center" ? "center" : props.headerAlign === "right" ? "flex-end" : "flex-start"
+          }}>
+            <h2 style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1.15, color: "#111827" }}>{title}</h2>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 400, lineHeight: 1.6, color: "#9CA3AF" }}>{subtitle}</p>
+          </div>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 280px))", 
+            gap: "16px",
+            justifyContent: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
+            justifyItems: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
+          }}>
+            {displayedProducts.map((product, index) => {
+              const image = product.images?.[0] ?? "";
+              const price = product.finalPrice ?? product.price ?? 0;
+              const compareAt = product.compareAtPrice;
+              const hasDiscount = !!compareAt && compareAt > price;
+              return (
+                <article key={product.id} style={{
+                  background: cardBackground,
+                  boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                  maxWidth: "360px",
+                  width: "100%",
+                }}>
+                  <div style={{ position: "relative", width: "100%", height: "220px", background: "#f3f4f6" }}>
+                    {image && <img src={image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                    {showDiscountBadge && hasDiscount && (
+                      <span style={{ position: "absolute", top: 12, left: 12, background: "#C2410C", color: "#fff", fontSize: 10, fontWeight: 800, padding: "5px 12px" }}>
+                        {Math.round(((compareAt! - price) / compareAt!) * 100)}% OFF
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "16px", flex: 1 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                      {showProductName && <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>{product.name}</h3>}
+                      {showDivider && <div style={{ width: "44px", height: "2px", background: "#E5E7EB", borderRadius: "999px" }} />}
+                      {showDescription && product.description && (
+                        <p style={{ margin: 0, fontSize: "12px", color: "#9CA3AF", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: descriptionLines, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{product.description}</p>
+                      )}
+                    </div>
+                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+                      {showPrice && (
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "10px" }}>
+                          <span style={{ fontSize: "20px", fontWeight: 700, color: "#111827" }}>{formatStorePrice(price)}</span>
+                          {showComparePrice && hasDiscount && <span style={{ fontSize: "12px", color: "#D1D5DB", textDecoration: "line-through" }}>{formatStorePrice(compareAt!)}</span>}
+                        </div>
+                      )}
+                      {showAddToCart && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (storeContext?.addToCart) {
+                              storeContext.addToCart({
+                                id: String(product.id),
+                                name: product.name,
+                                price: product.price ?? price,
+                                image: product.images?.[0]
+                              });
+                            }
+                          }}
+                          style={{ width: "100%", background: "#111827", color: "#fff", fontSize: "12px", fontWeight: 700, border: "none", padding: "10px 18px", cursor: "pointer" }}
+                        >
+                          Add to Cart
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      );
+    }
+
+    case "ProductDescriptionCanvas":
+    case "Product Description Section": {
+      const background = String((props.background as string) || "#F5F3F0");
+      const cardBackground = String((props.cardBackground as string) || "#FFFFFF");
+      const pTop = toNumber(props.paddingTop, 16);
+      const pRight = toNumber(props.paddingRight, 24);
+      const pBottom = toNumber(props.paddingBottom, 16);
+      const pLeft = toNumber(props.paddingLeft, 24);
+      const maxItems = toNumber(props.maxItems, 4);
+      const showProductName = props.showProductName !== false;
+      const showPrice = props.showPrice !== false;
+      const showDescription = props.showDescription !== false;
+      const showAddToCart = props.showAddToCart !== false;
+      const descriptionLines = toNumber(props.descriptionLines, 6);
+
+      const productSourceMode = (props.productSourceMode as string) || "auto";
+      const selectedProductIds = (Array.isArray(props.selectedProductIds) ? props.selectedProductIds : [])
+        .map(id => String(id || "").trim())
+        .filter(Boolean);
+
+      let displayedProducts: ApiProduct[] = [];
+      if (storeContext?.products) {
+        if (productSourceMode === "manual" && selectedProductIds.length > 0) {
+          const byId = new Map(storeContext.products.map(p => [String(p.id), p]));
+          displayedProducts = selectedProductIds.map(id => byId.get(id)).filter((p): p is ApiProduct => !!p);
+        } else {
+          displayedProducts = storeContext.products.slice(0, maxItems);
+        }
+      }
+
+      return wrap(
+        <section style={{
+          position: (props.position as any) || "relative",
+          top: props.top as any,
+          left: props.left as any,
+          right: props.right as any,
+          bottom: props.bottom as any,
+          zIndex: props.zIndex as any,
+          width: "100%",
+          background,
+          padding: `${pTop}px ${pRight}px ${pBottom}px ${pLeft}px`,
+          boxSizing: "border-box"
+        }}>
+          <div style={{ 
+            display: "grid", 
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 280px))", 
+            gap: "16px",
+            justifyContent: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
+            justifyItems: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
+          }}>
+            {displayedProducts.map((product) => {
+              const image = product.images?.[0] ?? "";
+              const price = product.finalPrice ?? product.price ?? 0;
+              return (
+                <article key={product.id} style={{
+                  background: cardBackground,
+                  borderRadius: "12px",
+                  overflow: "hidden",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+                  display: "flex",
+                  flexDirection: "column",
+                  maxWidth: "360px",
+                  width: "100%",
+                }}>
+                  <div style={{ width: "100%", height: "220px", background: "#f3f4f6" }}>
+                    {image && <img src={image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+                  </div>
+                  <div style={{ padding: "14px", display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
+                    {showProductName && <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "#111827" }}>{product.name}</p>}
+                    {showDescription && product.description && (
+                      <p style={{ margin: 0, fontSize: "12px", color: "#6B7280", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: descriptionLines, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{product.description}</p>
+                    )}
+                    <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {showPrice && <p style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#111827" }}>{formatStorePrice(price)}</p>}
+                      {showAddToCart && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (storeContext?.addToCart) {
+                              storeContext.addToCart({
+                                id: String(product.id),
+                                name: product.name,
+                                price: product.price ?? price,
+                                image: product.images?.[0]
+                              });
+                            }
+                          }}
+                          style={{ width: "100%", background: "#111827", color: "#fff", fontSize: "12px", fontWeight: 700, border: "none", padding: "10px 18px", cursor: "pointer", borderRadius: "6px" }}
+                        >
+                          Add to Cart
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+      );
+    }
+
+    case "ProductDescriptionCard": {
+      const layoutStyle = (props.layoutStyle as string) || "image-left-1";
+      const width = String((props.width as string) || "680px");
+      const stretchFullWidth = !!props.stretchFullWidth;
+      const imageRatio = toNumber(props.imageRatio, 0.5);
+      const cardBackground = String((props.cardBackground as string) || "#ffffff");
+      const cardBorderRadius = toNumber(props.cardBorderRadius, 12);
+      const contentPadding = toNumber(props.contentPadding, 32);
+      const showProductName = props.showProductName !== false;
+      const showPrice = props.showPrice !== false;
+      const showDescription = props.showDescription !== false;
+      const showAddToCart = props.showAddToCart !== false;
+
+      let product = productBinding?.product;
+      if (!product && storeContext?.products) {
+        const boundProductId = props.boundProductId as string | undefined;
+        if (boundProductId) {
+          product = storeContext.products.find(p => String(p.id) === String(boundProductId));
+        }
+      }
+
+      if (!product) return wrap(<div style={{ width: stretchFullWidth ? "100%" : width, minHeight: "100px", padding: "20px", background: "#f3f4f6", borderRadius: `${cardBorderRadius}px`, textAlign: "center" }}>No product bound</div>);
+
+      const image = product.images?.[0] ?? "";
+      const price = product.finalPrice ?? product.price ?? 0;
+      const isCloseUp = layoutStyle === "close-up";
+      const imageOnRight = layoutStyle === "image-right";
+
+      return wrap(
+        <div style={{
+          width: stretchFullWidth ? "100%" : width,
+          background: cardBackground,
+          borderRadius: `${cardBorderRadius}px`,
+          boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+          overflow: "hidden",
+          display: isCloseUp ? "block" : "flex",
+          flexDirection: imageOnRight ? "row-reverse" : "row",
+          position: (props.position as any) || "relative",
+          top: props.top as any, left: props.left as any, right: props.right as any, bottom: props.bottom as any,
+        }}>
+          <div style={{ width: isCloseUp ? "100%" : `${Math.round(imageRatio * 100)}%`, height: isCloseUp ? "320px" : "auto", minHeight: "320px", position: "relative" }}>
+            {image && <img src={image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />}
+          </div>
+          <div style={{ flex: 1, padding: `${contentPadding}px`, display: "flex", flexDirection: "column", justifyContent: "center", gap: "10px" }}>
+            {showProductName && <h2 style={{ fontSize: "22px", fontWeight: "700", margin: 0 }}>{product.name}</h2>}
+            {showDescription && product.description && <p style={{ fontSize: "14px", color: "#6b7280", lineHeight: 1.7 }}>{product.description}</p>}
+            <div style={{ marginTop: "10px" }}>
+              {showPrice && <span style={{ fontSize: "20px", fontWeight: "700" }}>{formatStorePrice(price)}</span>}
+              {showAddToCart && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (storeContext?.addToCart && product) {
+                      storeContext.addToCart({
+                        id: String(product.id),
+                        name: product.name,
+                        price: product.price ?? price,
+                        image: product.images?.[0]
+                      });
+                    }
+                  }}
+                  style={{ display: "block", marginTop: "12px", padding: "11px 24px", background: "#0f172a", color: "#fff", border: "none", borderRadius: "6px", fontWeight: "600", cursor: "pointer" }}
+                >
+                  Add to Cart
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     case "ProductCard":
     case "Product Card":
     case "PRODUCTCARD": {
@@ -2470,13 +2831,13 @@ function RenderNode({
       const buttonLabel = String((props.buttonLabel as string) || "Add to Cart");
       const imageObjectFit = String((props.imageObjectFit as string) || "cover");
       const position = (props.position as React.CSSProperties["position"]) || "relative";
-      
+
       let finalProduct = productBinding?.product;
-      
+
       if (!finalProduct && storeContext?.products && storeContext.products.length > 0) {
         const boundProductId = props.boundProductId as string | undefined;
         if (boundProductId) {
-          finalProduct = storeContext.products.find(p => p.id === boundProductId);
+          finalProduct = storeContext.products.find(p => String(p.id) === String(boundProductId));
         } else {
           const allProductCards = Object.entries(nodes)
             .filter(([, n]) => {
@@ -2487,10 +2848,10 @@ function RenderNode({
               const np = n?.props || {};
               const y = Number(np.canvasY);
               const x = Number(np.canvasX);
-              return { 
-                nid, 
-                y: Number.isFinite(y) ? y : 0, 
-                x: Number.isFinite(x) ? x : 0 
+              return {
+                nid,
+                y: Number.isFinite(y) ? y : 0,
+                x: Number.isFinite(x) ? x : 0
               };
             })
             .sort((a, b) => {
@@ -2498,7 +2859,7 @@ function RenderNode({
               if (a.x !== b.x) return a.x - b.x;
               return a.nid.localeCompare(b.nid);
             });
-            
+
           const foundIndex = allProductCards.findIndex(entry => entry.nid === nodeId);
           if (foundIndex >= 0) {
             finalProduct = storeContext.products[foundIndex % storeContext.products.length];
@@ -2543,6 +2904,17 @@ function RenderNode({
             <div style={{ margin: 0, fontSize: `${priceFontSize}px`, fontWeight: 600, color: priceColor }}>{boundPrice}</div>
             <button
               type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (storeContext?.addToCart && finalProduct) {
+                  storeContext.addToCart({
+                    id: String(finalProduct.id),
+                    name: finalProduct.name,
+                    price: finalProduct.price,
+                    image: finalProduct.images?.[0]
+                  });
+                }
+              }}
               style={{
                 marginTop: "6px",
                 width: "100%",
@@ -2558,6 +2930,181 @@ function RenderNode({
             >
               {buttonLabel}
             </button>
+          </div>
+        </div>
+      );
+    }
+
+    case "ProductSlider":
+    case "Product Slider":
+    case "PRODUCTSLIDER": {
+      const showTitle = props.showTitle !== false;
+      const title = String((props.title as string) || "Our Products");
+      const titleFontSize = toNumber(props.titleFontSize, 28);
+      const titleColor = String((props.titleColor as string) || "#111827");
+      const titleAlign = (props.titleAlign as any) || "center";
+      const background = String((props.background as string) || "#f9fafb");
+      const width = String((props.width as string) || "100%");
+      const gap = toNumber(props.gap, 18);
+      const cardWidth = toNumber(props.cardWidth, 240);
+      const imageHeight = toNumber(props.imageHeight, 220);
+      const cardBorderRadius = toNumber(props.cardBorderRadius, 8);
+      const cardBackground = String((props.cardBackground as string) || "#ffffff");
+      const cardBorderColor = String((props.cardBorderColor as string) || "#e5e7eb");
+      const showProductName = props.showProductName !== false;
+      const showPrice = props.showPrice !== false;
+      const showDivider = !!props.showDivider;
+      const showDescription = !!props.showDescription;
+      const showAddToCart = props.showAddToCart !== false;
+      const buttonLabel = String((props.buttonLabel as string) || "Add to Cart");
+      const buttonBackground = String((props.buttonBackground as string) || "#111827");
+      const buttonTextColor = String((props.buttonTextColor as string) || "#ffffff");
+      const buttonBorderRadius = toNumber(props.buttonBorderRadius, 6);
+      const showDiscountBadge = props.showDiscountBadge !== false;
+      const showRibbon = !!props.showRibbon;
+      const ribbonText = String((props.ribbonText as string) || "Sale");
+      const ribbonColor = String((props.ribbonColor as string) || "#ef4444");
+      const showQuickView = !!props.showQuickView;
+      const pTop = toNumber(props.paddingTop, 48);
+      const pBottom = toNumber(props.paddingBottom, 48);
+      const pLeft = toNumber(props.paddingLeft, 0);
+      const pRight = toNumber(props.paddingRight, 0);
+
+      const productSourceMode = (props.productSourceMode as string) || "auto";
+      const selectedProductIds = (Array.isArray(props.selectedProductIds) ? props.selectedProductIds : [])
+        .map((id) => String(id || "").trim())
+        .filter(Boolean);
+
+      let displayedProducts: ApiProduct[] = [];
+      if (storeContext?.products) {
+        if (productSourceMode === "manual") {
+          const productById = new Map(storeContext.products.map(p => [String(p.id), p]));
+          displayedProducts = selectedProductIds
+            .map(id => productById.get(id))
+            .filter((p): p is ApiProduct => !!p);
+        } else {
+          displayedProducts = storeContext.products;
+        }
+      }
+
+      // Responsive logic mirrored from ProductSlider component
+      let responsiveCardWidth = cardWidth;
+      const innerWidth = Math.max(0, viewportWidth - pLeft - pRight);
+      if (innerWidth > 0) {
+        let targetCount: number;
+        if (innerWidth <= 480) targetCount = 1;
+        else if (innerWidth <= 768) targetCount = 2;
+        else if (innerWidth <= 1024) targetCount = 3;
+        else if (innerWidth <= 1440) targetCount = 4;
+        else targetCount = 5;
+
+        const widthPerCard = Math.floor((innerWidth - gap * (targetCount - 1)) / targetCount);
+        responsiveCardWidth = Math.min(widthPerCard, 420);
+      }
+
+      const shouldCenter = displayedProducts.length < (innerWidth / (responsiveCardWidth + gap));
+      const responsiveImageHeight = Math.round(responsiveCardWidth * (imageHeight / Math.max(cardWidth, 1)));
+
+      return wrap(
+        <div
+          style={{
+            width, background, paddingTop: pTop, paddingBottom: pBottom,
+            paddingLeft: pLeft, paddingRight: pRight, boxSizing: "border-box",
+            position: (props.position as any) || "relative",
+            top: props.top as any, left: props.left as any, right: props.right as any, bottom: props.bottom as any,
+          }}
+        >
+          <style>{`
+            .ls-hide-scrollbar::-webkit-scrollbar { display: none; }
+            .ls-hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+          `}</style>
+          {showTitle && (
+            <h2 style={{ fontSize: `${titleFontSize}px`, fontWeight: 700, color: titleColor, textAlign: titleAlign, marginBottom: `${gap}px`, marginTop: 0, padding: "0 24px" }}>
+              {title}
+            </h2>
+          )}
+          <div
+            className="ls-hide-scrollbar"
+            style={{
+              display: "flex", gap, overflowX: "auto", paddingBottom: "16px",
+              justifyContent: shouldCenter ? "center" : "flex-start",
+              paddingLeft: `${pLeft || 24}px`, paddingRight: `${pRight || 24}px`,
+              marginLeft: `-${pLeft || 0}px`, marginRight: `-${pRight || 0}px`,
+              flexWrap: "nowrap", scrollBehavior: "smooth", WebkitOverflowScrolling: "touch"
+            }}
+          >
+            {displayedProducts.map((product) => {
+              const image = product.images?.[0] ?? "";
+              const price = product.finalPrice ?? product.price ?? 0;
+              const compareAt = product.compareAtPrice;
+              const hasDiscount = !!compareAt && compareAt > price;
+              const discountPct = hasDiscount ? Math.round(((compareAt! - price) / compareAt!) * 100) : 0;
+
+              return (
+                <div key={product.id} style={{
+                  minWidth: `${responsiveCardWidth}px`, maxWidth: `${responsiveCardWidth}px`, flexShrink: 0,
+                  background: cardBackground, borderRadius: `${cardBorderRadius}px`,
+                  border: `1px solid ${cardBorderColor}`, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative"
+                }}>
+                  <div style={{ position: "relative", width: "100%", height: `${responsiveImageHeight}px`, flexShrink: 0 }}>
+                    {image ? (
+                      <img src={image} alt={product.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                    ) : (
+                      <div style={{ width: "100%", height: "100%", background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "12px" }}>No image</div>
+                    )}
+                    {/* Add overlays if needed, for brevity skipping detailed overlays here or mirroring standard overlays */}
+                    {showRibbon && (
+                      <div style={{ position: "absolute", top: "10px", left: "0", background: ribbonColor, color: "#fff", padding: "4px 12px", fontSize: "11px", fontWeight: "bold", borderTopRightRadius: "4px", borderBottomRightRadius: "4px", zIndex: 2 }}>{ribbonText}</div>
+                    )}
+                    {showDiscountBadge && hasDiscount && (
+                      <div style={{ position: "absolute", top: "10px", right: "10px", background: "#ef4444", color: "#fff", width: "36px", height: "36px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "bold", zIndex: 2 }}>-{discountPct}%</div>
+                    )}
+                  </div>
+                  <div style={{ padding: "12px", display: "flex", flexDirection: "column", gap: "4px", flex: 1 }}>
+                    {showProductName && <p style={{ fontSize: "14px", fontWeight: 700, color: "#111827", margin: 0, lineHeight: 1.4 }}>{product.name}</p>}
+                    {showDivider && <hr style={{ border: "none", borderTop: "1px solid #e5e7eb", margin: "4px 0" }} />}
+                    {showDescription && product.description && (
+                      <p style={{ fontSize: "12px", color: "#6b7280", margin: 0, lineHeight: 1.4, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{product.description}</p>
+                    )}
+                    {showPrice && (
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 600, color: "#111827" }}>{formatStorePrice(price)}</span>
+                        {hasDiscount && <span style={{ fontSize: "12px", color: "#9ca3af", textDecoration: "line-through" }}>{formatStorePrice(compareAt!)}</span>}
+                      </div>
+                    )}
+                    {showAddToCart && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (storeContext?.addToCart) {
+                            storeContext.addToCart({
+                              id: String(product.id),
+                              name: product.name,
+                              price: product.price ?? price,
+                              image: product.images?.[0]
+                            });
+                          }
+                        }}
+                        style={{
+                          marginTop: "auto",
+                          width: "100%",
+                          padding: "8px 0",
+                          background: buttonBackground,
+                          color: buttonTextColor,
+                          border: "none",
+                          borderRadius: `${buttonBorderRadius}px`,
+                          fontSize: "13px",
+                          fontWeight: 600
+                        }}
+                      >
+                        {buttonLabel}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       );
@@ -2929,8 +3476,8 @@ function RenderNode({
         typeof rawContainerHeight === "number"
           ? rawContainerHeight
           : (typeof rawContainerHeight === "string" && rawContainerHeight.trim().toLowerCase().endsWith("px")
-              ? Number(rawContainerHeight.trim().toLowerCase().slice(0, -2))
-              : NaN);
+            ? Number(rawContainerHeight.trim().toLowerCase().slice(0, -2))
+            : NaN);
       const shouldReleaseDesktopProductHeight =
         !isNarrowPreview &&
         containsProductCards &&
@@ -3083,8 +3630,8 @@ function RenderNode({
         typeof rawSectionHeight === "number"
           ? rawSectionHeight
           : (typeof rawSectionHeight === "string" && rawSectionHeight.trim().toLowerCase().endsWith("px")
-              ? Number(rawSectionHeight.trim().toLowerCase().slice(0, -2))
-              : NaN);
+            ? Number(rawSectionHeight.trim().toLowerCase().slice(0, -2))
+            : NaN);
       const shouldReleaseDesktopSectionHeight =
         !isNarrowPreview &&
         containsProductCards &&
@@ -3187,8 +3734,8 @@ function RenderNode({
         typeof rawRowHeight === "number"
           ? rawRowHeight
           : (typeof rawRowHeight === "string" && rawRowHeight.trim().toLowerCase().endsWith("px")
-              ? Number(rawRowHeight.trim().toLowerCase().slice(0, -2))
-              : NaN);
+            ? Number(rawRowHeight.trim().toLowerCase().slice(0, -2))
+            : NaN);
       const shouldReleaseDesktopRowHeight =
         !isNarrowPreview &&
         containsProductCards &&
@@ -3201,8 +3748,8 @@ function RenderNode({
         isNavRow
           ? "visible"
           : (containsProductCards && requestedRowOverflow === "hidden"
-              ? "visible"
-              : requestedRowOverflow);
+            ? "visible"
+            : requestedRowOverflow);
       const rowStyle: React.CSSProperties = {
         background: (props.background || props.backgroundColor || "transparent") as string,
         padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
@@ -3281,8 +3828,8 @@ function RenderNode({
         typeof rawColumnHeight === "number"
           ? rawColumnHeight
           : (typeof rawColumnHeight === "string" && rawColumnHeight.trim().toLowerCase().endsWith("px")
-              ? Number(rawColumnHeight.trim().toLowerCase().slice(0, -2))
-              : NaN);
+            ? Number(rawColumnHeight.trim().toLowerCase().slice(0, -2))
+            : NaN);
       const shouldReleaseDesktopColumnHeight =
         !isNarrowPreview &&
         containsProductCards &&
@@ -5208,12 +5755,12 @@ export function WebPreview({
     </>
   );
 
-      // In builder parity mode, preview must match the canvas artboard size exactly.
-      // So we disable the contained scroller behavior (which uses viewport units + internal scroll)
-      // and render a fixed-size page frame instead.
-      const isContainedScroller = !builderParityMode && (fillViewport || isPhoneSize || shouldUseResponsiveViewport);
+  // In builder parity mode, preview must match the canvas artboard size exactly.
+  // So we disable the contained scroller behavior (which uses viewport units + internal scroll)
+  // and render a fixed-size page frame instead.
+  const isContainedScroller = !builderParityMode && (fillViewport || isPhoneSize || shouldUseResponsiveViewport);
 
-      return (
+  return (
     <>
       <style>{`
         @keyframes page-dissolve { from { opacity: 0; } to { opacity: 1; } }
