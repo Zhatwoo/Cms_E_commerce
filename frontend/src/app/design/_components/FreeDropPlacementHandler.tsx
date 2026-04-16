@@ -109,11 +109,13 @@ export function FreeDropPlacementHandler() {
       const preIds = preDragNodeIdsRef.current;
       const newIds = Object.keys(nodes).filter((id) => !preIds.has(id));
 
-      // Preserve template/asset internal layout exactly as-authored.
-      // Asset drops can include nested Row/Column/Section structures that should not
-      // be reordered or normalized by the generic free-drop placement logic.
-      // Imported blocks are single elements, treat like component.
-      if (dragSourceKindRef.current === "asset") {
+      // Preserve authored layout only for multi-node asset drops (full templates/sections).
+      // Single-node asset drops (e.g. icons/shapes) should still be normalized so they
+      // land in a stable, visible position after drop.
+      const shouldPreserveAssetLayout =
+        dragSourceKindRef.current === "asset" && newIds.length > 1;
+
+      if (shouldPreserveAssetLayout) {
         if (newIds.length > 0 || attempt >= MAX_RETRY_FRAMES) {
           stopTracking();
         } else {

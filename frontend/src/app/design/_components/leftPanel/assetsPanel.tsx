@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
-import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronDown, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon, Megaphone, Briefcase, ShoppingBag } from "lucide-react";
 import { DesignTooltip } from "../DesignTooltip";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { buildCraftResolver } from "../craftResolver";
@@ -232,6 +232,20 @@ const NAVIGATION_ICON_LABELS = new Set([
 
 const ICON_GROUP_ORDER = ["Social", "Commerce", "Support", "Navigation", "Other"] as const;
 
+const FOLDER_GROUP_ORDER: Record<string, string[]> = {
+  Layout: ["Header", "Hero", "Footer"],
+  Marketing: ["CTA", "Features", "Stats"],
+  "Social Proof": ["Testimonials", "Logos", "Team"],
+  Business: ["Auth", "Team", "About", "Contact"],
+  Commerce: ["Products", "Showcase", "Categories"],
+  Utility: ["Helpers", "Shapes"],
+};
+
+const SHAPE_LABELS = new Set([
+  "circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid",
+  "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite",
+]);
+
 function classifyIconLabel(label: string): (typeof ICON_GROUP_ORDER)[number] {
   const normalized = label.replace(/\s*icon$/i, "").trim().toLowerCase();
   if (SOCIAL_ICON_LABELS.has(normalized)) return "Social";
@@ -241,26 +255,71 @@ function classifyIconLabel(label: string): (typeof ICON_GROUP_ORDER)[number] {
   return "Other";
 }
 
+function classifyFolderItem(folder: string, item: AssetItem): string {
+  const label = String(item?.label ?? "").trim().toLowerCase();
+
+  if (folder === "Layout") {
+    if (label.includes("header")) return "Header";
+    if (label.includes("hero")) return "Hero";
+    if (label.includes("footer")) return "Footer";
+    return "Other";
+  }
+
+  if (folder === "Marketing") {
+    if (label.includes("cta") || label.includes("newsletter")) return "CTA";
+    if (label.includes("feature") || label.includes("image text")) return "Features";
+    if (label.includes("stat")) return "Stats";
+    return "Other";
+  }
+
+  if (folder === "Social Proof") {
+    if (label.includes("testimonial")) return "Testimonials";
+    if (label.includes("logo") || label.includes("brand")) return "Logos";
+    if (label.includes("team")) return "Team";
+    return "Other";
+  }
+
+  if (folder === "Business") {
+    if (label.includes("login") || label.includes("profile")) return "Auth";
+    if (label.includes("team")) return "Team";
+    if (label.includes("image text")) return "About";
+    if (label.includes("newsletter") || label.includes("contact")) return "Contact";
+    return "Other";
+  }
+
+  if (folder === "Commerce") {
+    if (label.includes("category")) return "Categories";
+    if (label.includes("featured") || label.includes("overview") || label.includes("description")) return "Showcase";
+    if (label.includes("product") || label.includes("grid")) return "Products";
+    return "Other";
+  }
+
+  if (folder === "Utility") {
+    if (SHAPE_LABELS.has(label)) return "Shapes";
+    return "Helpers";
+  }
+
+  return "Other";
+}
+
 const ASSET_ICONS: Record<string, React.ReactNode> = {
-  Header: <Layout className="w-5 h-5" />,
-  Hero: <Star className="w-5 h-5" />,
-  Content: <FileText className="w-5 h-5" />,
-  Cards: <CreditCard className="w-5 h-5" />,
-  Forms: <FormInput className="w-5 h-5" />,
-  Footer: <PanelBottom className="w-5 h-5" />,
+  Layout: <Layout className="w-5 h-5" />,
+  Marketing: <Megaphone className="w-5 h-5" />,
+  "Social Proof": <Briefcase className="w-5 h-5" />,
+  Business: <Briefcase className="w-5 h-5" />,
+  Commerce: <ShoppingBag className="w-5 h-5" />,
+  Utility: <ShapesIcon className="w-5 h-5" />,
   Icons: <Smile className="w-5 h-5" />,
-  Shapes: <ShapesIcon className="w-5 h-5" />,
 };
 
 const ASSET_FOLDER_TOOLTIPS: Record<string, string> = {
-  Header: "Pre-built header templates — navigation bars and top menus",
-  Hero: "Hero sections — full-width banners with headlines and CTAs",
-  Content: "Content blocks — features, testimonials, stats, and CTAs",
-  Cards: "Card components — product, team member, and category cards",
-  Forms: "Form templates — login, signup, contact, and more",
-  Footer: "Pre-built footer templates — links, socials, and copyright",
+  Layout: "Headers, hero sections, and footer layouts for page structure",
+  Marketing: "Call-to-action, feature, and campaign-focused conversion blocks",
+  "Social Proof": "Testimonials, logos, and trust-building content blocks",
+  Business: "Business-oriented blocks like profile/login, team cards, and info sections",
+  Commerce: "Commerce blocks — product cards, showcases, and category layouts",
+  Utility: "Reusable helper blocks and shape elements for fast composition",
   Icons: "Icon library — drag icons onto your canvas",
-  Shapes: "Geometric shapes — circles, rectangles, and polygons",
 };
 
 const BASE_CRAFT_RESOLVER = buildCraftResolver();
@@ -464,6 +523,7 @@ export const AssetsPanel = () => {
   const [panelView, setPanelView] = useState<"folders" | "items">("folders");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<AssetSelection | null>(null);
+  const [openSubgroups, setOpenSubgroups] = useState<Record<string, boolean>>({});
 
   const activeGroup = useMemo(
     () => GROUPED_TEMPLATES.find((group) => group.folder === activeFolder) ?? null,
@@ -488,6 +548,66 @@ export const AssetsPanel = () => {
 
     return buckets;
   }, [activeGroup]);
+
+  const groupedFolderItems = useMemo(() => {
+    if (!activeGroup || isIconFolder(activeGroup.folder)) return null;
+    const order = FOLDER_GROUP_ORDER[activeGroup.folder];
+    if (!order?.length) return null;
+
+    const buckets: Record<string, Array<{ item: AssetItem; idx: number }>> = {
+      Other: [],
+    };
+    order.forEach((groupName) => {
+      buckets[groupName] = [];
+    });
+
+    activeGroup.items.forEach((item: AssetItem, idx: number) => {
+      const bucket = classifyFolderItem(activeGroup.folder, item);
+      if (!buckets[bucket]) buckets[bucket] = [];
+      buckets[bucket].push({ item, idx });
+    });
+
+    const orderedGroups = [...order, "Other"];
+    return { orderedGroups, buckets };
+  }, [activeGroup]);
+
+  useEffect(() => {
+    if (!activeGroup || !groupedFolderItems) return;
+
+    setOpenSubgroups((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      groupedFolderItems.orderedGroups.forEach((groupName, idx) => {
+        const key = `${activeGroup.folder}:${groupName}`;
+        if (typeof next[key] !== "boolean") {
+          next[key] = idx === 0;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [activeGroup, groupedFolderItems]);
+
+  useEffect(() => {
+    if (!activeGroup || !groupedIconItems || !isIconFolder(activeGroup.folder)) return;
+
+    setOpenSubgroups((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      ICON_GROUP_ORDER.forEach((groupName, idx) => {
+        const key = `${activeGroup.folder}:${groupName}`;
+        if (typeof next[key] !== "boolean") {
+          next[key] = idx === 0;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [activeGroup, groupedIconItems]);
 
   useEffect(() => {
     if (!activeGroup) {
@@ -570,6 +690,8 @@ export const AssetsPanel = () => {
                 const renderAssetCard = (item: AssetItem, idx: number) => {
                   const assetKey = buildAssetKey(activeGroup.folder, item.label, idx);
                   const isSelected = selectedAsset?.key === assetKey;
+                  const normalizedLabel = String(item.label ?? "").trim().toLowerCase();
+                  const itemIsShape = shapeFolder || (activeGroup.folder === "Utility" && SHAPE_LABELS.has(normalizedLabel));
 
                   return (
                     <DesignTooltip key={`tooltip-${assetKey}`} content="Drag to add to canvas" position="right">
@@ -662,7 +784,7 @@ export const AssetsPanel = () => {
                           ) : (
                             <AssetLivePreview
                               item={item}
-                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
+                              previewMode={iconFolder ? "icon" : itemIsShape ? "shape" : "full"}
                             />
                           )}
                         </div>
@@ -678,13 +800,75 @@ export const AssetsPanel = () => {
                       {ICON_GROUP_ORDER.map((groupName) => {
                         const items = groupedIconItems[groupName];
                         if (!items.length) return null;
+                        const subgroupKey = `${activeGroup.folder}:${groupName}`;
+                        const isOpen = openSubgroups[subgroupKey] ?? false;
                         return (
-                          <div key={groupName} className="space-y-2">
-                            <div className="px-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
-                              {groupName}
+                          <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenSubgroups((prev) => ({
+                                  ...prev,
+                                  [subgroupKey]: !isOpen,
+                                }));
+                              }}
+                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
+                            >
+                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                                {groupName}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                              </div>
+                            </button>
+
+                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
+                              <div className="grid grid-cols-4 gap-2">
+                                {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                              </div>
                             </div>
-                            <div className="grid grid-cols-4 gap-2">
-                              {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                if (groupedFolderItems) {
+                  return (
+                    <div className="space-y-4 p-0.5">
+                      {groupedFolderItems.orderedGroups.map((groupName) => {
+                        const items = groupedFolderItems.buckets[groupName] || [];
+                        if (!items.length) return null;
+                        const shapeSection = activeGroup.folder === "Utility" && groupName === "Shapes";
+                        const subgroupKey = `${activeGroup.folder}:${groupName}`;
+                        const isOpen = openSubgroups[subgroupKey] ?? false;
+                        return (
+                          <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOpenSubgroups((prev) => ({
+                                  ...prev,
+                                  [subgroupKey]: !isOpen,
+                                }));
+                              }}
+                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
+                            >
+                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                                {groupName}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                              </div>
+                            </button>
+
+                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
+                              <div className={`grid gap-2 ${shapeSection ? "grid-cols-2" : "grid-cols-1"}`}>
+                                {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                              </div>
                             </div>
                           </div>
                         );
