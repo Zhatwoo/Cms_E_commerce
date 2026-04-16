@@ -150,20 +150,5 @@ export const TEMPLATES: TemplateEntry[] = [
 ];
 
 export const GROUPED_TEMPLATES = [
-  {
-    folder: "SaaS",
-    items: [SaaSLandingTemplate],
-  },
-  {
-    folder: "Content",
-    items: [BlogLandingTemplate],
-  },
-  {
-    folder: "Professional",
-    items: [AgencyLandingTemplate],
-  },
-  {
-    folder: "Product",
-    items: [ProductLaunchTemplate],
-  },
+  // Intentionally empty: prebuilt template cards are disabled.
 ];
