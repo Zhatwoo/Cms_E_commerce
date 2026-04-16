@@ -44,6 +44,21 @@ interface TopPanelProps {
   onThemeToggle?: (e?: React.MouseEvent) => void;
 }
 
+type PageSizePreset = {
+  label: string;
+  width: number;
+  height: number;
+  icon: React.ReactNode;
+};
+
+const PAGE_SIZE_PRESETS: PageSizePreset[] = [
+  { label: "Large Desktop", width: 1920, height: 900, icon: <Maximize2 className="w-4 h-4" /> },
+  { label: "Desktop", width: 1440, height: 900, icon: <Monitor className="w-4 h-4" /> },
+  { label: "Laptop", width: 1366, height: 768, icon: <Laptop className="w-4 h-4" /> },
+  { label: "Tablet", width: 834, height: 1112, icon: <Tablet className="w-4 h-4" /> },
+  { label: "Mobile", width: 390, height: 844, icon: <Smartphone className="w-4 h-4" /> },
+];
+
 export const TopPanel: React.FC<TopPanelProps> = ({
   activePageId,
   showDualView = false,
@@ -61,6 +76,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 }) => {
   const { actions, query } = useEditor();
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{
     displayName: string;
     email: string;
@@ -71,6 +87,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
   const userModalRef = useRef<HTMLDivElement>(null);
   const collabListRef = useRef<HTMLDivElement>(null);
+  const pageSizeMenuRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string } | null>(null);
   const STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
@@ -81,6 +98,101 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   let selfUser: { name?: string; username?: string; email?: string } | null = null;
   try { selfUser = getStoredUser(); } catch { }
   const selfInitial = (selfUser?.name || selfUser?.username || selfUser?.email || "?").charAt(0).toUpperCase();
+  const resolveTargetPageId = useCallback((): string | null => {
+    try {
+      const state = query.getState();
+      const nodes = (state?.nodes ?? {}) as Record<string, { data?: { displayName?: string; parent?: string } }>;
+
+      const findPageAncestor = (nodeId: string | null | undefined): string | null => {
+        if (!nodeId) return null;
+        let cursor: string | null = nodeId;
+        const seen = new Set<string>();
+
+        while (cursor && !seen.has(cursor)) {
+          seen.add(cursor);
+          const node = nodes[cursor];
+          if (!node) return null;
+          if (node?.data?.displayName === "Page") return cursor;
+          cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;
+        }
+
+        return null;
+      };
+
+      const selectedIds = selectedToIds(state?.events?.selected);
+      for (const id of selectedIds) {
+        const pageId = findPageAncestor(id);
+        if (pageId) return pageId;
+      }
+
+      const activePage = findPageAncestor(activePageId ?? null);
+      if (activePage) return activePage;
+
+      const firstPageEntry = Object.entries(nodes).find(([, node]) => node?.data?.displayName === "Page");
+      return firstPageEntry ? firstPageEntry[0] : null;
+    } catch {
+      return null;
+    }
+  }, [activePageId, query]);
+
+  const activePageSize = useEditor((state) => {
+    const parseSize = (value: unknown) => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
+        const parsed = Number.parseFloat(value.replace(/px$/i, ""));
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    };
+
+    const nodes = state.nodes ?? {};
+
+    const findPageAncestorFromState = (nodeId: string | null | undefined): string | null => {
+      if (!nodeId) return null;
+      let cursor: string | null = nodeId;
+      const seen = new Set<string>();
+
+      while (cursor && !seen.has(cursor)) {
+        seen.add(cursor);
+        const node = nodes[cursor] as { data?: { displayName?: string; parent?: string } } | undefined;
+        if (!node) return null;
+        if (node?.data?.displayName === "Page") return cursor;
+        cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;
+      }
+
+      return null;
+    };
+
+    let targetPageId: string | null = null;
+
+    const selectedIds = selectedToIds(state?.events?.selected);
+    for (const id of selectedIds) {
+      const pageId = findPageAncestorFromState(id);
+      if (pageId) {
+        targetPageId = pageId;
+        break;
+      }
+    }
+
+    if (!targetPageId) {
+      targetPageId = findPageAncestorFromState(activePageId ?? null);
+    }
+
+    if (!targetPageId) {
+      const firstPageEntry = Object.entries(nodes).find(([, node]: any) => node?.data?.displayName === "Page");
+      targetPageId = firstPageEntry ? firstPageEntry[0] : null;
+    }
+
+    if (!targetPageId) {
+      return { width: null as number | null, height: null as number | null };
+    }
+
+    const node = nodes[targetPageId] as { data?: { props?: Record<string, unknown> } } | undefined;
+    return {
+      width: parseSize(node?.data?.props?.width),
+      height: parseSize(node?.data?.props?.height),
+    };
+  });
 
   // Fetch storage usage (requires auth; skip logging when not authorized)
   const fetchStorageUsage = useCallback(async () => {
@@ -125,11 +237,36 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       ) {
         setShowCollabList(false);
       }
+      if (
+        pageSizeMenuRef.current &&
+        !pageSizeMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowPageSizeMenu(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const applyPageSizePreset = (preset: PageSizePreset) => {
+    const targetPageId = resolveTargetPageId();
+    if (!targetPageId) {
+      console.warn("Page size preset skipped: no target page found");
+      setShowPageSizeMenu(false);
+      return;
+    }
+
+    try {
+      actions.setProp(targetPageId, (props: Record<string, unknown>) => {
+        props.width = `${preset.width}px`;
+        props.height = `${preset.height}px`;
+      });
+    } catch (error) {
+      console.error("Failed to apply page size preset:", error);
+    }
+    setShowPageSizeMenu(false);
+  };
 
 
   const handleRotateCanvas = () => {
@@ -449,6 +586,50 @@ export const TopPanel: React.FC<TopPanelProps> = ({
               <span className="text-xs font-medium">Device</span>
             </button>
           </DesignTooltip>
+
+          {/* Page Size Presets */}
+          <div className="relative" ref={pageSizeMenuRef}>
+            <DesignTooltip content="Page size presets" position="bottom">
+              <button
+                type="button"
+                onClick={() => setShowPageSizeMenu((v) => !v)}
+                className="p-2 rounded-lg transition-colors border border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] active:scale-95 flex items-center gap-2"
+              >
+                <Monitor className="w-4 h-4" />
+                <span className="text-xs font-medium">
+                  {activePageSize.width && activePageSize.height
+                    ? `${activePageSize.width}×${activePageSize.height}`
+                    : "Page Size"}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPageSizeMenu ? "rotate-180" : ""}`} />
+              </button>
+            </DesignTooltip>
+
+            {showPageSizeMenu && (
+              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] shadow-2xl overflow-hidden z-[1001]">
+                {PAGE_SIZE_PRESETS.map((preset) => {
+                  const isActive = activePageSize.width === preset.width && activePageSize.height === preset.height;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => applyPageSizePreset(preset)}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--builder-surface-3)] ${isActive
+                        ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+                        : "text-[var(--builder-text-muted)]"
+                        }`}
+                    >
+                      <span className="shrink-0">{preset.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-[var(--builder-text)]">{preset.label}</div>
+                        <div className="text-[10px] text-[var(--builder-text-faint)]">{preset.width} × {preset.height}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Divider */}
           <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
