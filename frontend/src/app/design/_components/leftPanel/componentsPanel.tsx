@@ -83,7 +83,7 @@ export const ComponentsPanel = () => {
   };
 
   const WORKING_COMPONENTS: ComponentVariant[] = useMemo(() => [
-    { label: "Container", icon: <Layers />,         iconStyle: COMP_STYLES.Container.base, hoverColor: COMP_STYLES.Container.hoverColor, element: <Element is={Container} padding={20} canvas /> },
+    { label: "Container", icon: <Layers />,         iconStyle: COMP_STYLES.Container.base, hoverColor: COMP_STYLES.Container.hoverColor, element: <Element is={Container} background="#f8fafc" padding={20} canvas /> },
     { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" /> },
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },

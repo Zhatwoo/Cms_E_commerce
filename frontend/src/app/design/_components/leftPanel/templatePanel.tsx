@@ -31,7 +31,10 @@ export const TemplatePanel = () => {
                   <DesignTooltip key={`tooltip-${item.label || idx}`} content="Drag to apply this template to canvas" position="right">
                     <div
                       key={item.label || idx}
-                      {...connectors.create}
+                      ref={(ref) => {
+                        if (!ref || !item.element) return;
+                        connectors.create(ref, item.element);
+                      }}
                       className="bg-brand-white/5 p-3 rounded hover:bg-brand-white/10 transition cursor-move border border-brand-medium/30"
                     >
                     <div className="flex items-center justify-between">
