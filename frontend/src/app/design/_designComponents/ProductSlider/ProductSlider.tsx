@@ -41,6 +41,7 @@ export interface ProductSliderProps {
   cardBorderRadius?: number;
   cardBackground?: string;
   cardBorderColor?: string;
+  cardAlign?: "left" | "center" | "right";
 
   // Product card display toggles
   showProductName?: boolean;
@@ -104,6 +105,7 @@ export const ProductSlider = ({
   buttonTextColor = "#ffffff",
   buttonBorderRadius = 6,
   showQuickView = false,
+  cardAlign = "left",
 }: ProductSliderProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
@@ -152,8 +154,8 @@ export const ProductSlider = ({
   }, [productSourceMode, products, selectedProductIds]);
 
   // Responsive card count & width: fills full inner width at every breakpoint
-  const responsiveCardWidth = (() => {
-    if (containerWidth <= 0) return cardWidth;
+  const { responsiveCardWidth, shouldCenter } = (() => {
+    if (containerWidth <= 0) return { responsiveCardWidth: cardWidth, shouldCenter: false };
     // containerWidth = offsetWidth (full element width including padding)
     // inner = content area after subtracting left+right padding
     const inner = Math.max(0, containerWidth - paddingLeft - paddingRight);
@@ -164,13 +166,37 @@ export const ProductSlider = ({
     else if (inner <= 1440) targetCount = 4;   // laptop
     else                    targetCount = 5;   // desktop 1920+
     const visibleCount = Math.max(1, Math.min(targetCount, displayedProducts.length || targetCount));
-    return Math.floor((inner - gap * (visibleCount - 1)) / visibleCount);
+    const widthPerCard = Math.floor((inner - gap * (targetCount - 1)) / targetCount);
+    
+    // Cap card width so they don't get too giant on huge screens/low product counts
+    const finalCardWidth = Math.min(widthPerCard, 420);
+    
+    return {
+      responsiveCardWidth: finalCardWidth,
+      shouldCenter: cardAlign === "center" || (cardAlign !== "right" && displayedProducts.length < targetCount)
+    };
   })();
 
   // Scale image height proportionally with card width (maintain ~1:1.1 aspect ratio)
   const responsiveImageHeight = containerWidth <= 0
     ? imageHeight
     : Math.round(responsiveCardWidth * (imageHeight / Math.max(cardWidth, 1)));
+
+  const {
+    position: nodePosition,
+    top: nodeTop,
+    left: nodeLeft,
+    right: nodeRight,
+    bottom: nodeBottom,
+    zIndex: nodeZIndex,
+  } = useNode((node) => ({
+    position: node.data.props.position,
+    top: node.data.props.top,
+    left: node.data.props.left,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    zIndex: node.data.props.zIndex,
+  }));
 
   const isEmpty = !loading && displayedProducts.length === 0;
 
@@ -192,14 +218,18 @@ export const ProductSlider = ({
         paddingLeft,
         paddingRight,
         boxSizing: "border-box",
-        position: position as React.CSSProperties["position"],
-        top: top ?? undefined,
-        left: left ?? undefined,
-        right: right ?? undefined,
-        bottom: bottom ?? undefined,
-        zIndex: zIndex ?? undefined,
+        position: (nodePosition || position) as React.CSSProperties["position"],
+        top: nodeTop ?? top ?? undefined,
+        left: nodeLeft ?? left ?? undefined,
+        right: nodeRight ?? right ?? undefined,
+        bottom: nodeBottom ?? bottom ?? undefined,
+        zIndex: (nodeZIndex || zIndex) ?? undefined,
       }}
     >
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
       {/* Title */}
       {showTitle && (
         <h2 style={{ fontSize: titleFontSize, fontWeight: 700, color: titleColor, textAlign: titleAlign, marginBottom: gap, marginTop: 0, paddingLeft: 24, paddingRight: 24 }}>
@@ -229,7 +259,23 @@ export const ProductSlider = ({
 
       {/* Slider */}
       {!loading && !isEmpty && (
-        <div style={{ display: "flex", gap, overflowX: "hidden", paddingBottom: 4, flexWrap: "nowrap" }}>
+        <div 
+          className="hide-scrollbar"
+          style={{ 
+            display: "flex", 
+            gap, 
+            overflowX: "auto", 
+            justifyContent: shouldCenter ? "center" : "flex-start",
+            paddingBottom: 16, 
+            paddingLeft: paddingLeft || 24,
+            paddingRight: paddingRight || 24,
+            flexWrap: "nowrap",
+            scrollBehavior: "smooth",
+            WebkitOverflowScrolling: "touch",
+            marginLeft: -(paddingLeft || 0),
+            marginRight: -(paddingRight || 0),
+          }}
+        >
           {displayedProducts.map((product) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;

@@ -90,6 +90,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   const pageSizeMenuRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string } | null>(null);
+  const [storageFetchDisabled, setStorageFetchDisabled] = useState(false);
   const STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
 
   // Get collaboration state
@@ -196,7 +197,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
   // Fetch storage usage (requires auth; skip logging when not authorized)
   const fetchStorageUsage = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId || storageFetchDisabled) return;
     try {
       const data = await getProjectStorage(projectId);
       if (data.success) {
@@ -204,15 +205,25 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const normalized = msg.toLowerCase();
       if (
-        msg.includes("Not authorized") ||
-        msg.includes("no token") ||
-        msg.includes("Backend is unreachable")
+        normalized.includes("not authorized") ||
+        normalized.includes("no token") ||
+        normalized.includes("backend is unreachable")
       ) {
+        return;
+      }
+      if (normalized.includes("project not found") || normalized.includes("not found")) {
+        setStorageUsage(null);
+        setStorageFetchDisabled(true);
         return;
       }
       console.error("Failed to fetch storage usage:", error);
     }
+  }, [projectId, storageFetchDisabled]);
+
+  useEffect(() => {
+    setStorageFetchDisabled(false);
   }, [projectId]);
 
   useEffect(() => {

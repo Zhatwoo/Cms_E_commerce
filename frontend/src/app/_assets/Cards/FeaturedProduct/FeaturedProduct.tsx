@@ -15,6 +15,12 @@ interface FeaturedProductProps {
   maxItems?: number;
   productSourceMode?: FeaturedProductSourceMode;
   selectedProductIds?: string[];
+  position?: string;
+  top?: string;
+  left?: string;
+  right?: string;
+  bottom?: string;
+  zIndex?: number;
   background?: string;
   cardBackground?: string;
   paddingTop?: number;
@@ -32,6 +38,8 @@ interface FeaturedProductProps {
   showStock?: boolean;
   showAddToCart?: boolean;
   showQuantitySelector?: boolean;
+  headerAlign?: "left" | "center" | "right";
+  cardsAlign?: "left" | "center" | "right";
 }
 
 const BADGE_LABELS = ["NEW ARRIVAL", "BEST SELLER", "EDITOR'S PICK"];
@@ -46,6 +54,31 @@ const Row = ({ children, className = "" }: { children: React.ReactNode; classNam
 
 const Label = ({ children }: { children: React.ReactNode }) => (
   <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
+const AlignButtons = ({
+  value,
+  onChange,
+}: {
+  value: "left" | "center" | "right";
+  onChange: (v: "left" | "center" | "right") => void;
+}) => (
+  <div className="flex gap-1">
+    {(["left", "center", "right"] as const).map((a) => (
+      <button
+        key={a}
+        type="button"
+        onClick={() => onChange(a)}
+        className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
+          value === a
+            ? "bg-[var(--builder-accent)] text-white"
+            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+        }`}
+      >
+        {a[0].toUpperCase()}
+      </button>
+    ))}
+  </div>
 );
 
 const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) => (
@@ -115,8 +148,33 @@ export function FeaturedProductCanvas({
   showStock = false,
   showAddToCart = true,
   showQuantitySelector = false,
+  position = "relative",
+  top,
+  left,
+  right,
+  bottom,
+  zIndex,
+  headerAlign,
+  cardsAlign,
 }: FeaturedProductProps) {
-  const { connectors, actions: { setProp } } = useNode();
+  const { 
+    id, 
+    connectors, 
+    actions: { setProp },
+    nodePosition,
+    nodeTop,
+    nodeLeft,
+    nodeRight,
+    nodeBottom,
+    nodeZIndex
+  } = useNode((node) => ({
+    nodePosition: node.data.props.position,
+    nodeTop: node.data.props.top,
+    nodeLeft: node.data.props.left,
+    nodeRight: node.data.props.right,
+    nodeBottom: node.data.props.bottom,
+    nodeZIndex: node.data.props.zIndex,
+  }));
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
   const { projectSubdomain } = useDesignProject();
   const [products, setProducts] = React.useState<ApiProduct[]>([]);
@@ -168,9 +226,15 @@ export function FeaturedProductCanvas({
         flexDirection: "column",
         gap: 24,
         boxSizing: "border-box",
+        position: (nodePosition || position) as React.CSSProperties["position"],
+        top: nodeTop ?? top ?? undefined,
+        left: nodeLeft ?? left ?? undefined,
+        right: nodeRight ?? right ?? undefined,
+        bottom: nodeBottom ?? bottom ?? undefined,
+        zIndex: (nodeZIndex || zIndex) ?? undefined,
       }}
     >
-      <div style={{ maxWidth: 560, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ maxWidth: 560, display: "flex", flexDirection: "column", gap: 8, textAlign: headerAlign ?? "left", alignItems: headerAlign === "center" ? "center" : headerAlign === "right" ? "flex-end" : "flex-start", alignSelf: headerAlign === "center" ? "center" : headerAlign === "right" ? "flex-end" : "flex-start" }}>
         <h2
           data-inline-text-edit
           suppressContentEditableWarning
@@ -229,7 +293,13 @@ export function FeaturedProductCanvas({
       )}
 
       {!loading && !isEmpty && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+        <div style={{ 
+          display: "grid", 
+          gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 220px), 280px))`, 
+          gap: 16,
+          justifyContent: cardsAlign === "center" ? "center" : cardsAlign === "right" ? "end" : "start",
+          justifyItems: cardsAlign === "center" ? "center" : cardsAlign === "right" ? "end" : "start",
+        }}>
           {displayedProducts.map((product, index) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;
@@ -246,6 +316,8 @@ export function FeaturedProductCanvas({
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
+                  maxWidth: 360,
+                  width: "100%",
                 }}
               >
                 <div style={{ position: "relative", width: "100%", height: "clamp(180px, 22vw, 260px)", background: "#F7F4F0" }}>
@@ -397,6 +469,8 @@ export const FeaturedProductSettings = () => {
     showStock,
     showAddToCart,
     showQuantitySelector,
+    headerAlign,
+    cardsAlign,
     actions: { setProp },
   } = useNode((node) => ({
     productSourceMode: (node.data.props.productSourceMode as FeaturedProductSourceMode | undefined) || "auto",
@@ -417,6 +491,8 @@ export const FeaturedProductSettings = () => {
     showStock: (node.data.props.showStock as boolean | undefined) ?? false,
     showAddToCart: (node.data.props.showAddToCart as boolean | undefined) ?? true,
     showQuantitySelector: (node.data.props.showQuantitySelector as boolean | undefined) ?? false,
+    headerAlign: node.data.props.headerAlign as "left" | "center" | "right" | undefined,
+    cardsAlign: node.data.props.cardsAlign as "left" | "center" | "right" | undefined,
   }));
 
   const { projectSubdomain } = useDesignProject();
@@ -583,6 +659,14 @@ export const FeaturedProductSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout" defaultOpen={false}>
+        <Row>
+          <Label>Header Align</Label>
+          <AlignButtons value={headerAlign || "left"} onChange={(v) => setProp((p: FeaturedProductProps) => { p.headerAlign = v; })} />
+        </Row>
+        <Row>
+          <Label>Card Align</Label>
+          <AlignButtons value={cardsAlign || "left"} onChange={(v) => setProp((p: FeaturedProductProps) => { p.cardsAlign = v; })} />
+        </Row>
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">Cards shown</span>
           <input
