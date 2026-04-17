@@ -68,7 +68,7 @@ export const Page = ({
       data-node-id={id}
       data-page-node="true"
       ref={ref => { if (ref) connect(ref); }}
-      className={`rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150 ${isMobile ? "is-mobile-view" : ""} ${isTablet ? "is-tablet-view" : ""}`}
+      className={`no-scrollbar rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150 ${isMobile ? "is-mobile-view" : ""} ${isTablet ? "is-tablet-view" : ""}`}
       style={{
         position: "absolute",
         left: `${canvasX}px`,
@@ -86,7 +86,8 @@ export const Page = ({
           }
           return background;
         })(),
-        overflow: "hidden",
+        overflowX: "hidden",
+        overflowY: "auto",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
         transformOrigin: "center center",
         transition: "transform 220ms ease-out, width 220ms ease-out",
