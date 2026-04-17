@@ -220,3 +220,38 @@ export async function deleteDraft(projectId: string): Promise<{ success: boolean
         return { success: false, error: 'Network error' };
     }
 }
+
+/**
+ * Get all pages for a project (used for templates)
+ * Returns array of all pages/drafts in a project
+ */
+export async function getAllDrafts(projectId: string): Promise<{ success: boolean; data?: any[]; error?: string }> {
+    try {
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+
+        const response = await safeFetch(`${API_BASE_URL}/pages/draft/all?projectId=${projectId}`, {
+            method: 'GET',
+            headers,
+            credentials: 'include'
+        });
+
+        if (!response) {
+            return { success: false, data: [], error: 'Network error' };
+        }
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return { success: false, data: [], error: data?.message || 'Failed to fetch pages' };
+        }
+
+        return { success: true, data: data.data || [] };
+    } catch (error) {
+        console.error('Get all drafts error:', error);
+        return { success: false, data: [], error: 'Network error' };
+    }
+}

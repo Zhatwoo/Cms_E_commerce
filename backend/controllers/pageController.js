@@ -440,6 +440,75 @@ exports.getDraft = async (req, res) => {
   }
 };
 
+// @desc    Get all pages for a project (used for templates)
+// @route   GET /api/pages/draft/all
+// @access  Private
+exports.getAllDrafts = async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  try {
+    const userId = req.user.id;
+    const userRole = String(req.user.role || '').toLowerCase();
+    const userEmail = (req.user.email || '').toLowerCase();
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID is required'
+      });
+    }
+
+    let resolved = await resolveProjectOwner(userId, projectId, userEmail);
+
+    // Admin moderation views may request previews for projects they do not directly own/collaborate on.
+    if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
+      try {
+        const projectSnap = await db
+          .collectionGroup('projects')
+          .limit(100)
+          .get();
+
+        const projectDoc = projectSnap.docs.find((doc) => doc.id === projectId);
+        if (projectDoc) {
+          const ownerId = projectDoc.ref.parent?.parent?.id;
+          if (ownerId) {
+            resolved = { ownerId, permission: 'admin' };
+          }
+        }
+      } catch (err) {
+        console.warn('[pageController.getAllDrafts] admin project lookup failed:', err.message);
+      }
+    }
+
+    if (!resolved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this project'
+      });
+    }
+
+    // Auto-register public-link users as collaborators
+    if (resolved.isPublic) {
+      await ensurePublicCollaborator(resolved.ownerId, projectId, userId, userEmail, resolved.permission);
+    }
+
+    const { ownerId } = resolved;
+    const allPages = await Page.getAllPageData(ownerId, projectId);
+
+    res.status(200).json({
+      success: true,
+      data: allPages
+    });
+  } catch (error) {
+    console.error('❌ Get all drafts error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
 // @desc    Delete user's draft page
 // @route   DELETE /api/pages/draft
 // @access  Private
