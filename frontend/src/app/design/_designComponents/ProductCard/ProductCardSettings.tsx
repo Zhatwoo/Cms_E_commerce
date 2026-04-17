@@ -36,6 +36,31 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
+const AlignButtons = ({
+  value,
+  onChange,
+}: {
+  value: "left" | "center" | "right";
+  onChange: (v: "left" | "center" | "right") => void;
+}) => (
+  <div className="flex gap-1">
+    {(["left", "center", "right"] as const).map((a) => (
+      <button
+        key={a}
+        type="button"
+        onClick={() => onChange(a)}
+        className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
+          value === a
+            ? "bg-[var(--builder-accent)] text-white"
+            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+        }`}
+      >
+        {a[0].toUpperCase()}
+      </button>
+    ))}
+  </div>
+);
+
 export const ProductCardSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as ProductCardProps }));
   const { projectSubdomain } = useDesignProject();
@@ -156,6 +181,10 @@ export const ProductCardSettings = () => {
             </Row>
           </div>
         )}
+        <Row>
+          <Label>Alignment</Label>
+          <AlignButtons value={props.contentAlign || "left"} onChange={(v) => set("contentAlign", v)} />
+        </Row>
         <Toggle checked={!!props.showAddToCart} onChange={(v) => set("showAddToCart", v)} label="Add to Cart button" />
         <Toggle checked={!!props.showQuickView} onChange={(v) => set("showQuickView", v)} label="Quick View button" />
       </DesignSection>

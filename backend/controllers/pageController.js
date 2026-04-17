@@ -228,6 +228,29 @@ exports.autoSave = async (req, res) => {
 
     const resolved = await resolveProjectOwner(userId, projectId, userEmail);
     if (!resolved) {
+      // Template library projects are intentionally shareable across accounts.
+      // If the requested project is a template, allow read-only draft access.
+      try {
+        const projectSnap = await db.collectionGroup('projects').get();
+        const templateDoc = projectSnap.docs.find((doc) => {
+          if (doc.id !== projectId) return false;
+          const data = doc.data() || {};
+          const status = String(data.status || '').trim().toLowerCase();
+          return status === 'template';
+        });
+
+        if (templateDoc) {
+          const ownerId = templateDoc.ref.parent?.parent?.id;
+          if (ownerId) {
+            resolved = { ownerId, permission: 'viewer', isTemplateLibrary: true };
+          }
+        }
+      } catch (err) {
+        console.warn('[pageController.getDraft] template library fallback failed:', err.message);
+      }
+    }
+
+    if (!resolved) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this project'

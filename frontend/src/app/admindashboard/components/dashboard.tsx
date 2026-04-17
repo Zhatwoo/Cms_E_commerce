@@ -24,13 +24,7 @@ import { useAdminLoading } from './LoadingProvider';
 function DashboardPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
     return (
         <section
-            className={`rounded-[28px] ${className}`.trim()}
-            style={{
-                background: 'rgba(255,255,255,0.88)',
-                border: '1px solid rgba(166,61,255,0.16)',
-                boxShadow: '0 20px 50px rgba(103,2,191,0.12), 0 4px 12px rgba(103,2,191,0.04)',
-                backdropFilter: 'blur(20px)',
-            }}
+            className={`rounded-3xl border border-[#E2C7FF] bg-[#FDFCFF]/95 shadow-[0_14px_40px_rgba(177,59,255,0.14)] backdrop-blur-sm ${className}`.trim()}
         >
             {children}
         </section>
@@ -42,7 +36,7 @@ function DashboardPanel({ children, className = '' }: { children: React.ReactNod
 type ChartSeriesItem = { label: string; color: string; points: readonly number[] };
 
 const CW = 240, CH = 110, LP = 28, RP = 10, TP = 12, BP = 26;
-const CHART_TEXT_COLOR = 'rgba(74, 26, 138, 0.5)';
+const CHART_TEXT_COLOR = 'rgba(94, 69, 143, 0.82)';
 
 function toPoints(points: readonly number[], maxValue: number) {
     if (points.length === 0) return '';
@@ -77,17 +71,17 @@ function DashboardLineChart({ series }: { series: readonly ChartSeriesItem[] }) 
                     const y = TP + ((roundedMax - v) / roundedMax) * (CH - TP - BP);
                     return (
                         <g key={v}>
-                            <line x1={LP} y1={y} x2={CW - RP} y2={y} stroke="rgba(103,2,191,0.08)" strokeWidth="1" />
+                            <line x1={LP} y1={y} x2={CW - RP} y2={y} stroke="rgba(177, 59, 255, 0.2)" strokeWidth="1" />
                             <text x={8} y={y + 3} fontSize="8" fill={CHART_TEXT_COLOR}>{v}</text>
                         </g>
                     );
                 })}
 
                 {/* Vertical guides at start and end points (Half-lines) */}
-                <line x1={LP} y1={TP} x2={LP} y2={CH - BP} stroke="rgba(103,2,191,0.18)" strokeWidth="1" strokeDasharray="3,3" />
-                <line x1={CW - RP} y1={TP} x2={CW - RP} y2={CH - BP} stroke="rgba(103,2,191,0.18)" strokeWidth="1" strokeDasharray="3,3" />
+                <line x1={LP} y1={TP} x2={LP} y2={CH - BP} stroke="rgba(177, 59, 255, 0.45)" strokeWidth="1" strokeDasharray="3,3" />
+                <line x1={CW - RP} y1={TP} x2={CW - RP} y2={CH - BP} stroke="rgba(177, 59, 255, 0.45)" strokeWidth="1" strokeDasharray="3,3" />
 
-                <line x1={LP} y1={CH - BP} x2={CW - RP} y2={CH - BP} stroke="rgba(103,2,191,0.18)" strokeWidth="1" />
+                <line x1={LP} y1={CH - BP} x2={CW - RP} y2={CH - BP} stroke="rgba(177, 59, 255, 0.45)" strokeWidth="1" />
                 
                 {series.map((item) => (
                     <g key={item.label}>
@@ -102,7 +96,7 @@ function DashboardLineChart({ series }: { series: readonly ChartSeriesItem[] }) 
                 <text x={LP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="start">7 DAYS AGO</text>
                 <text x={CW - RP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="end">TODAY</text>
             </svg>
-            <div className="mt-1 flex items-center justify-center gap-4 text-[10px]" style={{ color: '#a090c8' }}>
+            <div className="mt-1 flex items-center justify-center gap-4 text-[10px] text-[#9A8CB4]">
                 {series.map((item) => (
                     <div key={item.label} className="flex items-center gap-1.5">
                         <svg width="12" height="6" viewBox="0 0 12 6" aria-hidden>
@@ -148,23 +142,23 @@ function DashboardStatCard({
                 <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                         <div className="flex items-center gap-3">
-                            <p className="text-[2.25rem] font-black leading-none tracking-tight" style={{ color: '#4a1a8a' }}>{value}</p>
+                            <p className="text-[2.1rem] font-bold leading-none tracking-tight text-[#26155E]">{value}</p>
                             {!change.isNeutral && (
-                                <div className={`flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                <div className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                                     change.isIncrease 
-                                        ? 'bg-emerald-50 text-emerald-600' 
-                                        : 'bg-rose-50 text-rose-600'
-                                } shadow-sm`}>
+                                        ? 'bg-emerald-50 text-emerald-700' 
+                                        : 'bg-rose-50 text-rose-700'
+                                }`}>
                                     {change.isIncrease ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
                                     {change.value}
                                 </div>
                             )}
                         </div>
-                        <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.15em] opacity-60" style={{ color: '#4a1a8a' }}>{title}</p>
+                        <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#7E4FB4]">{title}</p>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                        <span className="flex items-center gap-1.5 text-[10px] font-bold" style={{ color: '#10B981' }}>
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                        <span className="flex items-center gap-1.5 text-[10px] font-semibold text-emerald-700">
+                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
                             {liveLabel}
                         </span>
                     </div>
@@ -172,9 +166,9 @@ function DashboardStatCard({
                 
                 <DashboardLineChart series={series} />
 
-                <div className="mt-4 pt-4 border-t border-[rgba(166,61,255,0.06)] flex items-center justify-between">
-                    <span className="text-[9px] font-bold text-[#A78BFA] uppercase tracking-widest whitespace-nowrap">Weekly Momentum</span>
-                    <span className="text-[9px] font-bold text-[#471396] opacity-50 whitespace-nowrap">Compared to last week</span>
+                <div className="mt-4 flex items-center justify-between border-t border-[#E9D8FF] pt-4">
+                    <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-widest text-[#7E4FB4]">Weekly Momentum</span>
+                    <span className="whitespace-nowrap text-[9px] font-medium text-[#A48ABF]">Compared to last week</span>
                 </div>
             </DashboardPanel>
         </motion.div>
@@ -192,23 +186,22 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
         >
             <DashboardPanel className="h-[22rem] p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Recent User Actions</h2>
-                    <button type="button" suppressHydrationWarning className="text-xs transition-opacity hover:opacity-70" style={{ color: '#a090c8' }}>
+                    <h2 className="text-[1.3rem] font-semibold text-[#26155E]">Recent User Actions</h2>
+                    <button type="button" suppressHydrationWarning className="text-xs text-[#7E4FB4] transition-opacity hover:opacity-70">
                         View audit log
                     </button>
                 </div>
                 <div
-                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-[18px] p-3 sm:p-4"
-                    style={{ background: 'rgba(240,235,255,0.6)', border: '1px solid rgba(166,61,255,0.08)' }}
+                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-2xl border border-[#E2C7FF] bg-[#F8F2FF]/70 p-3 sm:p-4"
                 >
                     <div className="space-y-3">
                     {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 rounded-[14px] px-4 py-4" style={{ background: 'rgba(255,255,255,0.6)' }}>
-                            <div className="w-1 shrink-0 rounded-full" style={{ background: '#f5c000' }} />
+                        <div key={item.id} className="flex gap-4 rounded-2xl border border-[#E9D8FF] bg-white px-4 py-4">
+                            <div className="w-1 shrink-0 rounded-full bg-[#FFCC00]" />
                             <div className="min-w-0">
-                                <p className="text-base font-semibold" style={{ color: '#4a1a8a' }}>{item.title}</p>
-                                <p className="mt-1 text-sm" style={{ color: '#7a6aa0' }}>{item.action}</p>
-                                <p className="text-sm" style={{ color: '#a090c8' }}>{item.meta}</p>
+                                <p className="text-base font-semibold text-[#26155E]">{item.title}</p>
+                                <p className="mt-1 text-sm text-[#6F657E]">{item.action}</p>
+                                <p className="text-sm text-[#A48ABF]">{item.meta}</p>
                             </div>
                         </div>
                     ))}
@@ -223,6 +216,13 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
 
 function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
     const { startLoading } = useAdminLoading();
+    const typeDotClass: Record<string, string> = {
+        error: 'bg-red-500',
+        warning: 'bg-amber-500',
+        success: 'bg-emerald-500',
+        info: 'bg-sky-500',
+    };
+
     return (
         <motion.div
             initial={{ opacity: 0, x: 18 }}
@@ -231,37 +231,31 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
         >
             <DashboardPanel className="h-[22rem] p-5 sm:p-6">
                 <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-[1.45rem] font-semibold" style={{ color: '#4a1a8a' }}>Notifications</h2>
+                    <h2 className="text-[1.3rem] font-semibold text-[#26155E]">Notifications</h2>
                     <Link
                         href="/admindashboard/notifications"
                         onClick={() => startLoading()}
-                        className="text-xs font-semibold transition-opacity hover:opacity-70"
-                        style={{ color: '#a090c8' }}
+                        className="text-xs font-semibold text-[#7E4FB4] transition-opacity hover:opacity-70"
                     >
                         View all notifications
                     </Link>
                 </div>
                 <div className="mt-6 h-[calc(100%-3.4rem)] space-y-4 overflow-y-auto pr-1">
                     {items.length === 0 ? (
-                        <p className="text-sm text-[#a090c8]">No recent notifications.</p>
+                        <p className="text-sm text-[#7E4FB4]">No recent notifications.</p>
                     ) : (
                         items.map((item) => (
-                            <div key={item.id} className="flex items-start justify-between gap-4">
+                            <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-[#E9D8FF] bg-[#F8F2FF]/70 px-3 py-2.5">
                                 <div className="flex items-start gap-4">
                                     <span 
-                                        className="mt-1.5 h-3 w-3 rounded-full shrink-0" 
-                                        style={{ 
-                                            background: item.type === 'error' ? '#FF4343' : 
-                                                       item.type === 'warning' ? '#f5c000' : 
-                                                       item.type === 'success' ? '#10B981' : '#B13BFF' 
-                                        }} 
+                                        className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${typeDotClass[item.type] || 'bg-[#A48ABF]'}`}
                                     />
                                     <div>
-                                        <p className="text-sm font-semibold" style={{ color: '#4a1a8a' }}>{item.title}</p>
-                                        <p className="text-xs mt-0.5 line-clamp-2" style={{ color: '#7a6aa0' }}>{item.message}</p>
+                                        <p className="text-sm font-semibold text-[#26155E]">{item.title}</p>
+                                        <p className="mt-0.5 line-clamp-2 text-xs text-[#6F657E]">{item.message}</p>
                                     </div>
                                 </div>
-                                <p className="text-right text-[10px] whitespace-nowrap mt-1" style={{ color: '#a090c8' }}>
+                                <p className="mt-1 whitespace-nowrap text-right text-[10px] text-[#A48ABF]">
                                     {formatToPHTimeShort(item.time)}
                                 </p>
                             </div>
@@ -399,33 +393,36 @@ export function AdminDashboard() {
     return (
         <main className="flex-1 overflow-y-auto">
             <div className="w-full px-4 pb-24 pt-4 sm:px-6 lg:px-6 lg:pb-32 lg:pt-6">
+                <div className="rounded-3xl border border-[rgba(177,59,255,0.29)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.14)] sm:px-7">
                 <div className="flex flex-col gap-2">
                     <motion.h1
-                        className="text-[2.65rem] font-extrabold leading-none tracking-[-0.05em] sm:text-[3.65rem]"
-                        style={{ color: '#4a1a8a' }}
+                        className="text-[2.45rem] font-bold leading-none tracking-[-0.04em] text-[#26155E] sm:text-[3.35rem]"
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.45, ease: [0.25, 0.8, 0.25, 1] }}
                     >
                         Welcome,{' '}
-                        <span style={{
-                            background: 'linear-gradient(90deg, #7b1de8 0%, #b36760 52%, #f5a623 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                        }}>
+                        <span className="bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] bg-clip-text text-transparent">
                             {displayName}!
                         </span>
                     </motion.h1>
                     <motion.p
-                        className="text-sm font-medium sm:text-base"
-                        style={{ color: '#7a6aa0' }}
+                        className="text-sm font-medium text-[#7E4FB4] sm:text-base"
                         initial={{ opacity: 0, y: 12 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.45, delay: 0.08, ease: [0.25, 0.8, 0.25, 1] }}
                     >
-                        Overview
+                        A clean snapshot of platform health and live activity.
                     </motion.p>
+                    <motion.p
+                        className="text-sm font-semibold text-[#6D28D9] sm:text-base"
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.45, delay: 0.12, ease: [0.25, 0.8, 0.25, 1] }}
+                    >
+                        hello jonathan crush kita
+                    </motion.p>
+                </div>
                 </div>
 
                 <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -436,8 +433,8 @@ export function AdminDashboard() {
                             trend: stats.trends.users,
                             maxTrend: stats.trends.maxActiveUsers,
                             series: [
-                                { label: 'Peak Active Users', color: '#B13BFF', points: stats.trends.maxActiveUsers },
-                                { label: 'Actual Active Users', color: '#FFB800', points: stats.trends.users }
+                                { label: 'Peak Active Users', color: '#6D28D9', points: stats.trends.maxActiveUsers },
+                                { label: 'Actual Active Users', color: '#B13BFF', points: stats.trends.users }
                             ]
                         },
                         { title: 'PUBLISHED WEBSITES', value: stats.publishedWebsites, trend: stats.trends.websites },
@@ -449,7 +446,7 @@ export function AdminDashboard() {
                             title={metric.title}
                             value={String(metric.value)}
                             liveLabel="Live"
-                            series={metric.series || [{ label: 'Platform Growth', color: '#B13BFF', points: metric.trend }]}
+                            series={metric.series || [{ label: 'Platform Growth', color: '#8E47D8', points: metric.trend }]}
                             index={index}
                         />
                     ))}

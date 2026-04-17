@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 
 interface DesignTooltipProps {
     children: React.ReactNode;
@@ -17,59 +18,108 @@ export const DesignTooltip: React.FC<DesignTooltipProps> = ({
     position = "bottom",
 }) => {
     const [isVisible, setIsVisible] = useState(false);
-    let timeout: NodeJS.Timeout;
+    const [tooltipPos, setTooltipPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+    const triggerRef = useRef<HTMLDivElement>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    const TOOLTIP_WIDTH = 220;
+    const EDGE_PADDING = 10;
 
     const handleMouseEnter = () => {
-        timeout = setTimeout(() => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        timeoutRef.current = setTimeout(() => {
             setIsVisible(true);
+            if (triggerRef.current) {
+                const rect = triggerRef.current.getBoundingClientRect();
+                const offset = 8;
+
+                let top = rect.top;
+                let left = rect.left + rect.width / 2;
+
+                switch (position) {
+                    case "top":
+                        top = rect.top - offset;
+                        break;
+                    case "bottom":
+                        top = rect.bottom + offset;
+                        break;
+                    case "left":
+                        left = rect.left - offset;
+                        top = rect.top + rect.height / 2;
+                        break;
+                    case "right":
+                        left = rect.right + offset;
+                        top = rect.top + rect.height / 2;
+                        break;
+                }
+
+                const clampedLeft = Math.min(
+                    window.innerWidth - TOOLTIP_WIDTH / 2 - EDGE_PADDING,
+                    Math.max(TOOLTIP_WIDTH / 2 + EDGE_PADDING, left)
+                );
+
+                setTooltipPos({ top, left: clampedLeft });
+            }
         }, delay * 1000);
     };
 
     const handleMouseLeave = () => {
-        clearTimeout(timeout);
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
         setIsVisible(false);
     };
 
-    const positions = {
-        top: "bottom-full left-1/2 -translate-x-1/2 mb-2",
-        bottom: "top-full left-1/2 -translate-x-1/2 mt-2",
-        left: "right-full top-1/2 -translate-y-1/2 mr-2",
-        right: "left-full top-1/2 -translate-y-1/2 ml-2",
-    };
+    useEffect(() => {
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, []);
+
+    const tooltipNode = (
+        <AnimatePresence>
+            {isVisible && (
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="fixed z-[9999] pointer-events-none"
+                    style={{
+                        top: position === "top" ? `${Math.max(EDGE_PADDING, tooltipPos.top - 8)}px` : `${tooltipPos.top}px`,
+                        left: `${tooltipPos.left}px`,
+                        transform:
+                            position === "left" || position === "right"
+                                ? "translateY(-50%)"
+                                : "translateX(-50%)",
+                    }}
+                >
+                    <div
+                        className={`px-3 py-2 bg-brand-black/95 backdrop-blur-md border border-brand-white/10 rounded-md shadow-2xl max-w-[220px] ${
+                            position === "bottom" ? "mt-3" : position === "top" ? "mb-3" : ""
+                        }`}
+                    >
+                        <span className="text-[12px] font-medium text-brand-light tracking-wide leading-relaxed whitespace-normal break-words">
+                            {content}
+                        </span>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
 
     return (
-        <div
-            className="relative flex items-center"
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-        >
-            {children}
-            <AnimatePresence>
-                {isVisible && (
-                    <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: position === "top" ? 5 : -5 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: position === "top" ? 5 : -5 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                        className={`absolute z-[9999] pointer-events-none ${positions[position]}`}
-                    >
-                        <div className="px-2 py-1 bg-brand-black/90 backdrop-blur-md border border-transparent rounded-md shadow-xl whitespace-nowrap">
-                            <span className="text-[10px] font-medium text-brand-light tracking-wide">
-                                {content}
-                            </span>
-                        </div>
-                        {/* Arrow */}
-                        <div
-                            className={`absolute w-1.5 h-1.5 bg-brand-black/90 border-transparent rotate-45 pointer-events-none
-                ${position === "top" ? "bottom-[-4px] left-1/2 -translate-x-1/2 border-r border-b" : ""}
-                ${position === "bottom" ? "top-[-4px] left-1/2 -translate-x-1/2 border-l border-t" : ""}
-                ${position === "left" ? "right-[-4px] top-1/2 -translate-y-1/2 border-r border-t" : ""}
-                ${position === "right" ? "left-[-4px] top-1/2 -translate-y-1/2 border-l border-b" : ""}
-              `}
-                        />
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
+        <>
+            <div
+                ref={triggerRef}
+                className="block"
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+            >
+                {children}
+            </div>
+            {typeof window !== "undefined" ? createPortal(tooltipNode, document.body) : null}
+        </>
     );
 };

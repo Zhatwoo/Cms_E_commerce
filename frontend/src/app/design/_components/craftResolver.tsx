@@ -61,6 +61,9 @@ import { BrandLogosBlock } from "../../_assets/Content/BrandLogosBlock";
 import { CTABannerBlock } from "../../_assets/Content/CTABannerBlock";
 import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
+import { FeaturedProductCanvas } from "../../_assets/Cards/FeaturedProduct/FeaturedProduct";
+import { ProductDescriptionCanvas } from "../../_assets/Cards/ProductDescription/ProductDescription";
+import { TeamMemberCardCanvas } from "../../_assets/Cards/teammembercard/teammembercard";
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -193,6 +196,9 @@ export function buildCraftResolver(): Resolver {
   const CTABannerBlockComp = asComponent(CTABannerBlock, ContainerComp);
   const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
+  const FeaturedProductCanvasComp = asComponent(FeaturedProductCanvas, ContainerComp);
+  const ProductDescriptionCanvasComp = asComponent(ProductDescriptionCanvas, ContainerComp);
+  const TeamMemberCardCanvasComp = asComponent(TeamMemberCardCanvas, ContainerComp);
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -224,6 +230,8 @@ export function buildCraftResolver(): Resolver {
     Video: VideoComp,
     video: VideoComp,
     VIDEO: VideoComp,
+    VideoComponent: VideoComp,
+    "Video Component": VideoComp,
     Button: ButtonComp,
     button: ButtonComp,
     Divider: DividerComp,
@@ -333,6 +341,23 @@ export function buildCraftResolver(): Resolver {
     "Category Tile": CategoryTileComp,
     CategoriesCardCanvas: CategoriesCardCanvasComp,
     categoriescardcanvas: CategoriesCardCanvasComp,
+    CategoriesCard: CategoriesCardCanvasComp,
+    categoriescard: CategoriesCardCanvasComp,
+    FeaturedProductCanvas: FeaturedProductCanvasComp,
+    featuredproductcanvas: FeaturedProductCanvasComp,
+    FeaturedProduct: FeaturedProductCanvasComp,
+    featuredproduct: FeaturedProductCanvasComp,
+    "Featured Product": FeaturedProductCanvasComp,
+    ProductDescriptionCanvas: ProductDescriptionCanvasComp,
+    productdescriptioncanvas: ProductDescriptionCanvasComp,
+    ProductDescription: ProductDescriptionCanvasComp,
+    productdescription: ProductDescriptionCanvasComp,
+    "Product Description": ProductDescriptionCanvasComp,
+    TeamMemberCardCanvas: TeamMemberCardCanvasComp,
+    teammembercardcanvas: TeamMemberCardCanvasComp,
+    TeamMemberCard: TeamMemberCardCanvasComp,
+    teammembercard: TeamMemberCardCanvasComp,
+    "Team Member Card": TeamMemberCardCanvasComp,
     FeaturesGridBlock: FeaturesGridBlockComp,
     featuresgridblock: FeaturesGridBlockComp,
     "Features Grid Block": FeaturesGridBlockComp,
@@ -361,6 +386,9 @@ export function buildCraftResolver(): Resolver {
   base.text = TextComp;
   base.Container = ContainerComp;
   base.container = ContainerComp;
+  base.Video = VideoComp;
+  base.video = VideoComp;
+  addAliases(base, "Video", VideoComp, ["video component", "Video Component"]);
   addAliases(base, "Button", ButtonComp);
   addAliases(base, "Divider", DividerComp);
   addAliases(base, "Banner", BannerComp);
@@ -378,6 +406,10 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
   addAliases(base, "CategoriesCardCanvas", CategoriesCardCanvasComp, ["Categories Card Canvas", "categoriescardcanvas"]);
+  addAliases(base, "CategoriesCard", CategoriesCardCanvasComp, ["Categories Card", "categoriescard"]);
+  addAliases(base, "FeaturedProductCanvas", FeaturedProductCanvasComp, ["Featured Product", "featuredproduct", "FeaturedProduct"]);
+  addAliases(base, "ProductDescriptionCanvas", ProductDescriptionCanvasComp, ["Product Description", "productdescription", "ProductDescription"]);
+  addAliases(base, "TeamMemberCardCanvas", TeamMemberCardCanvasComp, ["Team Member Card", "teammembercard", "TeamMemberCard"]);
   addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);

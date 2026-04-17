@@ -28,53 +28,8 @@ import { getStoredUser, getProjectStorage } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
 import { HardDrive } from "lucide-react";
 
-export type DevicePreset = {
-  name: string;
-  width: number;
-  height: number;
-  icon: React.ReactNode;
-};
-
-const MOBILE_PRESET: DevicePreset = {
-  name: "Phone",
-  width: 375,
-  height: 667,
-  icon: <Smartphone className="w-4 h-4" />,
-};
-
-const LAPTOP_PRESET: DevicePreset = {
-  name: "Laptop",
-  width: 1440,
-  height: 900,
-  icon: <Laptop className="w-4 h-4" />,
-};
-
-const DEVICE_PRESETS: DevicePreset[] = [
-  MOBILE_PRESET,
-  {
-    name: "Tablet Portrait",
-    width: 768,
-    height: 1024,
-    icon: <Tablet className="w-4 h-4" />,
-  },
-  {
-    name: "Tablet Landscape",
-    width: 1024,
-    height: 768,
-    icon: <Tablet className="w-4 h-4 rotate-90" />,
-  },
-  LAPTOP_PRESET,
-  {
-    name: "Desktop",
-    width: 1920,
-    height: 1080,
-    icon: <Monitor className="w-4 h-4" />,
-  },
-];
-
 interface TopPanelProps {
   activePageId?: string | null;
-  onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
   projectId?: string;
@@ -89,9 +44,23 @@ interface TopPanelProps {
   onThemeToggle?: (e?: React.MouseEvent) => void;
 }
 
+type PageSizePreset = {
+  label: string;
+  width: number;
+  height: number;
+  icon: React.ReactNode;
+};
+
+const PAGE_SIZE_PRESETS: PageSizePreset[] = [
+  { label: "Large Desktop", width: 1920, height: 900, icon: <Maximize2 className="w-4 h-4" /> },
+  { label: "Desktop", width: 1440, height: 900, icon: <Monitor className="w-4 h-4" /> },
+  { label: "Laptop", width: 1366, height: 768, icon: <Laptop className="w-4 h-4" /> },
+  { label: "Tablet", width: 834, height: 1112, icon: <Tablet className="w-4 h-4" /> },
+  { label: "Mobile", width: 390, height: 844, icon: <Smartphone className="w-4 h-4" /> },
+];
+
 export const TopPanel: React.FC<TopPanelProps> = ({
   activePageId,
-  onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
   projectId,
@@ -106,9 +75,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onThemeToggle,
 }) => {
   const { actions, query } = useEditor();
-  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{
     displayName: string;
     email: string;
@@ -117,11 +85,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     isSelf?: boolean;
   } | null>(null);
 
-  const sizeDropdownRef = useRef<HTMLDivElement>(null);
   const userModalRef = useRef<HTMLDivElement>(null);
   const collabListRef = useRef<HTMLDivElement>(null);
+  const pageSizeMenuRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string } | null>(null);
+  const [storageFetchDisabled, setStorageFetchDisabled] = useState(false);
   const STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
 
   // Get collaboration state
@@ -130,20 +99,105 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   let selfUser: { name?: string; username?: string; email?: string } | null = null;
   try { selfUser = getStoredUser(); } catch { }
   const selfInitial = (selfUser?.name || selfUser?.username || selfUser?.email || "?").charAt(0).toUpperCase();
+  const resolveTargetPageId = useCallback((): string | null => {
+    try {
+      const state = query.getState();
+      const nodes = (state?.nodes ?? {}) as Record<string, { data?: { displayName?: string; parent?: string } }>;
 
-  // Sync selected preset with current canvas dimensions
-  useEffect(() => {
-    const matchingPreset = DEVICE_PRESETS.find(
-      (p) => p.width === canvasWidth && p.height === canvasHeight
-    );
-    if (matchingPreset) {
-      setSelectedPreset(matchingPreset);
+      const findPageAncestor = (nodeId: string | null | undefined): string | null => {
+        if (!nodeId) return null;
+        let cursor: string | null = nodeId;
+        const seen = new Set<string>();
+
+        while (cursor && !seen.has(cursor)) {
+          seen.add(cursor);
+          const node = nodes[cursor];
+          if (!node) return null;
+          if (node?.data?.displayName === "Page") return cursor;
+          cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;
+        }
+
+        return null;
+      };
+
+      const selectedIds = selectedToIds(state?.events?.selected);
+      for (const id of selectedIds) {
+        const pageId = findPageAncestor(id);
+        if (pageId) return pageId;
+      }
+
+      const activePage = findPageAncestor(activePageId ?? null);
+      if (activePage) return activePage;
+
+      const firstPageEntry = Object.entries(nodes).find(([, node]) => node?.data?.displayName === "Page");
+      return firstPageEntry ? firstPageEntry[0] : null;
+    } catch {
+      return null;
     }
-  }, [canvasWidth, canvasHeight]);
+  }, [activePageId, query]);
+
+  const activePageSize = useEditor((state) => {
+    const parseSize = (value: unknown) => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
+        const parsed = Number.parseFloat(value.replace(/px$/i, ""));
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    };
+
+    const nodes = state.nodes ?? {};
+
+    const findPageAncestorFromState = (nodeId: string | null | undefined): string | null => {
+      if (!nodeId) return null;
+      let cursor: string | null = nodeId;
+      const seen = new Set<string>();
+
+      while (cursor && !seen.has(cursor)) {
+        seen.add(cursor);
+        const node = nodes[cursor] as { data?: { displayName?: string; parent?: string } } | undefined;
+        if (!node) return null;
+        if (node?.data?.displayName === "Page") return cursor;
+        cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;
+      }
+
+      return null;
+    };
+
+    let targetPageId: string | null = null;
+
+    const selectedIds = selectedToIds(state?.events?.selected);
+    for (const id of selectedIds) {
+      const pageId = findPageAncestorFromState(id);
+      if (pageId) {
+        targetPageId = pageId;
+        break;
+      }
+    }
+
+    if (!targetPageId) {
+      targetPageId = findPageAncestorFromState(activePageId ?? null);
+    }
+
+    if (!targetPageId) {
+      const firstPageEntry = Object.entries(nodes).find(([, node]: any) => node?.data?.displayName === "Page");
+      targetPageId = firstPageEntry ? firstPageEntry[0] : null;
+    }
+
+    if (!targetPageId) {
+      return { width: null as number | null, height: null as number | null };
+    }
+
+    const node = nodes[targetPageId] as { data?: { props?: Record<string, unknown> } } | undefined;
+    return {
+      width: parseSize(node?.data?.props?.width),
+      height: parseSize(node?.data?.props?.height),
+    };
+  });
 
   // Fetch storage usage (requires auth; skip logging when not authorized)
   const fetchStorageUsage = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId || storageFetchDisabled) return;
     try {
       const data = await getProjectStorage(projectId);
       if (data.success) {
@@ -151,15 +205,25 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const normalized = msg.toLowerCase();
       if (
-        msg.includes("Not authorized") ||
-        msg.includes("no token") ||
-        msg.includes("Backend is unreachable")
+        normalized.includes("not authorized") ||
+        normalized.includes("no token") ||
+        normalized.includes("backend is unreachable")
       ) {
+        return;
+      }
+      if (normalized.includes("project not found") || normalized.includes("not found")) {
+        setStorageUsage(null);
+        setStorageFetchDisabled(true);
         return;
       }
       console.error("Failed to fetch storage usage:", error);
     }
+  }, [projectId, storageFetchDisabled]);
+
+  useEffect(() => {
+    setStorageFetchDisabled(false);
   }, [projectId]);
 
   useEffect(() => {
@@ -173,12 +237,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        sizeDropdownRef.current &&
-        !sizeDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowSizeDropdown(false);
-      }
-      if (
         userModalRef.current &&
         !userModalRef.current.contains(event.target as Node)
       ) {
@@ -190,11 +248,36 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       ) {
         setShowCollabList(false);
       }
+      if (
+        pageSizeMenuRef.current &&
+        !pageSizeMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowPageSizeMenu(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const applyPageSizePreset = (preset: PageSizePreset) => {
+    const targetPageId = resolveTargetPageId();
+    if (!targetPageId) {
+      console.warn("Page size preset skipped: no target page found");
+      setShowPageSizeMenu(false);
+      return;
+    }
+
+    try {
+      actions.setProp(targetPageId, (props: Record<string, unknown>) => {
+        props.width = `${preset.width}px`;
+        props.height = `${preset.height}px`;
+      });
+    } catch (error) {
+      console.error("Failed to apply page size preset:", error);
+    }
+    setShowPageSizeMenu(false);
+  };
 
 
   const handleRotateCanvas = () => {
@@ -256,54 +339,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       console.error("Failed to rotate active page:", error);
     }
   };
-
-  const handlePresetSelect = useCallback((preset: DevicePreset) => {
-    if (projectPermission === "viewer") return;
-    setSelectedPreset(preset);
-
-    // Update all Page nodes with the new width
-    try {
-      const state = query.getState();
-      const nodes = state.nodes ?? {};
-      const rootNode = nodes["ROOT"];
-
-      if (rootNode && Array.isArray(rootNode.data.nodes)) {
-        // Find Viewport node first (ROOT -> Viewport -> Pages)
-        const viewportId = rootNode.data.nodes[0];
-        const viewportNode = nodes[viewportId];
-
-        if (viewportNode && viewportNode.data.displayName === "Viewport") {
-          // Get Page nodes from Viewport
-          const pageIds = viewportNode.data.nodes ?? [];
-          pageIds.forEach((pageId: string) => {
-            const pageNode = nodes[pageId];
-            if (pageNode?.data?.displayName === "Page") {
-              actions.setProp(pageId, (props: Record<string, unknown>) => {
-                props.width = `${preset.width}px`;
-                // Only update width when changing device; preserve page height so content doesn't reset
-              });
-            }
-          });
-        } else {
-          // Fallback: try direct children of ROOT
-          rootNode.data.nodes.forEach((pageId: string) => {
-            const pageNode = nodes[pageId];
-            if (pageNode?.data?.displayName === "Page") {
-              actions.setProp(pageId, (props: Record<string, unknown>) => {
-                props.width = `${preset.width}px`;
-                // Only update width when changing device; preserve page height
-              });
-            }
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to update Page nodes:", error);
-    }
-
-    // Call the parent handler to update canvas state
-    onDevicePresetSelect?.(preset);
-  }, [actions, query, onDevicePresetSelect]);
 
   const zoomPercentage = 100;
   const toolbarTextSmoothingStyle: React.CSSProperties = {
@@ -563,54 +598,48 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             </button>
           </DesignTooltip>
 
-          {/* Device Preset Dropdown (Breakpoint) */}
-          <div className="relative" ref={sizeDropdownRef}>
-            <DesignTooltip content="Breakpoints" position="bottom">
+          {/* Page Size Presets */}
+          <div className="relative" ref={pageSizeMenuRef}>
+            <DesignTooltip content="Page size presets" position="bottom">
               <button
-                onClick={() => setShowSizeDropdown((prev) => !prev)}
-                className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${showSizeDropdown
-                    ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                    : "bg-builder-surface-2 hover:bg-builder-surface-3 border-builder-border text-builder-text"
-                  }`}
+                type="button"
+                onClick={() => setShowPageSizeMenu((v) => !v)}
+                className="p-2 rounded-lg transition-colors border border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] active:scale-95 flex items-center gap-2"
               >
-                <MonitorSmartphone className="w-4 h-4" />
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSizeDropdown ? "rotate-180" : "opacity-50"}`} />
+                <Monitor className="w-4 h-4" />
+                <span className="text-xs font-medium">
+                  {activePageSize.width && activePageSize.height
+                    ? `${activePageSize.width}×${activePageSize.height}`
+                    : "Page Size"}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPageSizeMenu ? "rotate-180" : ""}`} />
               </button>
             </DesignTooltip>
 
-            <div
-              className={`absolute top-full right-0 mt-2 w-48 bg-[var(--builder-surface)]/95 backdrop-blur-xl border border-[var(--builder-border)] rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${showSizeDropdown
-                  ? "opacity-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-                }`}
-            >
-              <div className="px-3 py-2 border-b border-[var(--builder-border)] bg-[var(--builder-surface-3)]">
-                <span className="text-[10px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Breakpoints</span>
+            {showPageSizeMenu && (
+              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] shadow-2xl overflow-hidden z-[1001]">
+                {PAGE_SIZE_PRESETS.map((preset) => {
+                  const isActive = activePageSize.width === preset.width && activePageSize.height === preset.height;
+                  return (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      onClick={() => applyPageSizePreset(preset)}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--builder-surface-3)] ${isActive
+                        ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
+                        : "text-[var(--builder-text-muted)]"
+                        }`}
+                    >
+                      <span className="shrink-0">{preset.icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-[var(--builder-text)]">{preset.label}</div>
+                        <div className="text-[10px] text-[var(--builder-text-faint)]">{preset.width} × {preset.height}</div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-              {DEVICE_PRESETS.map((preset, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    handlePresetSelect(preset);
-                    setShowSizeDropdown(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-[var(--builder-surface-2)] ${selectedPreset?.name === preset.name
-                    ? "text-blue-400 font-bold bg-blue-500/10"
-                    : "text-[var(--builder-text-muted)]"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="opacity-60">{preset.icon}</span>
-                    <span>{preset.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 opacity-40 tabular-nums text-[10px]">
-                    <span>{preset.width}</span>
-                    <span className="text-[8px]">×</span>
-                    <span>{preset.height}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+            )}
           </div>
 
           {/* Divider */}

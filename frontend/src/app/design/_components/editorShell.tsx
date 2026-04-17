@@ -244,6 +244,10 @@ function normalizeResolvedName(rawName: unknown): string {
   if (lowered.includes("container")) return "Container";
   if (lowered.includes("page")) return "Page";
   if (lowered.includes("viewport")) return "Viewport";
+  if (lowered.includes("categoriescard") || (lowered.includes("categories") && lowered.includes("card"))) return "CategoriesCardCanvas";
+  if (lowered.includes("featuredproduct") || (lowered.includes("featured") && lowered.includes("product"))) return "FeaturedProductCanvas";
+  if (lowered.includes("productdescription") || (lowered.includes("product") && lowered.includes("description"))) return "ProductDescriptionCanvas";
+  if (lowered.includes("productslider") || (lowered.includes("product") && lowered.includes("slider"))) return "ProductSlider";
   return "Container";
 }
 
@@ -1403,6 +1407,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     });
     try {
       window.sessionStorage.setItem(uiStateStorageKey, payload);
+      // Mirror UI state to localStorage so preview opened in a different tab
+      // can still resolve the last active page for this project.
+      window.localStorage?.setItem(uiStateStorageKey, payload);
     } catch {
       // Ignore UI state persistence errors
     }
@@ -1932,73 +1939,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     setScale((prev) => clampScale(nextScale, prev));
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (deviceSwitchRafRef.current != null) {
-        cancelAnimationFrame(deviceSwitchRafRef.current);
-      }
-      if (deviceSwitchTimeoutRef.current != null) {
-        window.clearTimeout(deviceSwitchTimeoutRef.current);
-      }
-      if (deviceSwitchEndTimeoutRef.current != null) {
-        window.clearTimeout(deviceSwitchEndTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Handle device preset selection - only width changes; preserve page height so it doesn't reset
-  // and keep the page visible by fitting/recentering with the selected preset dimensions.
-  const handleDevicePresetSelect = useCallback((preset: DevicePreset) => {
-    if (deviceSwitchRafRef.current != null) {
-      cancelAnimationFrame(deviceSwitchRafRef.current);
-      deviceSwitchRafRef.current = null;
-    }
-    if (deviceSwitchTimeoutRef.current != null) {
-      window.clearTimeout(deviceSwitchTimeoutRef.current);
-      deviceSwitchTimeoutRef.current = null;
-    }
-    if (deviceSwitchEndTimeoutRef.current != null) {
-      window.clearTimeout(deviceSwitchEndTimeoutRef.current);
-      deviceSwitchEndTimeoutRef.current = null;
-    }
-
-    setIsDeviceSwitching(true);
-    setCanvasWidth(preset.width);
-
-    const fitAndCenter = () => {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const effectiveWidth = Math.max(1, preset.width);
-      const effectiveHeight = Math.max(1, canvasHeight || PAGE_BASE_HEIGHT);
-      const containerWidth = container.clientWidth;
-      const containerHeight = container.clientHeight;
-      if (containerWidth <= 0 || containerHeight <= 0) return;
-
-      // Keep interaction smooth: only zoom out as needed so the selected device always stays visible.
-      const fitScaleX = (containerWidth * 0.9) / effectiveWidth;
-      const fitScaleY = (containerHeight * 0.9) / effectiveHeight;
-      const fitScale = clampScale(Math.min(fitScaleX, fitScaleY, 1), 1);
-
-      setScale((prev) => {
-        const safePrev = clampScale(prev, 1);
-        return safePrev > fitScale ? fitScale : safePrev;
-      });
-
-      // Recenter after width/scale settle so page never appears "lost" off-screen.
-      requestAnimationFrame(() => {
-        centerCanvasInView();
-      });
-    };
-
-    deviceSwitchRafRef.current = requestAnimationFrame(() => {
-      fitAndCenter();
-      deviceSwitchTimeoutRef.current = window.setTimeout(fitAndCenter, 120);
-      deviceSwitchEndTimeoutRef.current = window.setTimeout(() => {
-        setIsDeviceSwitching(false);
-      }, 220);
-    });
-  }, [canvasHeight, centerCanvasInView]);
 
   const isSpacePanActive = isSpacePressed;
   const canPanWithPointerDrag = activeTool === "hand" || isSpacePanActive;
@@ -2536,14 +2476,17 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         }
 
         await autoSavePage(snapshot, projectId);
-        router.push(`/design/preview?projectId=${projectId}`);
+        const previewUrl = currentPageId
+          ? `/design/preview?projectId=${projectId}&pageId=${encodeURIComponent(currentPageId)}`
+          : `/design/preview?projectId=${projectId}`;
+        router.push(previewUrl);
       }
     } catch (e) {
       console.error("[Editor] Preview failed:", e);
     } finally {
       setIsPreviewing(false);
     }
-  }, [projectId, router, mirrorToSession, showAlert]);
+  }, [projectId, router, mirrorToSession, showAlert, currentPageId]);
 
   const dbSaveInFlightRef = useRef(false);
   const dbSavePendingRef = useRef(false);
@@ -2849,6 +2792,22 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.Radio = booleanFieldComp;
     base.radio = booleanFieldComp;
 
+    const categoriesCardComp = asComponent(CRAFT_RESOLVER.CategoriesCardCanvas ?? CRAFT_RESOLVER.CategoriesCard ?? SAFE_CONTAINER);
+    base.CategoriesCardCanvas = categoriesCardComp;
+    base.categoriescardcanvas = categoriesCardComp;
+    base["Categories Card Canvas"] = categoriesCardComp;
+    base.CategoriesCard = categoriesCardComp;
+    base.categoriescard = categoriesCardComp;
+    base["Categories Card"] = categoriesCardComp;
+
+    const featuredProductComp = asComponent(CRAFT_RESOLVER.FeaturedProductCanvas ?? CRAFT_RESOLVER.FeaturedProduct ?? SAFE_CONTAINER);
+    base.FeaturedProductCanvas = featuredProductComp;
+    base.featuredproductcanvas = featuredProductComp;
+    base["Featured Product Canvas"] = featuredProductComp;
+    base.FeaturedProduct = featuredProductComp;
+    base.featuredproduct = featuredProductComp;
+    base["Featured Product"] = featuredProductComp;
+
     return withResolverFallback(base);
   }, []);
 
@@ -2923,7 +2882,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                     {panelsReady && (
                       <TopPanel
                         activePageId={currentPageId}
-                        onDevicePresetSelect={handleDevicePresetSelect}
                         showDualView={showDualView}
                         onDualViewToggle={() => setShowDualView((v) => !v)}
                         projectId={projectId}

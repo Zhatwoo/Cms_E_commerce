@@ -1,15 +1,52 @@
-   "use client";
+/* eslint-disable */
+"use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useNode } from "@craftjs/core";
+import React, { useMemo, useState } from "react";
+import { useEditor, useNode } from "@craftjs/core";
 import { AccordionSettings } from "./AccordionSettings";
-import type { PositionProps, AccordionProps, AccordionItem } from "../../_types/components";
+import type { AccordionItem, AccordionOption, AccordionProps } from "../../_types/components";
+import type { Interaction } from "../../_types/prototype";
 
 const DEFAULT_ITEMS: AccordionItem[] = [
-  { title: "What is this?", content: "This is the content of the first accordion item. Click the header to expand or collapse.", mediaType: "none", mediaUrl: "" },
-  { title: "How does it work?", content: "Users click on a header to reveal or hide the content below it.", mediaType: "none", mediaUrl: "" },
-  { title: "Can I customize it?", content: "Yes! You can change colors, font sizes, border styles, items, and more from the settings panel.", mediaType: "none", mediaUrl: "" },
+  {
+    header: "Text V",
+    options: [{ label: "Option 1" }, { label: "Option 2" }],
+  },
 ];
+
+function normalizeOption(option: string | AccordionOption | undefined, index: number): AccordionOption {
+  if (typeof option === "string") {
+    return { label: option.trim() || `Option ${index + 1}` };
+  }
+
+  const label = typeof option?.label === "string" && option.label.trim() ? option.label.trim() : `Option ${index + 1}`;
+  return {
+    label,
+    interactions: Array.isArray(option?.interactions) ? option.interactions : [],
+  };
+}
+
+function normalizeItem(item: AccordionItem | undefined, index: number): AccordionItem {
+  const header = typeof item?.header === "string" && item.header.trim()
+    ? item.header.trim()
+    : (typeof item?.title === "string" && item.title.trim() ? item.title.trim() : `Dropdown ${index + 1}`);
+
+  const legacyOptions = Array.isArray(item?.options)
+    ? item.options
+    : typeof item?.content === "string"
+      ? item.content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean)
+      : [];
+
+  const options = legacyOptions.length > 0
+    ? legacyOptions.map((option, optionIndex) => normalizeOption(option, optionIndex))
+    : [{ label: "Option 1" }];
+
+  return { header, options };
+}
+
+function normalizeItems(items: AccordionItem[] | undefined): AccordionItem[] {
+  return (Array.isArray(items) ? items : []).map((item, index) => normalizeItem(item, index));
+}
 
 function hexToRgba(hex: string | undefined, alpha: number): string {
   if (!hex) return `rgba(148, 163, 184, ${alpha})`;
@@ -18,15 +55,41 @@ function hexToRgba(hex: string | undefined, alpha: number): string {
   const r = Number.parseInt(raw.slice(0, 2), 16);
   const g = Number.parseInt(raw.slice(2, 4), 16);
   const b = Number.parseInt(raw.slice(4, 6), 16);
-  if ([r, g, b].some((v) => Number.isNaN(v))) return `rgba(148, 163, 184, ${alpha})`;
+  if ([r, g, b].some((value) => Number.isNaN(value))) return `rgba(148, 163, 184, ${alpha})`;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-function fluidSpace(value: number, min = 0): string {
-  if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
-  const preferred = Math.max(0.1, value / 12);
-  const floor = Math.max(min, Math.round(value * 0.45));
-  return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
+function isExternalUrl(value: string): boolean {
+  return /^(https?:\/\/|mailto:|tel:)/i.test(value.trim());
+}
+
+function runAccordionInteraction(interaction: Interaction) {
+  const destination = (interaction.destination ?? "").trim();
+
+  if (interaction.action === "back") {
+    window.history.back();
+    return;
+  }
+
+  if (!destination) return;
+
+  if (interaction.action === "openUrl") {
+    window.open(destination, "_blank", "noopener");
+    return;
+  }
+
+  if (interaction.action === "scrollTo") {
+    const targetId = destination.startsWith("#") ? destination.slice(1) : destination;
+    document.getElementById(targetId)?.scrollIntoView({ behavior: "smooth" });
+    return;
+  }
+
+  if (interaction.action === "navigateTo") {
+    const nextUrl = destination.startsWith("/") || isExternalUrl(destination)
+      ? destination
+      : `/${destination.replace(/^\/+/, "")}`;
+    window.location.assign(nextUrl);
+  }
 }
 
 export const Accordion = ({
@@ -35,9 +98,11 @@ export const Accordion = ({
   editorPreviewMode = "normal",
   allowMultiple = false,
   allowCollapseAll = true,
-  defaultOpenIndex = 0,
+  defaultOpenIndex = -1,
   animationDurationMs = 280,
-  width = "100%",
+  width = "140px",
+  height,
+  maxWidth = "100%",
   minHeight = 0,
   marginTop = 0,
   marginRight = 0,
@@ -45,8 +110,7 @@ export const Accordion = ({
   marginLeft = 0,
   borderRadius = 8,
   backgroundColor = "transparent",
-  headerBg = "#1e1e2e",
-  headerTextColor = "#e2e8f0",
+  headerTextColor = "#10213f",
   headerFontSize = 14,
   headerFontWeight = "600",
   headerFontStyle = "normal",
@@ -55,8 +119,7 @@ export const Accordion = ({
   headerTextAlign = "left",
   headerTextTransform = "none",
   headerTextDecoration = "none",
-  contentBg = "#12121c",
-  contentTextColor = "#a0aec0",
+  contentTextColor = "#334155",
   contentFontSize = 13,
   contentFontWeight = "400",
   contentFontStyle = "normal",
@@ -66,9 +129,17 @@ export const Accordion = ({
   contentTextTransform = "none",
   contentTextDecoration = "none",
   fontFamily = "Outfit",
-  borderColor = "#2d2d44",
+  borderColor = "#d4dfef",
   borderWidth = 1,
-  iconColor = "#94a3b8",
+  iconColor = "#4a89ff",
+  iconPosition = "right",
+  headerGap = 12,
+  headerPaddingX = 12,
+  headerPaddingY = 10,
+  textOffsetX = 0,
+  textOffsetY = 0,
+  iconOffsetX = 0,
+  iconOffsetY = 0,
   position = "relative",
   top = "auto",
   right = "auto",
@@ -79,143 +150,132 @@ export const Accordion = ({
   editorVisibility = "auto",
   alignSelf = "auto",
 }: AccordionProps) => {
-  const { id, connectors: { connect } } = useNode();
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const contentPanelRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const [contentHeights, setContentHeights] = useState<Record<number, number>>({});
+  const {
+    connectors: { connect },
+    actions: { setProp },
+  } = useNode();
+  const { enabled } = useEditor((state) => ({ enabled: state.options.enabled }));
+  const [editingCell, setEditingCell] = useState<{ itemIndex: number; optionIndex?: number; field: "header" | "option" } | null>(null);
+  const [openIndexes, setOpenIndexes] = useState<number[]>([]);
+
+  const safeItems = useMemo(() => normalizeItems(items), [items]);
   const safeDuration = Number.isFinite(animationDurationMs) ? Math.max(80, Math.min(1200, animationDurationMs)) : 280;
-  const safeItems = useMemo(
-    () => (items ?? DEFAULT_ITEMS).filter((item) => item && typeof item.title === "string" && typeof item.content === "string"),
-    [items]
-  );
-  const normalizedDefault = Number.isFinite(defaultOpenIndex) ? Math.max(0, Math.floor(defaultOpenIndex)) : 0;
-  const clampedDefaultIndex = safeItems.length > 0 ? Math.min(normalizedDefault, safeItems.length - 1) : 0;
-  const [openIndexes, setOpenIndexes] = useState<number[]>(safeItems.length > 0 ? [clampedDefaultIndex] : []);
-  const edgeGlow = hexToRgba(iconColor, 0.26);
-  const contentGlow = hexToRgba(contentTextColor, 0.12);
   const isWix = stylePreset === "wix";
-  const effectiveDisplay =
-    editorVisibility === "hide"
-      ? "none"
-      : editorVisibility === "show" && display === "none"
-        ? "flex"
-        : (display ?? "flex");
+  const effectiveDisplay = editorVisibility === "hide"
+    ? "none"
+    : editorVisibility === "show" && display === "none"
+      ? "flex"
+      : (display ?? "flex");
 
-  // Keep open state valid and responsive when settings are edited (items/default index/modes).
-  useEffect(() => {
-    if (editorPreviewMode === "expand-all") {
-      setOpenIndexes(safeItems.map((_, idx) => idx));
-      return;
-    }
-    if (editorPreviewMode === "collapse-all") {
-      setOpenIndexes([]);
-      return;
-    }
+  const normalizedDefaultIndex = Number.isFinite(defaultOpenIndex) ? Math.floor(defaultOpenIndex) : -1;
+  const defaultIndex = safeItems.length > 0 && normalizedDefaultIndex >= 0
+    ? Math.min(normalizedDefaultIndex, safeItems.length - 1)
+    : -1;
 
-    setOpenIndexes((prev) => {
-      const deduped = Array.from(new Set(prev.filter((idx) => idx >= 0 && idx < safeItems.length)));
-      const fallback = safeItems.length > 0 ? [clampedDefaultIndex] : [];
-      let next = deduped.length > 0 ? deduped : fallback;
+  React.useEffect(() => {
+    setOpenIndexes((current) => {
+      const clamped = current.filter((index) => index >= 0 && index < safeItems.length);
+      if (clamped.length > 0) return clamped;
 
-      if (!allowMultiple && next.length > 1) {
-        next = [next[0]];
-      }
-      if (!allowCollapseAll && safeItems.length > 0 && next.length === 0) {
-        next = [clampedDefaultIndex];
+      if (editorPreviewMode === "expand-all") {
+        return safeItems.map((_, index) => index);
       }
 
-      return next;
+      if (editorPreviewMode === "collapse-all") {
+        return [];
+      }
+
+      // In editor mode, keep dropdown collapsed by default unless user opens it.
+      if (enabled) {
+        return [];
+      }
+
+      return defaultIndex >= 0 ? [defaultIndex] : [];
     });
-  }, [safeItems.length, clampedDefaultIndex, allowMultiple, allowCollapseAll, editorPreviewMode, safeItems]);
+  }, [defaultIndex, editorPreviewMode, safeItems, enabled]);
 
-  // Resize preview may leave inline height constraints on the host DOM node.
-  // Always normalize Accordion back to content-driven height.
-  useEffect(() => {
-    const el = hostRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.removeProperty("min-height");
-    el.style.removeProperty("max-height");
-  }, [width, openIndexes, safeItems.length]);
-
-  const fluidHeaderFontSize = `clamp(${Math.max(10, Math.round(headerFontSize * 0.8))}px, ${(headerFontSize / 12).toFixed(2)}cqw, ${headerFontSize}px)`;
-  const fluidContentFontSize = `clamp(${Math.max(10, Math.round(contentFontSize * 0.8))}px, ${(contentFontSize / 12).toFixed(2)}cqw, ${contentFontSize}px)`;
-
-  useEffect(() => {
-    const updateHeights = () => {
-      const next: Record<number, number> = {};
-      safeItems.forEach((_, idx) => {
-        const panel = contentPanelRefs.current[idx];
-        next[idx] = panel ? panel.scrollHeight : 0;
-      });
-      setContentHeights(next);
-    };
-
-    updateHeights();
-
-    const ro = new ResizeObserver(updateHeights);
-    if (hostRef.current) ro.observe(hostRef.current);
-    safeItems.forEach((_, idx) => {
-      const panel = contentPanelRefs.current[idx];
-      if (panel) ro.observe(panel);
-    });
-
-    return () => ro.disconnect();
-  }, [safeItems, openIndexes, contentFontSize, headerFontSize, width]);
-
-  const swallowPointer = (e: React.SyntheticEvent) => {
-    e.stopPropagation();
-  };
+  const hasOpenItems = openIndexes.length > 0;
+  const resolvedContainerHeight = hasOpenItems ? (height || "auto") : "auto";
 
   const toggle = (index: number) => {
     if (allowMultiple) {
-      setOpenIndexes((prev) =>
-        prev.includes(index)
-          ? (allowCollapseAll ? prev.filter((i) => i !== index) : prev)
-          : [...prev, index]
-      );
-    } else {
-      setOpenIndexes((prev) => {
-        const alreadyOpen = prev.includes(index);
-        if (alreadyOpen) {
-          return allowCollapseAll ? [] : prev;
-        }
-        return [index];
-      });
+      setOpenIndexes((current) => current.includes(index)
+        ? (allowCollapseAll ? current.filter((item) => item !== index) : current)
+        : [...current, index]);
+      return;
     }
+
+    setOpenIndexes((current) => {
+      const isOpen = current.includes(index);
+      if (isOpen) return allowCollapseAll ? [] : current;
+      return [index];
+    });
   };
 
-  const isOpen = (index: number) => openIndexes.includes(index);
+  const swallowPointer = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
+
+  const updateHeader = (itemIndex: number, value: string) => {
+    setProp((props: AccordionProps) => {
+      const next = normalizeItems(props.items ?? safeItems);
+      const current = next[itemIndex];
+      if (!current) return;
+      next[itemIndex] = { ...current, header: value };
+      props.items = next;
+    });
+  };
+
+  const updateOption = (itemIndex: number, optionIndex: number, value: string) => {
+    setProp((props: AccordionProps) => {
+      const next = normalizeItems(props.items ?? safeItems);
+      const current = next[itemIndex];
+      const option = current?.options?.[optionIndex];
+      if (!current || !option) return;
+      const options = [...current.options];
+      options[optionIndex] = { ...option, label: value };
+      next[itemIndex] = { ...current, options };
+      props.items = next;
+    });
+  };
+
+  const addOption = (itemIndex: number) => {
+    setProp((props: AccordionProps) => {
+      const next = normalizeItems(props.items ?? safeItems);
+      const current = next[itemIndex];
+      if (!current) return;
+      next[itemIndex] = {
+        ...current,
+        options: [...current.options, { label: `Option ${current.options.length + 1}` }],
+      };
+      props.items = next;
+    });
+  };
 
   return (
     <div
-      ref={(ref) => {
-        if (!ref) return;
-        hostRef.current = ref;
-        connect(ref);
-      }}
-      data-node-id={id}
-      data-fluid-text="true"
-      data-fluid-space="true"
+      ref={connect}
+      data-canvas-interactive="true"
       data-drop-block="true"
       data-drop-block-type="Accordion"
       style={{
         width,
-        height: "auto",
-        minHeight: minHeight > 0 ? `${minHeight}px` : undefined,
+        height: resolvedContainerHeight,
+        maxWidth,
+        minHeight: typeof minHeight === "number" ? (minHeight > 0 ? `${minHeight}px` : undefined) : minHeight,
         alignSelf,
         backgroundColor,
-        marginTop: fluidSpace(marginTop),
-        marginRight: fluidSpace(marginRight),
-        marginBottom: fluidSpace(marginBottom),
-        marginLeft: fluidSpace(marginLeft),
+        marginTop: `${marginTop}px`,
+        marginRight: `${marginRight}px`,
+        marginBottom: `${marginBottom}px`,
+        marginLeft: `${marginLeft}px`,
         borderRadius: `${borderRadius}px`,
         overflow: "hidden",
-        cursor: "pointer",
+        cursor: "default",
         display: effectiveDisplay,
         flexDirection: "column",
-        gap: isWix ? "0px" : "10px",
-        border: isWix ? `${borderWidth}px solid ${borderColor}` : undefined,
+        gap: "8px",
+        border: `${borderWidth}px solid ${borderColor}`,
         position,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
@@ -225,221 +285,214 @@ export const Accordion = ({
         containerType: "inline-size",
       }}
     >
-      {safeItems.map((item, index) => {
-        const open = isOpen(index);
-        const mediaType = item.mediaType ?? "none";
-        const mediaUrl = (item.mediaUrl ?? "").trim();
-        const previewText = (item.content ?? "").trim();
-        const previewLine = previewText.length > 70 ? `${previewText.slice(0, 70)}...` : previewText;
-        const mediaLabel = mediaType === "none" ? "" : (mediaType === "image" ? "Image" : "Video");
-        const itemRadius = Math.max(0, borderRadius);
-        const isLast = index === safeItems.length - 1;
-
+      {safeItems.map((item, itemIndex) => {
+        const isOpen = openIndexes.includes(itemIndex);
         return (
-          <div
-            key={index}
-            style={{
-              borderColor,
-              borderWidth: `${borderWidth}px`,
-              borderStyle: "solid",
-              borderRadius: isWix ? "0px" : `${itemRadius}px`,
-              position: "relative",
-              display: "flex",
-              flexDirection: "column",
-              zIndex: open ? 1 : 0,
-              overflow: "hidden",
-              boxShadow: isWix
-                ? "none"
-                : (open
-                  ? `0 12px 30px -20px ${edgeGlow}, 0 1px 0 ${hexToRgba(borderColor, 0.45)} inset`
-                  : `0 8px 20px -24px ${contentGlow}`),
-              transition: `box-shadow ${Math.max(150, safeDuration - 70)}ms ease, border-color ${Math.max(150, safeDuration - 80)}ms ease`,
-              borderLeft: isWix ? "none" : undefined,
-              borderRight: isWix ? "none" : undefined,
-              borderTop: isWix && index > 0 ? "none" : undefined,
-              borderBottom: isWix && !isLast ? `1px solid ${hexToRgba(borderColor, 0.65)}` : undefined,
-            }}
-          >
-            {/* Header */}
+          <div key={itemIndex} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <button
               type="button"
               data-canvas-interactive="true"
               draggable={false}
-              onDragStart={(e) => e.preventDefault()}
               onPointerDownCapture={swallowPointer}
               onPointerDown={swallowPointer}
               onMouseDown={swallowPointer}
               onTouchStart={swallowPointer}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggle(index);
+              onClick={(event) => {
+                event.stopPropagation();
+                toggle(itemIndex);
               }}
               style={{
                 width: "100%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                gap: "12px",
-                padding: isWix ? "14px 14px" : "13px 16px",
-                backgroundColor: headerBg,
+                gap: headerGap,
+                padding: `${headerPaddingY}px ${headerPaddingX}px`,
+                background: isWix ? "#fff" : "linear-gradient(180deg, #ffffff 0%, #f7f4ff 100%)",
                 color: headerTextColor,
-                fontSize: fluidHeaderFontSize,
+                fontSize: `clamp(${Math.max(10, Math.round(headerFontSize * 0.8))}px, ${(headerFontSize / 12).toFixed(2)}cqw, ${headerFontSize}px)`,
                 fontWeight: headerFontWeight,
                 fontFamily,
-                fontStyle: headerFontStyle ?? "normal",
-                letterSpacing: headerLetterSpacing ?? "0.01em",
-                lineHeight: headerLineHeight ?? 1.3,
-                textAlign: headerTextAlign ?? "left",
-                textTransform: headerTextTransform ?? "none",
-                textDecoration: headerTextDecoration ?? "none",
-                cursor: "pointer",
-                border: "none",
+                fontStyle: headerFontStyle,
+                letterSpacing: headerLetterSpacing,
+                lineHeight: headerLineHeight,
+                textAlign: headerTextAlign,
+                textTransform: headerTextTransform,
+                textDecoration: headerTextDecoration,
+                border: `1px solid ${hexToRgba(iconColor, 0.18)}`,
+                borderRadius: 12,
                 outline: "none",
+                cursor: "pointer",
               }}
             >
-              <span style={{ flex: 1, lineHeight: "inherit", display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-                {isWix && (
-                  <span aria-hidden="true" style={{ width: "10px", display: "inline-flex", justifyContent: "center", opacity: 0.6, flexShrink: 0 }}>
-                    <svg width="8" height="16" viewBox="0 0 8 16" fill="none">
-                      <circle cx="2" cy="3" r="1" fill={hexToRgba(iconColor, 0.8)} />
-                      <circle cx="6" cy="3" r="1" fill={hexToRgba(iconColor, 0.8)} />
-                      <circle cx="2" cy="8" r="1" fill={hexToRgba(iconColor, 0.8)} />
-                      <circle cx="6" cy="8" r="1" fill={hexToRgba(iconColor, 0.8)} />
-                      <circle cx="2" cy="13" r="1" fill={hexToRgba(iconColor, 0.8)} />
-                      <circle cx="6" cy="13" r="1" fill={hexToRgba(iconColor, 0.8)} />
-                    </svg>
-                  </span>
-                )}
-                <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, textDecoration: "inherit" }}>{item.title}</span>
-                {!isWix && (
-                  <span
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginTop: "3px",
-                      fontSize: `calc(${fluidHeaderFontSize} - 3px)`,
-                      color: hexToRgba(headerTextColor, 0.62),
-                      fontWeight: 500,
-                    }}
-                  >
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>
-                      {previewLine || "No content yet"}
-                    </span>
-                    {mediaLabel && (
-                      <span
-                        style={{
-                          border: `1px solid ${hexToRgba(iconColor, 0.35)}`,
-                          background: hexToRgba(iconColor, 0.14),
-                          color: hexToRgba(iconColor, 0.95),
-                          borderRadius: "999px",
-                          padding: "1px 6px",
-                          fontSize: `calc(${fluidHeaderFontSize} - 5px)`,
-                          lineHeight: 1.4,
-                          flexShrink: 0,
-                        }}
-                      >
-                        {mediaLabel}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </span>
-              <span
-                style={{
-                  width: isWix ? "22px" : "24px",
-                  height: isWix ? "22px" : "24px",
-                  borderRadius: "999px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  backgroundColor: isWix ? "transparent" : hexToRgba(iconColor, open ? 0.18 : 0.1),
-                  border: isWix ? `1px solid ${hexToRgba(iconColor, 0.35)}` : `1px solid ${hexToRgba(iconColor, open ? 0.35 : 0.2)}`,
-                  transition: `transform ${Math.max(150, safeDuration - 80)}ms ease, background-color ${Math.max(150, safeDuration - 80)}ms ease`,
-                  transform: open ? "translateY(-1px)" : "translateY(0px)",
-                  flexShrink: 0,
-                }}
-              >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke={iconColor}
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  style={{
-                    transition: `transform ${Math.max(150, safeDuration - 80)}ms ease`,
-                    transform: open ? "rotate(180deg)" : "rotate(0deg)",
-                  }}
-                >
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </span>
-              {isWix && (
+              {iconPosition === "left" && (
                 <span
                   aria-hidden="true"
                   style={{
-                    width: "22px",
-                    height: "22px",
-                    borderRadius: "999px",
-                    border: `1px solid ${hexToRgba(iconColor, 0.35)}`,
+                    width: 24,
+                    height: 24,
+                    borderRadius: 999,
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: hexToRgba(iconColor, 0.95),
-                    fontSize: "12px",
-                    lineHeight: 1,
+                    backgroundColor: hexToRgba(iconColor, 0.12),
+                    border: `1px solid ${hexToRgba(iconColor, 0.28)}`,
                     flexShrink: 0,
+                    transform: `translate(${iconOffsetX}px, ${iconOffsetY}px)`,
                   }}
                 >
-                  ...
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transition: `transform ${safeDuration}ms ease`, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
+              )}
+              <span
+                contentEditable={enabled && editingCell?.itemIndex === itemIndex && editingCell.field === "header"}
+                suppressContentEditableWarning
+                onDoubleClick={(event) => {
+                  if (!enabled) return;
+                  event.stopPropagation();
+                  setEditingCell({ itemIndex, field: "header" });
+                }}
+                onBlur={(event) => {
+                  if (editingCell?.itemIndex !== itemIndex || editingCell.field !== "header") return;
+                  updateHeader(itemIndex, event.currentTarget.textContent ?? item.header);
+                  setEditingCell(null);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    (event.currentTarget as HTMLElement).blur();
+                  }
+                }}
+                style={{
+                  display: "block",
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  cursor: enabled ? "text" : "default",
+                  transform: `translate(${textOffsetX}px, ${textOffsetY}px)`,
+                  flex: 1,
+                }}
+              >
+                {item.header}
+              </span>
+              {iconPosition === "right" && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: 999,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: hexToRgba(iconColor, 0.12),
+                    border: `1px solid ${hexToRgba(iconColor, 0.28)}`,
+                    flexShrink: 0,
+                    transform: `translate(${iconOffsetX}px, ${iconOffsetY}px)`,
+                  }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={iconColor} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ transition: `transform ${safeDuration}ms ease`, transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
                 </span>
               )}
             </button>
 
-            {/* Content */}
-            <div
-              style={{
-                overflow: "hidden",
-                maxHeight: open ? `${contentHeights[index] ?? 0}px` : "0px",
-                transition: `max-height ${safeDuration}ms ease, opacity ${Math.max(120, safeDuration - 80)}ms ease`,
-                opacity: open ? 1 : 0,
-              }}
-            >
-              <div
-                data-canvas-interactive="true"
-                ref={(el) => {
-                  contentPanelRefs.current[index] = el;
-                }}
-                style={{
-                  backgroundColor: contentBg,
-                  color: contentTextColor,
-                  fontSize: fluidContentFontSize,
-                  fontWeight: contentFontWeight ?? "400",
-                  fontFamily,
-                  fontStyle: contentFontStyle ?? "normal",
-                  letterSpacing: contentLetterSpacing ?? 0,
-                  lineHeight: contentLineHeight ?? "1.6",
-                  textAlign: contentTextAlign ?? "left",
-                  textTransform: contentTextTransform ?? "none",
-                  textDecoration: contentTextDecoration ?? "none",
-                  borderTop: `1px solid ${hexToRgba(borderColor, 0.45)}`,
-                }}
-              >
-                {/* Text content — padded */}
-                <div style={{ padding: isWix ? "10px 44px 10px" : "10px 16px 10px", textDecoration: "inherit" }}>{item.content}</div>
-                {mediaType !== "none" && mediaUrl && (
-                  <div style={{ padding: isWix ? "0 44px 10px" : "0 16px 10px" }}>
-                    {mediaType === "image"
-                      ? <img src={mediaUrl} alt={item.title} style={{ width: "100%", maxWidth: 280, height: "auto", aspectRatio: "14 / 9", objectFit: "cover", borderRadius: 6, display: "block" }} />
-                      : <video src={mediaUrl} controls style={{ width: "100%", maxWidth: 280, height: "auto", aspectRatio: "14 / 9", borderRadius: 6, display: "block" }} />
-                    }
-                  </div>
+            {isOpen && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 8, borderRadius: 12, border: `1px solid ${hexToRgba(borderColor, 0.7)}`, backgroundColor: hexToRgba("#ffffff", 0.92) }}>
+                {item.options.map((option, optionIndex) => (
+                  <button
+                    key={`${itemIndex}-${optionIndex}`}
+                    type="button"
+                    data-canvas-interactive="true"
+                    draggable={false}
+                    onPointerDownCapture={swallowPointer}
+                    onPointerDown={swallowPointer}
+                    onMouseDown={swallowPointer}
+                    onTouchStart={swallowPointer}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      (option.interactions ?? []).forEach(runAccordionInteraction);
+                    }}
+                    style={{
+                      width: "100%",
+                      textAlign: "left",
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      border: `1px solid ${hexToRgba(borderColor, 0.5)}`,
+                      backgroundColor: hexToRgba("#f8fafc", 0.95),
+                      color: contentTextColor,
+                      fontSize: contentFontSize,
+                      fontWeight: contentFontWeight,
+                      fontFamily,
+                      fontStyle: contentFontStyle,
+                      letterSpacing: contentLetterSpacing,
+                      lineHeight: contentLineHeight,
+                      textAlign: contentTextAlign,
+                      textTransform: contentTextTransform,
+                      textDecoration: contentTextDecoration,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      contentEditable={enabled && editingCell?.itemIndex === itemIndex && editingCell?.optionIndex === optionIndex && editingCell.field === "option"}
+                      suppressContentEditableWarning
+                      onDoubleClick={(event) => {
+                        if (!enabled) return;
+                        event.stopPropagation();
+                        setEditingCell({ itemIndex, optionIndex, field: "option" });
+                      }}
+                      onBlur={(event) => {
+                        if (editingCell?.itemIndex !== itemIndex || editingCell?.optionIndex !== optionIndex || editingCell.field !== "option") return;
+                        updateOption(itemIndex, optionIndex, event.currentTarget.textContent ?? option.label);
+                        setEditingCell(null);
+                      }}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          (event.currentTarget as HTMLElement).blur();
+                        }
+                      }}
+                      style={{ display: "block", cursor: enabled ? "text" : "default" }}
+                    >
+                      {option.label}
+                    </span>
+                  </button>
+                ))}
+
+                {enabled && (
+                  <button
+                    type="button"
+                    data-canvas-interactive="true"
+                    draggable={false}
+                    onPointerDownCapture={swallowPointer}
+                    onPointerDown={swallowPointer}
+                    onMouseDown={swallowPointer}
+                    onTouchStart={swallowPointer}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      addOption(itemIndex);
+                    }}
+                    style={{
+                      width: "100%",
+                      border: `1px dashed ${hexToRgba(iconColor, 0.32)}`,
+                      backgroundColor: hexToRgba(iconColor, 0.06),
+                      color: headerTextColor,
+                      borderRadius: 10,
+                      padding: "8px 10px",
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    + Option
+                  </button>
                 )}
               </div>
-            </div>
+            )}
           </div>
         );
       })}
@@ -453,14 +506,15 @@ export const AccordionDefaultProps: Partial<AccordionProps> = {
   editorPreviewMode: "normal",
   allowMultiple: false,
   allowCollapseAll: true,
-  defaultOpenIndex: 0,
+  defaultOpenIndex: -1,
   animationDurationMs: 280,
-  width: "100%",
+  width: "140px",
+  maxWidth: "100%",
   marginTop: 0,
   marginRight: 0,
   marginBottom: 16,
   marginLeft: 0,
-  borderRadius: 8,
+  borderRadius: 10,
   backgroundColor: "#f4f7fc",
   headerBg: "#f8fbff",
   headerTextColor: "#10213f",
@@ -472,6 +526,14 @@ export const AccordionDefaultProps: Partial<AccordionProps> = {
   borderColor: "#d4dfef",
   borderWidth: 1,
   iconColor: "#4a89ff",
+  iconPosition: "right",
+  headerGap: 12,
+  headerPaddingX: 12,
+  headerPaddingY: 10,
+  textOffsetX: 0,
+  textOffsetY: 0,
+  iconOffsetX: 0,
+  iconOffsetY: 0,
 };
 
 Accordion.craft = {
