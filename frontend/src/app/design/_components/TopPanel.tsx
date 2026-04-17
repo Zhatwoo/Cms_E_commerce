@@ -218,6 +218,11 @@ export const TopPanel: React.FC<TopPanelProps> = ({
         setStorageFetchDisabled(true);
         return;
       }
+      if (normalized.includes("internal server error") || normalized.includes("server error")) {
+        setStorageUsage(null);
+        setStorageFetchDisabled(true);
+        return;
+      }
       console.error("Failed to fetch storage usage:", error);
     }
   }, [projectId, storageFetchDisabled]);
