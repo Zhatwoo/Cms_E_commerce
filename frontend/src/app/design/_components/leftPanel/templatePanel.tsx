@@ -56,7 +56,6 @@ function persistTemplateSnapshot(projectId: string, snapshot: string): void {
   }
 }
 
-<<<<<<< HEAD
 function getTemplateApplyBackupKey(projectId: string): string {
   return `${TEMPLATE_APPLY_BACKUP_PREFIX}_${projectId}`;
 }
@@ -94,7 +93,8 @@ function persistTemplateApplyBackup(projectId: string, snapshot: string): void {
   } catch {
     // ignore storage write failures
   }
-=======
+}
+
 function toCraftSnapshot(content: unknown): Record<string, any> | null {
   if (!content) return null;
 
@@ -202,7 +202,6 @@ function mergeTemplatePages(contents: unknown[]): string | null {
   }
 
   return JSON.stringify(merged);
->>>>>>> 3996677f934eda9d48dbd7ee89af7cc9713d7676
 }
 
 export const TemplatePanel = () => {
@@ -398,18 +397,13 @@ export const TemplatePanel = () => {
         }
       }
 
-<<<<<<< HEAD
-      if ((!result || !result.success) && !content) {
-        setApplyNotice("Selected project draft is empty. Open that project and save once, then try again.");
-=======
       const hasAnyRemoteTemplate = Boolean(
         (allDraftsResult && allDraftsResult.success && multiPageContents.length > 0)
           || (singleDraftResult && singleDraftResult.success)
       );
 
       if (!hasAnyRemoteTemplate && !content) {
-        setApplyNotice("Template draft is empty. Save the template project first.");
->>>>>>> 3996677f934eda9d48dbd7ee89af7cc9713d7676
+        setApplyNotice("Selected project draft is empty. Open that project and save once, then try again.");
         return;
       }
 
