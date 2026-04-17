@@ -11,6 +11,7 @@ import { deserializeCleanToCraft } from "../../_lib/serializer";
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
+const TEMPLATE_APPLY_BACKUP_PREFIX = "craftjs_template_apply_backup";
 
 type SavedTemplateItem = {
   projectId: string;
@@ -55,14 +56,54 @@ function persistTemplateSnapshot(projectId: string, snapshot: string): void {
   }
 }
 
+function getTemplateApplyBackupKey(projectId: string): string {
+  return `${TEMPLATE_APPLY_BACKUP_PREFIX}_${projectId}`;
+}
+
+function readTemplateApplyBackup(projectId: string): string | null {
+  if (typeof window === "undefined" || !projectId) return null;
+
+  const key = getTemplateApplyBackupKey(projectId);
+  try {
+    const sessionValue = window.sessionStorage.getItem(key);
+    if (sessionValue) return sessionValue;
+  } catch {
+    // ignore storage read failures
+  }
+
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function persistTemplateApplyBackup(projectId: string, snapshot: string): void {
+  if (typeof window === "undefined" || !projectId || !snapshot) return;
+
+  const key = getTemplateApplyBackupKey(projectId);
+  try {
+    window.sessionStorage.setItem(key, snapshot);
+  } catch {
+    // ignore storage write failures
+  }
+
+  try {
+    window.localStorage.setItem(key, snapshot);
+  } catch {
+    // ignore storage write failures
+  }
+}
+
 export const TemplatePanel = () => {
-  const { connectors, actions } = useEditor();
+  const { connectors, actions, query } = useEditor();
   const [open, setOpen] = useState<Record<string, boolean>>({ "saved-templates": true });
   const [savedTemplates, setSavedTemplates] = useState<SavedTemplateItem[]>([]);
   const [savedLoading, setSavedLoading] = useState(true);
   const [savedError, setSavedError] = useState<string>("");
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyNotice, setApplyNotice] = useState<string>("");
+  const [hasCanvasBackup, setHasCanvasBackup] = useState(false);
 
   const toggle = (folder: string) => setOpen((o) => ({ ...o, [folder]: !o[folder] }));
 
@@ -111,14 +152,16 @@ export const TemplatePanel = () => {
         const merge = new Map<string, SavedTemplateItem>(localOnly);
 
         allProjects
-          .filter((project) => String(project.status || "").trim().toLowerCase() === "template")
+          .filter((project) => project.id !== currentProjectId)
           .forEach((project) => {
             if (project.id === currentProjectId) return;
+            const normalizedStatus = String(project.status || "").trim().toLowerCase();
+            const isTemplate = normalizedStatus === "template";
             merge.set(project.id, {
               projectId: project.id,
-              title: (project.templateName || project.title || "Untitled Template").trim(),
-              description: "Saved from builder preview.",
-              category: "Project Template",
+              title: (project.templateName || project.title || "Untitled Project").trim(),
+              description: isTemplate ? "Saved from builder preview." : "Recover from this project draft.",
+              category: isTemplate ? "Project Template" : "Workspace Project",
               thumbnail: project.thumbnail || null,
               content: project.templateContent || null,
               savedAt: project.updatedAt || project.createdAt,
@@ -170,10 +213,51 @@ export const TemplatePanel = () => {
     };
   }, [currentProjectId]);
 
+  useEffect(() => {
+    if (!currentProjectId) {
+      setHasCanvasBackup(false);
+      return;
+    }
+    setHasCanvasBackup(Boolean(readTemplateApplyBackup(currentProjectId)));
+  }, [currentProjectId]);
+
+  const restorePreviousCanvas = () => {
+    if (!currentProjectId) {
+      setApplyNotice("Current project is missing. Open this design from a project first.");
+      return;
+    }
+
+    const backup = readTemplateApplyBackup(currentProjectId);
+    if (!backup) {
+      setHasCanvasBackup(false);
+      setApplyNotice("No canvas backup found.");
+      return;
+    }
+
+    try {
+      actions.deserialize(backup);
+      setApplyNotice("Previous canvas restored.");
+      setHasCanvasBackup(true);
+    } catch {
+      setApplyNotice("Failed to restore previous canvas backup.");
+    }
+  };
+
   const applySavedTemplate = async (templateProjectId: string) => {
     setApplyNotice("");
     setApplyingId(templateProjectId);
     try {
+      const confirmed =
+        typeof window === "undefined" ||
+        window.confirm(
+          "Applying this template will replace your current canvas. We'll keep a backup so you can restore. Continue?"
+        );
+
+      if (!confirmed) {
+        setApplyNotice("Template apply canceled.");
+        return;
+      }
+
       const selectedTemplate = savedTemplates.find((template) => template.projectId === templateProjectId) || null;
       const localSnapshot = readStoredTemplateSnapshot(templateProjectId);
       const result = localSnapshot ? null : await getDraft(templateProjectId);
@@ -194,7 +278,7 @@ export const TemplatePanel = () => {
       }
 
       if ((!result || !result.success) && !content) {
-        setApplyNotice("Template draft is empty. Save the template project first.");
+        setApplyNotice("Selected project draft is empty. Open that project and save once, then try again.");
         return;
       }
 
@@ -222,8 +306,14 @@ export const TemplatePanel = () => {
         return;
       }
 
+      if (currentProjectId) {
+        const currentCanvasSnapshot = query.serialize();
+        persistTemplateApplyBackup(currentProjectId, currentCanvasSnapshot);
+        setHasCanvasBackup(true);
+      }
+
       actions.deserialize(craftJson);
-      setApplyNotice("Template applied to canvas.");
+      setApplyNotice("Template applied to canvas. Use Restore Previous Canvas if you need to undo.");
     } catch {
       setApplyNotice("Failed to apply template. Please try again.");
     } finally {
@@ -303,6 +393,16 @@ export const TemplatePanel = () => {
                 </div>
               </div>
             ))}
+
+            {hasCanvasBackup && (
+              <button
+                type="button"
+                onClick={restorePreviousCanvas}
+                className="w-full text-[10px] font-semibold px-2 py-1.5 rounded border border-brand-medium/40 text-brand-light hover:bg-brand-white/10"
+              >
+                Restore Previous Canvas
+              </button>
+            )}
 
             {!!applyNotice && <p className="text-[10px] text-brand-medium">{applyNotice}</p>}
           </div>
