@@ -5,7 +5,7 @@ import { DesignTooltip } from "../DesignTooltip";
 import { listTemplateLibrary, type Project } from "@/lib/api";
 import { templateService } from "@/lib/templateService";
 import { listTemplateProjectEntries } from "@/lib/templateProjectRegistry";
-import { getDraft } from "../../_lib/pageApi";
+import { getDraft, getAllDrafts } from "../../_lib/pageApi";
 import { parseContentToCleanDoc } from "../../_lib/contentParser";
 import { deserializeCleanToCraft } from "../../_lib/serializer";
 
@@ -53,6 +53,115 @@ function persistTemplateSnapshot(projectId: string, snapshot: string): void {
   } catch {
     // ignore storage write failures
   }
+}
+
+function toCraftSnapshot(content: unknown): Record<string, any> | null {
+  if (!content) return null;
+
+  if (typeof content === "string") {
+    try {
+      const parsed = JSON.parse(content);
+      if (parsed && typeof parsed === "object" && "ROOT" in parsed) {
+        return parsed as Record<string, any>;
+      }
+      const cleanDoc = parseContentToCleanDoc(parsed);
+      if (!cleanDoc) return null;
+      return JSON.parse(deserializeCleanToCraft(cleanDoc));
+    } catch {
+      const cleanDoc = parseContentToCleanDoc(content);
+      if (!cleanDoc) return null;
+      return JSON.parse(deserializeCleanToCraft(cleanDoc));
+    }
+  }
+
+  const maybeObject = content as Record<string, unknown>;
+  if (maybeObject && typeof maybeObject === "object" && "ROOT" in maybeObject) {
+    return maybeObject as Record<string, any>;
+  }
+
+  const cleanDoc = parseContentToCleanDoc(content);
+  if (!cleanDoc) return null;
+  return JSON.parse(deserializeCleanToCraft(cleanDoc));
+}
+
+function mergeTemplatePages(contents: unknown[]): string | null {
+  const snapshots = contents
+    .map(toCraftSnapshot)
+    .filter((snapshot): snapshot is Record<string, any> => Boolean(snapshot && snapshot.ROOT));
+
+  if (snapshots.length === 0) return null;
+
+  const merged: Record<string, any> = JSON.parse(JSON.stringify(snapshots[0]));
+  const root = merged.ROOT;
+  if (!root || typeof root !== "object") return null;
+  if (!Array.isArray(root.nodes)) root.nodes = [];
+
+  const visitedSlugs = new Set<string>();
+  const registerSlug = (nodeId: string) => {
+    const node = merged[nodeId];
+    const slug = node?.props?.pageSlug;
+    if (typeof slug === "string" && slug.trim()) visitedSlugs.add(slug.trim().toLowerCase());
+  };
+  root.nodes.forEach((id: string) => registerSlug(id));
+
+  for (let i = 1; i < snapshots.length; i += 1) {
+    const snapshot = snapshots[i];
+    const sourceRoot = snapshot.ROOT;
+    if (!sourceRoot || !Array.isArray(sourceRoot.nodes)) continue;
+
+    for (const sourcePageId of sourceRoot.nodes) {
+      const sourcePage = snapshot[sourcePageId];
+      if (!sourcePage) continue;
+      const sourceSlug = sourcePage?.props?.pageSlug;
+      if (typeof sourceSlug === "string" && visitedSlugs.has(sourceSlug.trim().toLowerCase())) continue;
+
+      const idMap = new Map<string, string>();
+      const stack = [sourcePageId];
+      while (stack.length > 0) {
+        const current = stack.pop() as string;
+        if (idMap.has(current)) continue;
+        const nextId = merged[current] ? `${current}_${i}_${idMap.size}` : current;
+        idMap.set(current, nextId);
+        const node = snapshot[current];
+        if (!node) continue;
+        if (Array.isArray(node.nodes)) {
+          node.nodes.forEach((childId: string) => stack.push(childId));
+        }
+        if (node.linkedNodes && typeof node.linkedNodes === "object") {
+          Object.values(node.linkedNodes).forEach((childId) => {
+            if (typeof childId === "string") stack.push(childId);
+          });
+        }
+      }
+
+      idMap.forEach((targetId, sourceId) => {
+        const sourceNode = snapshot[sourceId];
+        if (!sourceNode || typeof sourceNode !== "object") return;
+        const clone = JSON.parse(JSON.stringify(sourceNode));
+        clone.parent = typeof clone.parent === "string" ? (idMap.get(clone.parent) || "ROOT") : "ROOT";
+        clone.nodes = Array.isArray(clone.nodes)
+          ? clone.nodes.map((id: string) => idMap.get(id) || id)
+          : [];
+        if (clone.linkedNodes && typeof clone.linkedNodes === "object") {
+          Object.keys(clone.linkedNodes).forEach((key) => {
+            const linked = clone.linkedNodes[key];
+            if (typeof linked === "string") clone.linkedNodes[key] = idMap.get(linked) || linked;
+          });
+        } else {
+          clone.linkedNodes = {};
+        }
+        merged[targetId] = clone;
+      });
+
+      const remappedRootId = idMap.get(sourcePageId);
+      if (!remappedRootId) continue;
+      merged[remappedRootId].parent = "ROOT";
+      if (!root.nodes.includes(remappedRootId)) root.nodes.push(remappedRootId);
+      registerSlug(remappedRootId);
+    }
+  }
+
+  return JSON.stringify(merged);
 }
 
 export const TemplatePanel = () => {
@@ -176,8 +285,19 @@ export const TemplatePanel = () => {
     try {
       const selectedTemplate = savedTemplates.find((template) => template.projectId === templateProjectId) || null;
       const localSnapshot = readStoredTemplateSnapshot(templateProjectId);
-      const result = localSnapshot ? null : await getDraft(templateProjectId);
-      let content = localSnapshot ?? result?.data?.content ?? result?.data ?? selectedTemplate?.content ?? null;
+      const allDraftsResult = localSnapshot ? null : await getAllDrafts(templateProjectId);
+      const singleDraftResult = localSnapshot ? null : await getDraft(templateProjectId);
+
+      const multiPageContents = (allDraftsResult?.data || [])
+        .map((item: any) => item?.content ?? item?.page ?? null)
+        .filter((item: unknown) => item !== null);
+
+      let content = localSnapshot
+        ?? mergeTemplatePages(multiPageContents)
+        ?? singleDraftResult?.data?.content
+        ?? singleDraftResult?.data
+        ?? selectedTemplate?.content
+        ?? null;
 
       if (!content && selectedTemplate) {
         const localTemplate = templateService.getTemplates().find((template) => {
@@ -193,29 +313,18 @@ export const TemplatePanel = () => {
         }
       }
 
-      if ((!result || !result.success) && !content) {
+      const hasAnyRemoteTemplate = Boolean(
+        (allDraftsResult && allDraftsResult.success && multiPageContents.length > 0)
+          || (singleDraftResult && singleDraftResult.success)
+      );
+
+      if (!hasAnyRemoteTemplate && !content) {
         setApplyNotice("Template draft is empty. Save the template project first.");
         return;
       }
 
-      let craftJson: string | null = null;
-      if (typeof content === "string") {
-        try {
-          const parsed = JSON.parse(content);
-          if (parsed && typeof parsed === "object" && "ROOT" in parsed) {
-            craftJson = JSON.stringify(parsed);
-          } else {
-            const cleanDoc = parseContentToCleanDoc(parsed);
-            if (cleanDoc) craftJson = deserializeCleanToCraft(cleanDoc);
-          }
-        } catch {
-          const cleanDoc = parseContentToCleanDoc(content);
-          if (cleanDoc) craftJson = deserializeCleanToCraft(cleanDoc);
-        }
-      } else {
-        const cleanDoc = parseContentToCleanDoc(content);
-        if (cleanDoc) craftJson = deserializeCleanToCraft(cleanDoc);
-      }
+      const parsedSnapshot = toCraftSnapshot(content);
+      const craftJson = parsedSnapshot ? JSON.stringify(parsedSnapshot) : null;
 
       if (!craftJson) {
         setApplyNotice("Could not parse template content.");
