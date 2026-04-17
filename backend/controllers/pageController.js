@@ -266,14 +266,64 @@ exports.autoSave = async (req, res) => {
 
     const { ownerId } = resolved;
 
-    // Guard: prevent overwriting real content with empty canvas
+    // Guard: prevent overwriting real content with empty/starter canvas payloads
+    const isEffectivelyEmptyContent = (value) => {
+      if (!value || typeof value !== 'object') return true;
+
+      // Craft.js shape: { ROOT, ...nodes }
+      if (value.ROOT && typeof value.ROOT === 'object') {
+        const rootNodes = Array.isArray(value.ROOT.nodes) ? value.ROOT.nodes : [];
+        if (rootNodes.length === 0) return true;
+
+        const hasMeaningfulPageChild = rootNodes.some((pageId) => {
+          const page = value[pageId];
+          if (!page || typeof page !== 'object') return false;
+          const pageChildren = Array.isArray(page.nodes) ? page.nodes : [];
+          if (pageChildren.length === 0) return false;
+          if (pageChildren.length > 1) return true;
+
+          const onlyChild = value[pageChildren[0]];
+          if (!onlyChild || typeof onlyChild !== 'object') return false;
+          const onlyChildChildren = Array.isArray(onlyChild.nodes) ? onlyChild.nodes : [];
+          if (onlyChildChildren.length > 0) return true;
+
+          const childName = String(
+            onlyChild.displayName ||
+            (onlyChild.type && (onlyChild.type.resolvedName || onlyChild.type)) ||
+            ''
+          ).trim().toLowerCase();
+
+          return childName && !['container', 'section', 'page', 'viewport'].includes(childName);
+        });
+
+        return !hasMeaningfulPageChild;
+      }
+
+      // Clean document shape: { version, pages, nodes }
+      if (value.nodes && typeof value.nodes === 'object') {
+        const nodeEntries = Object.entries(value.nodes);
+        if (nodeEntries.length === 0) return true;
+
+        const meaningfulNodeExists = nodeEntries.some(([, node]) => {
+          if (!node || typeof node !== 'object') return false;
+          const typeName = String(node.type || '').trim().toLowerCase();
+          const children = Array.isArray(node.children) ? node.children : [];
+          if (children.length > 0) return true;
+          return typeName && !['container', 'section', 'page', 'viewport'].includes(typeName);
+        });
+
+        return !meaningfulNodeExists;
+      }
+
+      return false;
+    };
+
     let parsedContent;
     try {
       parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
     } catch { parsedContent = null; }
 
-    const incomingNodes = parsedContent?.nodes ? Object.keys(parsedContent.nodes) : [];
-    const isIncomingEmpty = parsedContent && incomingNodes.length === 0;
+    const isIncomingEmpty = isEffectivelyEmptyContent(parsedContent);
 
     if (isIncomingEmpty) {
       const existing = await Page.getPageData(ownerId, projectId, ownerId);
@@ -283,8 +333,7 @@ exports.autoSave = async (req, res) => {
           existingParsed = typeof existing.content === 'string'
             ? JSON.parse(existing.content) : existing.content;
         } catch { existingParsed = null; }
-        const existingNodes = existingParsed?.nodes ? Object.keys(existingParsed.nodes) : [];
-        if (existingNodes.length > 0) {
+        if (!isEffectivelyEmptyContent(existingParsed)) {
           return res.status(200).json({
             success: true,
             message: 'Skipped: not overwriting existing content with empty canvas',
@@ -383,6 +432,75 @@ exports.getDraft = async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Get draft error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all pages for a project (used for templates)
+// @route   GET /api/pages/draft/all
+// @access  Private
+exports.getAllDrafts = async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  try {
+    const userId = req.user.id;
+    const userRole = String(req.user.role || '').toLowerCase();
+    const userEmail = (req.user.email || '').toLowerCase();
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID is required'
+      });
+    }
+
+    let resolved = await resolveProjectOwner(userId, projectId, userEmail);
+
+    // Admin moderation views may request previews for projects they do not directly own/collaborate on.
+    if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
+      try {
+        const projectSnap = await db
+          .collectionGroup('projects')
+          .limit(100)
+          .get();
+
+        const projectDoc = projectSnap.docs.find((doc) => doc.id === projectId);
+        if (projectDoc) {
+          const ownerId = projectDoc.ref.parent?.parent?.id;
+          if (ownerId) {
+            resolved = { ownerId, permission: 'admin' };
+          }
+        }
+      } catch (err) {
+        console.warn('[pageController.getAllDrafts] admin project lookup failed:', err.message);
+      }
+    }
+
+    if (!resolved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this project'
+      });
+    }
+
+    // Auto-register public-link users as collaborators
+    if (resolved.isPublic) {
+      await ensurePublicCollaborator(resolved.ownerId, projectId, userId, userEmail, resolved.permission);
+    }
+
+    const { ownerId } = resolved;
+    const allPages = await Page.getAllPageData(ownerId, projectId);
+
+    res.status(200).json({
+      success: true,
+      data: allPages
+    });
+  } catch (error) {
+    console.error('❌ Get all drafts error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
