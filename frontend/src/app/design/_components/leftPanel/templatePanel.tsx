@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { createPortal } from "react-dom";
 import { GROUPED_TEMPLATES } from "../../../_templates";
 import { DesignTooltip } from "../DesignTooltip";
 import { listTemplateLibrary, type Project } from "@/lib/api";
@@ -22,6 +23,22 @@ type SavedTemplateItem = {
   content?: string | Record<string, unknown> | null;
   savedAt?: string;
 };
+
+type ApplyModalState = {
+  open: boolean;
+  title: string;
+  message: string;
+  busy: boolean;
+  tone: "neutral" | "success" | "error";
+};
+
+async function yieldToMainThread(): Promise<void> {
+  if (typeof window !== "undefined" && typeof window.requestAnimationFrame === "function") {
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    return;
+  }
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
 
 function readStoredTemplateSnapshot(projectId: string): string | null {
   if (typeof window === "undefined") return null;
@@ -124,17 +141,31 @@ function toCraftSnapshot(content: unknown): Record<string, any> | null {
   return JSON.parse(deserializeCleanToCraft(cleanDoc));
 }
 
-function mergeTemplatePages(contents: unknown[]): string | null {
+async function mergeTemplatePages(
+  contents: unknown[],
+  onProgress?: (processedPages: number, totalPages: number) => void
+): Promise<string | null> {
   const snapshots = contents
     .map(toCraftSnapshot)
     .filter((snapshot): snapshot is Record<string, any> => Boolean(snapshot && snapshot.ROOT));
 
   if (snapshots.length === 0) return null;
 
+  if (snapshots.length === 1) {
+    return JSON.stringify(snapshots[0]);
+  }
+
   const merged: Record<string, any> = JSON.parse(JSON.stringify(snapshots[0]));
   const root = merged.ROOT;
   if (!root || typeof root !== "object") return null;
   if (!Array.isArray(root.nodes)) root.nodes = [];
+
+  const totalPages = snapshots.reduce((count, snapshot) => {
+    const pageIds = Array.isArray(snapshot.ROOT?.nodes) ? snapshot.ROOT.nodes : [];
+    return count + pageIds.length;
+  }, 0);
+  let processedPages = Array.isArray(root.nodes) ? root.nodes.length : 0;
+  onProgress?.(processedPages, totalPages);
 
   const visitedSlugs = new Set<string>();
   const registerSlug = (nodeId: string) => {
@@ -150,6 +181,8 @@ function mergeTemplatePages(contents: unknown[]): string | null {
     if (!sourceRoot || !Array.isArray(sourceRoot.nodes)) continue;
 
     for (const sourcePageId of sourceRoot.nodes) {
+      processedPages += 1;
+      onProgress?.(processedPages, totalPages);
       const sourcePage = snapshot[sourcePageId];
       if (!sourcePage) continue;
       const sourceSlug = sourcePage?.props?.pageSlug;
@@ -198,6 +231,8 @@ function mergeTemplatePages(contents: unknown[]): string | null {
       merged[remappedRootId].parent = "ROOT";
       if (!root.nodes.includes(remappedRootId)) root.nodes.push(remappedRootId);
       registerSlug(remappedRootId);
+
+      await yieldToMainThread();
     }
   }
 
@@ -213,6 +248,20 @@ export const TemplatePanel = () => {
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [applyNotice, setApplyNotice] = useState<string>("");
   const [hasCanvasBackup, setHasCanvasBackup] = useState(false);
+  const [confirmApplyId, setConfirmApplyId] = useState<string | null>(null);
+  const [canPortal, setCanPortal] = useState(false);
+  const [applyModal, setApplyModal] = useState<ApplyModalState>({
+    open: false,
+    title: "",
+    message: "",
+    busy: false,
+    tone: "neutral",
+  });
+
+  useEffect(() => {
+    setCanPortal(true);
+    return () => setCanPortal(false);
+  }, []);
 
   const toggle = (folder: string) => setOpen((o) => ({ ...o, [folder]: !o[folder] }));
 
@@ -355,29 +404,42 @@ export const TemplatePanel = () => {
   const applySavedTemplate = async (templateProjectId: string) => {
     setApplyNotice("");
     setApplyingId(templateProjectId);
+    setApplyModal({
+      open: true,
+      title: "Applying Template",
+      message: "Preparing template content...",
+      busy: true,
+      tone: "neutral",
+    });
     try {
-      const confirmed =
-        typeof window === "undefined" ||
-        window.confirm(
-          "Applying this template will replace your current canvas. We'll keep a backup so you can restore. Continue?"
-        );
-
-      if (!confirmed) {
-        setApplyNotice("Template apply canceled.");
-        return;
-      }
-
       const selectedTemplate = savedTemplates.find((template) => template.projectId === templateProjectId) || null;
       const localSnapshot = readStoredTemplateSnapshot(templateProjectId);
+      await yieldToMainThread();
       const allDraftsResult = localSnapshot ? null : await getAllDrafts(templateProjectId);
-      const singleDraftResult = localSnapshot ? null : await getDraft(templateProjectId);
+      const shouldFetchSingleDraft =
+        !localSnapshot &&
+        (!allDraftsResult?.success || !Array.isArray(allDraftsResult.data) || allDraftsResult.data.length === 0);
+      const singleDraftResult = shouldFetchSingleDraft ? await getDraft(templateProjectId) : null;
 
       const multiPageContents = (allDraftsResult?.data || [])
         .map((item: any) => item?.content ?? item?.page ?? null)
         .filter((item: unknown) => item !== null);
 
+      setApplyModal((prev) => ({
+        ...prev,
+        message: multiPageContents.length > 1
+          ? `Optimizing ${multiPageContents.length} pages for import...`
+          : "Processing template content...",
+      }));
+
       let content = localSnapshot
-        ?? mergeTemplatePages(multiPageContents)
+        ?? await mergeTemplatePages(multiPageContents, (processed, total) => {
+          if (!total || total <= 1) return;
+          setApplyModal((prev) => ({
+            ...prev,
+            message: `Optimizing pages (${Math.min(processed, total)}/${total})...`,
+          }));
+        })
         ?? singleDraftResult?.data?.content
         ?? singleDraftResult?.data
         ?? selectedTemplate?.content
@@ -404,6 +466,13 @@ export const TemplatePanel = () => {
 
       if (!hasAnyRemoteTemplate && !content) {
         setApplyNotice("Selected project draft is empty. Open that project and save once, then try again.");
+        setApplyModal({
+          open: true,
+          title: "Template Empty",
+          message: "Selected project draft is empty. Open that project and save once, then try again.",
+          busy: false,
+          tone: "error",
+        });
         return;
       }
 
@@ -412,6 +481,13 @@ export const TemplatePanel = () => {
 
       if (!craftJson) {
         setApplyNotice("Could not parse template content.");
+        setApplyModal({
+          open: true,
+          title: "Apply Failed",
+          message: "Could not parse template content.",
+          busy: false,
+          tone: "error",
+        });
         return;
       }
 
@@ -421,14 +497,34 @@ export const TemplatePanel = () => {
         setHasCanvasBackup(true);
       }
 
+      setApplyModal((prev) => ({ ...prev, message: "Rendering template on canvas..." }));
+      await yieldToMainThread();
       actions.deserialize(craftJson);
       setApplyNotice("Template applied to canvas. Use Restore Previous Canvas if you need to undo.");
+      setApplyModal({
+        open: true,
+        title: "Template Applied",
+        message: "Template applied successfully. Use Restore Previous Canvas if you need to undo.",
+        busy: false,
+        tone: "success",
+      });
     } catch {
       setApplyNotice("Failed to apply template. Please try again.");
+      setApplyModal({
+        open: true,
+        title: "Apply Failed",
+        message: "Failed to apply template. Please try again.",
+        busy: false,
+        tone: "error",
+      });
     } finally {
       setApplyingId(null);
     }
   };
+
+  const selectedForConfirm = confirmApplyId
+    ? savedTemplates.find((template) => template.projectId === confirmApplyId) || null
+    : null;
 
   return (
     <div className="flex flex-col gap-4 p-4">
@@ -493,7 +589,7 @@ export const TemplatePanel = () => {
                   </button>
                   <button
                     type="button"
-                    onClick={() => void applySavedTemplate(template.projectId)}
+                    onClick={() => setConfirmApplyId(template.projectId)}
                     disabled={applyingId === template.projectId}
                     className="flex-1 text-[10px] font-semibold px-2 py-1.5 rounded text-white transition-all hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed bg-[linear-gradient(135deg,#6c8fff,#a78bfa)] shadow-[0_2px_8px_rgba(108,143,255,0.35)]"
                   >
@@ -564,6 +660,73 @@ export const TemplatePanel = () => {
           </div>
         ))}
       </div>
+
+      {canPortal && typeof document !== "undefined" && createPortal(
+        <>
+          {confirmApplyId && selectedForConfirm && (
+            <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/55 p-4">
+              <div className="w-full max-w-md rounded-2xl border border-brand-medium/30 bg-[#efedf7] text-[#2e2960] shadow-[0_24px_60px_rgba(0,0,0,0.35)] overflow-hidden">
+                <div className="px-6 py-5 border-b border-[#d8d3ef]">
+                  <h3 className="text-lg font-bold tracking-wide">Apply Template</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#4d467e]">
+                    Apply <span className="font-semibold">{selectedForConfirm.title}</span>? This will replace your current canvas. A backup will be saved so you can restore.
+                  </p>
+                </div>
+                <div className="flex items-center justify-end gap-2 px-6 py-4 bg-[#f4f2fb]">
+                  <button
+                    type="button"
+                    onClick={() => setConfirmApplyId(null)}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold border border-[#c7c2e3] text-[#4a4378] hover:bg-[#e5e1f5]"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetId = confirmApplyId;
+                      setConfirmApplyId(null);
+                      if (targetId) {
+                        void applySavedTemplate(targetId);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#ff2f47] hover:bg-[#e8263d]"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {applyModal.open && (
+            <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/55 p-4">
+              <div className="w-full max-w-md rounded-2xl border border-brand-medium/30 bg-[#efedf7] text-[#2e2960] shadow-[0_24px_60px_rgba(0,0,0,0.35)] overflow-hidden">
+                <div className="px-6 py-5 border-b border-[#d8d3ef]">
+                  <h3 className="text-lg font-bold tracking-wide">{applyModal.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#4d467e]">{applyModal.message}</p>
+                </div>
+                <div className="px-6 py-4 bg-[#f4f2fb] flex items-center justify-end">
+                  {applyModal.busy ? (
+                    <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#4a4378]">
+                      <span className="h-3.5 w-3.5 rounded-full border-2 border-[#8f89b4] border-t-transparent animate-spin" />
+                      Applying...
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setApplyModal((prev) => ({ ...prev, open: false }))}
+                      className="px-4 py-2 rounded-lg text-xs font-semibold text-white bg-[#ff2f47] hover:bg-[#e8263d]"
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </>,
+        document.body
+      )}
     </div>
   );
 };
