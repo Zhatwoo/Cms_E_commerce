@@ -2201,6 +2201,19 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           }
         };
 
+        const searchParams =
+          typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search)
+            : null;
+        const recoverSubdomainParam = (searchParams?.get("recoverSubdomain") || "")
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, "");
+        const allowEmergencyRecovery =
+          searchParams?.get("recover") === "1" ||
+          searchParams?.get("allowRecovery") === "1" ||
+          Boolean(recoverSubdomainParam);
+
         let contentToLoad: string | null = null;
 
         const applyLoadedContent = (content: string | null) => {
@@ -2494,14 +2507,6 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         // 6. Fallback to published snapshot (current project subdomain or explicit recovery subdomain).
         if (!contentToLoad) {
           try {
-            const recoverSubdomainParam =
-              typeof window !== "undefined"
-                ? (new URLSearchParams(window.location.search).get("recoverSubdomain") || "")
-                    .trim()
-                    .toLowerCase()
-                    .replace(/[^a-z0-9-]/g, "")
-                : "";
-
             const projectRes = await getProject(projectId);
             const projectSubdomain = String(projectRes?.project?.subdomain || "").trim().toLowerCase();
             const subdomain = recoverSubdomainParam || projectSubdomain;
@@ -2542,7 +2547,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         }
 
         // 6b. Published subdomain scan fallback: recover from latest published project snapshot.
-        if (!contentToLoad) {
+        if (!contentToLoad && allowEmergencyRecovery) {
           try {
             const projectsRes = await listProjects();
             const publishedCandidates = (projectsRes.success ? projectsRes.projects : [])
@@ -2587,10 +2592,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           } catch {
             pushRecoveryTrace("published-scan:error");
           }
+        } else if (!contentToLoad) {
+          pushRecoveryTrace("published-scan:skipped");
         }
 
         // 7. Emergency local recovery: scan browser snapshots from other projects and use the richest valid payload.
-        if (!contentToLoad) {
+        if (!contentToLoad && allowEmergencyRecovery) {
           try {
             const snapshots: string[] = [];
 
@@ -2649,10 +2656,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             pushRecoveryTrace(`scan-local:error`);
             // Ignore local recovery errors and continue with API fallbacks.
           }
+        } else if (!contentToLoad) {
+          pushRecoveryTrace(`scan-local:skipped`);
         }
 
         // 8. Emergency recovery fallback: restore from latest non-empty draft in workspace projects.
-        if (!contentToLoad) {
+        if (!contentToLoad && allowEmergencyRecovery) {
           try {
             const projectsRes = await listProjects();
             const candidates = (projectsRes.success ? projectsRes.projects : [])
@@ -2699,6 +2708,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
             pushRecoveryTrace(`scan-project:error`);
             // Ignore emergency recovery errors; editor can still load an empty canvas.
           }
+        } else if (!contentToLoad) {
+          pushRecoveryTrace(`scan-project:skipped`);
         }
 
         // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
@@ -2737,6 +2748,12 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   useEffect(() => {
     let clearTimer: number | null = null;
 
+    const toElement = (target: EventTarget | null): Element | null => {
+      if (target instanceof Element) return target;
+      if (target instanceof Node) return target.parentElement;
+      return null;
+    };
+
     const activateSuppression = () => {
       if (clearTimer !== null) {
         window.clearTimeout(clearTimer);
@@ -2756,7 +2773,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     };
 
     const handleMouseDown = (event: MouseEvent) => {
-      const target = event.target as HTMLElement | null;
+      const target = toElement(event.target);
       const isNewPageSource = !!target?.closest("[data-component-new-page='true']");
       if (isNewPageSource) {
         activateSuppression();
@@ -2764,7 +2781,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     };
 
     const handleDragStart = (event: DragEvent) => {
-      const target = event.target as HTMLElement | null;
+      const target = toElement(event.target);
       const startedFromNewPage =
         !!target?.closest("[data-component-new-page='true']") ||
         document.body.dataset.newPageDragActive === "true";

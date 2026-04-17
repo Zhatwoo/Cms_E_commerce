@@ -61,15 +61,21 @@ export function HeaderFooterDropPlacementHandler() {
       preDragNodeIdsRef.current.clear();
     };
 
+    const toElement = (target: EventTarget | null): Element | null => {
+      if (target instanceof Element) return target;
+      if (target instanceof Node) return target.parentElement;
+      return null;
+    };
+
     const resolveCategoryFromDragStart = (target: EventTarget | null): HeaderFooterCategory | null => {
-      const el = target as HTMLElement | null;
+      const el = toElement(target);
       const fromAttr = normalizeCategory(el?.closest("[data-asset-category]")?.getAttribute("data-asset-category"));
       if (fromAttr) return fromAttr;
       return normalizeCategory(document.body.dataset.assetDragCategory);
     };
 
     const resolveCategoryFromPointerDown = (target: EventTarget | null): HeaderFooterCategory | null => {
-      const el = target as HTMLElement | null;
+      const el = toElement(target);
       const source = el?.closest("[data-drag-source='asset'][data-asset-category]") as HTMLElement | null;
       if (!source) return null;
       return normalizeCategory(source.getAttribute("data-asset-category"));
