@@ -55,14 +55,14 @@ const DASHBOARD_TABS = [
 type HeroTab = 'designs' | 'templates';
 
 function formatLastEdited(dateStr?: string) {
-  if (!dateStr) return 'Last edited recently';
+  if (!dateStr) return 'Last activity recently';
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = Math.max(0, now.getTime() - date.getTime());
   const hours = Math.floor(diffMs / 3600000);
   const days = Math.floor(diffMs / 86400000);
-  if (hours < 24) return `Last edited ${hours} hour${hours === 1 ? '' : 's'} ago`;
-  return `Last edited ${days || 1} day${days === 1 ? '' : 's'} ago`;
+  if (hours < 24) return `Last activity ${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return `Last activity ${days || 1} day${days === 1 ? '' : 's'} ago`;
 }
 
 function formatEditedDate(dateStr?: string) {
@@ -300,8 +300,34 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       return;
     }
 
+    const confirmed = await showConfirm(
+      `Apply this template to "${selectedProject.title || 'Untitled Project'}"? This replaces its current draft, but a local backup will be kept for restore.`
+    );
+    if (!confirmed) return;
+
     setApplyingTemplateId(templateProjectId);
     try {
+      const existingDraftRes = await getDraft(selectedProject.id);
+      const existingDraftContent = existingDraftRes?.data?.content ?? existingDraftRes?.data ?? null;
+      if (existingDraftRes?.success && existingDraftContent && typeof window !== 'undefined') {
+        const backupKey = `craftjs_template_apply_backup_${selectedProject.id}`;
+        const serialized = typeof existingDraftContent === 'string'
+          ? existingDraftContent
+          : JSON.stringify(existingDraftContent);
+
+        try {
+          window.sessionStorage.setItem(backupKey, serialized);
+        } catch {
+          // Ignore storage write failures.
+        }
+
+        try {
+          window.localStorage.setItem(backupKey, serialized);
+        } catch {
+          // Ignore storage write failures.
+        }
+      }
+
       const templateDraftRes = await getDraft(templateProjectId);
       const templateContent = templateDraftRes?.data?.content;
 

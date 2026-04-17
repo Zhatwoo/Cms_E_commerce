@@ -50,7 +50,9 @@ import { SnapMarkers } from "./SnapMarkers";
 import type { TabId } from "./rightPanel";
 import { autoSavePage, getDraft, deleteDraft } from "../_lib/pageApi";
 import { serializeCraftToClean, deserializeCleanToCraft } from "../_lib/serializer";
+import { parseContentToCleanDoc } from "../_lib/contentParser";
 import { slugFromName } from "../_lib/slug";
+import { getProject, listProjects, type Project } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
 import { useThemeOptional } from "@/app/m_dashboard/components/context/theme-context";
@@ -130,6 +132,7 @@ class FrameErrorBoundary extends React.Component<
 
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
 const PERSISTENT_STORAGE_KEY_PREFIX = "craftjs_preview_persist";
+const TEMPLATE_APPLY_BACKUP_PREFIX = "craftjs_template_apply_backup";
 const UI_STATE_KEY_PREFIX = "craftjs_editor_ui";
 
 // These must match the Viewport constants for proper page positioning
@@ -515,7 +518,29 @@ const clampScale = (value: unknown, fallback: number = DEFAULT_SCALE): number =>
  */
 function validateCraftData(jsonString: string): { valid: boolean; data?: string } {
   try {
-    const parsed = JSON.parse(jsonString);
+    let parsed = JSON.parse(jsonString);
+
+    // Unwrap common wrappers returned by legacy draft responses.
+    if (parsed && typeof parsed === "object") {
+      const unwrapKeys = ["content", "page", "data"];
+      let guard = 0;
+      while (guard < 3 && parsed && typeof parsed === "object" && !parsed.ROOT) {
+        guard += 1;
+        const next = unwrapKeys
+          .map((key) => parsed?.[key])
+          .find((value) => value && typeof value === "object");
+        if (!next) break;
+        parsed = next;
+      }
+    }
+
+    // If still not Craft JSON, try clean-doc migration before giving up.
+    if (!parsed?.ROOT) {
+      const cleanDoc = parseContentToCleanDoc(parsed);
+      if (cleanDoc) {
+        return validateCraftData(deserializeCleanToCraft(cleanDoc));
+      }
+    }
 
     // Must have ROOT
     if (!parsed || !parsed.ROOT) {
@@ -523,15 +548,27 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       return { valid: false };
     }
 
-    // ROOT must have basic structure
-    if (!parsed.ROOT.type || !parsed.ROOT.type.resolvedName) {
-      console.error('❌ Validation failed: ROOT missing type.resolvedName');
-      return { valid: false };
+    // ROOT should have basic structure; salvage missing fields when possible.
+    if (!parsed.ROOT.type || typeof parsed.ROOT.type !== "object") {
+      parsed.ROOT.type = { resolvedName: "Viewport" };
+    }
+    if (!parsed.ROOT.type.resolvedName) {
+      parsed.ROOT.type.resolvedName = normalizeResolvedName(parsed.ROOT.displayName || "Viewport");
     }
 
     if (!Array.isArray(parsed.ROOT.nodes)) {
-      console.error('❌ Validation failed: ROOT.nodes is not an array');
-      return { valid: false };
+      const fromObject =
+        parsed.ROOT.nodes && typeof parsed.ROOT.nodes === "object"
+          ? Object.values(parsed.ROOT.nodes).filter((value) => typeof value === "string")
+          : [];
+
+      const fromParents = Object.keys(parsed).filter((id) => {
+        if (id === "ROOT") return false;
+        const node = parsed[id];
+        return node && typeof node === "object" && node.parent === "ROOT";
+      });
+
+      parsed.ROOT.nodes = (fromObject.length > 0 ? fromObject : fromParents) as string[];
     }
 
     // Collect all valid nodes - be VERY strict about what makes a node valid
@@ -590,9 +627,9 @@ function validateCraftData(jsonString: string): { valid: boolean; data?: string 
       return true;
     }));
 
-    // If too many invalid nodes, abort
-    if (invalidNodes.length > allNodeIds.length * 0.5) {
-      console.error(`❌ Too many invalid nodes (${invalidNodes.length}/${allNodeIds.length}). Data is too corrupted.`);
+    // Abort only if nothing usable remains.
+    if (!validNodeIds.has("ROOT") || validNodeIds.size === 0) {
+      console.error(`❌ Validation failed: no usable nodes (${invalidNodes.length}/${allNodeIds.length} invalid).`);
       return { valid: false };
     }
 
@@ -1235,6 +1272,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
   const [activeTool, setActiveTool] = useState<CanvasTool>(permission === "viewer" ? "hand" : "move");
   const [frameReady, setFrameReady] = useState(false);
   const [showDualView, setShowDualView] = useState(false);
+  const [recoveryTrace, setRecoveryTrace] = useState<string[]>([]);
   const themeCtx = useThemeOptional();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -1278,6 +1316,13 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       setRightPanelOpen(true);
     }
   }, [setRightPanelOpen]);
+
+  const pushRecoveryTrace = useCallback((message: string) => {
+    setRecoveryTrace((prev) => {
+      const next = [...prev, message];
+      return next.slice(-14);
+    });
+  }, []);
 
   const startPanelDrag = useCallback((side: "left" | "right", event: React.MouseEvent) => {
     event.preventDefault();
@@ -2122,11 +2167,39 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
 
     async function loadDraft() {
       try {
+        setRecoveryTrace([]);
+        pushRecoveryTrace(`load:start project=${projectId}`);
+
         // Try sessionStorage per-project (no localStorage — auth/drafts in cookies or session only)
         const storageKey = getStorageKey(projectId);
         const sessionSaved = safeSessionGet(storageKey);
         const persistentKey = getPersistentStorageKey(projectId);
         const persistentSaved = safeLocalGet(persistentKey);
+
+        const fetchDraftFresh = async (targetProjectId: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+          try {
+            const response = await fetch(`/api/pages/draft?projectId=${encodeURIComponent(targetProjectId)}&t=${Date.now()}`, {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+              headers: {
+                "Cache-Control": "no-cache",
+                "Pragma": "no-cache",
+              },
+            });
+
+            if (!response.ok) {
+              if (response.status === 401) return { success: false, data: null, error: "auth" };
+              if (response.status === 403) return { success: false, data: null, error: "forbidden" };
+              return { success: false, data: null, error: `http-${response.status}` };
+            }
+
+            const json = await response.json();
+            return { success: Boolean(json?.success), data: json?.data ?? null };
+          } catch {
+            return { success: false, data: null, error: "network" };
+          }
+        };
 
         let contentToLoad: string | null = null;
 
@@ -2199,6 +2272,55 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           }
         };
 
+        const extractDraftPayload = (draftData: unknown): unknown => {
+          const tryParseJson = (value: unknown): unknown => {
+            if (typeof value !== "string") return value;
+            const trimmed = value.trim();
+            if (!trimmed) return value;
+            if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) return value;
+            try {
+              return JSON.parse(trimmed);
+            } catch {
+              return value;
+            }
+          };
+
+          const unwrap = (value: unknown, depth = 0): unknown => {
+            if (depth > 6 || value == null) return value;
+
+            const parsed = tryParseJson(value);
+            if (parsed && typeof parsed === "object") {
+              const obj = parsed as Record<string, unknown>;
+
+              // If this already looks like usable craft/clean payload, stop here.
+              if (obj.ROOT || (obj.version !== undefined && Array.isArray(obj.pages) && obj.nodes)) {
+                return obj;
+              }
+
+              const directKeys = ["content", "page", "data", "draft", "payload"];
+              for (const key of directKeys) {
+                if (obj[key] != null) {
+                  const nested = unwrap(obj[key], depth + 1);
+                  if (nested != null) return nested;
+                }
+              }
+
+              // Some APIs wrap payload under result/data recursively.
+              if (obj.result && typeof obj.result === "object") {
+                const nested = unwrap(obj.result, depth + 1);
+                if (nested != null) return nested;
+              }
+
+              // Fall back to object itself when no known wrapper found.
+              return obj;
+            }
+
+            return parsed;
+          };
+
+          return unwrap(draftData);
+        };
+
         const isLegacyStarterContent = (craftJson: string): boolean => {
           try {
             const p = JSON.parse(craftJson) as Record<string, unknown>;
@@ -2226,34 +2348,76 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           }
         };
 
+        const isVisuallyEmptyCanvas = (craftJson: string): boolean => {
+          try {
+            const p = JSON.parse(craftJson) as Record<string, unknown>;
+            const root = p?.ROOT as { nodes?: string[] } | undefined;
+            if (!root || !Array.isArray(root.nodes) || root.nodes.length === 0) return true;
+
+            // Consider canvas empty when all page nodes have no meaningful children.
+            const pageIds = root.nodes.filter((id) => typeof id === "string");
+            if (pageIds.length === 0) return true;
+
+            const hasMeaningfulNode = pageIds.some((pageId) => {
+              const page = (p[pageId] as { nodes?: string[] } | undefined) ?? null;
+              const pageNodes = Array.isArray(page?.nodes) ? page.nodes : [];
+              if (pageNodes.length === 0) return false;
+
+              // One container child with no descendants is still empty in practice.
+              if (pageNodes.length === 1) {
+                const onlyChild = (p[pageNodes[0]] as { displayName?: string; nodes?: string[] } | undefined) ?? null;
+                const childNodes = Array.isArray(onlyChild?.nodes) ? onlyChild.nodes : [];
+                if ((onlyChild?.displayName === "Container" || !onlyChild?.displayName) && childNodes.length === 0) {
+                  return false;
+                }
+              }
+
+              return true;
+            });
+
+            return !hasMeaningfulNode;
+          } catch {
+            return false;
+          }
+        };
+
         // 1. Check sessionStorage first (latest local edits should win on refresh)
         if (sessionSaved) {
           const normalized = normalizeToCraftJson(sessionSaved);
-          if (normalized && !isLegacyStarterContent(normalized)) {
+          if (normalized && !isLegacyStarterContent(normalized) && !isVisuallyEmptyCanvas(normalized)) {
+            pushRecoveryTrace(`session:hit size=${normalized.length}`);
             contentToLoad = normalized;
             if (normalized !== sessionSaved) safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else {
+            pushRecoveryTrace(`session:empty-or-invalid`);
             safeSessionRemove(storageKey);
           }
+        } else {
+          pushRecoveryTrace(`session:miss`);
         }
 
         // 2. Check persistent local cache
         if (!contentToLoad && persistentSaved) {
           const normalized = normalizeToCraftJson(persistentSaved);
-          if (normalized && !isLegacyStarterContent(normalized)) {
+          if (normalized && !isLegacyStarterContent(normalized) && !isVisuallyEmptyCanvas(normalized)) {
+            pushRecoveryTrace(`local:hit size=${normalized.length}`);
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             if (normalized !== persistentSaved) safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else {
+            pushRecoveryTrace(`local:empty-or-invalid`);
             safeLocalRemove(persistentKey);
           }
+        } else if (!contentToLoad) {
+          pushRecoveryTrace(`local:miss`);
         }
 
         // 3. Always fetch from API — overrides empty cache (fixes collaborator view)
         const result = await getDraft(projectId);
+        pushRecoveryTrace(`api:cached success=${String(result?.success)} hasData=${String(Boolean(result?.data))}`);
 
         if (result.success === false && result.error === "auth") {
           showAlert("Please log in to view this project", "error");
@@ -2268,27 +2432,282 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         }
 
         // 4. Check Database (fallback)
-        if (!contentToLoad && result.success && result.data && result.data.content) {
-          const normalized = normalizeToCraftJson(result.data.content);
-          if (normalized && !isLegacyStarterContent(normalized)) {
+        const remoteDraftPayload = result.success ? extractDraftPayload(result.data) : null;
+        if (!contentToLoad && remoteDraftPayload) {
+          const normalized = normalizeToCraftJson(remoteDraftPayload);
+          if (normalized && !isLegacyStarterContent(normalized) && !isVisuallyEmptyCanvas(normalized)) {
+            pushRecoveryTrace(`api:cached-hit size=${normalized.length}`);
             contentToLoad = normalized;
             safeSessionSet(storageKey, normalized);
             safeLocalSet(persistentKey, normalized);
             applyLoadedContent(contentToLoad);
           } else if (normalized) {
+            pushRecoveryTrace(`api:cached-legacy`);
             // Drop legacy starter payloads so user lands on true empty state.
             safeSessionRemove(storageKey);
             safeLocalRemove(persistentKey);
           } else {
+            pushRecoveryTrace(`api:cached-unparseable`);
             console.warn('⚠️ Draft content could not be parsed — check structure.');
             showAlert('Could not load project content. Try refreshing.', 'error');
+          }
+        }
+
+        if (!contentToLoad) {
+          const fresh = await fetchDraftFresh(projectId);
+          pushRecoveryTrace(`api:fresh success=${String(fresh?.success)} hasData=${String(Boolean(fresh?.data))}`);
+          const freshPayload = fresh.success ? extractDraftPayload(fresh.data) : null;
+          if (freshPayload) {
+            const normalized = normalizeToCraftJson(freshPayload);
+            if (normalized && !isLegacyStarterContent(normalized) && !isVisuallyEmptyCanvas(normalized)) {
+              pushRecoveryTrace(`api:fresh-hit size=${normalized.length}`);
+              contentToLoad = normalized;
+              safeSessionSet(storageKey, normalized);
+              safeLocalSet(persistentKey, normalized);
+              applyLoadedContent(contentToLoad);
+            } else if (normalized) {
+              pushRecoveryTrace(`api:fresh-legacy`);
+            } else {
+              pushRecoveryTrace(`api:fresh-unparseable`);
+            }
+          }
+        }
+
+        // 5. Last fallback: recovery backup captured before template apply overwrite.
+        if (!contentToLoad) {
+          const backupKey = `${TEMPLATE_APPLY_BACKUP_PREFIX}_${projectId}`;
+          const backupSnapshot = safeSessionGet(backupKey) ?? safeLocalGet(backupKey);
+          if (backupSnapshot) {
+            const normalized = normalizeToCraftJson(backupSnapshot);
+            if (normalized && !isLegacyStarterContent(normalized) && !isVisuallyEmptyCanvas(normalized)) {
+              pushRecoveryTrace(`backup:hit size=${normalized.length}`);
+              contentToLoad = normalized;
+              safeSessionSet(storageKey, normalized);
+              safeLocalSet(persistentKey, normalized);
+              applyLoadedContent(contentToLoad);
+            }
+          } else {
+            pushRecoveryTrace(`backup:miss`);
+          }
+        }
+
+        // 6. Fallback to published snapshot (current project subdomain or explicit recovery subdomain).
+        if (!contentToLoad) {
+          try {
+            const recoverSubdomainParam =
+              typeof window !== "undefined"
+                ? (new URLSearchParams(window.location.search).get("recoverSubdomain") || "")
+                    .trim()
+                    .toLowerCase()
+                    .replace(/[^a-z0-9-]/g, "")
+                : "";
+
+            const projectRes = await getProject(projectId);
+            const projectSubdomain = String(projectRes?.project?.subdomain || "").trim().toLowerCase();
+            const subdomain = recoverSubdomainParam || projectSubdomain;
+            if (recoverSubdomainParam) {
+              pushRecoveryTrace(`published:override subdomain=${recoverSubdomainParam}`);
+            }
+
+            if (projectRes.success && subdomain) {
+              const publishedRes = await fetch(
+                `/api/public/sites/${encodeURIComponent(subdomain)}?t=${Date.now()}`,
+                { method: "GET", credentials: "include" }
+              );
+
+              if (publishedRes.ok) {
+                const publishedJson = await publishedRes.json() as {
+                  data?: { content?: unknown };
+                };
+                const publishedContent = publishedJson?.data?.content;
+                if (publishedContent) {
+                  const normalized = normalizeToCraftJson(publishedContent);
+                  if (normalized && !isLegacyStarterContent(normalized) && !isVisuallyEmptyCanvas(normalized)) {
+                    pushRecoveryTrace(`published:hit subdomain=${subdomain} size=${normalized.length}`);
+                    contentToLoad = normalized;
+                    safeSessionSet(storageKey, normalized);
+                    safeLocalSet(persistentKey, normalized);
+                    applyLoadedContent(normalized);
+                    showAlert(`Restored from published snapshot (${subdomain}).`, "success");
+                  }
+                } else {
+                  pushRecoveryTrace(`published:empty`);
+                }
+              }
+            }
+          } catch {
+            pushRecoveryTrace(`published:error`);
+            // Ignore published snapshot recovery errors; continue to other fallbacks.
+          }
+        }
+
+        // 6b. Published subdomain scan fallback: recover from latest published project snapshot.
+        if (!contentToLoad) {
+          try {
+            const projectsRes = await listProjects();
+            const publishedCandidates = (projectsRes.success ? projectsRes.projects : [])
+              .filter((project: Project) => project?.id && project.id !== projectId)
+              .map((project) => ({
+                subdomain: String(project.subdomain || "").trim().toLowerCase(),
+                updatedAt: new Date(project.updatedAt || project.createdAt || 0).getTime(),
+              }))
+              .filter((item) => item.subdomain)
+              .sort((a, b) => b.updatedAt - a.updatedAt)
+              .slice(0, 8);
+
+            for (const candidate of publishedCandidates) {
+              const publishedRes = await fetch(
+                `/api/public/sites/${encodeURIComponent(candidate.subdomain)}?t=${Date.now()}`,
+                { method: "GET", credentials: "include" }
+              );
+              if (!publishedRes.ok) continue;
+
+              const publishedJson = await publishedRes.json() as { data?: { content?: unknown } };
+              const publishedContent = publishedJson?.data?.content;
+              if (!publishedContent) continue;
+
+              const normalized = normalizeToCraftJson(publishedContent);
+              if (!normalized || isLegacyStarterContent(normalized) || isVisuallyEmptyCanvas(normalized)) continue;
+
+              pushRecoveryTrace(`published-scan:hit subdomain=${candidate.subdomain} size=${normalized.length}`);
+              contentToLoad = normalized;
+              safeSessionSet(storageKey, normalized);
+              safeLocalSet(persistentKey, normalized);
+              applyLoadedContent(normalized);
+              autoSavePage(normalized, projectId).catch(() => {
+                // Ignore network save issues.
+              });
+              showAlert(`Recovered from published site ${candidate.subdomain}.`, "success");
+              break;
+            }
+
+            if (!contentToLoad) {
+              pushRecoveryTrace("published-scan:miss");
+            }
+          } catch {
+            pushRecoveryTrace("published-scan:error");
+          }
+        }
+
+        // 7. Emergency local recovery: scan browser snapshots from other projects and use the richest valid payload.
+        if (!contentToLoad) {
+          try {
+            const snapshots: string[] = [];
+
+            if (typeof window !== "undefined") {
+              try {
+                for (let i = 0; i < window.sessionStorage.length; i++) {
+                  const key = window.sessionStorage.key(i);
+                  if (!key || !key.startsWith(`${STORAGE_KEY_PREFIX}_`)) continue;
+                  if (key === storageKey) continue;
+                  const value = window.sessionStorage.getItem(key);
+                  if (value) snapshots.push(value);
+                }
+              } catch {
+                // ignore storage scan errors
+              }
+
+              try {
+                for (let i = 0; i < window.localStorage.length; i++) {
+                  const key = window.localStorage.key(i);
+                  if (!key || !key.startsWith(`${PERSISTENT_STORAGE_KEY_PREFIX}_`)) continue;
+                  if (key === persistentKey) continue;
+                  const value = window.localStorage.getItem(key);
+                  if (value) snapshots.push(value);
+                }
+              } catch {
+                // ignore storage scan errors
+              }
+            }
+
+            let bestLocalSnapshot: string | null = null;
+            let bestScore = 0;
+            for (const candidate of snapshots) {
+              const normalized = normalizeToCraftJson(candidate);
+              if (!normalized || isLegacyStarterContent(normalized) || isVisuallyEmptyCanvas(normalized)) continue;
+              const score = normalized.length;
+              if (score > bestScore) {
+                bestScore = score;
+                bestLocalSnapshot = normalized;
+              }
+            }
+
+            if (bestLocalSnapshot) {
+              pushRecoveryTrace(`scan-local:hit size=${bestLocalSnapshot.length}`);
+              contentToLoad = bestLocalSnapshot;
+              safeSessionSet(storageKey, bestLocalSnapshot);
+              safeLocalSet(persistentKey, bestLocalSnapshot);
+              applyLoadedContent(bestLocalSnapshot);
+              autoSavePage(bestLocalSnapshot, projectId).catch(() => {
+                // Ignore network save issues; recovered content is still loaded locally.
+              });
+              showAlert("Recovered content from local browser snapshot.", "success");
+            } else {
+              pushRecoveryTrace(`scan-local:miss`);
+            }
+          } catch {
+            pushRecoveryTrace(`scan-local:error`);
+            // Ignore local recovery errors and continue with API fallbacks.
+          }
+        }
+
+        // 8. Emergency recovery fallback: restore from latest non-empty draft in workspace projects.
+        if (!contentToLoad) {
+          try {
+            const projectsRes = await listProjects();
+            const candidates = (projectsRes.success ? projectsRes.projects : [])
+              .filter((project: Project) => project?.id && project.id !== projectId)
+              .sort((a, b) => {
+                const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+                const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+                return bTime - aTime;
+              });
+
+            let recoveredFrom: Project | null = null;
+            let recoveredJson: string | null = null;
+
+            for (const candidate of candidates) {
+              const candidateDraft = await getDraft(candidate.id);
+              const candidatePayload = candidateDraft.success ? extractDraftPayload(candidateDraft.data) : null;
+              if (!candidatePayload) continue;
+              const normalized = normalizeToCraftJson(candidatePayload);
+              if (!normalized || isLegacyStarterContent(normalized) || isVisuallyEmptyCanvas(normalized)) continue;
+
+              recoveredFrom = candidate;
+              recoveredJson = normalized;
+              break;
+            }
+
+            if (recoveredFrom && recoveredJson) {
+              const sourceName = (recoveredFrom.title || recoveredFrom.templateName || "Untitled Project").trim();
+              pushRecoveryTrace(`scan-project:hit source=${sourceName} size=${recoveredJson.length}`);
+              contentToLoad = recoveredJson;
+              safeSessionSet(storageKey, recoveredJson);
+              safeLocalSet(persistentKey, recoveredJson);
+              applyLoadedContent(recoveredJson);
+
+              // Persist recovered content back to current project draft.
+              autoSavePage(recoveredJson, projectId).catch(() => {
+                // Ignore network save issues; recovered content is still loaded locally.
+              });
+
+              showAlert(`Recovered content from ${sourceName}.`, "success");
+            } else {
+              pushRecoveryTrace(`scan-project:miss`);
+            }
+          } catch {
+            pushRecoveryTrace(`scan-project:error`);
+            // Ignore emergency recovery errors; editor can still load an empty canvas.
           }
         }
 
         // Legacy global fallback intentionally disabled to avoid cross-project draft bleed.
 
         if (!contentToLoad) {
+          pushRecoveryTrace(`result:empty`);
           applyLoadedContent(null);
+        } else {
+          pushRecoveryTrace(`result:loaded size=${contentToLoad.length}`);
         }
 
         // IMPORTANT: Mark as ready immediately via Ref to avoid stale closures
@@ -2302,7 +2721,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     }
 
     loadDraft();
-  }, [projectId, loadPages, router, showAlert]);
+  }, [projectId, loadPages, pushRecoveryTrace, router, showAlert]);
 
   // Defer panel rendering until Frame has mounted to avoid setState-during-render warnings
   useEffect(() => {
@@ -2929,6 +3348,16 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
                       onMouseLeave={handleMouseUp}
                       onMouseMove={handleMouseMove}
                     >
+                      {recoveryTrace.length > 0 && initialJson !== undefined && (
+                        <div className="absolute left-3 bottom-3 z-[120] max-w-[460px] rounded-md border border-builder-border bg-builder-surface/95 p-2 text-[10px] text-brand-light shadow-lg">
+                          <div className="mb-1 font-semibold tracking-wide">Recovery Trace</div>
+                          <div className="max-h-28 overflow-auto space-y-0.5 pr-1">
+                            {recoveryTrace.map((line, idx) => (
+                              <div key={`${idx}-${line}`} className="opacity-90">{line}</div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       {initialJson === undefined && (
                         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-brand-light/80">
                           Opening project...
