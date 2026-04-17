@@ -4,7 +4,6 @@ import React from "react";
 import { Element } from "@craftjs/core";
 import { SimpleHeader } from "./Header";
 import {
-  SimpleEcommerceHeader,
   HeaderWithSearch,
   HeaderWithMegamenu,
   ProfileLogin
@@ -399,7 +398,6 @@ export const GROUPED_TEMPLATES = [
     folder: "Layout",
     items: [
       SimpleHeader,
-      SimpleEcommerceHeader,
       HeaderWithSearch,
       HeaderWithMegamenu,
       CenteredHero,

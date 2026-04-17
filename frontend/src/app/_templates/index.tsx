@@ -3,7 +3,7 @@
 import React from "react";
 import { Element } from "@craftjs/core";
 import { TemplateEntry } from "../_assets/_types";
-import { SimpleEcommerceHeader, HeaderWithSearch, SimpleHeader } from "../_assets/Header";
+import { HeaderWithSearch, SimpleHeader } from "../_assets/Header";
 import { HeroWithImage, CenteredHero, SplitScreenHero, VideoStyleHero } from "../_assets/Hero";
 import { BrandLogos, CTABanner, NewsletterCTA, FeaturesGrid, Testimonial, StatsCounter, ImageText } from "../_assets/Content";
 import { ProductsOverview, CategoriesCard, TeamMemberCard } from "../_assets/Cards";
