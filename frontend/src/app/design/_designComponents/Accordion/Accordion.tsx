@@ -147,6 +147,7 @@ export const Accordion = ({
   left = "auto",
   zIndex = 0,
   display,
+  isFreeform,
   editorVisibility = "auto",
   alignSelf = "auto",
 }: AccordionProps) => {
@@ -161,11 +162,13 @@ export const Accordion = ({
   const safeItems = useMemo(() => normalizeItems(items), [items]);
   const safeDuration = Number.isFinite(animationDurationMs) ? Math.max(80, Math.min(1200, animationDurationMs)) : 280;
   const isWix = stylePreset === "wix";
-  const effectiveDisplay = editorVisibility === "hide"
-    ? "none"
-    : editorVisibility === "show" && display === "none"
-      ? "flex"
-      : (display ?? "flex");
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "flex"
+        : (display ?? "flex");
 
   const normalizedDefaultIndex = Number.isFinite(defaultOpenIndex) ? Math.floor(defaultOpenIndex) : -1;
   const defaultIndex = safeItems.length > 0 && normalizedDefaultIndex >= 0

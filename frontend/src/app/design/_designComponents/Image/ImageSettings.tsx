@@ -3,7 +3,7 @@ import { useNode } from "@craftjs/core";
 import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -14,16 +14,17 @@ import type { ImageProps, SetProp } from "../../_types/components";
 
 export const ImageSettings = () => {
   const {
-    src, alt, objectFit,
+    id, src, alt, objectFit,
     width, height,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     src: node.data.props.src,
     alt: node.data.props.alt,
     objectFit: node.data.props.objectFit,
@@ -57,6 +58,7 @@ export const ImageSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
   }));
 
@@ -240,9 +242,11 @@ export const ImageSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

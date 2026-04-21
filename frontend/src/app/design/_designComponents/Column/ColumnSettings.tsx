@@ -20,7 +20,7 @@ export const ColumnSettings = () => {
     flexDirection, flexWrap, alignItems, justifyContent, gap,
     boxShadow, opacity, overflow,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     actions: { setProp },
   } = useNode((node) => ({
     id: node.id,
@@ -63,6 +63,7 @@ export const ColumnSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
   }));
 
@@ -84,6 +85,7 @@ export const ColumnSettings = () => {
           nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

@@ -50,6 +50,7 @@ export const BadgeSettings = () => {
     gap,
     position,
     display,
+    isFreeform,
     alignSelf,
     zIndex,
     top,
@@ -101,6 +102,7 @@ export const BadgeSettings = () => {
     gap: node.data.props.gap,
     position: node.data.props.position,
     display: node.data.props.display,
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
@@ -134,6 +136,7 @@ export const BadgeSettings = () => {
           nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

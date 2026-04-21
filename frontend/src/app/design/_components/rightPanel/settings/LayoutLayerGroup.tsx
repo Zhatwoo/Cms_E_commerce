@@ -50,6 +50,7 @@ export const LayoutLayerGroup = ({
   nodeId,
   position = "static",
   display = "flex",
+  isFreeform = false,
   alignSelf = "auto",
   zIndex = 0,
   top = "auto",
@@ -83,50 +84,95 @@ export const LayoutLayerGroup = ({
   });
   const childMode = React.useMemo(() => inferChildPositionMode(childPositions), [childPositions]);
   const hasChildren = childIds.length > 0;
-  const canShowAlignment = (isFlexDisplay || isGridDisplay) && (!hasChildren || childMode === "flow");
+  const canShowAlignment =
+    !isFreeform && (isFlexDisplay || isGridDisplay) && (!hasChildren || childMode === "flow");
 
-  const setChildrenPositionMode = React.useCallback((mode: ChildPositionMode) => {
-    if (!nodeId) return;
-    if (!childIds.length) return;
-    if (mode === "mixed") return;
+  const setChildrenPositionMode = React.useCallback(
+    (mode: ChildPositionMode) => {
+      if (!nodeId) return;
+      if (!childIds.length) return;
+      if (mode === "mixed") return;
 
-    if (mode === "absolute") {
-      setProp((parentProps: Record<string, unknown>) => {
-        const parentPos = String(parentProps.position ?? "static");
-        if (!parentPos || parentPos === "static") {
-          parentProps.position = "relative";
-        }
-      });
-    }
+      if (mode === "absolute") {
+        setProp((parentProps: Record<string, unknown>) => {
+          const parentPos = String(parentProps.position ?? "static");
+          if (!parentPos || parentPos === "static") {
+            parentProps.position = "relative";
+          }
+        });
+      }
 
-    for (const childId of childIds) {
-      actions.setProp(childId, (props: Record<string, unknown>) => {
-        if (mode === "flow") {
-          props.position = "relative";
-          props.left = "auto";
-          props.top = "auto";
-          props.right = "auto";
-          props.bottom = "auto";
-          return;
-        }
+      for (const childId of childIds) {
+        actions.setProp(childId, (props: Record<string, unknown>) => {
+          if (mode === "flow") {
+            props.position = "relative";
+            props.left = "auto";
+            props.top = "auto";
+            props.right = "auto";
+            props.bottom = "auto";
+            return;
+          }
 
-        if (mode === "absolute" || mode === "fixed") {
-          const nextPos = mode === "absolute" ? "absolute" : "fixed";
-          props.position = nextPos;
-          const left = String(props.left ?? "auto");
-          const top = String(props.top ?? "auto");
-          props.left = !left || left === "auto" ? "0px" : props.left;
-          props.top = !top || top === "auto" ? "0px" : props.top;
-          props.right = props.right ?? "auto";
-          props.bottom = props.bottom ?? "auto";
-          return;
-        }
-      });
-    }
-  }, [actions, childIds, nodeId, setProp]);
+          if (mode === "absolute" || mode === "fixed") {
+            const nextPos = mode === "absolute" ? "absolute" : "fixed";
+            props.position = nextPos;
+            const left = String(props.left ?? "auto");
+            const top = String(props.top ?? "auto");
+            props.left = !left || left === "auto" ? "0px" : props.left;
+            props.top = !top || top === "auto" ? "0px" : props.top;
+            props.right = props.right ?? "auto";
+            props.bottom = props.bottom ?? "auto";
+            return;
+          }
+        });
+      }
+    },
+    [actions, childIds, nodeId, setProp]
+  );
 
   return (
     <div className="flex flex-col gap-5">
+      {/* Layout Mode Toggle */}
+      <div className="flex flex-col gap-2">
+        <label className="text-[12px] text-[var(--builder-text)] font-base">Layout Mode</label>
+        <div className="flex items-center gap-1 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5">
+          <button
+            type="button"
+            onClick={() => {
+              setProp((props: any) => {
+                props.isFreeform = true;
+                props.display = "block";
+              });
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform
+                ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)] shadow-sm"
+                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+              }`}
+            title="Freeform (Figma canvas-like)"
+          >
+            Freeform
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setProp((props: any) => {
+                props.isFreeform = false;
+                if (!props.display || props.display === "block" || props.display === "none") {
+                  props.display = "flex";
+                }
+              });
+            }}
+            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${!isFreeform
+                ? "bg-[var(--builder-accent)] text-black font-medium"
+                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+              }`}
+            title="Auto Layout (Flex/Grid)"
+          >
+            Auto
+          </button>
+        </div>
+      </div>
+
       <PositionGroup
         position={position}
         display={display}
@@ -159,48 +205,58 @@ export const LayoutLayerGroup = ({
 
           {childMode !== "flow" ? (
             <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed">
-              Alignment/Distribution only works when children are in <span className="text-[var(--builder-text)]">Flow (Relative)</span>.
+              Alignment/Distribution only works when children are in{" "}
+              <span className="text-[var(--builder-text)]">Flow (Relative)</span>.
             </div>
           ) : null}
         </div>
       ) : null}
 
-      {!canShowAlignment && (isFlexDisplay || isGridDisplay) ? (
-        <button
-          type="button"
-          onClick={() => setChildrenPositionMode("flow")}
-          className="w-full bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-hover)] border border-[var(--builder-border)] rounded-lg py-2 text-xs text-[var(--builder-text)] transition-colors"
-        >
-          Set children to Flow (Relative) to enable alignment
-        </button>
-      ) : null}
-
-      {canShowAlignment && isFlexDisplay ? (
-        <AutoLayoutGroup
-          flexDirection={flexDirection}
-          flexWrap={flexWrap}
-          alignItems={alignItems}
-          justifyContent={justifyContent}
-          gap={gap}
-          setProp={setProp as any}
-        />
-      ) : canShowAlignment && isGridDisplay ? (
-        <GridLayoutGroup
-          gridTemplateColumns={gridTemplateColumns}
-          gridTemplateRows={gridTemplateRows}
-          gridGap={gridGap}
-          gridColumnGap={gridColumnGap}
-          gridRowGap={gridRowGap}
-          gridAutoRows={gridAutoRows}
-          gridAutoFlow={gridAutoFlow}
-          setProp={setProp as any}
-        />
-      ) : (
-        <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed">
-          Set <span className="text-[var(--builder-text)]">Display</span> to{" "}
-          <span className="text-[var(--builder-text)]">Flex</span> or{" "}
-          <span className="text-[var(--builder-text)]">Grid</span> to enable alignment and distribution.
+      {isFreeform ? (
+        <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed italic bg-[var(--builder-surface-2)] p-3 rounded-lg border border-[var(--builder-border)]">
+          Auto Layout is disabled in <span className="text-[var(--builder-text)] font-medium">Freeform</span> mode. Elements can be placed anywhere using absolute coordinates.
         </div>
+      ) : (
+        <>
+          {!canShowAlignment && (isFlexDisplay || isGridDisplay) ? (
+            <button
+              type="button"
+              onClick={() => setChildrenPositionMode("flow")}
+              className="w-full bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-hover)] border border-[var(--builder-border)] rounded-lg py-2 text-xs text-[var(--builder-text)] transition-colors"
+            >
+              Set children to Flow (Relative) to enable alignment
+            </button>
+          ) : null}
+
+          {canShowAlignment && isFlexDisplay ? (
+            <AutoLayoutGroup
+              flexDirection={flexDirection}
+              flexWrap={flexWrap}
+              alignItems={alignItems}
+              justifyContent={justifyContent}
+              gap={gap}
+              setProp={setProp as any}
+            />
+          ) : canShowAlignment && isGridDisplay ? (
+            <GridLayoutGroup
+              gridTemplateColumns={gridTemplateColumns}
+              gridTemplateRows={gridTemplateRows}
+              gridGap={gridGap}
+              gridColumnGap={gridColumnGap}
+              gridRowGap={gridRowGap}
+              gridAutoRows={gridAutoRows}
+              gridAutoFlow={gridAutoFlow}
+              setProp={setProp as any}
+            />
+          ) : (
+            <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed">
+              Set <span className="text-[var(--builder-text)]">Display</span> to{" "}
+              <span className="text-[var(--builder-text)]">Flex</span> or{" "}
+              <span className="text-[var(--builder-text)]">Grid</span> to enable alignment and
+              distribution.
+            </div>
+          )}
+        </>
       )}
     </div>
   );

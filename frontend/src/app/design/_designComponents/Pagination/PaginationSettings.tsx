@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -10,6 +10,7 @@ import type { PaginationProps, SetProp } from "../../_types/components";
 
 export const PaginationSettings = () => {
   const {
+    id,
     totalItems,
     itemsPerPage,
     currentPage,
@@ -48,6 +49,7 @@ export const PaginationSettings = () => {
     cursor,
     position,
     display,
+    isFreeform,
     alignSelf,
     zIndex,
     top,
@@ -57,6 +59,7 @@ export const PaginationSettings = () => {
     editorVisibility,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     totalItems: node.data.props.totalItems ?? 50,
     itemsPerPage: node.data.props.itemsPerPage ?? 10,
     currentPage: node.data.props.currentPage ?? 1,
@@ -95,6 +98,7 @@ export const PaginationSettings = () => {
     cursor: node.data.props.cursor ?? "default",
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf ?? "auto",
     zIndex: node.data.props.zIndex ?? 0,
     top: node.data.props.top ?? "auto",
@@ -185,9 +189,11 @@ export const PaginationSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -258,7 +264,7 @@ export const PaginationSettings = () => {
             color={color}
             textAlign={textAlign}
             textDecoration={textDecoration}
-            setProp={typedSetProp}
+            setProp={typedSetProp as any}
           />
         </div>
       </DesignSection>
@@ -275,4 +281,3 @@ export const PaginationSettings = () => {
     </div>
   );
 };
-

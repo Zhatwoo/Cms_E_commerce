@@ -82,6 +82,7 @@ export const Text = ({
   flipVertical = false,
   customClassName = "",
   textDecoration = "none",
+  isFreeform,
 }: TextProps & { width?: string; height?: string }) => {
   const { id, connectors: { connect, drag }, actions, parentId } = useNode((node) => ({
     parentId: node.data.parent,
@@ -269,7 +270,7 @@ export const Text = ({
     overflowWrap: "break-word",
     wordBreak: "normal",
     hyphens: "manual",
-    display: isEditing ? "flex" : display,
+    display: isEditing ? "flex" : (isFreeform ? "block" : display),
     alignItems: isEditing ? "flex-start" : undefined,
     justifyContent: isEditing ? "flex-start" : undefined,
     flexDirection: isEditing ? "column" : undefined,
