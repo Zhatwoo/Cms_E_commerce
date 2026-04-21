@@ -65,6 +65,8 @@ export const DividerDefaultProps: Partial<DividerProps> = {
   width: "100%",
   marginTop: 8,
   marginBottom: 8,
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Divider.craft = {

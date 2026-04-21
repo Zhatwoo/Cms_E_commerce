@@ -31,153 +31,191 @@ export const GridLayoutGroup = ({
   gridRowGap,
   gridAutoRows = "auto",
   gridAutoFlow = "row",
+  justifyItems = "stretch",
+  alignItems = "stretch",
+  justifyContent = "flex-start",
+  alignContent = "flex-start",
   setProp,
 }: GridLayoutGroupProps) => {
   const effectiveColGap = gridColumnGap ?? gridGap;
   const effectiveRowGap = gridRowGap ?? gridGap;
 
+  const handleAlignment = (just: GridProps["justifyItems"], al: GridProps["alignItems"]) => {
+    setProp((props) => {
+      props.justifyItems = just;
+      props.alignItems = al;
+    });
+  };
+
+  const isActive = (just: GridProps["justifyItems"], al: GridProps["alignItems"]) => {
+    return justifyItems === just && alignItems === al;
+  };
+
+  const mapVal = (val: string): "start" | "center" | "end" | "stretch" =>
+    val === "start" ? "start" : val === "end" ? "end" : val === "center" ? "center" : "stretch";
+
+  const renderMatrixCell = (h: "start" | "center" | "end" | "stretch", v: "start" | "center" | "end" | "stretch") => {
+    const active = isActive(h, v);
+    return (
+      <button
+        type="button"
+        key={`${h}-${v}`}
+        onClick={() => handleAlignment(h, v)}
+        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${active
+          ? "bg-[var(--builder-accent)] text-black scale-110"
+          : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-hover)]"
+          }`}
+        title={`Align: ${v}, Justify: ${h}`}
+      >
+        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[var(--builder-surface)]" : "bg-[var(--builder-text-faint)]"}`} />
+      </button>
+    );
+  };
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {/* Column Presets */}
-      <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
-          Columns
+      <div className="flex flex-col gap-2">
+        <label className="text-[12px] text-[var(--builder-text)] font-medium">
+          Grid Structure
         </label>
-        <div className="grid grid-cols-3 gap-1.5">
-          {COLUMN_PRESETS.map((preset) => (
-            <button
-              key={preset.label}
-              onClick={() =>
+        <div className="flex flex-col gap-3 bg-[var(--builder-surface-2)] p-3 rounded-xl border border-[var(--builder-border)]">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Columns</span>
+            <div className="grid grid-cols-3 gap-1.5">
+              {COLUMN_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() =>
+                    setProp((props) => {
+                      props.gridTemplateColumns = preset.value;
+                    })
+                  }
+                  className={`text-[10px] px-2 py-1.5 rounded-lg transition-all ${gridTemplateColumns === preset.value
+                    ? "bg-[var(--builder-accent)] text-white font-medium"
+                    : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-hover)]"
+                    }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              value={gridTemplateColumns}
+              onChange={(e) =>
                 setProp((props) => {
-                  props.gridTemplateColumns = preset.value;
+                  props.gridTemplateColumns = e.target.value;
                 })
               }
-              className={`text-[10px] px-2 py-1.5 rounded-lg transition-all ${gridTemplateColumns === preset.value
-                  ? "bg-[var(--builder-accent)] text-black font-medium"
-                  : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
-                }`}
-            >
-              {preset.label}
-            </button>
-          ))}
+              placeholder="e.g. 1fr 2fr"
+              className="w-full bg-[var(--builder-surface-3)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Rows</span>
+            <input
+              type="text"
+              value={gridTemplateRows}
+              onChange={(e) =>
+                setProp((props) => {
+                  props.gridTemplateRows = e.target.value;
+                })
+              }
+              placeholder="e.g. auto 1fr"
+              className="w-full bg-[var(--builder-surface-3)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
+            />
+          </div>
         </div>
-        {/* Custom template columns input */}
-        <input
-          type="text"
-          value={gridTemplateColumns}
-          onChange={(e) =>
-            setProp((props) => {
-              props.gridTemplateColumns = e.target.value;
-            })
-          }
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-          placeholder="e.g. 1fr 2fr 1fr"
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)] mt-1"
-        />
       </div>
 
-      {/* Template Rows */}
-      <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">Rows</label>
-        <input
-          type="text"
-          value={gridTemplateRows}
-          onChange={(e) =>
-            setProp((props) => {
-              props.gridTemplateRows = e.target.value;
-            })
-          }
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-          placeholder="e.g. auto 200px 1fr"
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
-        />
-      </div>
-
-      {/* Auto Rows */}
-      <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
-          Auto Rows
-        </label>
-        <input
-          type="text"
-          value={gridAutoRows}
-          onChange={(e) =>
-            setProp((props) => {
-              props.gridAutoRows = e.target.value;
-            })
-          }
-          onKeyDown={(e) => {
-            if (e.key === "Enter") e.currentTarget.blur();
-          }}
-          placeholder="e.g. minmax(100px, auto)"
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
-        />
-      </div>
-
-      {/* Auto Flow */}
-      <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
-          Auto Flow
-        </label>
-        <select
-          value={gridAutoFlow}
-          onChange={(e) =>
-            setProp((props) => {
-              props.gridAutoFlow = e.target.value as GridProps["gridAutoFlow"];
-            })
-          }
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
-        >
-          {AUTO_FLOW_OPTIONS.map((opt) => (
-            <option
-              key={opt.value}
-              value={opt.value}
-              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
-            >
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {/* Gap Controls */}
+      {/* Alignment & Distribution */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">Gap</label>
-        <div className="grid grid-cols-2 gap-2">
+        <label className="text-[12px] text-[var(--builder-text)] font-medium">Alignment & Distribution</label>
+        <div className="flex gap-4 items-start">
+          {/* 3x3 Matrix for items */}
+          <div className="bg-[var(--builder-surface-2)] p-2 rounded-xl border border-[var(--builder-border)] inline-grid grid-cols-3 gap-2">
+            {["start", "center", "end"].map(v =>
+              ["start", "center", "end"].map(h =>
+                renderMatrixCell(h as any, v as any)
+              )
+            )}
+          </div>
+
+          <div className="flex flex-col gap-3 flex-1">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-[var(--builder-text-muted)]">Justify Content</span>
+              <select
+                value={justifyContent}
+                onChange={(e) => setProp(p => { p.justifyContent = e.target.value as any; })}
+                className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none border border-[var(--builder-border)]"
+              >
+                <option value="start">Start</option>
+                <option value="center">Center</option>
+                <option value="end">End</option>
+                <option value="space-between">Space Between</option>
+                <option value="space-around">Space Around</option>
+                <option value="space-evenly">Space Evenly</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] text-[var(--builder-text-muted)]">Align Content</span>
+              <select
+                value={alignContent}
+                onChange={(e) => setProp(p => { p.alignContent = e.target.value as any; })}
+                className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none border border-[var(--builder-border)]"
+              >
+                <option value="start">Start</option>
+                <option value="center">Center</option>
+                <option value="end">End</option>
+                <option value="space-between">Space Between</option>
+                <option value="space-around">Space Around</option>
+                <option value="space-evenly">Space Evenly</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Advanced & Gap */}
+      <div className="flex flex-col gap-3 bg-[var(--builder-surface-2)] p-3 rounded-xl border border-[var(--builder-border)]">
+        <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-[var(--builder-text-muted)]">Column</span>
-            <div className="bg-[var(--builder-surface-2)] px-2.5 rounded-lg">
+            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Gap (Col)</span>
+            <div className="bg-[var(--builder-surface-3)] px-2 rounded-lg h-[32px] flex items-center">
               <NumericInput
                 value={effectiveColGap}
-                onChange={(val) =>
-                  setProp((props) => {
-                    props.gridColumnGap = val;
-                  })
-                }
+                onChange={(val) => setProp(p => { p.gridColumnGap = val; })}
                 min={0}
                 unit="px"
               />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-[var(--builder-text-muted)]">Row</span>
-            <div className="bg-[var(--builder-surface-2)] px-2.5 rounded-lg">
+            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Gap (Row)</span>
+            <div className="bg-[var(--builder-surface-3)] px-2 rounded-lg h-[32px] flex items-center">
               <NumericInput
                 value={effectiveRowGap}
-                onChange={(val) =>
-                  setProp((props) => {
-                    props.gridRowGap = val;
-                  })
-                }
+                onChange={(val) => setProp(p => { p.gridRowGap = val; })}
                 min={0}
                 unit="px"
               />
             </div>
           </div>
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Auto Flow</span>
+          <select
+            value={gridAutoFlow}
+            onChange={(e) => setProp(p => { p.gridAutoFlow = e.target.value as any; })}
+            className="w-full bg-[var(--builder-surface-3)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+          >
+            {AUTO_FLOW_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         </div>
       </div>
     </div>

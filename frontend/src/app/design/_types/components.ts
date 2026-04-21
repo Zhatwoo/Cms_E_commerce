@@ -119,6 +119,10 @@ export interface GridProps {
   gridRowGap?: number;
   gridAutoRows?: string;
   gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignItems?: "start" | "center" | "end" | "stretch";
+  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+  alignContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
 }
 
 /** Layer visibility and lock — shared by all design components for panel toggles */
@@ -254,7 +258,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
-export interface PageProps extends AnimatableProps, InteractableProps, AppearanceProps {
+export interface PageProps extends LayoutProps, PositionProps, AnimatableProps, InteractableProps, AppearanceProps {
   width?: string;
   height?: string;
   background?: string;

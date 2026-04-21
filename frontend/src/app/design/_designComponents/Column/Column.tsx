@@ -201,6 +201,8 @@ export const ColumnDefaultProps: Partial<ContainerProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Column.craft = {

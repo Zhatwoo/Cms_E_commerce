@@ -370,6 +370,10 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   badge: "",
   badgeColor: "#1e293b",
   _autoFitInTabs: false,
+  alignSelf: "auto",
+  isFreeform: false,
+  position: "static",
+  display: "flex",
 };
 
 Image.craft = {

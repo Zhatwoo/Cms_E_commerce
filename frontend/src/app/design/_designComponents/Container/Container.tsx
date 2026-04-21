@@ -74,6 +74,8 @@ export const Container = ({
   gridRowGap = 0,
   gridAutoRows = "auto",
   gridAutoFlow = "row",
+  justifyItems = "stretch",
+  alignContent = "flex-start",
   display = "flex",
   position = "static",
   zIndex = 0,
@@ -265,6 +267,8 @@ export const Container = ({
         gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
         gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
         gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
+        justifyItems: !isFreeform && isGridDisplay ? justifyItems : undefined,
+        alignContent: !isFreeform && isGridDisplay ? alignContent : undefined,
         boxShadow,
         opacity,
         overflow,
@@ -341,6 +345,8 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   gridRowGap: 0,
   gridAutoRows: "auto",
   gridAutoFlow: "row",
+  justifyItems: "stretch",
+  alignContent: "flex-start",
   position: "static",
   display: "flex",
   zIndex: 0,
@@ -353,6 +359,8 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   opacity: 1,
   overflow: "visible",
   cursor: "default",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Container.craft = {

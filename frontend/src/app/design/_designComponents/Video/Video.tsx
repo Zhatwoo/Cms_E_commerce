@@ -360,6 +360,10 @@ export const VideoDefaultProps: Partial<VideoProps> = {
     marginLeft: 0,
     opacity: 1,
     boxShadow: "none",
+    alignSelf: "auto",
+    isFreeform: false,
+    position: "static",
+    display: "flex",
 };
 
 Video.craft = {

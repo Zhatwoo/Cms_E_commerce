@@ -456,6 +456,8 @@ export const TextDefaultProps: Partial<TextProps & { width?: string; height?: st
   boxShadow: "none",
   textDecoration: "none",
   previewEditable: false,
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Text.craft = {

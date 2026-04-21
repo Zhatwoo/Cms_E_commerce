@@ -537,6 +537,10 @@ export const AccordionDefaultProps: Partial<AccordionProps> = {
   textOffsetY: 0,
   iconOffsetX: 0,
   iconOffsetY: 0,
+  alignSelf: "auto",
+  isFreeform: false,
+  position: "static",
+  display: "block",
 };
 
 Accordion.craft = {
