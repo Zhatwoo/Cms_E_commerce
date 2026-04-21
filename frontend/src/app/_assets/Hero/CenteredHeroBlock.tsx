@@ -170,6 +170,7 @@ export const CenteredHeroBlockSettings = () => {
 };
 
 export const CenteredHeroBlock = ({
+  nodeId,
   layoutStyle = "image-left-1",
   title = "Welcome to Our Platform",
   subtitle = "Build amazing websites with our drag-and-drop editor. No coding required.",
@@ -183,14 +184,29 @@ export const CenteredHeroBlock = ({
   subtitleColor = "#64748b",
   contentBg = "#ffffff",
 }: CenteredHeroBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

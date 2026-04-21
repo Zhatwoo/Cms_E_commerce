@@ -43,50 +43,84 @@ function getResolvedType(node: CraftRawNode | null | undefined): string {
 function normalizeComponentType(rawType: unknown): ComponentType {
   const name = typeof rawType === "string" ? rawType.trim() : "";
   const lowered = name.toLowerCase();
+  
   if (!lowered) return "Container";
+
+  // 1. High-priority specific block matches (avoid including logic that catches these too early)
+  
+  // Marketing & Social Proof
+  if (lowered === "featuresgridblock" || lowered === "features grid block") return "FeaturesGridBlock";
+  if (lowered === "testimonialblock" || lowered === "testimonial block") return "TestimonialBlock";
+  if (lowered === "statscounterblock" || lowered === "stats counter block") return "StatsCounterBlock";
+  if (lowered === "newsletterctablock" || lowered === "newsletter cta block") return "NewsletterCTABlock";
+  if (lowered === "imagetextblock" || lowered === "image text block") return "ImageTextBlock";
+  if (lowered === "brandlogosblock" || lowered === "brand logos block") return "BrandLogosBlock";
+  if (lowered === "ctabannerblock" || lowered === "cta banner block") return "CTABannerBlock";
+  
+  // Hero Blocks
+  if (lowered === "herobannerctablock" || lowered === "hero banner cta block") return "HeroBannerCTABlock";
+  if (lowered === "herobannercta_v2block" || lowered === "hero banner cta v2 block") return "HeroBannerCTA_v2Block";
+  if (lowered === "herowithimageblock" || lowered === "hero with image block") return "HeroWithImageBlock";
+  if (lowered === "centeredheroblock" || lowered === "centered hero block") return "CenteredHeroBlock";
+  if (lowered === "splitscreenheroblock" || lowered === "split screen hero block") return "SplitScreenHeroBlock";
+  if (lowered === "minimaltypeheroblock" || lowered === "minimal type hero block") return "MinimalTypeHeroBlock";
+  if (lowered === "videostyleheroblock" || lowered === "video style hero block") return "VideoStyleHeroBlock";
+  if (lowered === "collectionheroblock" || lowered === "collection hero block") return "CollectionHeroBlock";
+
+  // Commerce & Specialized
   if (lowered.includes("categoriescard") || lowered.includes("categories card")) return "CategoriesCardCanvas";
   if (lowered.includes("featuredproduct") || lowered.includes("featured product")) return "FeaturedProductCanvas";
   if (lowered.includes("productdescriptioncard")) return "ProductDescriptionCard";
   if (lowered.includes("productdescription") && !lowered.includes("productdescriptioncard")) return "ProductDescriptionCanvas";
   if (lowered === "categorytile" || lowered === "category tile" || lowered.includes("categorytile")) return "CategoryTile";
+  if (lowered === "teammembercard" || lowered === "team member card" || lowered.includes("teammembercard")) return "TeamMemberCardCanvas";
   if (lowered === "productcard" || lowered === "product card" || lowered.includes("productcard")) return "ProductCard";
   if (lowered === "productslider" || lowered === "product slider" || lowered.includes("productslider")) return "ProductSlider";
-  if (lowered === "tabcontent" || lowered === "tab content") return "TabContent";
-  if (lowered.includes("tabcontent")) return "TabContent";
+  
+  // Layouts & UI Components
+  if (lowered === "tabcontent" || lowered === "tab content" || lowered === "tab-content") return "TabContent";
   if (lowered === "tabs") return "Tabs";
-  if (lowered.includes("tabs")) return "Tabs";
-  if (lowered === "text" || lowered.includes("text")) return "Text";
-  if (lowered === "image" || lowered.includes("image")) return "Image";
-  if (lowered === "video" || lowered.includes("video")) return "Video";
+  if (lowered === "profilelogin" || lowered === "profile login" || lowered === "profile-login") return "ProfileLogin";
+  if (lowered === "importedblock" || lowered === "imported block") return "ImportedBlock";
+  if (lowered === "accordion") return "Accordion";
+  if (lowered === "rating") return "Rating";
+  if (lowered === "banner") return "Banner";
+  if (lowered === "badge") return "Badge";
+  if (lowered === "pagination") return "Pagination";
+  if (lowered === "booleanfield" || lowered === "boolean field" || lowered === "checkbox") return "BooleanField";
+  if (lowered === "icon") return "Icon";
+  if (lowered === "spacer") return "Spacer";
+  if (lowered === "divider") return "Divider";
+  if (lowered === "section") return "Section";
+  if (lowered === "row") return "Row";
+  if (lowered === "column") return "Column";
+  
+  // Shapes
+  if (lowered === "circle") return "Circle";
+  if (lowered === "square") return "Square";
+  if (lowered === "triangle") return "Triangle";
+  if (lowered === "diamond") return "Diamond";
+  if (lowered === "heart") return "Heart";
+  if (lowered === "trapezoid") return "Trapezoid";
+  if (lowered === "pentagon") return "Pentagon";
+  if (lowered === "hexagon") return "Hexagon";
+  if (lowered === "heptagon") return "Heptagon";
+  if (lowered === "octagon") return "Octagon";
+  if (lowered === "nonagon") return "Nonagon";
+  if (lowered === "decagon") return "Decagon";
+  if (lowered === "parallelogram") return "Parallelogram";
+  if (lowered === "kite") return "Kite";
+
+  // Base types as fallback (if they weren't caught by exact match above)
+  if (lowered === "text" || (lowered.includes("text") && !lowered.includes("block"))) return "Text";
+  if (lowered === "image" || (lowered.includes("image") && !lowered.includes("block"))) return "Image";
+  if (lowered === "video" || (lowered.includes("video") && !lowered.includes("block"))) return "Video";
   if (lowered === "button" || lowered.includes("button")) return "Button";
-  if (lowered === "divider" || lowered.includes("divider")) return "Divider";
-  if (lowered === "section" || lowered.includes("section")) return "Section";
-  if (lowered === "row" || lowered.includes("row")) return "Row";
-  if (lowered === "column" || lowered.includes("column")) return "Column";
-  if (lowered === "icon" || lowered.includes("icon")) return "Icon";
-  if (lowered === "spacer" || lowered.includes("spacer")) return "Spacer";
-  if (lowered === "pagination" || lowered.includes("pagination")) return "Pagination";
-  if (lowered === "badge" || lowered.includes("badge")) return "Badge";
-  if (lowered === "profilelogin" || lowered === "profile login" || lowered === "profile-login" || lowered.includes("profilelogin")) return "ProfileLogin";
-  if (lowered === "circle" || lowered.includes("circle")) return "Circle";
-  if (lowered === "square" || lowered.includes("square")) return "Square";
-  if (lowered === "triangle" || lowered.includes("triangle")) return "Triangle";
-  if (lowered === "diamond" || lowered.includes("diamond")) return "Diamond";
-  if (lowered === "heart" || lowered.includes("heart")) return "Heart";
-  if (lowered === "trapezoid" || lowered.includes("trapezoid")) return "Trapezoid";
-  if (lowered === "pentagon" || lowered.includes("pentagon")) return "Pentagon";
-  if (lowered === "hexagon" || lowered.includes("hexagon")) return "Hexagon";
-  if (lowered === "heptagon" || lowered.includes("heptagon")) return "Heptagon";
-  if (lowered === "octagon" || lowered.includes("octagon")) return "Octagon";
-  if (lowered === "nonagon" || lowered.includes("nonagon")) return "Nonagon";
-  if (lowered === "decagon" || lowered.includes("decagon")) return "Decagon";
-  if (lowered === "parallelogram" || lowered.includes("parallelogram")) return "Parallelogram";
-  if (lowered === "kite" || lowered.includes("kite")) return "Kite";
-  if (lowered === "rating" || lowered.includes("rating")) return "Rating";
-  if (lowered === "banner" || lowered.includes("banner")) return "Banner";
-  if (lowered === "accordion" || lowered.includes("accordion")) return "Accordion";
-  if (lowered === "importedblock" || lowered === "imported block" || lowered.includes("imported")) return "ImportedBlock";
   if (lowered === "container" || lowered.includes("container")) return "Container";
+
+  // Final catch-all if still contains generic keywords
+  if (lowered.includes("banner") && !lowered.includes("block")) return "Banner";
+
   return "Container";
 }
 
@@ -190,13 +224,15 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     overflow: "visible",
     cursor: "default",
+    rotation: 0,
+    customClassName: "",
   },
   Text: {
     text: "Edit me!",
     width: "fit-content",
     height: "fit-content",
     fontSize: 16,
-    fontFamily: "Inter",
+    fontFamily: "Outfit",
     fontWeight: "400",
     fontStyle: "normal",
     lineHeight: 1.5,
@@ -217,6 +253,14 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     opacity: 1,
     boxShadow: "none",
     previewEditable: false,
+    position: "relative",
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+    zIndex: 2,
+    rotation: 0,
+    customClassName: "",
   },
   Image: {
     src: "https://placehold.co/600x400/27272a/a1a1aa?text=Image",
@@ -237,6 +281,14 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     marginLeft: 0,
     opacity: 1,
     boxShadow: "none",
+    position: "relative",
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+    zIndex: 2,
+    rotation: 0,
+    customClassName: "",
   },
   Button: {
     label: "Button",
@@ -588,6 +640,29 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
   },
   Accordion: {
     items: [],
+  },
+  TeamMemberCardCanvas: {
+    paddingTop: "16px",
+    paddingRight: "12px",
+    paddingBottom: "16px",
+    paddingLeft: "12px",
+    background: "#ffffff",
+    borderRadius: 12,
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+    width: "240px",
+    height: "auto",
+    gap: "12px",
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    borderStyle: "solid",
+    position: "relative",
+    top: "auto",
+    right: "auto",
+    bottom: "auto",
+    left: "auto",
+    zIndex: 0,
+    rotation: 0,
+    customClassName: "",
   },
 };
 

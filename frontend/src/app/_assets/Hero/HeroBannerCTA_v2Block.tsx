@@ -246,6 +246,7 @@ export const HeroBannerCTA_v2BlockSettings = () => {
 };
 
 export const HeroBannerCTA_v2Block = ({
+  nodeId,
   layoutStyle = "image-left-1",
   title = "Lorem Ipsum Generator",
   subtitle = "Paragraphs Sentences Words Copy",
@@ -258,10 +259,17 @@ export const HeroBannerCTA_v2Block = ({
   titleColor = "#000000",
   subtitleColor = "#000000",
 }: HeroBannerCTA_v2BlockProps) => {
-  const {
-    id,
-    connectors: { connect, drag },
-  } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
@@ -269,8 +277,11 @@ export const HeroBannerCTA_v2Block = ({
   return (
     <section
       ref={(ref) => {
-        if (ref) connect(drag(ref));
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
       }}
+
       data-node-id={id}
       style={{
         width: "100%",

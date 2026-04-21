@@ -186,6 +186,7 @@ export const TestimonialBlockSettings = () => {
 };
 
 export const TestimonialBlock = ({
+  nodeId,
   layoutStyle = "centered",
   quote = "Quality products and great experience. Will definitely be back.",
   authorName = "Happy Customer",
@@ -199,7 +200,17 @@ export const TestimonialBlock = ({
   accentColor = "#3b82f6",
   minHeight = 400,
 }: TestimonialBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isSplit = layoutStyle === "card-left" || layoutStyle === "card-right";
   const isCentered = layoutStyle === "centered";
@@ -287,7 +298,12 @@ export const TestimonialBlock = ({
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

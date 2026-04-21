@@ -171,6 +171,7 @@ export const CTABannerBlockSettings = () => {
 };
 
 export const CTABannerBlock = ({
+  nodeId,
   heading = "Ready to Transform Your Shopping Experience?",
   subheading = "Join thousands of satisfied customers and discover products you'll love. Free shipping on orders over $50.",
   primaryLabel = "Start Shopping",
@@ -184,11 +185,26 @@ export const CTABannerBlock = ({
   minHeight = 300,
   layoutStyle = "horizontal",
 }: CTABannerBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",
