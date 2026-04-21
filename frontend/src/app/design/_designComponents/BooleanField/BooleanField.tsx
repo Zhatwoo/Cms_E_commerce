@@ -1,6 +1,5 @@
 import React, { useEffect, useId, useMemo, useState } from "react";
 import { useNode } from "@craftjs/core";
-import type { Node } from "@craftjs/core";
 import { BooleanFieldSettings } from "./BooleanFieldSettings";
 import type { BooleanFieldProps } from "../../_types/components";
 
@@ -77,6 +76,7 @@ export const BooleanField = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  isFreeform,
 }: BooleanFieldProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const reactId = useId();
@@ -120,21 +120,13 @@ export const BooleanField = ({
 
   const fluidFSize = useMemo(() => fluidFontSize(fontSize, 8), [fontSize]);
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "inline-flex"
         : display;
-
-  const transformStyle =
-    [
-      rotation ? `rotate(${rotation}deg)` : null,
-      flipHorizontal ? "scaleX(-1)" : null,
-      flipVertical ? "scaleY(-1)" : null,
-    ]
-      .filter(Boolean)
-      .join(" ") || undefined;
 
   return (
     <div
@@ -169,6 +161,8 @@ export const BooleanField = ({
         flexDirection: "column",
         alignItems: "flex-start",
         justifyContent: "flex-start",
+        transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
+        visibility: visibility === "hidden" ? "hidden" : "visible",
       }}
     >
       {normalizedOptions.map((opt, idx) => {
@@ -270,12 +264,7 @@ export const BooleanFieldDefaultProps: Partial<BooleanFieldProps> = {
 BooleanField.craft = {
   displayName: "Boolean Field",
   props: BooleanFieldDefaultProps,
-  rules: {
-    canMoveIn: (incomingNodes: Node[]) =>
-      incomingNodes.every((node) => node.data.displayName !== "Page"),
-  },
   related: {
     settings: BooleanFieldSettings,
   },
 };
-

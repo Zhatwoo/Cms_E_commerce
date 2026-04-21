@@ -2,7 +2,7 @@
 import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
@@ -145,6 +145,7 @@ export const AccordionSettings = () => {
     right: node.data.props.right as string,
     bottom: node.data.props.bottom as string,
     left: node.data.props.left as string,
+    isFreeform: node.data.props.isFreeform as boolean,
     editorVisibility: node.data.props.editorVisibility as AccordionProps["editorVisibility"],
     borderRadius: node.data.props.borderRadius as number,
     backgroundColor: node.data.props.backgroundColor as string,
@@ -501,9 +502,11 @@ export const AccordionSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

@@ -50,6 +50,7 @@ export const Spacer = ({
     boxShadow = "none",
     overflow = "visible",
     cursor = "default",
+    isFreeform,
 }: SpacerProps) => {
     const { id, connectors: { connect, drag } } = useNode();
 
@@ -73,8 +74,9 @@ export const Spacer = ({
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
 
-    const effectiveDisplay =
-        editorVisibility === "hide"
+    const effectiveDisplay = isFreeform
+        ? "block"
+        : editorVisibility === "hide"
             ? "none"
             : editorVisibility === "show" && display === "none"
                 ? "block"

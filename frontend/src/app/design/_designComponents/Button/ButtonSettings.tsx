@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
@@ -12,7 +12,7 @@ import type { ButtonProps, SetProp, TypographyProps } from "../../_types/compone
 
 export const ButtonSettings = () => {
   const {
-    label, link, variant,
+    id, label, link, variant,
     backgroundColor, textColor,
     fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration, color,
     borderRadius, borderWidth,
@@ -21,10 +21,11 @@ export const ButtonSettings = () => {
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     node,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     label: node.data.props.label,
     link: node.data.props.link,
     variant: node.data.props.variant,
@@ -65,6 +66,7 @@ export const ButtonSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
     node,
   }));
@@ -140,9 +142,11 @@ export const ButtonSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

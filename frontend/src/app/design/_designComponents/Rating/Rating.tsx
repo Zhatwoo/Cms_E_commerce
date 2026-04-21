@@ -74,12 +74,14 @@ export const Rating = ({
   flipVertical = false,
   cursor = "default",
   overflow = "visible",
+  isFreeform,
 }: RatingProps) => {
   const { id, connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "inline-flex"

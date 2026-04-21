@@ -5,11 +5,12 @@ import { TransformGroup } from "../../_components/rightPanel/settings/TransformG
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
   const {
+    id,
     text,
     fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color, textDecoration,
     width, height,
@@ -17,12 +18,13 @@ export const TextSettings = () => {
     paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     previewEditable,
     isCodeBlock,
     codeLanguage,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     text: node.data.props.text,
     fontSize: node.data.props.fontSize,
     fontStyle: node.data.props.fontStyle,
@@ -59,6 +61,7 @@ export const TextSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
     previewEditable: node.data.props.previewEditable,
   }));
@@ -123,9 +126,11 @@ export const TextSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

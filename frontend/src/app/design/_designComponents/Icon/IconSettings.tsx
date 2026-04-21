@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
@@ -98,50 +98,24 @@ const ICON_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "Viber", value: "viber" },
   { label: "Signal", value: "signal" },
   { label: "Messenger", value: "messenger" },
-  { label: "Vimeo", value: "vimeo" },
-  { label: "Tumblr", value: "tumblr" },
-  { label: "Xing", value: "xing" },
-  { label: "User", value: "user" },
+  { label: "X", value: "twitter" },
   { label: "Facebook", value: "facebook" },
   { label: "Google", value: "google" },
   { label: "Instagram", value: "instagram" },
-  { label: "Twitter", value: "twitter" },
 ];
 
 export const IconSettings = () => {
   const {
-    iconType,
-    size,
-    color,
-    link,
-    width,
-    height,
-    paddingLeft,
-    paddingRight,
-    paddingTop,
-    paddingBottom,
-    marginLeft,
-    marginRight,
-    marginTop,
-    marginBottom,
-    rotation,
-    flipHorizontal,
-    flipVertical,
-    position,
-    display,
-    alignSelf,
-    zIndex,
-    top,
-    right,
-    bottom,
-    left,
-    editorVisibility,
-    opacity,
-    boxShadow,
-    overflow,
-    cursor,
+    id, iconType, size, color, link,
+    width, height,
+    paddingLeft, paddingRight, paddingTop, paddingBottom,
+    marginLeft, marginRight, marginTop, marginBottom,
+    rotation, flipHorizontal, flipVertical,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
+    opacity, boxShadow, overflow, cursor,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     iconType: node.data.props.iconType ?? "home",
     size: node.data.props.size ?? 24,
     color: node.data.props.color ?? "currentColor",
@@ -167,6 +141,7 @@ export const IconSettings = () => {
     right: node.data.props.right ?? "auto",
     bottom: node.data.props.bottom ?? "auto",
     left: node.data.props.left ?? "auto",
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility ?? "auto",
     opacity: node.data.props.opacity ?? 1,
     boxShadow: node.data.props.boxShadow ?? "none",
@@ -237,9 +212,11 @@ export const IconSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -279,4 +256,3 @@ export const IconSettings = () => {
     </div>
   );
 };
-

@@ -90,6 +90,7 @@ export const Container = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  isFreeform = false,
   designWidth = 1440,
   designHeight = 900,
   customClassName = "",
@@ -239,31 +240,31 @@ export const Container = ({
         position: resolvedPosition,
         containerType: "inline-size",
         contain: "layout",
-        display: effectiveDisplay,
+        display: isFreeform ? "block" : effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,
         top: isPositioned ? top : undefined,
         right: isPositioned ? posRight : undefined,
         bottom: isPositioned ? bottom : undefined,
         left: isPositioned ? posLeft : undefined,
-        flexDirection: isFlexDisplay ? flexDirection : undefined,
-        flexWrap: isFlexDisplay ? flexWrap : undefined,
-        alignItems: isFlexDisplay || isGridDisplay ? alignItems : undefined,
-        justifyContent: isFlexDisplay || isGridDisplay ? justifyContent : undefined,
-        columnGap: isFlexDisplay
+        flexDirection: !isFreeform && isFlexDisplay ? flexDirection : undefined,
+        flexWrap: !isFreeform && isFlexDisplay ? flexWrap : undefined,
+        alignItems: !isFreeform && (isFlexDisplay || isGridDisplay) ? alignItems : undefined,
+        justifyContent: !isFreeform && (isFlexDisplay || isGridDisplay) ? justifyContent : undefined,
+        columnGap: !isFreeform && isFlexDisplay
           ? fluidSpace(gap, 0)
-          : isGridDisplay
+          : !isFreeform && isGridDisplay
             ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
-        rowGap: isFlexDisplay
+        rowGap: !isFreeform && isFlexDisplay
           ? fluidSpace(gap, 0)
-          : isGridDisplay
+          : !isFreeform && isGridDisplay
             ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
-        gridTemplateColumns: isGridDisplay ? gridTemplateColumns : undefined,
-        gridTemplateRows: isGridDisplay ? gridTemplateRows : undefined,
-        gridAutoRows: isGridDisplay ? gridAutoRows : undefined,
-        gridAutoFlow: isGridDisplay ? gridAutoFlow : undefined,
+        gridTemplateColumns: !isFreeform && isGridDisplay ? gridTemplateColumns : undefined,
+        gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
+        gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
+        gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
         boxShadow,
         opacity,
         overflow,

@@ -3,19 +3,33 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import type { DividerProps, SetProp } from "../../_types/components";
 
 export const DividerSettings = () => {
   const {
+    id,
     dividerStyle, color, thickness, width, marginTop, marginBottom,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     dividerStyle: node.data.props.dividerStyle,
     color: node.data.props.color,
     thickness: node.data.props.thickness,
     width: node.data.props.width,
     marginTop: node.data.props.marginTop,
     marginBottom: node.data.props.marginBottom,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    alignSelf: node.data.props.alignSelf,
+    zIndex: node.data.props.zIndex,
+    top: node.data.props.top,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
+    editorVisibility: node.data.props.editorVisibility,
   }));
 
   const typedSetProp = setProp as SetProp<DividerProps>;
@@ -47,7 +61,7 @@ export const DividerSettings = () => {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-[var(--builder-text)]">Color</label>
             <ColorPicker
-              value={color ?? "#4a4a4a"}
+              value={color || "#4a4a4a"}
               onChange={(val) => typedSetProp((props) => { props.color = val; })}
               className="w-full"
             />
@@ -101,6 +115,23 @@ export const DividerSettings = () => {
             </div>
           </div>
         </div>
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <LayoutLayerGroup
+          nodeId={id}
+          position={position}
+          display={display}
+          isFreeform={isFreeform}
+          alignSelf={alignSelf}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={typedSetProp as any}
+        />
       </DesignSection>
     </div>
   );

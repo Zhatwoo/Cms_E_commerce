@@ -69,6 +69,7 @@ export const Button = ({
   zIndex = 0,
   alignSelf = "auto",
   display,
+  isFreeform,
   children,
 }: ButtonProps & { text?: string }) => {
   const { id, connectors: { connect, drag } } = useNode();
@@ -145,7 +146,7 @@ export const Button = ({
         zIndex: zIndex !== 0 ? zIndex : undefined,
         transform: [rotation ? `rotate(${rotation}deg)` : null, flipHorizontal ? "scaleX(-1)" : null, flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
         cursor: "pointer",
-        display: display ?? "inline-flex",
+        display: isFreeform ? "block" : (display ?? "inline-flex"),
         alignItems: "center",
         justifyContent: "center",
         textAlign,
