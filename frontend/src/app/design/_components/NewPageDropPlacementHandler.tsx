@@ -54,12 +54,23 @@ function sanitizeTreeTypes(tree: Record<string, any>): Record<string, any> {
 
 function resolveViewportId(nodes: Record<string, any>): string | null {
   const rootNode = nodes?.ROOT;
+  if (!rootNode) return null;
+
+  // 1. Direct check: ROOT might be the Viewport itself
+  if (rootNode?.data?.displayName === "Viewport") return "ROOT";
+
+  // 2. Structural check: Frame -> Viewport
   const frameRootId = rootNode?.data?.nodes?.[0] ?? null;
   const frameRoot = frameRootId ? nodes?.[frameRootId] : null;
+
+  if (frameRoot?.data?.displayName === "Viewport") return frameRootId;
+
   const viewportId = frameRoot?.data?.nodes?.[0] ?? null;
   if (viewportId && nodes?.[viewportId]?.data?.displayName === "Viewport") {
     return viewportId;
   }
+
+  // 3. Fallback: Search all nodes
   const fallback = Object.keys(nodes ?? {}).find((id) => nodes?.[id]?.data?.displayName === "Viewport");
   return fallback ?? null;
 }
@@ -96,14 +107,17 @@ function getCanvasContainerScale(): number | null {
   const container = document.querySelector("[data-canvas-container]") as HTMLElement | null;
   if (!container) return null;
 
-  // The scaled content is the first child div with transform style
-  const innerContent = container.firstElementChild as HTMLElement | null;
+  // Search for the first child that has a transform, or the first div if none found
+  const innerContent = (container.querySelector("div[style*='transform']") || container.firstElementChild) as HTMLElement | null;
   if (!innerContent) return null;
 
   const transform = innerContent.style.transform || window.getComputedStyle(innerContent).transform;
   if (!transform || transform === "none") return null;
 
-  // Try to parse scale from transform string like "scale(0.5)" or "scale(0.5) rotate(0deg)"
+  if (transform.startsWith("scale(")) {
+    const scale = parseFloat(transform.replace("scale(", "").replace(")", ""));
+    return Number.isFinite(scale) ? scale : null;
+  }
   const scaleMatch = transform.match(/scale\(([^)]+)\)/);
   if (scaleMatch && scaleMatch[1]) {
     const scale = parseFloat(scaleMatch[1]);
@@ -127,27 +141,50 @@ function getCanvasContainerScale(): number | null {
 
   return null;
 }
-
 /**
  * Convert drop screen position to canvas coordinates (canvasX, canvasY).
  * Page uses position: absolute with left: canvasX, top: canvasY relative to viewport-desktop.
  * So we measure offset from viewport-desktop's top-left and divide by scale.
  */
-function getDropCanvasPoint(drop: DropPoint): { x: number; y: number } {
+function getDropCanvasPoint(drop: { clientX: number; clientY: number }): { x: number; y: number } {
   const desktopRoot = document.querySelector("[data-viewport-desktop]") as HTMLElement | null;
-  if (!desktopRoot) return { x: 0, y: 0 };
+  if (!desktopRoot) {
+    console.warn("NewPageDrop: No desktop root found");
+    return { x: 30000, y: 30000 };
+  }
 
   const rect = desktopRoot.getBoundingClientRect();
-
-  let scale = getCanvasContainerScale();
-  if (scale === null) {
-    scale = getEffectiveZoom(desktopRoot);
+  
+  // Try to get scale directly from the transforming ancestor in editorShell
+  let effectiveScale = 1;
+  const scaledAncestor = desktopRoot.closest("div[style*='scale']") as HTMLElement | null;
+  if (scaledAncestor) {
+    const transform = scaledAncestor.style.transform;
+    const match = transform.match(/scale\(([^)]+)\)/);
+    if (match) {
+      effectiveScale = parseFloat(match[1]) || 1;
+    }
+  } else {
+    // Fallback to bounding rect vs logical size
+    const logicalWidth = desktopRoot.offsetWidth || 1;
+    effectiveScale = rect.width / logicalWidth || 1;
   }
-  const effectiveScale = scale > 0.01 ? scale : 1;
 
-  // canvasX/canvasY are relative to viewport-desktop; offset from its top-left, then / scale
+  // Safety clamp
+  if (effectiveScale < 0.01) effectiveScale = 1;
+
   const x = (drop.clientX - rect.left) / effectiveScale;
   const y = (drop.clientY - rect.top) / effectiveScale;
+
+  console.log("NewPageDrop Calculation:", {
+    clientX: drop.clientX,
+    clientY: drop.clientY,
+    rectLeft: rect.left,
+    rectTop: rect.top,
+    scale: effectiveScale,
+    resultX: x,
+    resultY: y
+  });
 
   return {
     x: Number.isFinite(x) ? Math.round(x) : 0,
@@ -190,26 +227,35 @@ export const NewPageDropPlacementHandler = () => {
       }
       const nodes = state.nodes ?? {};
       const viewportId = resolveViewportId(nodes);
-      if (!viewportId) {
-        lastDropPointRef.current = null;
-        return true;
-      }
-
-      const viewportChildren = Array.isArray(nodes[viewportId]?.data?.nodes)
+      const viewportChildren = (viewportId && Array.isArray(nodes[viewportId]?.data?.nodes))
         ? (nodes[viewportId].data.nodes as string[])
         : [];
 
-      const currentPageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
+      // 2. Look for new Pages in the viewport first
+      const currentViewportPageIds = viewportChildren.filter((id) => {
+        const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+        return canonicalResolvedName(dname) === "Page";
+      });
       const preDrop = preDropPageIdsRef.current;
-      const newPageIds = currentPageIds.filter((id) => !preDrop.has(id));
+      let newPageIds = currentViewportPageIds.filter((id) => !preDrop.has(id));
 
-      // Not yet created by CraftJS — keep retrying
+      // 3. Fallback: If no new pages in viewport, check the entire state
+      // (Sometimes Craft.js might add it to ROOT or elsewhere temporarily)
+      if (newPageIds.length === 0) {
+        const allPageIds = Object.keys(nodes).filter((id) => {
+          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          return canonicalResolvedName(dname) === "Page";
+        });
+        newPageIds = allPageIds.filter((id) => !preDrop.has(id));
+      }
+
       if (newPageIds.length === 0) return false;
 
       const dropPoint = getDropCanvasPoint(drop);
 
       if (newPageIds.length > 0) {
         newPageIds.forEach((pageId, index) => {
+          // Top-left anchoring for the first page, subsequent pages offset by 36px
           const canvasX = Math.round(dropPoint.x + index * 36);
           const canvasY = Math.round(dropPoint.y + index * 36);
 
@@ -220,7 +266,12 @@ export const NewPageDropPlacementHandler = () => {
         });
 
         lastDropPointRef.current = null;
-        preDropPageIdsRef.current = new Set(currentPageIds);
+        // Update baseline to include all current pages
+        const latestPageIds = Object.keys(nodes).filter((id) => {
+          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          return canonicalResolvedName(dname) === "Page";
+        });
+        preDropPageIdsRef.current = new Set(latestPageIds);
         return true;
       }
 
@@ -273,7 +324,20 @@ export const NewPageDropPlacementHandler = () => {
       const viewportChildren = (viewportId && Array.isArray(nodes[viewportId]?.data?.nodes))
         ? (nodes[viewportId].data.nodes as string[])
         : [];
-      const pageIds = viewportChildren.filter((id) => nodes[id]?.data?.displayName === "Page");
+      
+      let pageIds = viewportChildren.filter((id) => {
+        const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+        return canonicalResolvedName(dname) === "Page";
+      });
+      
+      // If no viewport found yet, capture ALL pages currently in state as baseline
+      if (!viewportId || pageIds.length === 0) {
+        pageIds = Object.keys(nodes).filter((id) => {
+          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          return canonicalResolvedName(dname) === "Page";
+        });
+      }
+
       preDropPageIdsRef.current = new Set(pageIds);
     };
 
