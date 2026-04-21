@@ -177,9 +177,7 @@ export const Accordion = ({
 
   React.useEffect(() => {
     setOpenIndexes((current) => {
-      const clamped = current.filter((index) => index >= 0 && index < safeItems.length);
-      if (clamped.length > 0) return clamped;
-
+      // Prioritize explicit preview modes from the settings panel
       if (editorPreviewMode === "expand-all") {
         return safeItems.map((_, index) => index);
       }
@@ -187,6 +185,9 @@ export const Accordion = ({
       if (editorPreviewMode === "collapse-all") {
         return [];
       }
+
+      const clamped = current.filter((index) => index >= 0 && index < safeItems.length);
+      if (clamped.length > 0) return clamped;
 
       // In editor mode, keep dropdown collapsed by default unless user opens it.
       if (enabled) {
@@ -201,6 +202,13 @@ export const Accordion = ({
   const resolvedContainerHeight = hasOpenItems ? (height || "auto") : "auto";
 
   const toggle = (index: number) => {
+    // If the user manually toggles an item, we exit the "Expand All" or "Collapse All" preview modes
+    if (enabled && editorPreviewMode !== "normal") {
+      setProp((props: AccordionProps) => {
+        props.editorPreviewMode = "normal";
+      });
+    }
+
     if (allowMultiple) {
       setOpenIndexes((current) => current.includes(index)
         ? (allowCollapseAll ? current.filter((item) => item !== index) : current)
