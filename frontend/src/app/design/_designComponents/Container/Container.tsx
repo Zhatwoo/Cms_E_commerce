@@ -9,7 +9,8 @@ function parsePx(value: string | undefined): number | null {
   return m ? parseFloat(m[1]) : null;
 }
 
-function fluidSpace(value: number, min = 0): string {
+function fluidSpace(value: number | string, min = 0): string {
+  if (typeof value === "string") return value;
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
   const preferred = Math.max(0.1, value / 12);
   const floor = Math.max(min, Math.round(value * 0.45));

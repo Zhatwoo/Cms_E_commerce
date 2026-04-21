@@ -157,6 +157,7 @@ export const VideoStyleHeroBlockSettings = () => {
 };
 
 export const VideoStyleHeroBlock = ({
+  nodeId,
   layoutStyle = "close-up",
   title = "Watch Our Story",
   subtitle = "Experience the craftsmanship behind every product we create.",
@@ -168,14 +169,29 @@ export const VideoStyleHeroBlock = ({
   titleColor = "#ffffff",
   subtitleColor = "rgba(255,255,255,0.7)",
 }: VideoStyleHeroBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

@@ -152,6 +152,7 @@ export const BrandLogosBlockSettings = () => {
 };
 
 export const BrandLogosBlock = ({
+  nodeId,
   heading = "Trusted by Leading Brands",
   brand1 = "Brand A",
   brand2 = "Brand B",
@@ -164,7 +165,17 @@ export const BrandLogosBlock = ({
   brandBg = "#f8fafc",
   layoutStyle = "single-row",
 }: BrandLogosBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const brands = [brand1, brand2, brand3, brand4, brand5];
 
@@ -290,7 +301,12 @@ export const BrandLogosBlock = ({
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

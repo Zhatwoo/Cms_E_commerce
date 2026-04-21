@@ -194,6 +194,7 @@ export const FeaturesGridBlockSettings = () => {
 
 export const FeaturesGridBlock = ({
   layoutStyle = DEFAULTS.layoutStyle,
+  nodeId,
   heading = DEFAULTS.heading,
   subheading = DEFAULTS.subheading,
   feature1Title = DEFAULTS.feature1Title,
@@ -208,7 +209,17 @@ export const FeaturesGridBlock = ({
   cardBg = DEFAULTS.cardBg,
   minHeight = DEFAULTS.minHeight,
 }: FeaturesGridBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const features = [
     { title: feature1Title, desc: feature1Desc },
@@ -218,7 +229,12 @@ export const FeaturesGridBlock = ({
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

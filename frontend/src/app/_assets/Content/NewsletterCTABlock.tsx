@@ -170,6 +170,7 @@ export const NewsletterCTABlockSettings = () => {
 };
 
 export const NewsletterCTABlock = ({
+  nodeId,
   heading = defaultProps.heading,
   subheading = defaultProps.subheading,
   buttonLabel = defaultProps.buttonLabel,
@@ -183,7 +184,17 @@ export const NewsletterCTABlock = ({
   inputBg = defaultProps.inputBg,
   layoutStyle = defaultProps.layoutStyle,
 }: NewsletterCTABlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const inputRow = (
     <div
@@ -233,7 +244,12 @@ export const NewsletterCTABlock = ({
   if (layoutStyle === "minimal") {
     return (
       <section
-        ref={(ref) => { if (ref) connect(drag(ref)); }}
+        ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
         data-node-id={id}
         style={{
           width: "100%",
@@ -269,7 +285,12 @@ export const NewsletterCTABlock = ({
   if (layoutStyle === "split") {
     return (
       <section
-        ref={(ref) => { if (ref) connect(drag(ref)); }}
+        ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
         data-node-id={id}
         style={{
           width: "100%",
@@ -321,7 +342,12 @@ export const NewsletterCTABlock = ({
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

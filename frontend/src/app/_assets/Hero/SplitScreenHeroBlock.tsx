@@ -172,6 +172,7 @@ export const SplitScreenHeroBlockSettings = () => {
 };
 
 export const SplitScreenHeroBlock = ({
+  nodeId,
   layoutStyle = "image-left-1",
   title = "New Season Collection",
   subtitle = "Discover the latest trends in fashion and lifestyle. Curated pieces for the modern shopper.",
@@ -186,14 +187,29 @@ export const SplitScreenHeroBlock = ({
   subtitleColor = "#94a3b8",
   panelBg = "#0f172a",
 }: SplitScreenHeroBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

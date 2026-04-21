@@ -12,6 +12,25 @@ import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
 import { smartGroupCategories } from "@/lib/smartCategories";
 import { getIndustryCategories } from "@/lib/industryCatalog";
+import { FeaturesGridBlock } from "@/app/_assets/Content/FeaturesGridBlock";
+import { TestimonialBlock } from "@/app/_assets/Content/TestimonialBlock";
+import { StatsCounterBlock } from "@/app/_assets/Content/StatsCounterBlock";
+import { NewsletterCTABlock } from "@/app/_assets/Content/NewsletterCTABlock";
+import { ImageTextBlock } from "@/app/_assets/Content/ImageTextBlock";
+import { BrandLogosBlock } from "@/app/_assets/Content/BrandLogosBlock";
+import { CTABannerBlock } from "@/app/_assets/Content/CTABannerBlock";
+import { HeroBannerCTABlock } from "@/app/_assets/Hero/HeroBannerCTABlock";
+import { HeroBannerCTA_v2Block } from "@/app/_assets/Hero/HeroBannerCTA_v2Block";
+import { HeroWithImageBlock } from "@/app/_assets/Hero/HeroWithImageBlock";
+import { CenteredHeroBlock } from "@/app/_assets/Hero/CenteredHeroBlock";
+import { SplitScreenHeroBlock } from "@/app/_assets/Hero/SplitScreenHeroBlock";
+import { MinimalTypeHeroBlock } from "@/app/_assets/Hero/MinimalTypeHeroBlock";
+import { VideoStyleHeroBlock } from "@/app/_assets/Hero/VideoStyleHeroBlock";
+import { CollectionHeroBlock } from "@/app/_assets/Hero/CollectionHeroBlock";
+
+
+
+
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
@@ -590,10 +609,8 @@ const frameResponsiveStyles = (
         .frame-fluid > *,
         .frame-responsive-inner > *,
         [data-node-id] {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          flex-grow: 1 !important;
+          max-width: 100%;
+          min-width: 0;
         }
         
         .frame-responsive-inner > * + * {
@@ -604,21 +621,16 @@ const frameResponsiveStyles = (
         [data-layout="column"] {
           flex-direction: column !important;
           align-items: stretch !important;
-          height: auto !important;
-          min-height: 0 !important;
-          width: 100% !important;
+          height: auto;
+          min-height: 0;
+          width: 100%;
           display: flex !important;
-          gap: clamp(12px, 3cqw, 20px) !important;
         }
 
         [data-layout="row"] > *,
         [data-layout="column"] > * {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          flex: 1 1 100% !important;
-          margin-left: 0 !important;
-          margin-right: 0 !important;
+          max-width: 100%;
+          min-width: 0;
         }
 
         [data-fluid-space="true"] {
@@ -635,11 +647,8 @@ const frameResponsiveStyles = (
         [data-fluid-grid="true"],
         img, 
         video {
-          width: 100% !important;
-          max-width: 100% !important;
-          min-width: 0 !important;
-          height: auto !important;
-          min-height: 0 !important;
+          max-width: 100%;
+          height: auto;
         }
 
         [data-fluid-grid="true"] {
@@ -1294,21 +1303,24 @@ function fluidSpace(
   value: unknown,
   minFloor = 0,
   ratio = 0.45,
-  cqw = 2.2,
+  cqw?: number,
   useFixedPx = false,
 ): string {
+  if (typeof value === "string") return value;
   const n = typeof value === "number" ? value : parsePixelValue(value);
   if (n === null || !Number.isFinite(n) || n <= 0) return `${minFloor}px`;
   if (useFixedPx) return `${n}px`;
-  const min = Math.max(minFloor, Math.round(n * ratio));
-  return `clamp(${min}px, ${cqw}cqw, ${n}px)`;
+  const min = Math.max(minFloor ?? 0, Math.round(n * 0.45));
+  const resolvedCqw = cqw ?? n / 12;
+  return `clamp(${min}px, ${resolvedCqw.toFixed(2)}cqw, ${n}px)`;
 }
 
-function fluidFont(maxPx: number, minFloor = 12, cqw = 3.2, useFixedPx = false): string {
-  const safeMax = Number.isFinite(maxPx) && maxPx > 0 ? maxPx : minFloor;
-  if (useFixedPx) return `${safeMax}px`;
-  const min = Math.max(minFloor, Math.round(safeMax * 0.58));
-  return `clamp(${min}px, ${cqw}cqw, ${safeMax}px)`;
+export function fluidFont(n: number, minFloor?: number, cqw?: number, useFixedPx?: boolean): string {
+  if (useFixedPx) return `${n}px`;
+  // Font floor logic from Text.tsx: Math.max(12, Math.round(fontSize * 0.7))
+  const floor = Math.max(minFloor ?? 12, Math.round(n * 0.7));
+  const resolvedCqw = cqw ?? (n / 16) * 2.1;
+  return `clamp(${floor}px, ${resolvedCqw.toFixed(2)}cqw, ${n}px)`;
 }
 
 type ResponsiveSpacingPreset = "default" | "hero" | "nav" | "cards";
@@ -1343,11 +1355,11 @@ function getResponsiveSpacingTuning(
   if (!isNarrow || builderParityMode) {
     return {
       paddingRatio: 0.45,
-      paddingCqw: 2.2,
-      marginRatio: 0.35,
-      marginCqw: 1.4,
-      gapRatio: 0.4,
-      gapCqw: 1.8,
+      paddingCqw: undefined as any,
+      marginRatio: 0.45,
+      marginCqw: undefined as any,
+      gapRatio: 0.45,
+      gapCqw: undefined as any,
     };
   }
 
@@ -1364,7 +1376,7 @@ function getResponsiveSpacingTuning(
   if (preset === "nav") {
     return {
       paddingRatio: 0.22,
-      paddingCqw: 2.2,
+      paddingCqw: undefined as any,
       marginRatio: 0.24,
       marginCqw: 1.2,
       gapRatio: 0.28,
@@ -1376,7 +1388,7 @@ function getResponsiveSpacingTuning(
       paddingRatio: 0.32,
       paddingCqw: 2.4,
       marginRatio: 0.3,
-      marginCqw: 1.4,
+      marginCqw: undefined as any,
       gapRatio: 0.45,
       gapCqw: 2,
     };
@@ -1425,8 +1437,8 @@ function getResponsiveTypographySpec(
 ): { fontSize: string; minLineHeight: number } {
   if (!isNarrow || builderParityMode) {
     return {
-      fontSize: fluidFont(rawFontSize, 12, 3.2, useFixedPx),
-      minLineHeight: 1.4,
+      fontSize: fluidFont(rawFontSize, 12, undefined, useFixedPx),
+      minLineHeight: 1.5,
     };
   }
 
@@ -2134,6 +2146,58 @@ function RenderNode({
     "product card": "ProductCard",
     productslider: "ProductSlider",
     "product slider": "ProductSlider",
+    teammembercardcanvas: "TeamMemberCardCanvas",
+    "team member card canvas": "TeamMemberCardCanvas",
+    teammembercard: "TeamMemberCardCanvas",
+    "team member card": "TeamMemberCardCanvas",
+    featuresgridblock: "FeaturesGridBlock",
+    "features grid block": "FeaturesGridBlock",
+    testimonialblock: "TestimonialBlock",
+    "testimonial block": "TestimonialBlock",
+    statscounterblock: "StatsCounterBlock",
+    "stats counter block": "StatsCounterBlock",
+    newsletterctablock: "NewsletterCTABlock",
+    "newsletter cta block": "NewsletterCTABlock",
+    imagetextblock: "ImageTextBlock",
+    "image text block": "ImageTextBlock",
+    brandlogosblock: "BrandLogosBlock",
+    "brand logos block": "BrandLogosBlock",
+    ctabannerblock: "CTABannerBlock",
+    "cta banner block": "CTABannerBlock",
+    ctabanner: "CTABannerBlock",
+    "cta banner": "CTABannerBlock",
+    herobannerctablock: "HeroBannerCTABlock",
+    "hero banner cta block": "HeroBannerCTABlock",
+    herobannercta: "HeroBannerCTABlock",
+    "hero banner cta": "HeroBannerCTABlock",
+    herobannercta_v2block: "HeroBannerCTA_v2Block",
+    "hero banner cta v2 block": "HeroBannerCTA_v2Block",
+    herobannercta_v2: "HeroBannerCTA_v2Block",
+    "hero banner cta v2": "HeroBannerCTA_v2Block",
+    herowithimageblock: "HeroWithImageBlock",
+    "hero with image block": "HeroWithImageBlock",
+    herowithimage: "HeroWithImageBlock",
+    "hero with image": "HeroWithImageBlock",
+    centeredheroblock: "CenteredHeroBlock",
+    "centered hero block": "CenteredHeroBlock",
+    centeredhero: "CenteredHeroBlock",
+    "centered hero": "CenteredHeroBlock",
+    splitscreenheroblock: "SplitScreenHeroBlock",
+    "split screen hero block": "SplitScreenHeroBlock",
+    splitscreenhero: "SplitScreenHeroBlock",
+    "split screen hero": "SplitScreenHeroBlock",
+    minimaltypeheroblock: "MinimalTypeHeroBlock",
+    "minimal type hero block": "MinimalTypeHeroBlock",
+    minimaltypehero: "MinimalTypeHeroBlock",
+    "minimal type hero": "MinimalTypeHeroBlock",
+    videostyleheroblock: "VideoStyleHeroBlock",
+    "video style hero block": "VideoStyleHeroBlock",
+    videostylehero: "VideoStyleHeroBlock",
+    "video style hero": "VideoStyleHeroBlock",
+    collectionheroblock: "CollectionHeroBlock",
+    "collection hero block": "CollectionHeroBlock",
+    collectionhero: "CollectionHeroBlock",
+    "collection hero": "CollectionHeroBlock",
     text: "Text",
     container: "Container",
     section: "Section",
@@ -2172,6 +2236,10 @@ function RenderNode({
     parallelogram: "Parallelogram",
     kite: "Kite",
   };
+
+
+
+
   const type = (() => {
     const lowerRaw = rawType.toLowerCase();
     const shapes = ["circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid", "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite"];
@@ -2182,7 +2250,9 @@ function RenderNode({
     return (normalizedTypeMap[lowerRaw] ?? rawType) as ComponentType;
   })();
   const props = mergeProps(type, node.props) as Record<string, unknown>;
-  const useFixedPx = Boolean(builderParityMode);
+  // builderParityMode should match builder output (which uses fluid clamp sizing).
+  // Keep the option to force fixed px for specific nodes if needed.
+  const useFixedPx = Boolean(builderParityMode && (props as any)?._useFixedPx === true);
   const isNarrowPreview = isNarrowResponsivePreview(
     viewportWidth,
     builderParityMode,
@@ -2202,6 +2272,7 @@ function RenderNode({
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
+  const childBuilderParityMode = Boolean(builderParityMode || type === "TeamMemberCardCanvas");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
   const directProductTemplateIds =
@@ -2242,7 +2313,7 @@ function RenderNode({
         onPrototypeAction={onPrototypeAction}
         mobileBreakpoint={mobileBreakpoint}
         enableFormInputs={enableFormInputs}
-        builderParityMode={builderParityMode}
+        builderParityMode={childBuilderParityMode}
         renderAllNodes={renderAllNodes}
         parentType={type}
         insideTabsContext={nextInsideTabsContext}
@@ -2356,9 +2427,9 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          <div 
+          <div
             className="flex w-full flex-wrap items-center justify-between gap-2"
-            style={{ 
+            style={{
               textAlign: (props.headerAlign as any) || "left",
               justifyContent: props.headerAlign === "center" ? "center" : props.headerAlign === "right" ? "flex-end" : "space-between",
               flexDirection: props.headerAlign === "left" ? "row" : "column",
@@ -2549,10 +2620,10 @@ function RenderNode({
             boxSizing: "border-box",
           }}
         >
-          <div style={{ 
-            maxWidth: "560px", 
-            display: "flex", 
-            flexDirection: "column", 
+          <div style={{
+            maxWidth: "560px",
+            display: "flex",
+            flexDirection: "column",
             gap: "8px",
             textAlign: (props.headerAlign as any) || "left",
             alignItems: props.headerAlign === "center" ? "center" : props.headerAlign === "right" ? "flex-end" : "flex-start",
@@ -2561,9 +2632,9 @@ function RenderNode({
             <h2 style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1.15, color: "#111827" }}>{title}</h2>
             <p style={{ margin: 0, fontSize: "14px", fontWeight: 400, lineHeight: 1.6, color: "#9CA3AF" }}>{subtitle}</p>
           </div>
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 280px))", 
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 280px))",
             gap: "16px",
             justifyContent: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
             justifyItems: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
@@ -2678,9 +2749,9 @@ function RenderNode({
           padding: `${pTop}px ${pRight}px ${pBottom}px ${pLeft}px`,
           boxSizing: "border-box"
         }}>
-          <div style={{ 
-            display: "grid", 
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 280px))", 
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 280px))",
             gap: "16px",
             justifyContent: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
             justifyItems: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
@@ -3508,16 +3579,16 @@ function RenderNode({
         isDesktopEmptyCardShell
           ? "0px"
           : (builderParityMode
-              ? (shouldReleaseDesktopProductHeight ? "auto" : resolvedContainerHeight)
-              : "auto");
+            ? (shouldReleaseDesktopProductHeight ? "auto" : resolvedContainerHeight)
+            : "auto");
       const resolvedContainerBackground = shouldAutoFixLegacySynclyContainer && (rawContainerBackground === "#ffffff" || rawContainerBackground === "white")
         ? "transparent"
         : ((props.background || props.backgroundColor || "transparent") as string);
       const requestedOverflow = (props.overflow as string) || "visible";
       const effectiveOverflow = builderParityMode
         ? (containsProductCards && requestedOverflow === "hidden"
-            ? "visible"
-            : requestedOverflow)
+          ? "visible"
+          : requestedOverflow)
         : "visible";
 
       const containerStyle: React.CSSProperties = {
@@ -3532,10 +3603,10 @@ function RenderNode({
         } : {}),
         padding: isDesktopEmptyCardShell
           ? "0px"
-          : `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
+          : `${fluidSpace(pt, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(pr, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(pb, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(pl, 0, 0.45, undefined, useFixedPx)}`,
         margin: isDesktopEmptyCardShell
           ? "0px"
-          : `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
+          : `${fluidSpace(mt, 0, 0.35, undefined, useFixedPx)} ${fluidSpace(mr, 0, 0.35, undefined, useFixedPx)} ${fluidSpace(mb, 0, 0.35, undefined, useFixedPx)} ${fluidSpace(ml, 0, 0.35, undefined, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
         minWidth: normalizedPosition === "static" ? 0 : (isNarrowPreview ? 0 : undefined),
@@ -3554,7 +3625,7 @@ function RenderNode({
         flexWrap: displayVal === "flex" ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
         alignItems: displayVal === "flex" || displayVal === "grid" ? (props.alignItems as string) : undefined,
         justifyContent: displayVal === "flex" || displayVal === "grid" ? (props.justifyContent as string) : undefined,
-        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+        gap: displayVal === "flex" ? fluidSpace(props.gap, 0, 0.45, undefined, useFixedPx) : undefined,
         gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
         gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
         columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
@@ -3643,8 +3714,8 @@ function RenderNode({
       const requestedSectionOverflow = (props.overflow as string) || "hidden";
       const effectiveSectionOverflow = builderParityMode
         ? (containsProductCards && requestedSectionOverflow === "hidden"
-            ? "visible"
-            : requestedSectionOverflow)
+          ? "visible"
+          : requestedSectionOverflow)
         : "visible";
       return wrap(
         <section
@@ -3752,8 +3823,8 @@ function RenderNode({
             : requestedRowOverflow);
       const rowStyle: React.CSSProperties = {
         background: (props.background || props.backgroundColor || "transparent") as string,
-        padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
-        margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
+        padding: `${fluidSpace(pt, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(pr, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(pb, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(pl, 0, 0.45, undefined, useFixedPx)}`,
+        margin: `${fluidSpace(mt, 0, 0.35, undefined, useFixedPx)} ${fluidSpace(mr, 0, 0.35, undefined, useFixedPx)} ${fluidSpace(mb, 0, 0.35, undefined, useFixedPx)} ${fluidSpace(ml, 0, 0.35, undefined, useFixedPx)}`,
         width: normalizedWidth ?? (props.width as string),
         maxWidth: isNarrowPreview ? "100%" : undefined,
         minWidth: isNarrowPreview ? 0 : undefined,
@@ -4079,6 +4150,7 @@ function RenderNode({
             width: resolvedImageWidth,
             height: resolvedImageHeight,
             maxWidth: "100%",
+            display: "block",
             objectFit: ((props.objectFit as React.CSSProperties["objectFit"]) || "cover"),
             aspectRatio: mediaAspectRatio,
             ["--media-aspect-ratio" as any]: mediaAspectRatio,
@@ -5505,7 +5577,108 @@ function RenderNode({
         animation,
       );
 
+    case "FeaturesGridBlock":
+      return wrap(<FeaturesGridBlock {...(props as any)} nodeId={nodeId} />);
+    case "TestimonialBlock":
+      return wrap(<TestimonialBlock {...(props as any)} nodeId={nodeId} />);
+    case "StatsCounterBlock":
+      return wrap(<StatsCounterBlock {...(props as any)} nodeId={nodeId} />);
+    case "NewsletterCTABlock":
+      return wrap(<NewsletterCTABlock {...(props as any)} nodeId={nodeId} />);
+    case "ImageTextBlock":
+      return wrap(<ImageTextBlock {...(props as any)} nodeId={nodeId} />);
+    case "BrandLogosBlock":
+      return wrap(<BrandLogosBlock {...(props as any)} nodeId={nodeId} />);
+    case "CTABannerBlock":
+      return wrap(<CTABannerBlock {...(props as any)} nodeId={nodeId} />);
+    case "HeroBannerCTABlock":
+      return wrap(<HeroBannerCTABlock {...(props as any)} nodeId={nodeId} />);
+    case "HeroBannerCTA_v2Block":
+      return wrap(<HeroBannerCTA_v2Block {...(props as any)} nodeId={nodeId} />);
+    case "HeroWithImageBlock":
+      return wrap(<HeroWithImageBlock {...(props as any)} nodeId={nodeId} />);
+    case "CenteredHeroBlock":
+      return wrap(<CenteredHeroBlock {...(props as any)} nodeId={nodeId} />);
+    case "SplitScreenHeroBlock":
+      return wrap(<SplitScreenHeroBlock {...(props as any)} nodeId={nodeId} />);
+    case "MinimalTypeHeroBlock":
+      return wrap(<MinimalTypeHeroBlock {...(props as any)} nodeId={nodeId} />);
+    case "VideoStyleHeroBlock":
+      return wrap(<VideoStyleHeroBlock {...(props as any)} nodeId={nodeId} />);
+    case "CollectionHeroBlock":
+      return wrap(<CollectionHeroBlock {...(props as any)} nodeId={nodeId} />);
+    case "TeamMemberCardCanvas": {
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = toNumber(props.paddingTop ?? p, 16);
+      const pr = toNumber(props.paddingRight ?? p, 12);
+      const pb = toNumber(props.paddingBottom ?? p, 16);
+      const pl = toNumber(props.paddingLeft ?? p, 12);
+
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const mt = toNumber(props.marginTop ?? m, 0);
+      const mr = toNumber(props.marginRight ?? m, 0);
+      const mb = toNumber(props.marginBottom ?? m, 0);
+      const ml = toNumber(props.marginLeft ?? m, 0);
+
+      const width = (props.width as string) || "240px";
+      const height = (props.height as string) || "auto";
+      const borderRadius = toNumber(props.borderRadius, 12);
+      const boxShadow = (props.boxShadow as string) || "0 4px 6px rgba(0, 0, 0, 0.1)";
+      const background = (props.background || props.backgroundColor || "#ffffff") as string;
+
+      const bw = toNumber(props.borderWidth, 1);
+      const bs = (props.borderStyle as string) || "solid";
+      const bc = (props.borderColor as string) || "#e5e7eb";
+      const borderDecl = bw > 0 ? `${bw}px ${bs} ${bc}` : undefined;
+
+      const gap = toNumber(props.gap, 12);
+      
+      const canvasPosition = (props.position as React.CSSProperties["position"]) || "relative";
+      const zIndex = props.zIndex as any;
+      const rotation = toNumber(props.rotation, 0);
+      const alignSelf = (props.alignSelf as string) || "auto";
+
+      return wrap(
+        <div
+          data-fluid-space="true"
+          className={((props.customClassName as string) || "").trim() || undefined}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            width: normalizeLayoutWidthForNarrow(width, isNarrowPreview, builderParityMode) || width,
+            height: height,
+            background: background,
+            borderRadius: `${borderRadius}px`,
+            border: borderDecl,
+            boxShadow: boxShadow,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
+            gap: fluidSpace(gap, 0, 0.4, 1.8, useFixedPx),
+            boxSizing: "border-box",
+            position: canvasPosition,
+            top: canvasPosition !== "static" ? (props.top as any) : undefined,
+            right: canvasPosition !== "static" ? (props.right as any) : undefined,
+            bottom: canvasPosition !== "static" ? (props.bottom as any) : undefined,
+            left: canvasPosition !== "static" ? (props.left as any) : undefined,
+            zIndex: zIndex,
+            alignSelf: alignSelf,
+            transform: rotation ? `rotate(${rotation}deg)` : undefined,
+            overflow: "hidden",
+            cursor: interactiveClick ? "pointer" : undefined,
+          }}
+          onClick={interactiveClick}
+        >
+          {children}
+        </div>
+      );
+    }
+
     default:
+
+
+
       return <div data-unknown-type={type}>{children}</div>;
   }
 }

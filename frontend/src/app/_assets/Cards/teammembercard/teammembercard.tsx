@@ -4,183 +4,109 @@ import React from "react";
 import { Element, useNode } from "@craftjs/core";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
-import { Section } from "../../../design/_designComponents/Section/Section";
-import { DesignSection } from "../../../design/_components/rightPanel/settings/DesignSection";
+import { Container } from "../../../design/_designComponents/Container/Container";
 import { TemplateEntry } from "../../_types";
 
-interface TeamMemberCardProps {
-  paddingTop?: number;
-  paddingRight?: number;
-  paddingBottom?: number;
-  paddingLeft?: number;
-}
+// Layout-accurate wrapper for the Team Member Card in the web renderer/canvas.
+const toCssValue = (value: unknown): string | undefined => {
+  if (value == null) return undefined;
+  if (typeof value === "number" && Number.isFinite(value)) return `${value}px`;
+  const text = String(value).trim();
+  return text ? text : undefined;
+};
 
-const SpacingRow = ({ children }: { children: React.ReactNode }) => (
-  <div className="flex items-center gap-2 mb-2">{children}</div>
-);
+export const TeamMemberCardCanvas = ({
+  paddingTop,
+  paddingRight,
+  paddingBottom,
+  paddingLeft,
+  background,
+  borderRadius,
+  boxShadow,
+  width,
+  height,
+  gap,
+  borderWidth,
+  borderColor,
+  borderStyle,
+  position,
+  top,
+  right,
+  bottom,
+  left,
+  zIndex,
+  alignSelf,
+  rotation,
+  customClassName,
+  className,
+  children,
+}: any) => {
+  const {
+    id,
+    connectors: { connect, drag },
+  } = useNode();
 
-const SpacingLabel = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
-);
+  const bw = typeof borderWidth === "number" ? borderWidth : 1;
+  const bs = borderStyle || "solid";
+  const bc = borderColor || "#e5e7eb";
+  const border = bw > 0 ? `${bw}px ${bs} ${bc}` : "none";
+  
+  const resolvedClassName = `${(customClassName || "").trim()} ${(className || "").trim()}`.trim() || undefined;
 
-export function TeamMemberCardCanvas({
-  paddingTop = 28,
-  paddingRight = 20,
-  paddingBottom = 28,
-  paddingLeft = 20,
-}: TeamMemberCardProps) {
-  const { connectors: { connect, drag } } = useNode();
+  const parsePx = (v: unknown, fallback: number): string => {
+    if (typeof v === "number") return `${v}px`;
+    if (typeof v === "string" && v.trim().endsWith("px")) return v.trim();
+    if (typeof v === "string" && !isNaN(Number(v.trim()))) return `${v.trim()}px`;
+    return `${fallback}px`;
+  };
+
+  const resolvedWidth = parsePx(width, 240);
+  const gapPx = typeof gap === "number" ? gap : 12;
+
+  const canvasPosition = (position as React.CSSProperties["position"]) || "relative";
 
   return (
     <div
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      style={{ width: "100%", display: "flex", justifyContent: "center" }}
+      data-node-id={id}
+      className={resolvedClassName}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        width: resolvedWidth,
+        height: toCssValue(height) || "auto",
+        background: background || "#ffffff",
+        paddingTop: parsePx(paddingTop, 16),
+        paddingRight: parsePx(paddingRight, 12),
+        paddingBottom: parsePx(paddingBottom, 16),
+        paddingLeft: parsePx(paddingLeft, 12),
+        borderRadius: typeof borderRadius === "number" ? `${borderRadius}px` : String(borderRadius || 12),
+        boxShadow: boxShadow || "0 4px 6px rgba(0, 0, 0, 0.1)",
+        border: border,
+        gap: `${gapPx}px`,
+        boxSizing: "border-box",
+        position: canvasPosition,
+        top: canvasPosition !== "static" ? toCssValue(top) : undefined,
+        right: canvasPosition !== "static" ? toCssValue(right) : undefined,
+        bottom: canvasPosition !== "static" ? toCssValue(bottom) : undefined,
+        left: canvasPosition !== "static" ? toCssValue(left) : undefined,
+        zIndex: zIndex as any,
+        alignSelf: alignSelf as any,
+        transform: rotation ? `rotate(${rotation}deg)` : undefined,
+        overflow: "hidden",
+      }}
     >
-      <Element
-        id="team-member-card-root"
-        is={Section as any}
-        canvas
-        background="#ffffff"
-        width="min(calc(50% - 8px), 240px)"
-        flexShrink={0}
-        paddingTop={paddingTop}
-        paddingBottom={paddingBottom}
-        paddingLeft={paddingLeft}
-        paddingRight={paddingRight}
-        borderRadius={12}
-        boxShadow="0 4px 6px rgba(0, 0, 0, 0.1)"
-        borderWidth={1}
-        borderColor="#e5e7eb"
-        borderStyle="solid"
-        flexDirection="column"
-        alignItems="center"
-        gap={10}
-      >
-        <Image
-          src=""
-          alt="Team Member Avatar"
-          width="80px"
-          height="80px"
-          objectFit="cover"
-          borderRadius={50}
-          allowUpload
-        />
-
-        <Text
-          text="John Doe"
-          fontSize={16}
-          fontWeight="700"
-          color="#1e293b"
-          textAlign="center"
-        />
-
-        <Text
-          text="Web Developer"
-          fontSize={13}
-          fontWeight="600"
-          color="#3b82f6"
-          textAlign="center"
-        />
-
-        <Text
-          text="Passionate about creating beautiful websites."
-          fontSize={12}
-          fontWeight="400"
-          color="#64748b"
-          textAlign="center"
-          lineHeight={1.6}
-        />
-      </Element>
-    </div>
-  );
-}
-
-export const TeamMemberCardSettings = () => {
-  const {
-    paddingTop,
-    paddingRight,
-    paddingBottom,
-    paddingLeft,
-    actions: { setProp },
-  } = useNode((node) => ({
-    paddingTop: (node.data.props.paddingTop as number | undefined) ?? 28,
-    paddingRight: (node.data.props.paddingRight as number | undefined) ?? 20,
-    paddingBottom: (node.data.props.paddingBottom as number | undefined) ?? 28,
-    paddingLeft: (node.data.props.paddingLeft as number | undefined) ?? 20,
-  }));
-
-  return (
-    <div className="flex flex-col gap-0">
-      <DesignSection title="Spacing" defaultOpen>
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
-          Outer card padding
-        </p>
-        <SpacingRow>
-          <SpacingLabel>Top</SpacingLabel>
-          <input
-            type="number"
-            min={0}
-            max={200}
-            value={paddingTop}
-            onChange={(event) => setProp((props: TeamMemberCardProps) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })}
-            className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
-          />
-        </SpacingRow>
-        <SpacingRow>
-          <SpacingLabel>Right</SpacingLabel>
-          <input
-            type="number"
-            min={0}
-            max={200}
-            value={paddingRight}
-            onChange={(event) => setProp((props: TeamMemberCardProps) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })}
-            className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
-          />
-        </SpacingRow>
-        <SpacingRow>
-          <SpacingLabel>Bottom</SpacingLabel>
-          <input
-            type="number"
-            min={0}
-            max={200}
-            value={paddingBottom}
-            onChange={(event) => setProp((props: TeamMemberCardProps) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })}
-            className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
-          />
-        </SpacingRow>
-        <SpacingRow>
-          <SpacingLabel>Left</SpacingLabel>
-          <input
-            type="number"
-            min={0}
-            max={200}
-            value={paddingLeft}
-            onChange={(event) => setProp((props: TeamMemberCardProps) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })}
-            className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
-          />
-        </SpacingRow>
-      </DesignSection>
+      {children}
     </div>
   );
 };
 
-TeamMemberCardCanvas.craft = {
+(TeamMemberCardCanvas as any).craft = {
   displayName: "Team Member Card",
-  props: {
-    paddingTop: 28,
-    paddingRight: 20,
-    paddingBottom: 28,
-    paddingLeft: 20,
-  },
-  related: {
-    settings: TeamMemberCardSettings,
-  },
-  rules: {
-    canDrag: () => true,
-  },
-  isCanvas: false,
 };
 
 export const TeamMemberCard: TemplateEntry = {
@@ -188,5 +114,67 @@ export const TeamMemberCard: TemplateEntry = {
   description: "Profile card for team members",
   preview: "👥",
   category: "card",
-  element: React.createElement(TeamMemberCardCanvas),
+  element: React.createElement(
+    Element,
+    {
+      is: TeamMemberCardCanvas,
+      canvas: true,
+      background: "#ffffff",
+      width: "240px",
+      height: "auto",
+      paddingTop: 16,
+      paddingBottom: 16,
+      paddingLeft: 12,
+      paddingRight: 12,
+      borderRadius: 12,
+      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      borderWidth: 1,
+      borderColor: "#e5e7eb",
+      borderStyle: "solid",
+      gap: 12,
+    },
+    React.createElement(Image as any, {
+      src: "",
+      alt: "Team Member Avatar",
+      width: "80px",
+      height: "80px",
+      objectFit: "cover",
+      borderRadius: 50,
+      marginBottom: 0,
+      marginTop: 0,
+    }),
+    React.createElement(Text as any, {
+      text: "John Doe",
+      fontSize: 16,
+      fontWeight: "700",
+      color: "#1e293b",
+      textAlign: "center",
+      width: "auto",
+      marginTop: 0,
+      marginBottom: 0,
+    }),
+    React.createElement(Text as any, {
+      text: "Web Developer",
+      fontSize: 13,
+      fontWeight: "600",
+      color: "#3b82f6",
+      textAlign: "center",
+      width: "auto",
+      marginTop: 0,
+      marginBottom: 0,
+    }),
+    React.createElement(Text as any, {
+      text: "Passionate about creating beautiful websites.",
+      fontSize: 12,
+      fontWeight: "400",
+      color: "#64748b",
+      textAlign: "center",
+      width: "auto",
+      lineHeight: 1.6,
+      marginTop: 0,
+      marginBottom: 0,
+    })
+  ),
 };
+
+export default TeamMemberCard;

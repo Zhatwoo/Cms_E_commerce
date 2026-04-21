@@ -168,6 +168,7 @@ export const CollectionHeroBlockSettings = () => {
 };
 
 export const CollectionHeroBlock = ({
+  nodeId,
   layoutStyle = "image-right",
   title = "Summer Sale",
   subtitle = "Shop our biggest sale of the year. Hundreds of styles marked down for a limited time.",
@@ -182,14 +183,29 @@ export const CollectionHeroBlock = ({
   subtitleColor = "#64748b",
   badgeColor = "#dc2626",
 }: CollectionHeroBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

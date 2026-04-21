@@ -164,6 +164,7 @@ export const HeroWithImageBlockSettings = () => {
 };
 
 export const HeroWithImageBlock = ({
+  nodeId,
   layoutStyle = "image-left-1",
   title = "Welcome to Our Website",
   subtitle = "We're here to help you discover what you need. Browse our offerings and get in touch.",
@@ -175,14 +176,29 @@ export const HeroWithImageBlock = ({
   titleColor = "#1e293b",
   subtitleColor = "#64748b",
 }: HeroWithImageBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

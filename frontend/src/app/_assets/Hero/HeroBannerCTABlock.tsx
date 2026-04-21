@@ -257,6 +257,7 @@ export const HeroBannerCTABlockSettings = () => {
 };
 
 export const HeroBannerCTABlock = ({
+  nodeId,
   layoutStyle = "image-left-1",
   title = "Title",
   subtitle = "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
@@ -268,10 +269,17 @@ export const HeroBannerCTABlock = ({
   titleColor = "#ffffff",
   subtitleColor = "#dbdbdb",
 }: HeroBannerCTABlockProps) => {
-  const {
-    id,
-    connectors: { connect, drag },
-  } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
@@ -279,8 +287,11 @@ export const HeroBannerCTABlock = ({
   return (
     <section
       ref={(ref) => {
-        if (ref) connect(drag(ref));
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
       }}
+
       data-node-id={id}
       style={{
         width: "100%",
