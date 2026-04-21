@@ -183,6 +183,8 @@ export const ButtonDefaultProps: Partial<ButtonProps> = {
   marginLeft: 0,
   opacity: 1,
   boxShadow: "none",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Button.craft = {

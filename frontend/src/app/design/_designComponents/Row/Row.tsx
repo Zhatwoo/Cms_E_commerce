@@ -202,6 +202,8 @@ export const RowDefaultProps: Partial<ContainerProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Row.craft = {

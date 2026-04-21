@@ -537,6 +537,8 @@ export const IconDefaultProps: Partial<IconProps> = {
   paddingLeft: 0,
   opacity: 1,
   link: "",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Icon.craft = {

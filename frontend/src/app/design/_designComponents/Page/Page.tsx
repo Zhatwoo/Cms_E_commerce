@@ -24,6 +24,16 @@ export const Page = ({
   canvasX = 0,
   canvasY = 0,
   pageName = "Page Name",
+  flexDirection = "column",
+  flexWrap = "nowrap",
+  alignItems = "flex-start",
+  justifyContent = "flex-start",
+  gap = 0,
+  display = "block",
+  isFreeform = true,
+  editorVisibility = "auto",
+  justifyItems = "stretch",
+  alignContent = "flex-start",
 }: PageProps) => {
   const { id, connectors: { connect, drag }, actions: { setProp } } = useNode();
   const [editing, setEditing] = useState(false);
@@ -62,6 +72,13 @@ export const Page = ({
   const w = parseW(width);
   const isMobile = w > 0 && w <= 640;
   const isTablet = w > 640 && w <= 1100; // Expanded tablet range for safety
+
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "block"
+        : display;
 
   return (
     <div
@@ -175,7 +192,26 @@ export const Page = ({
           ` : ""}
         `
       }} />
-      <div className={`frame-responsive-inner frame-fluid h-full w-full ${isMobile ? "frame-mobile" : ""} ${isTablet ? "frame-tablet" : ""}`}>
+      <div 
+        className={`frame-responsive-inner frame-fluid h-full w-full ${isMobile ? "frame-mobile" : ""} ${isTablet ? "frame-tablet" : ""}`}
+        style={{
+          display: isFreeform ? "block" : effectiveDisplay,
+          flexDirection: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? flexDirection : undefined,
+          flexWrap: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? flexWrap : undefined,
+          alignItems: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? alignItems : undefined,
+          justifyContent: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? justifyContent : undefined,
+          gridTemplateColumns: !isFreeform && effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
+          gridTemplateRows: !isFreeform && effectiveDisplay === "grid" ? gridTemplateRows : undefined,
+          gridGap: !isFreeform && effectiveDisplay === "grid" ? `${gridGap}px` : undefined,
+          gridColumnGap: !isFreeform && effectiveDisplay === "grid" ? (gridColumnGap !== undefined ? `${gridColumnGap}px` : undefined) : undefined,
+          gridRowGap: !isFreeform && effectiveDisplay === "grid" ? (gridRowGap !== undefined ? `${gridRowGap}px` : undefined) : undefined,
+          gridAutoRows: !isFreeform && effectiveDisplay === "grid" ? gridAutoRows : undefined,
+          gridAutoFlow: !isFreeform && effectiveDisplay === "grid" ? gridAutoFlow : undefined,
+          justifyItems: !isFreeform && effectiveDisplay === "grid" ? justifyItems : undefined,
+          alignContent: !isFreeform && effectiveDisplay === "grid" ? alignContent : undefined,
+          gap: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? `${gap}px` : undefined,
+        }}
+      >
         {/* Page Name Label - Hidden on Mobile/Tablet */}
         {!isMobile && !isTablet && (
           <div
@@ -233,6 +269,23 @@ export const PageDefaultProps: Partial<PageProps> = {
   canvasX: 0,
   canvasY: 0,
   pageName: "Page Name",
+  flexDirection: "column",
+  flexWrap: "nowrap",
+  alignItems: "flex-start",
+  justifyContent: "flex-start",
+  gap: 0,
+  display: "block",
+  isFreeform: true,
+  editorVisibility: "auto",
+  gridTemplateColumns: "1fr 1fr",
+  gridTemplateRows: "auto",
+  gridGap: 0,
+  gridColumnGap: 0,
+  gridRowGap: 0,
+  gridAutoRows: "auto",
+  gridAutoFlow: "row",
+  justifyItems: "stretch",
+  alignContent: "flex-start",
 };
 
 Page.craft = {

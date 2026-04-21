@@ -7,6 +7,7 @@ import type { GridProps, LayoutProps, PositionProps, SetProp } from "../../../_t
 
 interface LayoutLayerGroupProps extends PositionProps, LayoutProps, GridProps {
   nodeId?: string;
+  showPosition?: boolean;
   setProp: SetProp<any>;
 }
 
@@ -48,6 +49,7 @@ function inferChildPositionMode(positions: unknown[]): ChildPositionMode {
 
 export const LayoutLayerGroup = ({
   nodeId,
+  showPosition = true,
   position = "static",
   display = "flex",
   isFreeform = false,
@@ -74,117 +76,130 @@ export const LayoutLayerGroup = ({
 }: LayoutLayerGroupProps) => {
   const isFlexDisplay = display === "flex" || display === "inline-flex";
   const isGridDisplay = display === "grid";
-  const { actions, query } = useEditor();
-  const { childIds, childPositions } = useEditor((state) => {
-    if (!nodeId) return { childIds: [] as string[], childPositions: [] as unknown[] };
-    const parentNode = state.nodes?.[nodeId] as any;
-    const ids = getChildIds(parentNode);
-    const positions = ids.map((id) => (state.nodes?.[id] as any)?.data?.props?.position);
-    return { childIds: ids, childPositions: positions };
-  });
-  const childMode = React.useMemo(() => inferChildPositionMode(childPositions), [childPositions]);
-  const hasChildren = childIds.length > 0;
-  const canShowAlignment =
-    !isFreeform && (isFlexDisplay || isGridDisplay) && (!hasChildren || childMode === "flow");
+    const { actions, query } = useEditor();
+    const { childIds, childPositions, isPage } = useEditor((state) => {
+        if (!nodeId) return { childIds: [] as string[], childPositions: [] as unknown[], isPage: false };
+        const parentNode = state.nodes?.[nodeId] as any;
+        const ids = getChildIds(parentNode);
+        const positions = ids.map((id) => (state.nodes?.[id] as any)?.data?.props?.position);
+        const isPage = parentNode?.data?.displayName === "Page";
+        return { childIds: ids, childPositions: positions, isPage };
+    });
 
-  const setChildrenPositionMode = React.useCallback(
-    (mode: ChildPositionMode) => {
-      if (!nodeId) return;
-      if (!childIds.length) return;
-      if (mode === "mixed") return;
+    const childMode = React.useMemo(() => inferChildPositionMode(childPositions), [childPositions]);
+    const hasChildren = childIds.length > 0;
+    const canShowAlignment =
+        !isFreeform && (isFlexDisplay || isGridDisplay) && (!hasChildren || childMode === "flow");
 
-      if (mode === "absolute") {
-        setProp((parentProps: Record<string, unknown>) => {
-          const parentPos = String(parentProps.position ?? "static");
-          if (!parentPos || parentPos === "static") {
-            parentProps.position = "relative";
-          }
-        });
-      }
+    const setChildrenPositionMode = React.useCallback(
+        (mode: ChildPositionMode) => {
+            if (!nodeId) return;
+            if (!childIds.length) return;
+            if (mode === "mixed") return;
 
-      for (const childId of childIds) {
-        actions.setProp(childId, (props: Record<string, unknown>) => {
-          if (mode === "flow") {
-            props.position = "relative";
-            props.left = "auto";
-            props.top = "auto";
-            props.right = "auto";
-            props.bottom = "auto";
-            return;
-          }
+            // When children are set to absolute, the parent should be at least relative
+            if (mode === "absolute" && !isPage) {
+                setProp((parentProps: Record<string, unknown>) => {
+                    const parentPos = String(parentProps.position ?? "static");
+                    if (!parentPos || parentPos === "static") {
+                        parentProps.position = "relative";
+                    }
+                });
+            }
 
-          if (mode === "absolute" || mode === "fixed") {
-            const nextPos = mode === "absolute" ? "absolute" : "fixed";
-            props.position = nextPos;
-            const left = String(props.left ?? "auto");
-            const top = String(props.top ?? "auto");
-            props.left = !left || left === "auto" ? "0px" : props.left;
-            props.top = !top || top === "auto" ? "0px" : props.top;
-            props.right = props.right ?? "auto";
-            props.bottom = props.bottom ?? "auto";
-            return;
-          }
-        });
-      }
-    },
-    [actions, childIds, nodeId, setProp]
-  );
+            for (const childId of childIds) {
+                actions.setProp(childId, (props: Record<string, unknown>) => {
+                    if (mode === "flow") {
+                        props.position = "relative";
+                        props.left = "auto";
+                        props.top = "auto";
+                        props.right = "auto";
+                        props.bottom = "auto";
+                        return;
+                    }
 
-  return (
-    <div className="flex flex-col gap-5">
-      {/* Layout Mode Toggle */}
-      <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">Layout Mode</label>
-        <div className="flex items-center gap-1 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5">
-          <button
-            type="button"
-            onClick={() => {
-              setProp((props: any) => {
-                props.isFreeform = true;
-                props.display = "block";
-              });
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform
-                ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)] shadow-sm"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
-              }`}
-            title="Freeform (Figma canvas-like)"
-          >
-            Freeform
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setProp((props: any) => {
-                props.isFreeform = false;
-                if (!props.display || props.display === "block" || props.display === "none") {
-                  props.display = "flex";
-                }
-              });
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${!isFreeform
-                ? "bg-[var(--builder-accent)] text-black font-medium"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
-              }`}
-            title="Auto Layout (Flex/Grid)"
-          >
-            Auto
-          </button>
+                    if (mode === "absolute" || mode === "fixed") {
+                        const nextPos = mode === "absolute" ? "absolute" : "fixed";
+                        props.position = nextPos;
+                        const left = String(props.left ?? "auto");
+                        const top = String(props.top ?? "auto");
+                        props.left = !left || left === "auto" ? "0px" : props.left;
+                        props.top = !top || top === "auto" ? "0px" : props.top;
+                        props.right = props.right ?? "auto";
+                        props.bottom = props.bottom ?? "auto";
+                        return;
+                    }
+                });
+            }
+        },
+        [actions, childIds, nodeId, setProp, isPage]
+    );
+
+    return (
+        <div className="flex flex-col gap-5">
+            {/* Layout Mode Toggle */}
+            <div className="flex flex-col gap-2">
+                <label className="text-[12px] text-[var(--builder-text)] font-base">Layout Mode</label>
+                <div className="flex items-center gap-1 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setProp((props: any) => {
+                                props.isFreeform = true;
+                                props.display = "block";
+                                if (!isPage) props.position = "absolute";
+                            });
+                            if (hasChildren) {
+                                setChildrenPositionMode("absolute");
+                            }
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform
+                            ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)] shadow-sm"
+                            : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                            }`}
+                        title="Freeform (Figma canvas-like)"
+                    >
+                        Freeform
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setProp((props: any) => {
+                                props.isFreeform = false;
+                                if (!props.display || props.display === "block" || props.display === "none") {
+                                    props.display = "flex";
+                                }
+                                if (!isPage) props.position = "relative";
+                            });
+                            if (hasChildren) {
+                                setChildrenPositionMode("flow");
+                            }
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${!isFreeform
+                            ? "bg-[var(--builder-accent)] text-black font-medium"
+                            : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                            }`}
+                        title="Auto Layout (Flex/Grid)"
+                    >
+                        Auto
+                    </button>
         </div>
       </div>
 
-      <PositionGroup
-        position={position}
-        display={display}
-        alignSelf={alignSelf}
-        zIndex={zIndex}
-        top={top}
-        right={right}
-        bottom={bottom}
-        left={left}
-        editorVisibility={editorVisibility}
-        setProp={setProp as any}
-      />
+      {showPosition && (
+        <PositionGroup
+          position={position}
+          display={display}
+          alignSelf={alignSelf}
+          zIndex={zIndex}
+          top={top}
+          right={right}
+          bottom={bottom}
+          left={left}
+          editorVisibility={editorVisibility}
+          setProp={setProp as any}
+        />
+      )}
 
       {nodeId && hasChildren ? (
         <div className="flex flex-col gap-1">

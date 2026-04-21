@@ -276,7 +276,7 @@ export const Badge = ({
 			position,
 			alignSelf,
 			top: position !== "static" ? top : undefined,
-			right: position !== "static" ? right : undefined,
+			right: position !== "static" ? posRight : undefined,
 			bottom: position !== "static" ? bottom : undefined,
 				left: position !== "static" ? left : undefined,
 				zIndex: zIndex !== 0 ? zIndex : undefined,
@@ -392,6 +392,9 @@ export const BadgeDefaultProps: Partial<BadgeProps> = {
 	opacity: 1,
 	overflow: "hidden",
 	rotation: 0,
+	alignSelf: "auto",
+	isFreeform: false,
+	position: "relative",
 };
 
 Badge.craft = {

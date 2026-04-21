@@ -2,6 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { slugFromName } from "../../_lib/slug";
 import type { PageProps, SetProp } from "../../_types";
 
@@ -24,6 +25,7 @@ const parsePx = (value: unknown): number | null => {
 
 export const PageSettings = () => {
   const {
+    id,
     width,
     height,
     background,
@@ -34,8 +36,11 @@ export const PageSettings = () => {
     backgroundOverlay,
     pageName,
     pageSlug,
+    position, display, isFreeform, alignItems, justifyContent, flexDirection, flexWrap, gap, editorVisibility,
+    gridTemplateColumns, gridTemplateRows, gridGap, gridColumnGap, gridRowGap, gridAutoRows, gridAutoFlow,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     width: node.data.props.width,
     height: node.data.props.height,
     background: node.data.props.background,
@@ -46,6 +51,22 @@ export const PageSettings = () => {
     backgroundOverlay: node.data.props.backgroundOverlay,
     pageName: node.data.props.pageName,
     pageSlug: node.data.props.pageSlug,
+    position: node.data.props.position,
+    display: node.data.props.display,
+    isFreeform: node.data.props.isFreeform,
+    alignItems: node.data.props.alignItems,
+    justifyContent: node.data.props.justifyContent,
+    flexDirection: node.data.props.flexDirection,
+    flexWrap: node.data.props.flexWrap,
+    gap: node.data.props.gap,
+    editorVisibility: node.data.props.editorVisibility,
+    gridTemplateColumns: node.data.props.gridTemplateColumns,
+    gridTemplateRows: node.data.props.gridTemplateRows,
+    gridGap: node.data.props.gridGap,
+    gridColumnGap: node.data.props.gridColumnGap,
+    gridRowGap: node.data.props.gridRowGap,
+    gridAutoRows: node.data.props.gridAutoRows,
+    gridAutoFlow: node.data.props.gridAutoFlow,
   }));
 
   const typedSetProp = setProp as SetProp<PageProps>;
@@ -207,6 +228,30 @@ export const PageSettings = () => {
             setProp={typedSetProp as any}
           />
         </div>
+      </DesignSection>
+
+      <DesignSection title="Layout & Layer" defaultOpen={false}>
+        <LayoutLayerGroup
+          nodeId={id}
+          showPosition={false}
+          position={position}
+          display={display}
+          isFreeform={isFreeform}
+          alignItems={alignItems}
+          justifyContent={justifyContent}
+          flexDirection={flexDirection}
+          flexWrap={flexWrap}
+          gap={gap}
+          editorVisibility={editorVisibility}
+          gridTemplateColumns={gridTemplateColumns}
+          gridTemplateRows={gridTemplateRows}
+          gridGap={gridGap}
+          gridColumnGap={gridColumnGap}
+          gridRowGap={gridRowGap}
+          gridAutoRows={gridAutoRows}
+          gridAutoFlow={gridAutoFlow}
+          setProp={typedSetProp as any}
+        />
       </DesignSection>
     </div>
   );

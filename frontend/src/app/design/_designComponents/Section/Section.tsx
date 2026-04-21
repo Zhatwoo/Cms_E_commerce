@@ -57,6 +57,8 @@ export const Section = ({
   gridRowGap,
   gridAutoRows,
   gridAutoFlow,
+  justifyItems = "stretch",
+  alignContent = "flex-start",
   display = "block",
   isFreeform = true,
   position = "relative",
@@ -198,6 +200,8 @@ export const Section = ({
       gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
       gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
       gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
+      justifyItems: !isFreeform && isGridDisplay ? justifyItems : undefined,
+      alignContent: !isFreeform && isGridDisplay ? alignContent : undefined,
     }),
     [
       background,
@@ -226,6 +230,8 @@ export const Section = ({
       gridRowGap,
       gridAutoRows,
       gridAutoFlow,
+      justifyItems,
+      alignContent,
       mb,
       ml,
       mr,
@@ -252,6 +258,8 @@ export const Section = ({
       display,
       isFlexDisplay,
       isGridDisplay,
+      justifyItems,
+      alignContent,
     ]
   );
 
@@ -340,6 +348,16 @@ export const SectionDefaultProps: Partial<SectionProps> = {
   flipVertical: false,
   contentWidth: "full",
   contentMaxWidth: "none",
+  alignSelf: "auto",
+  gridTemplateColumns: "1fr 1fr",
+  gridTemplateRows: "auto",
+  gridGap: 0,
+  gridColumnGap: 0,
+  gridRowGap: 0,
+  gridAutoRows: "auto",
+  gridAutoFlow: "row",
+  justifyItems: "stretch",
+  alignContent: "flex-start",
 };
 
 Section.craft = {
