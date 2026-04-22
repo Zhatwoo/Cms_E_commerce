@@ -60,6 +60,7 @@ export const BannerSettings = () => {
     boxShadow,
     opacity,
     overflow,
+    isFreeform,
     actions: { setProp },
   } = useNode((node) => ({
     id: node.id,

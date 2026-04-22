@@ -2106,78 +2106,142 @@ function PreviewTabs({
     }
   }, [props.activeTabId, tabs, activeTabId]);
 
+  const p = typeof props.padding === "number" ? props.padding : 0;
+  const pt = toNumber(props.paddingTop ?? p, 0);
+  const pr = toNumber(props.paddingRight ?? p, 0);
+  const pb = toNumber(props.paddingBottom ?? p, 0);
+  const pl = toNumber(props.paddingLeft ?? p, 0);
+
+  const m = typeof props.margin === "number" ? props.margin : 0;
+  const mt = toNumber(props.marginTop ?? m, 0);
+  const mr = toNumber(props.marginRight ?? m, 0);
+  const mb = toNumber(props.marginBottom ?? m, 0);
+  const ml = toNumber(props.marginLeft ?? m, 0);
+
   const br = (props.borderRadius ?? 0) as number;
+  const rtl = toNumber(props.radiusTopLeft, br);
+  const rtr = toNumber(props.radiusTopRight, br);
+  const rbr = toNumber(props.radiusBottomRight, br);
+  const rbl = toNumber(props.radiusBottomLeft, br);
+
+  const bgImage = props.backgroundImage as string;
+  const overlay = props.backgroundOverlay as string;
+
   const borderColor = (props.borderColor as string) || "transparent";
   const borderWidth = (props.borderWidth ?? 0) as number;
+  const builderParityMode = Boolean(props.builderParityMode);
+  const viewportWidth = toNumber(props.viewportWidth, 1200);
+  const mobileBreakpoint = toNumber(props.mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT);
+
   const narrowTabsPreview = isNarrowResponsivePreview(
-    toNumber(props.viewportWidth, 1200),
-    Boolean(props.builderParityMode),
-    toNumber(props.mobileBreakpoint, PREVIEW_MOBILE_BREAKPOINT),
+    viewportWidth,
+    builderParityMode,
+    mobileBreakpoint,
   );
+
+  const useFixedPx = Boolean(builderParityMode && props._useFixedPx === true);
+
+  const originalPos = (props.position as string) || "relative";
+  const normalizedPosition = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), narrowTabsPreview, props, viewportWidth, builderParityMode);
+  const shouldClearNarrowOffsets = !builderParityMode && narrowTabsPreview && (originalPos === "absolute" || originalPos === "fixed") && normalizedPosition === "relative";
 
   return (
     <div
       data-fluid-space="true"
       data-layout="column"
-      className="tabs-component w-full flex flex-col"
+      className={`tabs-component w-full flex flex-col ${((props.customClassName as string) || "").trim()}`.trim() || undefined}
       style={{
+        position: normalizedPosition,
+        top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+        right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+        bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+        left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+        zIndex: (props.zIndex as number | undefined) ?? 3,
+        alignSelf: props.alignSelf as any,
         background: (props.background as string) || "transparent",
-        borderRadius: `${br}px`,
+        ...(bgImage ? {
+          backgroundImage: overlay
+            ? `linear-gradient(${overlay}, ${overlay}), url(${bgImage})`
+            : `url(${bgImage})`,
+          backgroundSize: (props.backgroundSize as string),
+          backgroundPosition: (props.backgroundPosition as string),
+          backgroundRepeat: (props.backgroundRepeat as string),
+        } : {}),
+        padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+        margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
+        borderTopLeftRadius: `${rtl}px`,
+        borderTopRightRadius: `${rtr}px`,
+        borderBottomRightRadius: `${rbr}px`,
+        borderBottomLeftRadius: `${rbl}px`,
         borderWidth: `${borderWidth}px`,
         borderColor,
         borderStyle: (props.borderStyle as string) || "solid",
         width: (props.width as string) || "100%",
         height: (props.height as string) || "auto",
-        overflow: "hidden",
+        overflow: (props.overflow as string) || "hidden",
         boxSizing: "border-box",
+        opacity: toNumber(props.opacity, 1),
+        boxShadow: props.boxShadow as string,
       }}
     >
-      <div
-        className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
-        style={{
-          borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
-          flexWrap: narrowTabsPreview ? "wrap" : "nowrap",
-          justifyContent:
-            props.tabAlignment === "center"
-              ? "center"
-              : props.tabAlignment === "right"
-                ? "flex-end"
-                : "flex-start",
-        }}
-      >
-        {tabs.map((tab) => {
-          const isActive = tab.id === activeTabId;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTabId(tab.id)}
-              className="px-6 py-4 font-semibold text-sm transition-all duration-300 border-b-2 whitespace-nowrap hover:bg-black/5 active:scale-95 translate-gpu"
-              style={{
-                background: isActive
-                  ? props.activeTabBackgroundColor
-                  : props.tabHeaderBackgroundColor,
-                color: isActive ? props.activeTabTextColor : props.tabHeaderTextColor,
-                borderBottomColor: isActive
-                  ? (props.activeTabTextColor as string) || "#3b82f6"
-                  : "transparent",
-                transform: isActive ? "scale(1.02)" : "scale(1)",
-                zIndex: isActive ? 1 : 0,
-                borderTop: "none",
-                borderLeft: "none",
-                borderRight: "none",
-                padding: narrowTabsPreview ? "10px 12px" : "16px 24px",
-                fontSize: narrowTabsPreview ? "13px" : undefined,
-                cursor: "pointer",
-                maxWidth: narrowTabsPreview ? "100%" : undefined,
-                minWidth: narrowTabsPreview ? "0" : undefined,
-              }}
-            >
-              {tab.title}
-            </button>
-          );
-        })}
-      </div>
+      {/* Tab Headers */}
+      {!props.isFreeform && (
+        <div
+          className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
+          style={{
+            borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
+            flexWrap: narrowTabsPreview ? "wrap" : "nowrap",
+            justifyContent:
+              props.tabAlignment === "center"
+                ? "center"
+                : props.tabAlignment === "right"
+                  ? "flex-end"
+                  : "flex-start",
+          }}
+        >
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeTabId;
+            const fs = toNumber(props.fontSize, 14);
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTabId(tab.id)}
+                className="px-6 py-4 font-semibold text-sm transition-all duration-300 border-b-2 whitespace-nowrap hover:bg-black/5 active:scale-95 translate-gpu"
+                style={{
+                  background: isActive
+                    ? props.activeTabBackgroundColor
+                    : props.tabHeaderBackgroundColor,
+                  color: isActive ? props.activeTabTextColor : props.tabHeaderTextColor,
+                  borderBottomColor: isActive
+                    ? (props.activeTabTextColor as string) || "#3b82f6"
+                    : "transparent",
+                  transform: isActive ? "scale(1.02)" : "scale(1)",
+                  zIndex: isActive ? 1 : 0,
+                  borderTop: "none",
+                  borderLeft: "none",
+                  borderRight: "none",
+                  padding: narrowTabsPreview ? "10px 12px" : "16px 24px",
+                  fontSize: fluidFont(fs, Math.max(12, Math.round(fs * 0.8)), 2.8, useFixedPx),
+                  fontWeight: props.fontWeight as any,
+                  fontFamily: (props.fontFamily as string) || "Outfit",
+                  fontStyle: (props.fontStyle as any) || "normal",
+                  lineHeight: toNumber(props.lineHeight, 1.2),
+                  letterSpacing: `${toNumber(props.letterSpacing, 0)}px`,
+                  textAlign: (props.textAlign as any) || "center",
+                  textTransform: (props.textTransform as any) || "none",
+                  textDecoration: (props.textDecoration as any) || "none",
+                  cursor: "pointer",
+                  maxWidth: narrowTabsPreview ? "100%" : undefined,
+                  minWidth: narrowTabsPreview ? "0" : undefined,
+                }}
+              >
+                {tab.title}
+              </button>
+            );
+          })}
+        </div>
+      )}
       {/* Tab content: render actual child nodes from linkedNodes (via linkedSlotMap + childNodeMap) */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px] overflow-visible">
         {(() => {
@@ -2215,16 +2279,16 @@ function PreviewTabs({
                     nodes={props.nodes}
                     pages={props.pages || []}
                     pageIndex={props.pageIndex || 0}
-                    viewportWidth={props.viewportWidth || 1200}
+                    viewportWidth={viewportWidth}
                     interactionState={props.interactionState || {}}
                     availableTriggerTargets={props.availableTriggerTargets || new Set()}
                     onToggle={props.onToggle || (() => { })}
                     storeContext={props.storeContext || null}
                     nodeId={contentNodeId}
                     onPrototypeAction={props.onPrototypeAction}
-                    mobileBreakpoint={props.mobileBreakpoint}
+                    mobileBreakpoint={mobileBreakpoint}
                     enableFormInputs={props.enableFormInputs}
-                    builderParityMode={props.builderParityMode}
+                    builderParityMode={builderParityMode}
                     renderAllNodes={props.renderAllNodes}
                     preserveAuthoredPositioning={props.preserveAuthoredPositioning}
                     layoutReferenceWidth={props.layoutReferenceWidth}
@@ -2243,6 +2307,7 @@ function PreviewTabs({
     </div>
   );
 }
+
 
 function RenderNode({
   node,
@@ -4886,6 +4951,30 @@ function RenderNode({
       const filledColor = (props.filledColor as string) || "#f7c200";
       const emptyColor = (props.emptyColor as string) || "#6b6b6b";
       const showValue = props.showValue === true;
+      const valueGap = Math.max(0, toNumber(props.valueGap, 8));
+
+      const p = typeof props.padding === "number" ? props.padding : 0;
+      const pt = toNumber(props.paddingTop ?? p, 0);
+      const pr = toNumber(props.paddingRight ?? p, 0);
+      const pb = toNumber(props.paddingBottom ?? p, 0);
+      const pl = toNumber(props.paddingLeft ?? p, 0);
+
+      const m = typeof props.margin === "number" ? props.margin : 0;
+      const mt = toNumber(props.marginTop ?? m, 0);
+      const mr = toNumber(props.marginRight ?? m, 0);
+      const mb = toNumber(props.marginBottom ?? m, 0);
+      const ml = toNumber(props.marginLeft ?? m, 0);
+
+      const br = toNumber(props.borderRadius, 0);
+      const rtl = toNumber(props.radiusTopLeft, br);
+      const rtr = toNumber(props.radiusTopRight, br);
+      const rbr = toNumber(props.radiusBottomRight, br);
+      const rbl = toNumber(props.radiusBottomLeft, br);
+
+      const textAlign = (props.textAlign as string) || "left";
+      const justifyContent = textAlign === "center" ? "center" : textAlign === "right" ? "flex-end" : textAlign === "justify" ? "space-between" : "flex-start";
+
+      const starPath = "m12 2 3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z";
 
       return wrap(
         <div
@@ -4896,10 +4985,22 @@ function RenderNode({
             display: "flex",
             alignItems: "center",
             flexWrap: isNarrowPreview ? "wrap" : "nowrap",
-            gap: `${Math.max(0, toNumber(props.valueGap, 8))}px`,
-            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || (isNarrowPreview ? "100%" : undefined),
+            justifyContent,
+            gap: showValue ? `${valueGap}px` : "0px",
+            width: normalizeLayoutWidthForNarrow(props.width, isNarrowPreview, builderParityMode) || (isNarrowPreview ? "100%" : (props.width === "auto" ? "fit-content" : (props.width as string))),
+            height: props.height === "auto" ? "auto" : (props.height as string),
             maxWidth: "100%",
             minWidth: 0,
+            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
+            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
+            background: (props.background || props.backgroundColor || "transparent") as string,
+            borderTopLeftRadius: `${rtl}px`,
+            borderTopRightRadius: `${rtr}px`,
+            borderBottomRightRadius: `${rbr}px`,
+            borderBottomLeftRadius: `${rbl}px`,
+            borderWidth: `${toNumber(props.borderWidth, 0)}px`,
+            borderColor: (props.borderColor as string) || "transparent",
+            borderStyle: toNumber(props.borderWidth, 0) > 0 ? (props.borderStyle as string || "solid") : "none",
             position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
             top: (props.position as string) !== "static" ? (props.top as string) : undefined,
             left: (props.position as string) !== "static" ? (props.left as string) : undefined,
@@ -4907,6 +5008,9 @@ function RenderNode({
             bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
             zIndex: (props.zIndex as number | undefined) ?? 3,
             alignSelf: props.alignSelf as any,
+            opacity: toNumber(props.opacity, 1),
+            boxShadow: props.boxShadow as string,
+            transform: [toNumber(props.rotation, 0) ? `rotate(${toNumber(props.rotation, 0)}deg)` : null, props.flipHorizontal ? "scaleX(-1)" : null, props.flipVertical ? "scaleY(-1)" : null].filter(Boolean).join(" ") || undefined,
           }}
         >
           <div style={{ display: "inline-flex", alignItems: "center", gap: `${gap}px`, flexWrap: "wrap", maxWidth: "100%" }}>
@@ -4915,11 +5019,11 @@ function RenderNode({
               return (
                 <span key={index} style={{ position: "relative", width: `${size}px`, height: `${size}px`, display: "inline-flex" }}>
                   <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
-                    <path fill={emptyColor} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                    <path fill={emptyColor} d={starPath} />
                   </svg>
                   <span data-preserve-position="true" style={{ position: "absolute", inset: 0, overflow: "hidden", width: `${fillRatio * 100}%` }}>
                     <svg viewBox="0 0 24 24" width={size} height={size} style={{ display: "block" }}>
-                      <path fill={filledColor} d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                      <path fill={filledColor} d={starPath} />
                     </svg>
                   </span>
                 </span>
@@ -4927,13 +5031,27 @@ function RenderNode({
             })}
           </div>
           {showValue ? (
-            <span style={{ fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2, useFixedPx), color: (props.color as string) || "#e2e8f0" }}>
+            <span
+              className="whitespace-nowrap"
+              style={{
+                fontFamily: (props.fontFamily as string) || "Outfit",
+                fontWeight: props.fontWeight as string,
+                fontStyle: (props.fontStyle as string) || "normal",
+                fontSize: fluidFont(toNumber(props.fontSize, 12), 12, 3.2, useFixedPx),
+                lineHeight: toNumber(props.lineHeight, 1.2),
+                letterSpacing: `${toNumber(props.letterSpacing, 0)}px`,
+                textTransform: (props.textTransform as any) || "none",
+                textDecoration: (props.textDecoration as any) || "none",
+                color: (props.color as string) || "#e2e8f0"
+              }}
+            >
               {String(props.valueText ?? `${clampedValue}/${max}`)}
             </span>
           ) : null}
         </div>
       );
     }
+
 
     case "TabContent": {
       return wrap(
@@ -5043,6 +5161,28 @@ function RenderNode({
         : undefined;
       const badgeStrokePlacement = (props.strokePlacement as "mid" | "inside" | "outside") ?? "mid";
 
+      const badgeText = String(props.text ?? "Badge");
+      const badgeFontSize = Number.isFinite(Number(props.fontSize)) ? Number(props.fontSize) : 14;
+      const badgeFontWeight = String(props.fontWeight ?? "600");
+      const badgeFontFamily = String(props.fontFamily ?? "Outfit");
+      const badgeFontStyle = (props.fontStyle as React.CSSProperties["fontStyle"]) || "normal";
+      const badgeLineHeight = (props.lineHeight as React.CSSProperties["lineHeight"]) ?? 1.2;
+      const badgeLetterSpacing = typeof props.letterSpacing === "number"
+        ? `${props.letterSpacing}px`
+        : (props.letterSpacing as React.CSSProperties["letterSpacing"]);
+      const badgeTextAlign = (props.textAlign as React.CSSProperties["textAlign"]) || "center";
+      const badgeTextTransform = (props.textTransform as React.CSSProperties["textTransform"]) || "none";
+      const badgeTextDecoration = (props.textDecoration as React.CSSProperties["textDecoration"]) || "none";
+      const badgeTextColor = (props.color as string) || "#ffffff";
+      const hasBadgeChildren = Array.isArray(children) && children.length > 0;
+
+      const originalPos = (props.position as string) || "relative";
+      const normalizedPosition = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const shouldClearNarrowOffsets = !builderParityMode && isNarrowPreview && (originalPos === "absolute" || originalPos === "fixed") && normalizedPosition === "relative";
+
+      const fluidFontMin = Math.max(10, Math.round(badgeFontSize * 0.8));
+      const fluidFontCqw = Math.max(0.1, badgeFontSize / 12).toFixed(2);
+
       return wrap(
         <div
           data-fluid-space="true"
@@ -5050,9 +5190,15 @@ function RenderNode({
           data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizedPosition,
+            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            zIndex: (props.zIndex as number | undefined) ?? 3,
             width: badgeWidth,
             height: badgeHeight,
-            maxWidth: "100%",
+            maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
             minWidth: badgeWidth === "fit-content" ? fluidSpace(pl + pr + 48, 48) : 0,
             boxSizing: "border-box",
             background: (props.background || props.backgroundColor || "#16a34a") as string,
@@ -5078,10 +5224,36 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {children}
+          {hasBadgeChildren ? children : (
+            <span
+              data-badge-text="true"
+              style={{
+                display: "block",
+                width: "100%",
+                margin: 0,
+                padding: 0,
+                fontFamily: badgeFontFamily,
+                fontWeight: badgeFontWeight,
+                fontStyle: badgeFontStyle,
+                fontSize: `clamp(${fluidFontMin}px, ${fluidFontCqw}cqw, ${badgeFontSize}px)`,
+                lineHeight: badgeLineHeight,
+                letterSpacing: badgeLetterSpacing,
+                textAlign: badgeTextAlign,
+                textTransform: badgeTextTransform,
+                textDecoration: badgeTextDecoration,
+                color: badgeTextColor,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {badgeText}
+            </span>
+          )}
         </div>
       );
     }
+
 
     case "Pagination": {
       const totalItems = Math.max(1, Math.round(toNumber(props.totalItems, 50)));
