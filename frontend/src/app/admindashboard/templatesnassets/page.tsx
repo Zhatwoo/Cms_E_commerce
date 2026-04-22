@@ -29,6 +29,15 @@ interface Template {
   thumbnail: string;
 }
 
+type TemplateActionMode = 'rename' | 'suspend' | 'delete';
+
+type TemplateActionModalState = {
+  open: boolean;
+  mode: TemplateActionMode;
+  template: Template | null;
+  nextName: string;
+};
+
 const SearchIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
   <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -51,7 +60,12 @@ export default function TemplatesAssetsPage() {
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
   const [suspendingTemplateId, setSuspendingTemplateId] = useState<string | null>(null);
-  const [builtInTemplates, setBuiltInTemplates] = useState<Template[]>([]);
+  const [actionModal, setActionModal] = useState<TemplateActionModalState>({
+    open: false,
+    mode: 'rename',
+    template: null,
+    nextName: '',
+  });
 
   const mapProjectToTemplate = useCallback((project: Project): Template => {
     const statusLabel = String(project.status || '').trim() || 'Template';
@@ -164,9 +178,45 @@ export default function TemplatesAssetsPage() {
       template.domainName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleRenameTemplate = async (template: Template) => {
-    const nextName = window.prompt('Rename template', template.name)?.trim();
-    if (!nextName || nextName === template.name) return;
+  const openTemplateActionModal = (template: Template, mode: TemplateActionMode) => {
+    setActionModal({
+      open: true,
+      mode,
+      template,
+      nextName: template.name,
+    });
+  };
+
+  const closeTemplateActionModal = () => {
+    if (actionModal.template) {
+      const targetId = actionModal.template.id;
+      if (targetId === deletingTemplateId || targetId === renamingTemplateId || targetId === suspendingTemplateId) {
+        return;
+      }
+    }
+
+    setActionModal({
+      open: false,
+      mode: 'rename',
+      template: null,
+      nextName: '',
+    });
+  };
+
+  const handleTemplateActionConfirm = async () => {
+    if (!actionModal.template) return;
+    const template = actionModal.template;
+
+    if (actionModal.mode === 'rename') {
+      const nextName = actionModal.nextName.trim();
+      if (!nextName) {
+        setUserTemplatesError('Template name is required.');
+        return;
+      }
+      if (nextName === template.name) {
+        closeTemplateActionModal();
+        return;
+      }
 
     setRenamingTemplateId(template.id);
     try {
@@ -181,7 +231,6 @@ export default function TemplatesAssetsPage() {
             : item
         )
       );
-      window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to rename template.';
       setUserTemplatesError(message);
@@ -198,7 +247,6 @@ export default function TemplatesAssetsPage() {
     try {
       await deleteProject(template.id);
       setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
-      window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete template.';
       setUserTemplatesError(message);
@@ -216,7 +264,6 @@ export default function TemplatesAssetsPage() {
       await updateProject(template.id, { status: 'suspended' });
       // Suspended templates are removed from the active user template list.
       setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
-      window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to suspend template.';
       setUserTemplatesError(message);
@@ -332,9 +379,9 @@ export default function TemplatesAssetsPage() {
                     renamingTemplateId={renamingTemplateId}
                     suspendingTemplateId={suspendingTemplateId}
                     onPreview={handlePreviewTemplate}
-                    onSuspend={handleSuspendTemplate}
-                    onRename={handleRenameTemplate}
-                    onDelete={handleDeleteTemplate}
+                    onSuspend={(template) => openTemplateActionModal(template, 'suspend')}
+                    onRename={(template) => openTemplateActionModal(template, 'rename')}
+                    onDelete={(template) => openTemplateActionModal(template, 'delete')}
                     onReload={() => {
                       void loadUserTemplates();
                     }}
@@ -342,6 +389,95 @@ export default function TemplatesAssetsPage() {
                 )}
               </AnimatePresence>
             </div>
+
+            <AnimatePresence>
+              {actionModal.open && actionModal.template && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+                  style={{ background: 'rgba(72, 40, 128, 0.28)', backdropFilter: 'blur(4px)' }}
+                  onClick={closeTemplateActionModal}
+                >
+                  <motion.div
+                    initial={{ y: 18, scale: 0.98, opacity: 0 }}
+                    animate={{ y: 0, scale: 1, opacity: 1 }}
+                    exit={{ y: 12, scale: 0.98, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-full max-w-md rounded-[24px] border border-[rgba(177,59,255,0.2)] bg-white p-6 shadow-[0_20px_54px_rgba(71,19,150,0.18)]"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    <h3 className="text-xl font-bold text-[#4A1A8A]">
+                      {actionModal.mode === 'rename'
+                        ? 'Rename Template'
+                        : actionModal.mode === 'suspend'
+                          ? 'Suspend Template'
+                          : 'Delete Template'}
+                    </h3>
+
+                    <p className="mt-2 text-sm text-[#7A6AA0]">
+                      {actionModal.mode === 'rename'
+                        ? `Update the template name for ${actionModal.template.name}.`
+                        : actionModal.mode === 'suspend'
+                          ? `Suspend ${actionModal.template.name}? This removes it from active templates.`
+                          : `Delete ${actionModal.template.name}? This moves it to trash.`}
+                    </p>
+
+                    {actionModal.mode === 'rename' && (
+                      <div className="mt-4">
+                        <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-[#7A6AA0]">
+                          Template Name
+                        </label>
+                        <input
+                          type="text"
+                          value={actionModal.nextName}
+                          onChange={(event) => setActionModal((prev) => ({ ...prev, nextName: event.target.value }))}
+                          className="h-11 w-full rounded-xl border border-[rgba(177,59,255,0.24)] bg-[#F7F3FF] px-3 text-sm font-medium text-[#3A1F73] outline-none focus:border-[#B13BFF]"
+                          placeholder="Enter template name"
+                        />
+                      </div>
+                    )}
+
+                    <div className="mt-6 flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={closeTemplateActionModal}
+                        className="rounded-xl border border-[rgba(177,59,255,0.2)] px-4 py-2 text-sm font-semibold text-[#7A6AA0] hover:bg-[#F7F3FF]"
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleTemplateActionConfirm();
+                        }}
+                        className={`rounded-xl px-4 py-2 text-sm font-semibold text-white ${
+                          actionModal.mode === 'delete'
+                            ? 'bg-[#DC2626] hover:bg-[#B91C1C]'
+                            : actionModal.mode === 'suspend'
+                              ? 'bg-[#C2410C] hover:bg-[#9A3412]'
+                              : 'bg-[#7B1DE8] hover:bg-[#6619C4]'
+                        }`}
+                      >
+                        {actionModal.mode === 'rename'
+                          ? renamingTemplateId === actionModal.template.id
+                            ? 'Saving...'
+                            : 'Save Name'
+                          : actionModal.mode === 'suspend'
+                            ? suspendingTemplateId === actionModal.template.id
+                              ? 'Suspending...'
+                              : 'Confirm Suspend'
+                            : deletingTemplateId === actionModal.template.id
+                              ? 'Deleting...'
+                              : 'Confirm Delete'}
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </main>
       </div>

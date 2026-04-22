@@ -307,7 +307,7 @@ export const TemplatePanel = () => {
         const projectRes = await listTemplateLibrary(120);
         const allProjects = projectRes.success ? projectRes.templates : [];
 
-        const merge = new Map<string, SavedTemplateItem>(localOnly);
+        const merge = new Map<string, SavedTemplateItem>();
 
         allProjects
           .filter((project) => project.id !== currentProjectId)
