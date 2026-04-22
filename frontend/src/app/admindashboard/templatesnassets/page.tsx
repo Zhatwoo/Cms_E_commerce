@@ -8,6 +8,7 @@ import { AdminHeader } from '../components/header';
 import BuiltInTemplates from './components/BuiltInTemplates';
 import UserTemplates from './components/UserTemplates';
 import { useAdminLoading } from '../components/LoadingProvider';
+import { TEMPLATE_LIBRARY_CHANGED_EVENT, templateService } from '@/lib/templateService';
 import {
   deleteProject,
   listTemplateLibrary,
@@ -63,6 +64,7 @@ export default function TemplatesAssetsPage() {
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
   const [suspendingTemplateId, setSuspendingTemplateId] = useState<string | null>(null);
+  const [builtInTemplates, setBuiltInTemplates] = useState<Template[]>([]);
   const [actionModal, setActionModal] = useState<TemplateActionModalState>({
     open: false,
     mode: 'rename',
@@ -86,8 +88,31 @@ export default function TemplatesAssetsPage() {
     };
   }, []);
 
-  const loadUserTemplates = useCallback(async () => {
-    setUserTemplatesLoading(true);
+  const mapLibraryTemplateToTemplate = useCallback((template: ReturnType<typeof templateService.getTemplates>[number]): Template => {
+    return {
+      id: String(template.id),
+      name: (template.name || template.title || 'Untitled Template').trim(),
+      category: String(template.category || 'General').trim() || 'General',
+      status: template.status,
+      username: template.username || undefined,
+      ownerId: undefined,
+      domainName: template.domainName || undefined,
+      createdAt: template.createdAt instanceof Date ? template.createdAt.toISOString() : undefined,
+      updatedAt: template.updatedAt instanceof Date ? template.updatedAt.toISOString() : undefined,
+      thumbnail: template.thumbnail || '',
+    };
+  }, []);
+
+  const loadBuiltInTemplates = useCallback(() => {
+    const templates = templateService
+      .getTemplates()
+      .filter((template) => template.isBuiltIn)
+      .map(mapLibraryTemplateToTemplate);
+    setBuiltInTemplates(templates);
+  }, [mapLibraryTemplateToTemplate]);
+
+  const loadUserTemplates = useCallback(async (silent = false) => {
+    if (!silent) setUserTemplatesLoading(true);
     setUserTemplatesError('');
     try {
       const res = await listTemplateLibrary(200);
@@ -98,24 +123,44 @@ export default function TemplatesAssetsPage() {
       setUserTemplatesError(message);
       setUserTemplates([]);
     } finally {
-      setUserTemplatesLoading(false);
+      if (!silent) setUserTemplatesLoading(false);
     }
   }, [mapProjectToTemplate]);
 
   useEffect(() => {
+    loadBuiltInTemplates();
     void loadUserTemplates();
-  }, [loadUserTemplates]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleTemplateChange = () => {
-      void loadUserTemplates();
+    const onTemplatesChanged = () => {
+      loadBuiltInTemplates();
+      void loadUserTemplates(true);
     };
 
-    window.addEventListener('template-project-registry:changed', handleTemplateChange);
-    return () => window.removeEventListener('template-project-registry:changed', handleTemplateChange);
-  }, [loadUserTemplates]);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        onTemplatesChanged();
+      }
+    };
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        onTemplatesChanged();
+      }
+    }, 15000);
+
+    window.addEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, onTemplatesChanged);
+    window.addEventListener('storage', onTemplatesChanged);
+    window.addEventListener('focus', onTemplatesChanged);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.clearInterval(pollId);
+      window.removeEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, onTemplatesChanged);
+      window.removeEventListener('storage', onTemplatesChanged);
+      window.removeEventListener('focus', onTemplatesChanged);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [loadBuiltInTemplates, loadUserTemplates]);
 
   const handleTabChange = (tab: 'builtin' | 'user') => {
     if (tab === activeTab) return;
@@ -124,8 +169,6 @@ export default function TemplatesAssetsPage() {
     params.set('tab', tab);
     router.replace(`/admindashboard/templatesnassets?${params.toString()}`, { scroll: false });
   };
-
-  const builtInTemplates: Template[] = [];
 
   const filteredBuiltInTemplates = builtInTemplates.filter(
     (template) =>
@@ -194,6 +237,7 @@ export default function TemplatesAssetsPage() {
               : item
           )
         );
+        window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
         closeTemplateActionModal();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to rename template.';
@@ -208,7 +252,7 @@ export default function TemplatesAssetsPage() {
       setSuspendingTemplateId(template.id);
       try {
         await updateProject(template.id, { status: 'suspended' });
-        removeTemplateProjectEntry(template.id);
+        setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
         closeTemplateActionModal();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to suspend template.';
@@ -219,16 +263,53 @@ export default function TemplatesAssetsPage() {
       return;
     }
 
+    if (actionModal.mode === 'delete') {
+      setDeletingTemplateId(template.id);
+      try {
+        await deleteProject(template.id);
+        setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+        window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
+        closeTemplateActionModal();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to delete template.';
+        setUserTemplatesError(message);
+      } finally {
+        setDeletingTemplateId(null);
+      }
+    }
+  };
+
+  const handleDeleteTemplate = async (template: Template) => {
+    const confirmed = window.confirm(`Delete template \"${template.name}\"?`);
+    if (!confirmed) return;
+
     setDeletingTemplateId(template.id);
     try {
       await deleteProject(template.id);
-      removeTemplateProjectEntry(template.id);
+      setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
       closeTemplateActionModal();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete template.';
       setUserTemplatesError(message);
     } finally {
       setDeletingTemplateId(null);
+    }
+  };
+
+  const handleSuspendTemplate = async (template: Template) => {
+    const confirmed = window.confirm(`Suspend template \"${template.name}\"?`);
+    if (!confirmed) return;
+
+    setSuspendingTemplateId(template.id);
+    try {
+      await updateProject(template.id, { status: 'suspended' });
+      // Suspended templates are removed from the active user template list.
+      setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to suspend template.';
+      setUserTemplatesError(message);
+    } finally {
+      setSuspendingTemplateId(null);
     }
   };
 

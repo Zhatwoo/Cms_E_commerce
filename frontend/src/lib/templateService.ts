@@ -19,6 +19,13 @@ export interface Template {
   domainName?: string;
 }
 
+export const TEMPLATE_LIBRARY_CHANGED_EVENT = 'template-library:changed';
+
+function emitTemplateLibraryChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
+}
+
 class TemplateService {
   private readonly STORAGE_KEY = 'cms_templates';
 
@@ -141,6 +148,7 @@ class TemplateService {
       // Add new template
       userTemplates.push(template);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(userTemplates));
+      emitTemplateLibraryChanged();
 
       return template;
     } catch (error) {
@@ -227,6 +235,7 @@ class TemplateService {
       const userTemplates = JSON.parse(existing);
       const filtered = userTemplates.filter((t: Template) => t.id !== id);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
+      emitTemplateLibraryChanged();
       return true;
     } catch {
       return false;
