@@ -6201,10 +6201,12 @@ export function LiveSite({
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
   const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
   const viewportWidth = measuredWidth;
-  const shouldUseResponsiveViewport = !fillViewport && viewportWidth > 0 && viewportWidth < pageWidthPx;
-  const isScaling = !isPhoneSize && !fillViewport && !shouldUseResponsiveViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
-  const scale = isScaling ? measuredWidth / pageWidthPx : 1;
-  const pageFrameStyles = resolvePageFrameStyles(width);
+
+  // Live site always stays full screen (responsive), ignoring fixed builder dimensions.
+  const shouldUseResponsiveViewport = true; 
+  const isScaling = false; 
+  const scale = 1;
+  const pageFrameStyles = { width: "100%", maxWidth: "100%" };
 
   const layoutReferenceWidth = pageWidthPx;
   const layoutReferenceHeight = parsePixelValue(pageProps.height) ?? pageWidthPx;
