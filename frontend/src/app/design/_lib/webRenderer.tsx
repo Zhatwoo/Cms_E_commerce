@@ -5293,6 +5293,10 @@ function RenderNode({
       const textAlign = String(props.textAlign ?? "center");
       const justifyContent = textAlign === "right" ? "flex-end" : textAlign === "left" ? "flex-start" : "center";
 
+      const originalPos = (props.position as string) || "relative";
+      const normalizedPosition = normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode);
+      const shouldClearNarrowOffsets = !builderParityMode && isNarrowPreview && (originalPos === "absolute" || originalPos === "fixed") && normalizedPosition === "relative";
+
       const pageTokens =
         totalPages <= 5
           ? Array.from({ length: totalPages }, (_, i) => i + 1)
@@ -5348,9 +5352,15 @@ function RenderNode({
           data-smooth="true"
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
+            position: normalizedPosition,
+            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
+            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
+            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
+            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            zIndex: (props.zIndex as number | undefined) ?? 3,
             width,
             height,
-            maxWidth: "100%",
+            maxWidth: normalizedPosition === "static" ? "100%" : (isNarrowPreview ? "100%" : undefined),
             minWidth: 0,
             display: "inline-flex",
             alignSelf: props.alignSelf as any,
