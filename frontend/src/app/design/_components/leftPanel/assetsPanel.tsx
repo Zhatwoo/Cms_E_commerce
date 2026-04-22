@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ChevronDown, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon, Megaphone, Briefcase, ShoppingBag } from "lucide-react";
 import { DesignTooltip } from "../DesignTooltip";
 import { GROUPED_TEMPLATES } from "../../../_assets";
@@ -590,7 +591,7 @@ export const AssetsPanel = () => {
       groupedFolderItems.orderedGroups.forEach((groupName, idx) => {
         const key = `${activeGroup.folder}:${groupName}`;
         if (typeof next[key] !== "boolean") {
-          next[key] = idx === 0;
+          next[key] = false;
           changed = true;
         }
       });
@@ -609,7 +610,7 @@ export const AssetsPanel = () => {
       ICON_GROUP_ORDER.forEach((groupName, idx) => {
         const key = `${activeGroup.folder}:${groupName}`;
         if (typeof next[key] !== "boolean") {
-          next[key] = idx === 0;
+          next[key] = false;
           changed = true;
         }
       });
@@ -645,7 +646,7 @@ export const AssetsPanel = () => {
           <div className="grid grid-cols-1 gap-2">
             {GROUPED_TEMPLATES.map((group) => (
               <DesignTooltip key={`tooltip-${group.folder}`} content={ASSET_FOLDER_TOOLTIPS[group.folder] || group.folder} position="right">
-                <button
+                <motion.button
                   key={group.folder}
                   type="button"
                   onClick={() => {
@@ -653,6 +654,10 @@ export const AssetsPanel = () => {
                     setPanelView("items");
                     setSelectedAsset(null);
                   }}
+                  whileHover={{ scale: 1.004 }}
+                  whileTap={{ scale: 0.985 }}
+                  transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                  style={{ willChange: "transform" }}
                   className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
                 >
                   <div className="flex h-full items-center p-2.5 gap-3">
@@ -666,7 +671,7 @@ export const AssetsPanel = () => {
                     </div>
                     <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
                   </div>
-                </button>
+                </motion.button>
               </DesignTooltip>
             ))}
           </div>
@@ -704,11 +709,15 @@ export const AssetsPanel = () => {
 
                   return (
                     <DesignTooltip key={`tooltip-${assetKey}`} content="Drag to add to canvas" position="right">
-                      <div
+                      <motion.div
                         key={assetKey}
                         data-drag-source="asset"
                         data-asset-category={item.category}
                         data-asset-label={item.label}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                        style={{ willChange: "transform" }}
                         ref={(ref) => {
                           if (!ref || !item?.element) return;
 
@@ -811,7 +820,7 @@ export const AssetsPanel = () => {
                             )}
                           </div>
                         </div>
-                      </div>
+                      </motion.div>
                     </DesignTooltip>
                   );
                 };
@@ -826,7 +835,7 @@ export const AssetsPanel = () => {
                         const isOpen = openSubgroups[subgroupKey] ?? false;
                         return (
                           <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
-                            <button
+                            <motion.button
                               type="button"
                               onClick={() => {
                                 setOpenSubgroups((prev) => ({
@@ -834,6 +843,10 @@ export const AssetsPanel = () => {
                                   [subgroupKey]: !isOpen,
                                 }));
                               }}
+                              whileHover={{ scale: 1.002 }}
+                              whileTap={{ scale: 0.99 }}
+                              transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                              style={{ willChange: "transform" }}
                               className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
                             >
                               <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
@@ -843,7 +856,7 @@ export const AssetsPanel = () => {
                                 <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
                                 <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
                               </div>
-                            </button>
+                            </motion.button>
 
                             <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
                               <div className="grid grid-cols-4 gap-2">
@@ -868,7 +881,7 @@ export const AssetsPanel = () => {
                         const isOpen = openSubgroups[subgroupKey] ?? false;
                         return (
                           <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
-                            <button
+                            <motion.button
                               type="button"
                               onClick={() => {
                                 setOpenSubgroups((prev) => ({
@@ -876,6 +889,10 @@ export const AssetsPanel = () => {
                                   [subgroupKey]: !isOpen,
                                 }));
                               }}
+                              whileHover={{ scale: 1.002 }}
+                              whileTap={{ scale: 0.99 }}
+                              transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                              style={{ willChange: "transform" }}
                               className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
                             >
                               <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
@@ -885,7 +902,7 @@ export const AssetsPanel = () => {
                                 <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
                                 <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
                               </div>
-                            </button>
+                            </motion.button>
 
                             <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
                               <div className={`grid gap-2 ${shapeSection ? "grid-cols-2" : "grid-cols-1"}`}>
