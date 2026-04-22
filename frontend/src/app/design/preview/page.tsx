@@ -785,7 +785,6 @@ function PreviewContent() {
     let cancelled = false;
 
     async function loadData() {
-      if (!project) return;
       setLoading(true);
       try {
         // 1. Try local snapshot first (Instant parity with Editor)
@@ -818,8 +817,8 @@ function PreviewContent() {
           return;
         }
 
-        // 3. Last fallback: Published Content
-        if (project.subdomain) {
+        // 3. Last fallback: Published Content (only when subdomain metadata is available)
+        if (project?.subdomain) {
           const published = await loadPublishedContent(project.subdomain);
           if (!cancelled && published) {
             setRawJson(published);
