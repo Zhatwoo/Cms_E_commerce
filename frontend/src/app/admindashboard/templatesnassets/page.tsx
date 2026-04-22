@@ -60,6 +60,7 @@ export default function TemplatesAssetsPage() {
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
   const [suspendingTemplateId, setSuspendingTemplateId] = useState<string | null>(null);
+  const [builtInTemplates, setBuiltInTemplates] = useState<Template[]>([]);
   const [actionModal, setActionModal] = useState<TemplateActionModalState>({
     open: false,
     mode: 'rename',
@@ -218,24 +219,59 @@ export default function TemplatesAssetsPage() {
         return;
       }
 
-    setRenamingTemplateId(template.id);
-    try {
-      await updateProject(template.id, { templateName: nextName });
-      setUserTemplates((prev) =>
-        prev.map((item) =>
-          item.id === template.id
-            ? {
-                ...item,
-                name: nextName,
-              }
-            : item
-        )
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to rename template.';
-      setUserTemplatesError(message);
-    } finally {
-      setRenamingTemplateId(null);
+      setRenamingTemplateId(template.id);
+      try {
+        await updateProject(template.id, { templateName: nextName });
+        setUserTemplates((prev) =>
+          prev.map((item) =>
+            item.id === template.id
+              ? {
+                  ...item,
+                  name: nextName,
+                }
+              : item
+          )
+        );
+        window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
+        closeTemplateActionModal();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to rename template.';
+        setUserTemplatesError(message);
+      } finally {
+        setRenamingTemplateId(null);
+      }
+      return;
+    }
+
+    if (actionModal.mode === 'suspend') {
+      setSuspendingTemplateId(template.id);
+      try {
+        await updateProject(template.id, { status: 'suspended' });
+        setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+        window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
+        closeTemplateActionModal();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to suspend template.';
+        setUserTemplatesError(message);
+      } finally {
+        setSuspendingTemplateId(null);
+      }
+      return;
+    }
+
+    if (actionModal.mode === 'delete') {
+      setDeletingTemplateId(template.id);
+      try {
+        await deleteProject(template.id);
+        setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+        window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
+        closeTemplateActionModal();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Failed to delete template.';
+        setUserTemplatesError(message);
+      } finally {
+        setDeletingTemplateId(null);
+      }
     }
   };
 
