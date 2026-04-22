@@ -14,6 +14,10 @@ import {
   updateProject,
   type Project,
 } from '@/lib/api';
+import {
+  removeTemplateProjectEntry,
+  updateTemplateProjectEntry,
+} from '@/lib/templateProjectRegistry';
 
 interface Template {
   id: string;
@@ -102,6 +106,17 @@ export default function TemplatesAssetsPage() {
     void loadUserTemplates();
   }, [loadUserTemplates]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleTemplateChange = () => {
+      void loadUserTemplates();
+    };
+
+    window.addEventListener('template-project-registry:changed', handleTemplateChange);
+    return () => window.removeEventListener('template-project-registry:changed', handleTemplateChange);
+  }, [loadUserTemplates]);
+
   const handleTabChange = (tab: 'builtin' | 'user') => {
     if (tab === activeTab) return;
     startLoading();
@@ -168,6 +183,7 @@ export default function TemplatesAssetsPage() {
       setRenamingTemplateId(template.id);
       try {
         await updateProject(template.id, { templateName: nextName });
+        updateTemplateProjectEntry(template.id, { name: nextName });
         setUserTemplates((prev) =>
           prev.map((item) =>
             item.id === template.id
@@ -192,7 +208,7 @@ export default function TemplatesAssetsPage() {
       setSuspendingTemplateId(template.id);
       try {
         await updateProject(template.id, { status: 'suspended' });
-        setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+        removeTemplateProjectEntry(template.id);
         closeTemplateActionModal();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to suspend template.';
@@ -206,7 +222,7 @@ export default function TemplatesAssetsPage() {
     setDeletingTemplateId(template.id);
     try {
       await deleteProject(template.id);
-      setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+      removeTemplateProjectEntry(template.id);
       closeTemplateActionModal();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete template.';

@@ -82,11 +82,20 @@ export function ProjectProvider({ children }: ProviderProps) {
           } catch (_) {}
         }
 
-        // Keep last selected project when still available, otherwise fall back once.
+        const nonTemplateProjects = res.projects.filter(
+          (project) => String(project.status || '').trim().toLowerCase() !== 'template'
+        );
+
+        // Keep last selected project when still available, otherwise prefer a normal design.
         setSelectedProjectIdState((prev) => {
           if (res.projects.length === 0) return null;
-          if (prev && res.projects.some((p) => p.id === prev)) return prev;
-          return res.projects[0].id;
+          if (prev && res.projects.some((p) => p.id === prev)) {
+            const prevProject = res.projects.find((p) => p.id === prev);
+            if (prevProject && String(prevProject.status || '').trim().toLowerCase() !== 'template') {
+              return prev;
+            }
+          }
+          return nonTemplateProjects[0]?.id || res.projects[0].id;
         });
       } else {
         setProjects([]);
@@ -119,6 +128,17 @@ export function ProjectProvider({ children }: ProviderProps) {
     const hasCache = typeof window !== 'undefined' && storageKey && window.sessionStorage.getItem(storageKey + '_projects');
     void fetchProjects(false, !!hasCache);
   }, [fetchProjects, storageKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleTemplateRegistryChange = () => {
+      void fetchProjects(true, true);
+    };
+
+    window.addEventListener('template-project-registry:changed', handleTemplateRegistryChange);
+    return () => window.removeEventListener('template-project-registry:changed', handleTemplateRegistryChange);
+  }, [fetchProjects]);
 
   useEffect(() => {
     setActiveProjectId(selectedProjectId);

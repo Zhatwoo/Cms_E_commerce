@@ -87,6 +87,10 @@ function toWorkspaceLabel(project?: Project | null) {
     .toUpperCase();
 }
 
+function isTemplateProject(project?: Project | null) {
+  return String(project?.status || '').trim().toLowerCase() === 'template';
+}
+
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
@@ -132,7 +136,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       return bDate - aDate;
     });
     setAllProjects(sorted);
-    setRecentProjects(sorted.slice(0, 3));
+    setRecentProjects(sorted.filter((project) => !isTemplateProject(project)).slice(0, 3));
     setActiveProjectIndex(0);
     setIsSliderTransitionEnabled(true);
     setShowAllOtherProjects(false);
@@ -160,9 +164,10 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const carouselProjects = projectCount > 1 ? [...recentProjects, recentProjects[0]] : recentProjects;
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
   const recentProjectIds = new Set(recentProjects.map((project) => project.id));
-  const otherProjects = allProjects.length > 3 && !showAllOtherProjects
-    ? allProjects.filter((project) => !recentProjectIds.has(project.id))
-    : allProjects;
+  const designProjects = allProjects.filter((project) => !isTemplateProject(project));
+  const otherProjects = designProjects.length > 3 && !showAllOtherProjects
+    ? designProjects.filter((project) => !recentProjectIds.has(project.id))
+    : designProjects;
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
@@ -458,7 +463,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               displayProjectIndex={displayProjectIndex}
               carouselProjects={carouselProjects}
               otherProjects={otherProjects}
-              allProjectsCount={allProjects.length}
+              allProjectsCount={designProjects.length}
               showAllOtherProjects={showAllOtherProjects}
               openProjectMenuId={openProjectMenuId}
               isSliderTransitionEnabled={isSliderTransitionEnabled}
