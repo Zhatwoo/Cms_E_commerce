@@ -9,6 +9,32 @@ const COLLAB_COLORS = [
 ];
 
 /**
+ * Template library projects are intentionally shareable across accounts.
+ * When normal ownership/collaboration checks fail, allow read-only access
+ * for projects explicitly marked as status=template.
+ */
+async function resolveTemplateLibraryAccess(projectId) {
+  try {
+    const projectSnap = await db.collectionGroup('projects').get();
+    const templateDoc = projectSnap.docs.find((doc) => {
+      if (doc.id !== projectId) return false;
+      const data = doc.data() || {};
+      const status = String(data.status || '').trim().toLowerCase();
+      return status === 'template';
+    });
+
+    if (!templateDoc) return null;
+    const ownerId = templateDoc.ref.parent?.parent?.id;
+    if (!ownerId) return null;
+
+    return { ownerId, permission: 'viewer', isTemplateLibrary: true };
+  } catch (err) {
+    console.warn('[PageController] resolveTemplateLibraryAccess failed:', err.message);
+    return null;
+  }
+}
+
+/**
  * Auto-registers a public-link user as a collaborator if not already present.
  */
 async function ensurePublicCollaborator(ownerId, projectId, userId, userEmail, role) {
@@ -380,6 +406,10 @@ exports.getDraft = async (req, res) => {
 
     let resolved = await resolveProjectOwner(userId, projectId, userEmail);
 
+    if (!resolved) {
+      resolved = await resolveTemplateLibraryAccess(projectId);
+    }
+
     // Admin moderation views may request previews for projects they do not directly own/collaborate on.
     // In that case, resolve owner directly by querying all projects and finding a match.
     if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
@@ -459,6 +489,10 @@ exports.getAllDrafts = async (req, res) => {
     }
 
     let resolved = await resolveProjectOwner(userId, projectId, userEmail);
+
+    if (!resolved) {
+      resolved = await resolveTemplateLibraryAccess(projectId);
+    }
 
     // Admin moderation views may request previews for projects they do not directly own/collaborate on.
     if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {

@@ -11,11 +11,13 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type HeroCtaLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface HeroBannerCTABlockProps {
+  nodeId?: string;
   layoutStyle?: HeroCtaLayoutStyle;
   title?: string;
   subtitle?: string;
   buttonLabel?: string;
   backgroundImage?: string;
+  imageOpacity?: number;
   minHeight?: number;
   overlayColor?: string;
   buttonColor?: string;
@@ -226,6 +228,10 @@ export const HeroBannerCTABlockSettings = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image opacity (%)</label>
+            <NumericInput value={props.imageOpacity != null ? (props.imageOpacity <= 1 ? props.imageOpacity * 100 : props.imageOpacity) : 85} onChange={(val) => set("imageOpacity", val)} min={0} max={100} step={1} unit="%" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
             <ColorPicker value={props.overlayColor ?? "rgba(0,0,0,0.5)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
           </div>
@@ -263,6 +269,7 @@ export const HeroBannerCTABlock = ({
   subtitle = "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
   buttonLabel = "Navigation     →",
   backgroundImage = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop",
+  imageOpacity = 0.85,
   minHeight = 450,
   overlayColor = "rgba(0,0,0,0.5)",
   buttonColor = "#1a1a1a",
@@ -280,6 +287,8 @@ export const HeroBannerCTABlock = ({
   const id = node?.id || nodeId;
   const connectors = node?.connectors;
 
+  const getImageOpacity = (value: number) => Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
@@ -296,17 +305,30 @@ export const HeroBannerCTABlock = ({
       style={{
         width: "100%",
         minHeight,
+        position: "relative",
+        overflow: "hidden",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        backgroundImage: `linear-gradient(${overlayColor}, ${overlayColor}), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundColor: overlayColor,
       }}
     >
       <div
+        aria-hidden="true"
         style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: getImageOpacity(imageOpacity),
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
           width: "min(100%, 1280px)",
           minHeight,
           padding: "clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)",
@@ -372,6 +394,7 @@ HeroBannerCTABlock.craft = {
     subtitle: "Lorem ipsum dolor sit amet, consectetur adipiscing elit",
     buttonLabel: "Navigation     →",
     backgroundImage: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop",
+    imageOpacity: 0.85,
     minHeight: 450,
     overlayColor: "rgba(0,0,0,0.5)",
     buttonColor: "#1a1a1a",

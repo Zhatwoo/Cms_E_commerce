@@ -11,12 +11,14 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type CenteredHeroLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface CenteredHeroBlockProps {
+  nodeId?: string;
   layoutStyle?: CenteredHeroLayoutStyle;
   title?: string;
   subtitle?: string;
   primaryLabel?: string;
   secondaryLabel?: string;
   backgroundImage?: string;
+  imageOpacity?: number;
   minHeight?: number;
   overlayColor?: string;
   buttonColor?: string;
@@ -135,6 +137,10 @@ export const CenteredHeroBlockSettings = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image opacity (%)</label>
+            <NumericInput value={props.imageOpacity != null ? (props.imageOpacity <= 1 ? props.imageOpacity * 100 : props.imageOpacity) : 85} onChange={(val) => set("imageOpacity", val)} min={0} max={100} step={1} unit="%" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
             <ColorPicker value={props.overlayColor ?? "rgba(248,250,252,0.82)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
           </div>
@@ -177,6 +183,7 @@ export const CenteredHeroBlock = ({
   primaryLabel = "Get Started",
   secondaryLabel = "Learn More",
   backgroundImage = "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2074&auto=format&fit=crop",
+  imageOpacity = 0.85,
   minHeight = 620,
   overlayColor = "rgba(248,250,252,0.82)",
   buttonColor = "#3b82f6",
@@ -195,6 +202,7 @@ export const CenteredHeroBlock = ({
   const id = node?.id || nodeId;
   const connectors = node?.connectors;
 
+  const getImageOpacity = (value: number) => Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
@@ -211,18 +219,31 @@ export const CenteredHeroBlock = ({
       style={{
         width: "100%",
         minHeight,
+        position: "relative",
+        overflow: "hidden",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        backgroundImage: `linear-gradient(${overlayColor}, ${overlayColor}), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundColor: overlayColor,
         padding: "12px",
         boxSizing: "border-box",
       }}
     >
       <div
+        aria-hidden="true"
         style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: getImageOpacity(imageOpacity),
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
           width: "min(100%, 1280px)",
           display: "flex",
           flexDirection: isCloseUp ? "column" : imageOnRight ? "row-reverse" : "row",
@@ -280,6 +301,7 @@ CenteredHeroBlock.craft = {
     primaryLabel: "Get Started",
     secondaryLabel: "Learn More",
     backgroundImage: "https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=2074&auto=format&fit=crop",
+    imageOpacity: 0.85,
     minHeight: 620,
     overlayColor: "rgba(248,250,252,0.82)",
     buttonColor: "#3b82f6",
