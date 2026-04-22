@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { motion } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
   AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
@@ -184,8 +185,12 @@ export const ComponentsPanel = () => {
 
   // ── Component card ──────────────────────────────────────────────────────────
   const renderComponentItem = (v: any) => (
-    <div
+    <motion.div
       key={v.id || v.label}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+      style={{ willChange: "transform" }}
       ref={(ref) => {
         if (!ref || activeTool === "hand") return;
         const el = v.dragElement || v.element;
@@ -233,14 +238,18 @@ export const ComponentsPanel = () => {
       <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">
         {v.label}
       </span>
-    </div>
+    </motion.div>
   );
 
   const renderSearchResultItem = (v: any) => {
     if (v.type === "component") return renderComponentItem(v);
     if (v.type === "import") {
       return (
-        <div key={v.id}
+        <motion.div key={v.id}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.985 }}
+          transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+          style={{ willChange: "transform" }}
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
           className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
         >
@@ -248,11 +257,15 @@ export const ComponentsPanel = () => {
             <FileCode className="w-5 h-5 builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
           </div>
           <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-        </div>
+        </motion.div>
       );
     }
     return (
-      <div key={v.id}
+      <motion.div key={v.id}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
         className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1"
       >
@@ -268,7 +281,7 @@ export const ComponentsPanel = () => {
           )}
         </div>
         <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-      </div>
+      </motion.div>
     );
   };
 
@@ -287,7 +300,13 @@ export const ComponentsPanel = () => {
   // ── Resource row ─────────────────────────────────────────────────────────────
   const resourceRow = (item: { id: string; label: string; sub: string; icon: React.ReactNode; action: () => void; tooltip: string }) => (
     <DesignTooltip key={item.id} content={item.tooltip} position="top">
-      <button onClick={item.action}
+      <motion.button
+        type="button"
+        onClick={item.action}
+        whileHover={{ scale: 1.005 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
         className="group relative w-full h-14 rounded-xl flex items-center px-3 gap-3 overflow-hidden cursor-pointer transition-all duration-200
           bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)]
           border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]
@@ -311,7 +330,7 @@ export const ComponentsPanel = () => {
       </div>
 
       <ChevronRight className="ml-auto w-3.5 h-3.5 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-0.5 shrink-0" />
-      </button>
+      </motion.button>
     </DesignTooltip>
   );
 
