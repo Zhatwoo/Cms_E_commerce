@@ -71,6 +71,7 @@ function normalizeItems(items: AccordionItem[] | undefined): AccordionItem[] {
 
 export const AccordionSettings = () => {
   const {
+    id,
     items,
     stylePreset,
     editorPreviewMode,
@@ -94,6 +95,7 @@ export const AccordionSettings = () => {
     right,
     bottom,
     left,
+    isFreeform,
     editorVisibility,
     borderRadius,
     backgroundColor,
