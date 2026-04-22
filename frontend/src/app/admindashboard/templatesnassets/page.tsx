@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
@@ -8,13 +8,23 @@ import { AdminHeader } from '../components/header';
 import BuiltInTemplates from './components/BuiltInTemplates';
 import UserTemplates from './components/UserTemplates';
 import { useAdminLoading } from '../components/LoadingProvider';
+import {
+  deleteProject,
+  listTemplateLibrary,
+  updateProject,
+  type Project,
+} from '@/lib/api';
 
 interface Template {
   id: string;
   name: string;
   category: string;
+  status?: string;
   username?: string;
+  ownerId?: string;
   domainName?: string;
+  createdAt?: string;
+  updatedAt?: string;
   thumbnail: string;
 }
 
@@ -34,6 +44,48 @@ export default function TemplatesAssetsPage() {
     return tab === 'user' ? 'user' : 'builtin';
   }, [searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [userTemplates, setUserTemplates] = useState<Template[]>([]);
+  const [userTemplatesLoading, setUserTemplatesLoading] = useState(false);
+  const [userTemplatesError, setUserTemplatesError] = useState('');
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [renamingTemplateId, setRenamingTemplateId] = useState<string | null>(null);
+  const [suspendingTemplateId, setSuspendingTemplateId] = useState<string | null>(null);
+
+  const mapProjectToTemplate = useCallback((project: Project): Template => {
+    const statusLabel = String(project.status || '').trim() || 'Template';
+    return {
+      id: project.id,
+      name: (project.templateName || project.title || 'Untitled Template').trim(),
+      category: statusLabel.charAt(0).toUpperCase() + statusLabel.slice(1),
+      status: project.status,
+      username: project.ownerName || undefined,
+      ownerId: project.ownerId || undefined,
+      domainName: project.subdomain || undefined,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      thumbnail: project.thumbnail || '',
+    };
+  }, []);
+
+  const loadUserTemplates = useCallback(async () => {
+    setUserTemplatesLoading(true);
+    setUserTemplatesError('');
+    try {
+      const res = await listTemplateLibrary(200);
+      const mapped = (res.templates || []).map(mapProjectToTemplate);
+      setUserTemplates(mapped);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to load user templates.';
+      setUserTemplatesError(message);
+      setUserTemplates([]);
+    } finally {
+      setUserTemplatesLoading(false);
+    }
+  }, [mapProjectToTemplate]);
+
+  useEffect(() => {
+    void loadUserTemplates();
+  }, [loadUserTemplates]);
 
   const handleTabChange = (tab: 'builtin' | 'user') => {
     if (tab === activeTab) return;
@@ -44,8 +96,6 @@ export default function TemplatesAssetsPage() {
   };
 
   const builtInTemplates: Template[] = [];
-
-  const userTemplates: Template[] = [];
 
   const filteredBuiltInTemplates = builtInTemplates.filter(
     (template) =>
@@ -59,6 +109,68 @@ export default function TemplatesAssetsPage() {
       template.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       template.domainName?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleRenameTemplate = async (template: Template) => {
+    const nextName = window.prompt('Rename template', template.name)?.trim();
+    if (!nextName || nextName === template.name) return;
+
+    setRenamingTemplateId(template.id);
+    try {
+      await updateProject(template.id, { templateName: nextName });
+      setUserTemplates((prev) =>
+        prev.map((item) =>
+          item.id === template.id
+            ? {
+                ...item,
+                name: nextName,
+              }
+            : item
+        )
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to rename template.';
+      setUserTemplatesError(message);
+    } finally {
+      setRenamingTemplateId(null);
+    }
+  };
+
+  const handleDeleteTemplate = async (template: Template) => {
+    const confirmed = window.confirm(`Delete template \"${template.name}\"?`);
+    if (!confirmed) return;
+
+    setDeletingTemplateId(template.id);
+    try {
+      await deleteProject(template.id);
+      setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to delete template.';
+      setUserTemplatesError(message);
+    } finally {
+      setDeletingTemplateId(null);
+    }
+  };
+
+  const handleSuspendTemplate = async (template: Template) => {
+    const confirmed = window.confirm(`Suspend template \"${template.name}\"?`);
+    if (!confirmed) return;
+
+    setSuspendingTemplateId(template.id);
+    try {
+      await updateProject(template.id, { status: 'suspended' });
+      // Suspended templates are removed from the active user template list.
+      setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to suspend template.';
+      setUserTemplatesError(message);
+    } finally {
+      setSuspendingTemplateId(null);
+    }
+  };
+
+  const handlePreviewTemplate = (template: Template) => {
+    router.push(`/design/preview?projectId=${encodeURIComponent(template.id)}`);
+  };
 
   return (
     <div className="admin-dashboard-shell flex h-screen overflow-hidden" suppressHydrationWarning>
@@ -147,9 +259,30 @@ export default function TemplatesAssetsPage() {
             </motion.div>
 
             <div>
+              {activeTab === 'user' && userTemplatesError ? (
+                <div className="mb-4 rounded-xl border border-[#FCA5A5] bg-[#FFF1F2] px-4 py-3 text-sm font-medium text-[#9F1239]">
+                  {userTemplatesError}
+                </div>
+              ) : null}
+
               <AnimatePresence mode="wait">
                 {activeTab === 'builtin' && <BuiltInTemplates templates={filteredBuiltInTemplates} />}
-                {activeTab === 'user' && <UserTemplates templates={filteredUserTemplates} />}
+                {activeTab === 'user' && (
+                  <UserTemplates
+                    templates={filteredUserTemplates}
+                    loading={userTemplatesLoading}
+                    deletingTemplateId={deletingTemplateId}
+                    renamingTemplateId={renamingTemplateId}
+                    suspendingTemplateId={suspendingTemplateId}
+                    onPreview={handlePreviewTemplate}
+                    onSuspend={handleSuspendTemplate}
+                    onRename={handleRenameTemplate}
+                    onDelete={handleDeleteTemplate}
+                    onReload={() => {
+                      void loadUserTemplates();
+                    }}
+                  />
+                )}
               </AnimatePresence>
             </div>
           </div>
