@@ -1,10 +1,11 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { motion } from "framer-motion";
 import {
-  ChevronLeft, ChevronRight, Box, Layers, Minus,
-  ImageIcon, CheckSquare,
-  RectangleHorizontal, Type, ChevronDown, LayoutTemplate, FileCode,
+  ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
+  AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
+  RectangleHorizontal, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
   Plus, Search, X, Video as VideoIcon,
 } from "lucide-react";
 import { DesignTooltip } from "../DesignTooltip";
@@ -16,13 +17,24 @@ import { GROUPED_TEMPLATES as ASSETS_GROUPS } from "../../../_assets";
 import { GROUPED_TEMPLATES as TEMPLATES_GROUPS } from "../../../_templates";
 import { AssetLivePreview } from "./assetsPanel";
 import { Container } from "../../_designComponents/Container/Container";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
 import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
 import { Video } from "../../_designComponents/Video/Video";
 import { Button } from "../../_designComponents/Button/Button";
+import { Divider } from "../../_designComponents/Divider/Divider";
+import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
+import { Banner } from "../../_designComponents/Banner/banner";
+import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
 import { CRAFT_RESOLVER } from "../craftResolver";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
+import { Spacer } from "../../_designComponents/Spacer/Spacer";
+import { Pagination } from "../../_designComponents/Pagination/Pagination";
+import { Rating } from "../../_designComponents/Rating/Rating";
+import { BooleanField } from "../../_designComponents/BooleanField/BooleanField";
 
 interface ComponentVariant {
   label: string;
@@ -39,21 +51,43 @@ interface ComponentVariant {
 // Each component gets a vivid color pair: bg (subtle) + icon color + solid hover color
 // Uses *-500 for icons so they're visible on both light and dark backgrounds
 const COMP_STYLES: Record<string, { base: string; hoverColor: string }> = {
+  Section:            { base: "bg-violet-500/15 text-violet-500",  hoverColor: "#8b5cf6" },
   Container:          { base: "bg-purple-500/15 text-purple-500",  hoverColor: "#a855f7" },
+  Row:                { base: "bg-orange-500/15 text-orange-500",  hoverColor: "#f97316" },
+  Banner:             { base: "bg-rose-500/15 text-rose-500",      hoverColor: "#f43f5e" },
+  Badge:              { base: "bg-emerald-500/15 text-emerald-500",hoverColor: "#10b981" },
+  Column:             { base: "bg-cyan-500/15 text-cyan-500",      hoverColor: "#06b6d4" },
   Text:               { base: "bg-pink-500/15 text-pink-500",      hoverColor: "#ec4899" },
   Image:              { base: "bg-yellow-500/15 text-yellow-500",  hoverColor: "#eab308" },
   Video:              { base: "bg-indigo-500/15 text-indigo-500",  hoverColor: "#6366f1" },
+  Spacer:             { base: "bg-slate-500/15 text-slate-500",    hoverColor: "#64748b" },
   Button:             { base: "bg-red-500/15 text-red-500",        hoverColor: "#ef4444" },
+  "Checkbox / Radio": { base: "bg-lime-500/15 text-lime-600",      hoverColor: "#84cc16" },
+  Pagination:         { base: "bg-blue-500/15 text-blue-500",      hoverColor: "#3b82f6" },
+  Rating:             { base: "bg-amber-500/15 text-amber-500",    hoverColor: "#f59e0b" },
+  Divider:            { base: "bg-gray-500/15 text-gray-500",      hoverColor: "#6b7280" },
+  Tabs:               { base: "bg-teal-500/15 text-teal-500",      hoverColor: "#14b8a6" },
   Accordion:          { base: "bg-fuchsia-500/15 text-fuchsia-500",hoverColor: "#d946ef" },
   "New Page":         { base: "bg-builder-accent/10 text-builder-accent", hoverColor: "#FFCC00" },
 };
 
 const COMPONENT_TOOLTIPS: Record<string, string> = {
+  Section: "Full-width layout block for organizing page sections",
   Container: "Flexible box for grouping and nesting elements",
+  Row: "Horizontal layout - arrange elements side by side",
+  Banner: "Alert-style announcement bar or notification strip",
+  Badge: "Small label or tag to highlight status or categories",
+  Column: "Vertical layout column - stack elements top to bottom",
   Text: "Add editable text — headings, paragraphs, labels",
   Image: "Add an image — upload from device or enter a URL",
   Video: "Embed a video — YouTube, Vimeo, or direct URL",
+  Spacer: "Invisible spacing block to create gaps between elements",
   Button: "Clickable button with customizable text, color and link",
+  "Checkbox / Radio": "Form input - checkbox, radio button or toggle",
+  Pagination: "Navigation controls for multi-page content",
+  Rating: "Star rating display for products or reviews",
+  Divider: "Horizontal rule to separate content sections",
+  Tabs: "Tabbed content switcher - show one panel at a time",
   Accordion: "Expandable/collapsible content panels",
   "New Page": "Add a new blank page to the canvas",
 };
@@ -68,7 +102,7 @@ export const ComponentsPanel = () => {
   const pageComponent = CRAFT_RESOLVER.Page ?? Container;
 
   const FLOW_LAYOUT_COMPONENTS = new Set<unknown>([
-    Container, Accordion, pageComponent,
+    Section, Container, Row, Column, Banner, BadgeComponent, Spacer, Tabs, Accordion, pageComponent,
   ]);
 
   const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement => {
@@ -83,11 +117,26 @@ export const ComponentsPanel = () => {
   };
 
   const WORKING_COMPONENTS: ComponentVariant[] = useMemo(() => [
-    { label: "Container", icon: <Layers />,         iconStyle: COMP_STYLES.Container.base, hoverColor: COMP_STYLES.Container.hoverColor, element: <Element is={Container} background="#f8fafc" padding={20} canvas /> },
+    { label: "Section",   icon: <Box />,           iconStyle: COMP_STYLES.Section.base,   hoverColor: COMP_STYLES.Section.hoverColor,   element: <Element is={Section} canvas /> },
+    { label: "Container", icon: <Layers />,         iconStyle: COMP_STYLES.Container.base, hoverColor: COMP_STYLES.Container.hoverColor, element: <Element is={Container} padding={20} canvas /> },
+    { label: "Row",       icon: <Minus />,          iconStyle: COMP_STYLES.Row.base,       hoverColor: COMP_STYLES.Row.hoverColor,       element: <Element is={Row} canvas /> },
+    { label: "Banner",    icon: <AlertCircle />,    iconStyle: COMP_STYLES.Banner.base,    hoverColor: COMP_STYLES.Banner.hoverColor,
+      element: <Banner background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8} text="FLASH SALE: Up to 70% off - Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" textAlign="center" lineHeight={1.2} />,
+    },
+    { label: "Badge",     icon: <Badge />,          iconStyle: COMP_STYLES.Badge.base,     hoverColor: COMP_STYLES.Badge.hoverColor,
+      element: <BadgeComponent text="Badge" background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8} />,
+    },
+    { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
     { label: "Text",      icon: <Type />,           iconStyle: COMP_STYLES.Text.base,      hoverColor: COMP_STYLES.Text.hoverColor,      element: <Text text="" fontSize={18} width="fit-content" /> },
     { label: "Image",     icon: <ImageIcon />,      iconStyle: COMP_STYLES.Image.base,     hoverColor: COMP_STYLES.Image.hoverColor,     element: <Image width="320px" height="220px" /> },
     { label: "Video",     icon: <VideoIcon />,      iconStyle: COMP_STYLES.Video.base,     hoverColor: COMP_STYLES.Video.hoverColor,     element: <Video width="320px" height="220px" /> },
+    { label: "Spacer",    icon: <Maximize />,       iconStyle: COMP_STYLES.Spacer.base,    hoverColor: COMP_STYLES.Spacer.hoverColor,    element: <Spacer /> },
     { label: "Button",    icon: <RectangleHorizontal />, iconStyle: COMP_STYLES.Button.base,    hoverColor: COMP_STYLES.Button.hoverColor,    element: <Element is={Button} canvas label="Click me" /> },
+    { label: "Checkbox / Radio", icon: <CheckSquare />, iconStyle: COMP_STYLES["Checkbox / Radio"].base, hoverColor: COMP_STYLES["Checkbox / Radio"].hoverColor, element: <BooleanField label="Option" controlType="checkbox" /> },
+    { label: "Pagination",icon: <ListIcon />,       iconStyle: COMP_STYLES.Pagination.base,hoverColor: COMP_STYLES.Pagination.hoverColor,element: <Pagination /> },
+    { label: "Rating",    icon: <Star />,           iconStyle: COMP_STYLES.Rating.base,    hoverColor: COMP_STYLES.Rating.hoverColor,    element: <Rating value={2} /> },
+    { label: "Divider",   icon: <Minus />,          iconStyle: COMP_STYLES.Divider.base,   hoverColor: COMP_STYLES.Divider.hoverColor,   element: <Divider /> },
+    { label: "Tabs",      icon: <Layout />,         iconStyle: COMP_STYLES.Tabs.base,      hoverColor: COMP_STYLES.Tabs.hoverColor,      element: <Element is={Tabs} tabs={[{ id: "tab-1", title: "Tab 1", content: "tab-content-tab-1" }]} activeTabId="tab-1" canvas /> },
     { label: "Accordion", icon: <ChevronDown />,    iconStyle: COMP_STYLES.Accordion.base, hoverColor: COMP_STYLES.Accordion.hoverColor, element: <Accordion /> },
     { label: "New Page",  icon: <LayoutTemplate />, iconStyle: COMP_STYLES["New Page"].base, hoverColor: COMP_STYLES["New Page"].hoverColor, isNewPage: true, dragElement: <Element is={pageComponent} canvas /> },
   ], [pageComponent]);
@@ -136,8 +185,12 @@ export const ComponentsPanel = () => {
 
   // ── Component card ──────────────────────────────────────────────────────────
   const renderComponentItem = (v: any) => (
-    <div
+    <motion.div
       key={v.id || v.label}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+      style={{ willChange: "transform" }}
       ref={(ref) => {
         if (!ref || activeTool === "hand") return;
         const el = v.dragElement || v.element;
@@ -185,14 +238,18 @@ export const ComponentsPanel = () => {
       <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">
         {v.label}
       </span>
-    </div>
+    </motion.div>
   );
 
   const renderSearchResultItem = (v: any) => {
     if (v.type === "component") return renderComponentItem(v);
     if (v.type === "import") {
       return (
-        <div key={v.id}
+        <motion.div key={v.id}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.985 }}
+          transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+          style={{ willChange: "transform" }}
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
           className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
         >
@@ -200,11 +257,15 @@ export const ComponentsPanel = () => {
             <FileCode className="w-5 h-5 builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
           </div>
           <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-        </div>
+        </motion.div>
       );
     }
     return (
-      <div key={v.id}
+      <motion.div key={v.id}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
         className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1"
       >
@@ -220,7 +281,7 @@ export const ComponentsPanel = () => {
           )}
         </div>
         <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-      </div>
+      </motion.div>
     );
   };
 
@@ -239,7 +300,13 @@ export const ComponentsPanel = () => {
   // ── Resource row ─────────────────────────────────────────────────────────────
   const resourceRow = (item: { id: string; label: string; sub: string; icon: React.ReactNode; action: () => void; tooltip: string }) => (
     <DesignTooltip key={item.id} content={item.tooltip} position="top">
-      <button onClick={item.action}
+      <motion.button
+        type="button"
+        onClick={item.action}
+        whileHover={{ scale: 1.005 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
         className="group relative w-full h-14 rounded-xl flex items-center px-3 gap-3 overflow-hidden cursor-pointer transition-all duration-200
           bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)]
           border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]
@@ -263,7 +330,7 @@ export const ComponentsPanel = () => {
       </div>
 
       <ChevronRight className="ml-auto w-3.5 h-3.5 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-0.5 shrink-0" />
-      </button>
+      </motion.button>
     </DesignTooltip>
   );
 
