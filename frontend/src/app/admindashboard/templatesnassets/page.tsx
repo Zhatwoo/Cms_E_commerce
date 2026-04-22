@@ -15,6 +15,10 @@ import {
   updateProject,
   type Project,
 } from '@/lib/api';
+import {
+  removeTemplateProjectEntry,
+  updateTemplateProjectEntry,
+} from '@/lib/templateProjectRegistry';
 
 interface Template {
   id: string;
@@ -222,6 +226,7 @@ export default function TemplatesAssetsPage() {
       setRenamingTemplateId(template.id);
       try {
         await updateProject(template.id, { templateName: nextName });
+        updateTemplateProjectEntry(template.id, { name: nextName });
         setUserTemplates((prev) =>
           prev.map((item) =>
             item.id === template.id
@@ -248,7 +253,6 @@ export default function TemplatesAssetsPage() {
       try {
         await updateProject(template.id, { status: 'suspended' });
         setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
-        window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
         closeTemplateActionModal();
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Failed to suspend template.';
@@ -283,6 +287,7 @@ export default function TemplatesAssetsPage() {
     try {
       await deleteProject(template.id);
       setUserTemplates((prev) => prev.filter((item) => item.id !== template.id));
+      closeTemplateActionModal();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to delete template.';
       setUserTemplatesError(message);
