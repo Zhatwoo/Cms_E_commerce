@@ -16,6 +16,7 @@ export interface HeroBannerCTA_v2BlockProps {
   subtitle?: string;
   buttonLabel?: string;
   backgroundImage?: string;
+  imageOpacity?: number;
   minHeight?: number;
   overlayColor?: string;
   buttonColor?: string;
@@ -215,6 +216,10 @@ export const HeroBannerCTA_v2BlockSettings = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image opacity (%)</label>
+            <NumericInput value={props.imageOpacity != null ? (props.imageOpacity <= 1 ? props.imageOpacity * 100 : props.imageOpacity) : 85} onChange={(val) => set("imageOpacity", val)} min={0} max={100} step={1} unit="%" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
             <ColorPicker value={props.overlayColor ?? "rgba(255,255,255,0.2)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
           </div>
@@ -253,6 +258,7 @@ export const HeroBannerCTA_v2Block = ({
   buttonLabel = "BUY NOW",
   backgroundImage =
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=2099&auto=format&fit=crop",
+  imageOpacity = 0.85,
   minHeight = 500,
   overlayColor = "rgba(255,255,255,0.2)",
   buttonColor = "#000000",
@@ -270,6 +276,8 @@ export const HeroBannerCTA_v2Block = ({
   const id = node?.id || nodeId;
   const connectors = node?.connectors;
 
+  const getImageOpacity = (value: number) => Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
@@ -286,17 +294,30 @@ export const HeroBannerCTA_v2Block = ({
       style={{
         width: "100%",
         minHeight,
+        position: "relative",
+        overflow: "hidden",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         padding: 0,
-        backgroundImage: `linear-gradient(${overlayColor}, ${overlayColor}), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundColor: overlayColor,
       }}
     >
       <div
+        aria-hidden="true"
         style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: getImageOpacity(imageOpacity),
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
           width: "min(100%, 1280px)",
           minHeight,
           padding: "clamp(40px, 6vw, 80px) clamp(16px, 4vw, 48px)",
@@ -387,6 +408,7 @@ HeroBannerCTA_v2Block.craft = {
     buttonLabel: "BUY NOW",
     backgroundImage:
       "https://images.unsplash.com/photo-1523275335684-37898b6baf30?q=80&w=2099&auto=format&fit=crop",
+    imageOpacity: 0.85,
     minHeight: 500,
     overlayColor: "rgba(255,255,255,0.2)",
     buttonColor: "#000000",

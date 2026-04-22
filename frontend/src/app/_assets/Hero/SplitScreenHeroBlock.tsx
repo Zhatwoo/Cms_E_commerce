@@ -17,6 +17,7 @@ export interface SplitScreenHeroBlockProps {
   primaryLabel?: string;
   secondaryLabel?: string;
   backgroundImage?: string;
+  imageOpacity?: number;
   minHeight?: number;
   overlayColor?: string;
   accentColor?: string;
@@ -133,6 +134,10 @@ export const SplitScreenHeroBlockSettings = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image opacity (%)</label>
+            <NumericInput value={props.imageOpacity != null ? (props.imageOpacity <= 1 ? props.imageOpacity * 100 : props.imageOpacity) : 85} onChange={(val) => set("imageOpacity", val)} min={0} max={100} step={1} unit="%" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
             <ColorPicker value={props.overlayColor ?? "rgba(0,0,0,0.35)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
           </div>
@@ -179,6 +184,7 @@ export const SplitScreenHeroBlock = ({
   primaryLabel = "Shop Now",
   secondaryLabel = "View Lookbook",
   backgroundImage = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop",
+  imageOpacity = 0.85,
   minHeight = 600,
   overlayColor = "rgba(0,0,0,0.35)",
   accentColor = "#6366f1",
@@ -197,6 +203,8 @@ export const SplitScreenHeroBlock = ({
 
   const id = node?.id || nodeId;
   const connectors = node?.connectors;
+
+  const getImageOpacity = (value: number) => Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
 
 
   const isCloseUp = layoutStyle === "close-up";
@@ -223,15 +231,25 @@ export const SplitScreenHeroBlock = ({
       {/* Image half */}
       <div
         style={{
+          position: "relative",
           flex: isCloseUp ? "none" : "1 1 50%",
           minWidth: "min(100%, 320px)",
           minHeight: isCloseUp ? 280 : minHeight,
-          backgroundImage: `linear-gradient(${overlayColor}, ${overlayColor}), url(${backgroundImage})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          position: "relative",
+          overflow: "hidden",
+          backgroundColor: overlayColor,
         }}
       >
+        <div
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            inset: 0,
+            backgroundImage: `url(${backgroundImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            opacity: getImageOpacity(imageOpacity),
+          }}
+        />
         <div style={{
           position: "absolute",
           bottom: 0,
@@ -313,6 +331,7 @@ SplitScreenHeroBlock.craft = {
     primaryLabel: "Shop Now",
     secondaryLabel: "View Lookbook",
     backgroundImage: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?q=80&w=2070&auto=format&fit=crop",
+    imageOpacity: 0.85,
     minHeight: 600,
     overlayColor: "rgba(0,0,0,0.35)",
     accentColor: "#6366f1",
