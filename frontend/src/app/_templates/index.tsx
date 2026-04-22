@@ -7,7 +7,7 @@ import { HeaderWithSearch, SimpleHeader } from "../_assets/Header";
 import { HeroWithImage, CenteredHero, SplitScreenHero, VideoStyleHero } from "../_assets/Hero";
 import { BrandLogos, CTABanner, NewsletterCTA, FeaturesGrid, Testimonial, StatsCounter, ImageText } from "../_assets/Content";
 import { ProductsOverview, CategoriesCard, TeamMemberCard } from "../_assets/Cards";
-import { SimpleFooter, DarkCommerceFooter, MinimalFooter } from "../_assets/Footer";
+import { DarkCommerceFooter, MinimalFooter } from "../_assets/Footer";
 import { Container } from "../design/_designComponents/Container/Container";
 
 const EcommerceLandingPreview = () => (
@@ -137,7 +137,7 @@ const ProductLaunchTemplate: TemplateEntry = {
       {ImageText.element}
       {Testimonial.element}
       {CTABanner.element}
-      {SimpleFooter.element}
+      {MinimalFooter.element}
     </Element>
   ),
 };

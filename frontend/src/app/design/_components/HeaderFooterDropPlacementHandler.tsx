@@ -122,58 +122,19 @@ export function HeaderFooterDropPlacementHandler() {
 
           let targetParentId = initialParentId;
 
-          if (category === "footer") {
-            const pageAncestorId = findAncestorByDisplayName(nodes, initialParentId, "Page");
-            if (pageAncestorId && pageAncestorId !== initialParentId) {
-              const latestBeforeMove = (query.getState()?.nodes ?? {}) as Record<string, NodeShape>;
-              const pageChildren = Array.isArray(latestBeforeMove[pageAncestorId]?.data?.nodes)
-                ? (latestBeforeMove[pageAncestorId]?.data?.nodes as string[])
-                : [];
-              const toPageIndex = pageChildren.length;
-              try {
-                actions.move(nodeId, pageAncestorId, toPageIndex);
-                targetParentId = pageAncestorId;
-              } catch {
-                targetParentId = initialParentId;
-              }
-            }
-          }
-
           const currentState = query.getState();
           const currentNodes = (currentState?.nodes ?? {}) as Record<string, NodeShape>;
           const siblings = Array.isArray(currentNodes[targetParentId]?.data?.nodes)
             ? (currentNodes[targetParentId]?.data?.nodes as string[])
             : [];
 
-          if (siblings.length > 0) {
-            const desiredIndex = category === "header" ? 0 : siblings.length - 1;
+          if (siblings.length > 0 && category === "header") {
+            const desiredIndex = 0;
             if (siblings[desiredIndex] !== nodeId) {
               try {
                 actions.move(nodeId, targetParentId, desiredIndex);
               } catch {
                 // no-op
-              }
-            }
-          }
-
-          if (category === "footer") {
-            const latestNodes = (query.getState()?.nodes ?? {}) as Record<string, NodeShape>;
-            const latestParentId = latestNodes[nodeId]?.data?.parent;
-            const parentDisplayName = latestParentId ? latestNodes[latestParentId]?.data?.displayName : undefined;
-            if (parentDisplayName === "Page") {
-              try {
-                actions.setProp(nodeId, (props: Record<string, unknown>) => {
-                  props.position = "absolute";
-                  props.left = "0px";
-                  props.right = "auto";
-                  props.top = "auto";
-                  props.bottom = "0px";
-                  props.width = "100%";
-                  props.marginTop = 0;
-                  props.marginBottom = 0;
-                });
-              } catch {
-                // ignore
               }
             }
           }
@@ -213,58 +174,19 @@ export function HeaderFooterDropPlacementHandler() {
 
         let targetParentId = initialParentId;
 
-        if (category === "footer") {
-          const pageAncestorId = findAncestorByDisplayName(nodes, initialParentId, "Page");
-          if (pageAncestorId && pageAncestorId !== initialParentId) {
-            const latestBeforeMove = (query.getState()?.nodes ?? {}) as Record<string, NodeShape>;
-            const pageChildren = Array.isArray(latestBeforeMove[pageAncestorId]?.data?.nodes)
-              ? (latestBeforeMove[pageAncestorId]?.data?.nodes as string[])
-              : [];
-            const toPageIndex = pageChildren.length;
-            try {
-              actions.move(nodeId, pageAncestorId, toPageIndex);
-              targetParentId = pageAncestorId;
-            } catch {
-              targetParentId = initialParentId;
-            }
-          }
-        }
-
         const currentState = query.getState();
         const currentNodes = (currentState?.nodes ?? {}) as Record<string, NodeShape>;
         const siblings = Array.isArray(currentNodes[targetParentId]?.data?.nodes)
           ? (currentNodes[targetParentId]?.data?.nodes as string[])
           : [];
 
-        if (siblings.length > 0) {
-          const desiredIndex = category === "header" ? 0 : siblings.length - 1;
+        if (siblings.length > 0 && category === "header") {
+          const desiredIndex = 0;
           if (siblings[desiredIndex] !== nodeId) {
             try {
               actions.move(nodeId, targetParentId, desiredIndex);
             } catch {
               // no-op: if Craft rejects move, keep default placement
-            }
-          }
-        }
-
-        if (category === "footer") {
-          const latestNodes = (query.getState()?.nodes ?? {}) as Record<string, NodeShape>;
-          const latestParentId = latestNodes[nodeId]?.data?.parent;
-          const parentDisplayName = latestParentId ? latestNodes[latestParentId]?.data?.displayName : undefined;
-          if (parentDisplayName === "Page") {
-            try {
-              actions.setProp(nodeId, (props: Record<string, unknown>) => {
-                props.position = "absolute";
-                props.left = "0px";
-                props.right = "auto";
-                props.top = "auto";
-                props.bottom = "0px";
-                props.width = "100%";
-                props.marginTop = 0;
-                props.marginBottom = 0;
-              });
-            } catch {
-              // ignore if node type does not support these props
             }
           }
         }
