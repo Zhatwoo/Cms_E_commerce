@@ -276,7 +276,7 @@ export const Badge = ({
 			position,
 			alignSelf,
 			top: position !== "static" ? top : undefined,
-			right: position !== "static" ? posRight : undefined,
+			right: position !== "static" ? right : undefined,
 			bottom: position !== "static" ? bottom : undefined,
 				left: position !== "static" ? left : undefined,
 				zIndex: zIndex !== 0 ? zIndex : undefined,
