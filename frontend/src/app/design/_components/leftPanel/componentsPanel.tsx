@@ -416,7 +416,7 @@ export const ComponentsPanel = () => {
         </div>
 
         {/* Blocks view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "blocks" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "blocks" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
             <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
               {backBtn(() => setPanelView("landing"))}
@@ -427,7 +427,7 @@ export const ComponentsPanel = () => {
         </div>
 
         {/* Templates view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "templates" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "templates" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
             <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
               {backBtn(() => setPanelView("landing"))}
@@ -438,7 +438,7 @@ export const ComponentsPanel = () => {
         </div>
 
         {/* Imports view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "imports" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "imports" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
             <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
               {backBtn(() => setPanelView("landing"))}
