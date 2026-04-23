@@ -5921,7 +5921,48 @@ function RenderNode({
     case "VideoStyleHeroBlock":
       return wrap(<VideoStyleHeroBlock {...(props as any)} nodeId={nodeId} />);
     case "CollectionHeroBlock":
-      return wrap(<CollectionHeroBlock {...(props as any)} nodeId={nodeId} />);
+      return wrap(
+        <CollectionHeroBlock
+          {...(props as any)}
+          nodeId={nodeId}
+          categoryTags={(() => {
+            const normalized = (value: unknown) => String(value ?? "").trim();
+            const productCategories = storeContext?.products
+              ? Array.from(
+                  new Set(
+                    storeContext.products.flatMap((product) => {
+                      const record = product as any;
+                      return [
+                        record.category,
+                        record.subcategory,
+                        record.subCategory,
+                        record.sub_category,
+                        record.details?.category,
+                        record.details?.subcategory,
+                        record.details?.subCategory,
+                        record.details?.sub_category,
+                        record.specifications?.category,
+                        record.specifications?.subcategory,
+                        record.specifications?.subCategory,
+                        record.specifications?.sub_category,
+                      ]
+                        .map(normalized)
+                        .filter(Boolean);
+                    })
+                  )
+                )
+              : [];
+            const preset = getIndustryCategories((props.projectIndustry as string) || "clothing-apparel");
+            const groupedPreset = smartGroupCategories(preset);
+            const existing = new Set(productCategories.map((category) => category.toLowerCase()));
+            const merged = [
+              ...productCategories,
+              ...groupedPreset.filter((category) => !existing.has(category.toLowerCase())),
+            ];
+            return merged.slice(0, 4);
+          })()}
+        />
+      );
     case "TeamMemberCardCanvas": {
       const p = typeof props.padding === "number" ? props.padding : 0;
       const pt = toNumber(props.paddingTop ?? p, 16);
