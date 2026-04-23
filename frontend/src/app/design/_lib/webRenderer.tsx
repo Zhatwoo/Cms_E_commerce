@@ -2507,6 +2507,28 @@ function RenderNode({
   const toggleTarget = getToggleTarget(props);
   const triggerAction = getTriggerAction(props);
   const interactiveClick = !allowPreviewInput && toggleTarget ? () => onToggle(toggleTarget, triggerAction) : undefined;
+
+  // Parity adjustment for absolute elements at root level (children of page)
+  const isAbsolute = (props.position === "absolute" || props.position === "fixed");
+  const isRootLevel = !parentType;
+  const shouldApplyParityOffset = isRootLevel && isAbsolute && !builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth;
+  
+  const adjustAbsValue = (val: any) => {
+    if (!shouldApplyParityOffset) return val;
+    if (val === undefined || val === null) return val;
+    const s = String(val).trim();
+    if (!s) return val;
+    const num = parseFloat(s);
+    if (isNaN(num)) return val;
+    const unit = s.replace(/[0-9.-]/g, "") || "px";
+    if (unit !== "px") return val; 
+    return `calc(50% - ${effectiveLayoutReferenceWidth! / 2}px + ${num}px)`;
+  };
+
+  const adjustedLeft = adjustAbsValue(props.left);
+  const adjustedRight = adjustAbsValue(props.right);
+  const adjustedTop = props.top as any;
+  const adjustedBottom = props.bottom as any;
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
@@ -2844,10 +2866,10 @@ function RenderNode({
         <section
           style={{
             position: (props.position as any) || "relative",
-            top: props.top as any,
-            left: props.left as any,
-            right: props.right as any,
-            bottom: props.bottom as any,
+            top: adjustedTop,
+            left: adjustedLeft,
+            right: adjustedRight,
+            bottom: adjustedBottom,
             zIndex: props.zIndex as any,
             width: "100%",
             background,
@@ -2952,6 +2974,11 @@ function RenderNode({
       const pRight = toNumber(props.paddingRight, 24);
       const pBottom = toNumber(props.paddingBottom, 16);
       const pLeft = toNumber(props.paddingLeft, 24);
+      const m = props.margin;
+      const mt = props.marginTop ?? m;
+      const mr = props.marginRight ?? m;
+      const mb = props.marginBottom ?? m;
+      const ml = props.marginLeft ?? m;
       const maxItems = toNumber(props.maxItems, 4);
       const showProductName = props.showProductName !== false;
       const showPrice = props.showPrice !== false;
@@ -2977,14 +3004,16 @@ function RenderNode({
       return wrap(
         <section style={{
           position: (props.position as any) || "relative",
-          top: props.top as any,
-          left: props.left as any,
-          right: props.right as any,
-          bottom: props.bottom as any,
+          top: adjustedTop,
+          left: (!builderParityMode && !isNarrowPreview) ? 0 : adjustedLeft,
+          right: (!builderParityMode && !isNarrowPreview) ? 0 : adjustedRight,
+          bottom: adjustedBottom,
           zIndex: props.zIndex as any,
-          width: "100%",
+          width: (!builderParityMode && !isNarrowPreview) ? "100%" : "100%", // Always 100% for this specialized component
+          alignSelf: "stretch",
           background,
           padding: `${pTop}px ${pRight}px ${pBottom}px ${pLeft}px`,
+          margin: (!builderParityMode && !isNarrowPreview) ? "0" : `${fluidSpace(mt, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(mr, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(mb, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(ml, 0, 0.45, undefined, useFixedPx)}`,
           boxSizing: "border-box"
         }}>
           <div style={{
@@ -2993,6 +3022,8 @@ function RenderNode({
             gap: "16px",
             justifyContent: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
             justifyItems: props.cardsAlign === "center" ? "center" : props.cardsAlign === "right" ? "end" : "start",
+            maxWidth: (!builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth) ? `${effectiveLayoutReferenceWidth}px` : undefined,
+            margin: (!builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth) ? "0 auto" : undefined,
           }}>
             {displayedProducts.map((product) => {
               const image = product.images?.[0] ?? "";
@@ -3186,10 +3217,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position,
-            top: position !== "static" ? (props.top as React.CSSProperties["top"]) : undefined,
-            left: position !== "static" ? (props.left as React.CSSProperties["left"]) : undefined,
-            right: position !== "static" ? (props.right as React.CSSProperties["right"]) : undefined,
-            bottom: position !== "static" ? (props.bottom as React.CSSProperties["bottom"]) : undefined,
+            top: position !== "static" ? adjustedTop : undefined,
+            left: position !== "static" ? adjustedLeft : undefined,
+            right: position !== "static" ? adjustedRight : undefined,
+            bottom: position !== "static" ? adjustedBottom : undefined,
             zIndex: props.zIndex as number | undefined,
             width,
             maxWidth: "100%",
@@ -3873,10 +3904,10 @@ function RenderNode({
         opacity: props.opacity as number,
         overflow: effectiveOverflow,
         cursor: interactiveClick ? "pointer" : (props.cursor as string),
-        top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
-        right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
-        bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
-        left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+        top: shouldClearNarrowOffsets ? undefined : adjustedTop,
+        right: (!builderParityMode && !isNarrowPreview && !isAbsolute) ? 0 : (shouldClearNarrowOffsets ? undefined : adjustedRight),
+        bottom: shouldClearNarrowOffsets ? undefined : adjustedBottom,
+        left: (!builderParityMode && !isNarrowPreview && !isAbsolute) ? 0 : (shouldClearNarrowOffsets ? undefined : adjustedLeft),
       };
 
       const containerContent = isNav ? (
@@ -3888,7 +3919,23 @@ function RenderNode({
           nodeId={nodeId}
           nodeType={type}
         >
-          {children}
+          <div style={{
+            width: "100%",
+            maxWidth: (!builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth) ? `${effectiveLayoutReferenceWidth}px` : "100%",
+            margin: (!builderParityMode && !isNarrowPreview) ? "0 auto" : "0",
+            display: (displayVal === "flex" || displayVal === "grid") ? displayVal : undefined,
+            flexDirection: displayVal === "flex" ? (props.flexDirection as any) : undefined,
+            flexWrap: displayVal === "flex" ? (props.flexWrap as any) : undefined,
+            alignItems: (displayVal === "flex" || displayVal === "grid") ? (props.alignItems as string) : undefined,
+            justifyContent: (displayVal === "flex" || displayVal === "grid") ? (props.justifyContent as string) : undefined,
+            gap: displayVal === "flex" ? fluidSpace(props.gap, 0, 0.45, undefined, useFixedPx) : undefined,
+            gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
+            gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
+            columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+            rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+          }}>
+            {children}
+          </div>
         </ResponsiveNav>
       ) : (
         <div
@@ -3897,10 +3944,35 @@ function RenderNode({
           data-fluid-grid={displayVal === "grid" ? "true" : undefined}
           data-layout={displayVal === "flex" ? ((props.flexDirection as string) === "row" ? "row" : "column") : undefined}
           className={((props.customClassName as string) || "").trim() || undefined}
-          style={containerStyle}
+          style={{
+            ...containerStyle,
+            width: (!builderParityMode && !isNarrowPreview) ? "100%" : (normalizedWidth ?? (props.width as string)),
+            maxWidth: "none",
+            alignSelf: "stretch",
+            margin: (!builderParityMode && !isNarrowPreview) ? "0" : containerStyle.margin,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+          }}
           onClick={interactiveClick}
         >
-          {children}
+          <div style={{
+            width: "100%",
+            maxWidth: (!builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth) ? `${effectiveLayoutReferenceWidth}px` : "100%",
+            margin: (!builderParityMode && !isNarrowPreview) ? "0 auto" : "0",
+            display: (displayVal === "flex" || displayVal === "grid") ? displayVal : undefined,
+            flexDirection: displayVal === "flex" ? (props.flexDirection as any) : undefined,
+            flexWrap: displayVal === "flex" ? (props.flexWrap as any) : undefined,
+            alignItems: (displayVal === "flex" || displayVal === "grid") ? (props.alignItems as string) : undefined,
+            justifyContent: (displayVal === "flex" || displayVal === "grid") ? (props.justifyContent as string) : undefined,
+            gap: displayVal === "flex" ? fluidSpace(props.gap, 0, 0.45, undefined, useFixedPx) : undefined,
+            gridTemplateColumns: displayVal === "grid" ? (props.gridTemplateColumns as string) : undefined,
+            gridTemplateRows: displayVal === "grid" ? (props.gridTemplateRows as string) : undefined,
+            columnGap: displayVal === "grid" ? fluidSpace(props.gridColumnGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+            rowGap: displayVal === "grid" ? fluidSpace(props.gridRowGap ?? props.gridGap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+          }}>
+            {children}
+          </div>
         </div>
       );
 
@@ -3980,8 +4052,9 @@ function RenderNode({
               backgroundRepeat: (props.backgroundRepeat as string),
             } : {}),
             padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
-            margin: `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
-            width: normalizedWidth ?? (props.width as string),
+            margin: (!builderParityMode && !isNarrowPreview) ? "0 auto" : `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
+            width: (!builderParityMode && !isNarrowPreview) ? "100%" : (normalizedWidth ?? (props.width as string) ?? "100%"),
+            alignSelf: "stretch",
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
             height: effectiveSectionHeight,
@@ -3992,19 +4065,19 @@ function RenderNode({
               : sectionBorderDecl
                 ? { border: sectionBorderDecl }
                 : {}),
-            display: props.isFreeform ? "block" : "flex",
-            flexDirection: !props.isFreeform ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
-            flexWrap: !props.isFreeform ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
-            alignItems: !props.isFreeform ? (props.alignItems as string) : undefined,
-            justifyContent: !props.isFreeform ? (props.justifyContent as string) : undefined,
-            gap: !props.isFreeform ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+            display: (builderParityMode || isNarrowPreview) ? (props.isFreeform ? "block" : "flex") : "block",
+            flexDirection: (builderParityMode || isNarrowPreview) && !props.isFreeform ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
+            flexWrap: (builderParityMode || isNarrowPreview) && !props.isFreeform ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
+            alignItems: (builderParityMode || isNarrowPreview) && !props.isFreeform ? (props.alignItems as string) : undefined,
+            justifyContent: (builderParityMode || isNarrowPreview) && !props.isFreeform ? (props.justifyContent as string) : undefined,
+            gap: (builderParityMode || isNarrowPreview) && !props.isFreeform ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
             boxShadow: props.boxShadow as string,
             opacity: props.opacity as number,
             position: normalizedPosition,
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            top: (props.position as string) !== "static" ? ((!builderParityMode && !isNarrowPreview && !isAbsolute) ? 0 : adjustedTop) : undefined,
+            left: (props.position as string) !== "static" ? ((!builderParityMode && !isNarrowPreview && !isAbsolute) ? 0 : adjustedLeft) : undefined,
+            right: (props.position as string) !== "static" ? ((!builderParityMode && !isNarrowPreview && !isAbsolute) ? 0 : adjustedRight) : undefined,
+            bottom: (props.position as string) !== "static" ? ((!builderParityMode && !isNarrowPreview && !isAbsolute) ? 0 : adjustedBottom) : undefined,
             zIndex: props.zIndex as number,
             overflow: effectiveSectionOverflow,
             alignSelf: props.alignSelf as any,
@@ -4012,13 +4085,21 @@ function RenderNode({
           }}
           onClick={interactiveClick}
         >
-          {props.isFreeform ? (
-            <div style={{ position: "relative", width: "100%" }}>
-              {children}
-            </div>
-          ) : (
-            children
-          )}
+          <div style={{
+            position: "relative",
+            width: "100%",
+            maxWidth: (!builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth) ? `${effectiveLayoutReferenceWidth}px` : undefined,
+            margin: (!builderParityMode && !isNarrowPreview && effectiveLayoutReferenceWidth) ? "0 auto" : undefined,
+            // Only apply flex/grid to this inner wrapper on the live site for non-freeform sections
+            display: (!builderParityMode && !isNarrowPreview && !props.isFreeform) ? "flex" : (props.isFreeform ? "block" : undefined),
+            flexDirection: (!builderParityMode && !isNarrowPreview && !props.isFreeform) ? (props.flexDirection as React.CSSProperties["flexDirection"]) : undefined,
+            flexWrap: (!builderParityMode && !isNarrowPreview && !props.isFreeform) ? (props.flexWrap as React.CSSProperties["flexWrap"]) : undefined,
+            alignItems: (!builderParityMode && !isNarrowPreview && !props.isFreeform) ? (props.alignItems as string) : undefined,
+            justifyContent: (!builderParityMode && !isNarrowPreview && !props.isFreeform) ? (props.justifyContent as string) : undefined,
+            gap: (!builderParityMode && !isNarrowPreview && !props.isFreeform) ? fluidSpace(props.gap, 0, spacing.gapRatio, spacing.gapCqw, useFixedPx) : undefined,
+          }}>
+            {children}
+          </div>
         </section>
       );
     }
@@ -4397,10 +4478,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizedPos,
-            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
-            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
-            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
-            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedTop : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedLeft : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedRight : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedBottom : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedImageWidth,
             height: resolvedImageHeight,
@@ -4492,10 +4573,10 @@ function RenderNode({
             display: "inline-flex",
             alignSelf: props.alignSelf as any,
             position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            top: (props.position as string) !== "static" ? adjustedTop : undefined,
+            left: (props.position as string) !== "static" ? adjustedLeft : undefined,
+            right: (props.position as string) !== "static" ? adjustedRight : undefined,
+            bottom: (props.position as string) !== "static" ? adjustedBottom : undefined,
             zIndex: (props.zIndex as number | undefined) ?? 3,
             flexDirection: "column",
             alignItems: "flex-start",
@@ -4637,10 +4718,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            top: (props.position as string) !== "static" ? adjustedTop : undefined,
+            left: (props.position as string) !== "static" ? adjustedLeft : undefined,
+            right: (props.position as string) !== "static" ? adjustedRight : undefined,
+            bottom: (props.position as string) !== "static" ? adjustedBottom : undefined,
             zIndex: (props.zIndex as number | undefined) ?? 2,
             width: resolvedVideoWidth,
             height: resolvedVideoHeight,
@@ -4727,10 +4808,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizedPos,
-            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
-            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
-            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
-            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedTop : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedLeft : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedRight : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedBottom : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 2,
             background: bg,
             color,
@@ -4886,10 +4967,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizedPosition,
-            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
-            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
-            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
-            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            top: shouldClearNarrowOffsets ? undefined : adjustedTop,
+            right: shouldClearNarrowOffsets ? undefined : adjustedRight,
+            bottom: shouldClearNarrowOffsets ? undefined : adjustedBottom,
+            left: shouldClearNarrowOffsets ? undefined : adjustedLeft,
             zIndex: (props.zIndex as number | undefined) ?? 3,
             width,
             height,
@@ -5002,10 +5083,10 @@ function RenderNode({
             borderColor: (props.borderColor as string) || "transparent",
             borderStyle: toNumber(props.borderWidth, 0) > 0 ? (props.borderStyle as string || "solid") : "none",
             position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            top: (props.position as string) !== "static" ? adjustedTop : undefined,
+            left: (props.position as string) !== "static" ? adjustedLeft : undefined,
+            right: (props.position as string) !== "static" ? adjustedRight : undefined,
+            bottom: (props.position as string) !== "static" ? adjustedBottom : undefined,
             zIndex: (props.zIndex as number | undefined) ?? 3,
             alignSelf: props.alignSelf as any,
             opacity: toNumber(props.opacity, 1),
@@ -5112,10 +5193,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizeResponsivePosition(((props.position as React.CSSProperties["position"]) || "relative"), isNarrowPreview, props, viewportWidth, builderParityMode),
-            top: (props.position as string) !== "static" ? (props.top as string) : undefined,
-            left: (props.position as string) !== "static" ? (props.left as string) : undefined,
-            right: (props.position as string) !== "static" ? (props.right as string) : undefined,
-            bottom: (props.position as string) !== "static" ? (props.bottom as string) : undefined,
+            top: (props.position as string) !== "static" ? adjustedTop : undefined,
+            left: (props.position as string) !== "static" ? adjustedLeft : undefined,
+            right: (props.position as string) !== "static" ? adjustedRight : undefined,
+            bottom: (props.position as string) !== "static" ? adjustedBottom : undefined,
             zIndex: (props.zIndex as number | undefined) ?? 1,
             width,
             height,
@@ -5191,10 +5272,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizedPosition,
-            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
-            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
-            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
-            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            top: shouldClearNarrowOffsets ? undefined : adjustedTop,
+            right: shouldClearNarrowOffsets ? undefined : adjustedRight,
+            bottom: shouldClearNarrowOffsets ? undefined : adjustedBottom,
+            left: shouldClearNarrowOffsets ? undefined : adjustedLeft,
             zIndex: (props.zIndex as number | undefined) ?? 3,
             width: badgeWidth,
             height: badgeHeight,
@@ -5353,10 +5434,10 @@ function RenderNode({
           className={((props.customClassName as string) || "").trim() || undefined}
           style={{
             position: normalizedPosition,
-            top: shouldClearNarrowOffsets ? undefined : (props.top as React.CSSProperties["top"]),
-            right: shouldClearNarrowOffsets ? undefined : (props.right as React.CSSProperties["right"]),
-            bottom: shouldClearNarrowOffsets ? undefined : (props.bottom as React.CSSProperties["bottom"]),
-            left: shouldClearNarrowOffsets ? undefined : (props.left as React.CSSProperties["left"]),
+            top: shouldClearNarrowOffsets ? undefined : adjustedTop,
+            right: shouldClearNarrowOffsets ? undefined : adjustedRight,
+            bottom: shouldClearNarrowOffsets ? undefined : adjustedBottom,
+            left: shouldClearNarrowOffsets ? undefined : adjustedLeft,
             zIndex: (props.zIndex as number | undefined) ?? 3,
             width,
             height,
@@ -5436,10 +5517,10 @@ function RenderNode({
           data-smooth="true"
           style={{
             position: normalizedPos,
-            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
-            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
-            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
-            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedTop : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedLeft : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedRight : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedBottom : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 1,
             width: normalizeLayoutWidthForNarrow((props.width as string) || "100%", isNarrowPreview, builderParityMode) || "100%",
             border: "none",
@@ -5471,10 +5552,10 @@ function RenderNode({
           onClick={interactiveClick}
           style={{
             position: normalizedPos,
-            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
-            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
-            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
-            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedTop : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedLeft : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedRight : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedBottom : undefined),
             zIndex: (props.zIndex as number | undefined) ?? 3,
             ["--fluid-icon-max" as any]: `${iconSize}px`,
             maxWidth: "100%",
@@ -5555,10 +5636,10 @@ function RenderNode({
             minHeight: 1,
             maxWidth: "100%",
             position: normalizedPos,
-            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
-            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
-            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
-            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedTop : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedLeft : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedRight : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedBottom : undefined),
             margin: toNumber(props.margin, 0),
             marginTop: toNumber(props.marginTop ?? m, 0),
             marginRight: toNumber(props.marginRight ?? m, 0),
@@ -5612,11 +5693,11 @@ function RenderNode({
         if (type === "Kite") return "polygon(50% 0%, 100% 45%, 50% 100%, 0% 45%)";
         return undefined;
       })();
-      const m = toNumber(props.margin, 0);
-      const mt = toNumber(props.marginTop ?? m, 0);
-      const mr = toNumber(props.marginRight ?? m, 0);
-      const mb = toNumber(props.marginBottom ?? m, 0);
-      const ml = toNumber(props.marginLeft ?? m, 0);
+      const m = props.margin;
+      const mt = props.marginTop ?? m;
+      const mr = props.marginRight ?? m;
+      const mb = props.marginBottom ?? m;
+      const ml = props.marginLeft ?? m;
       const p = toNumber(props.padding, 0);
       const pt = toNumber(props.paddingTop ?? p, 0);
       const pr = toNumber(props.paddingRight ?? p, 0);
@@ -5662,10 +5743,10 @@ function RenderNode({
             position: normalizedPos,
             display: props.display as React.CSSProperties["display"],
             zIndex: toNumber(props.zIndex, 0) || undefined,
-            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.top as string) : undefined),
-            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.left as string) : undefined),
-            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.right as string) : undefined),
-            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? (props.bottom as string) : undefined),
+            top: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedTop : undefined),
+            left: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedLeft : undefined),
+            right: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedRight : undefined),
+            bottom: shouldClearOffsets ? undefined : ((props.position as string) !== "static" ? adjustedBottom : undefined),
             transform: (() => {
               const r = toNumber(props.rotation, 0);
               const fh = props.flipHorizontal === true;
@@ -5698,7 +5779,7 @@ function RenderNode({
               : {}),
             alignItems: "center",
             justifyContent: "center",
-            margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
+            margin: `${fluidSpace(mt, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(mr, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(mb, 0, 0.45, undefined, useFixedPx)} ${fluidSpace(ml, 0, 0.45, undefined, useFixedPx)}`,
             padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
             boxShadow: props.boxShadow as string,
             opacity: toNumber(props.opacity, 1),
@@ -5970,11 +6051,11 @@ function RenderNode({
       const pb = toNumber(props.paddingBottom ?? p, 16);
       const pl = toNumber(props.paddingLeft ?? p, 12);
 
-      const m = typeof props.margin === "number" ? props.margin : 0;
-      const mt = toNumber(props.marginTop ?? m, 0);
-      const mr = toNumber(props.marginRight ?? m, 0);
-      const mb = toNumber(props.marginBottom ?? m, 0);
-      const ml = toNumber(props.marginLeft ?? m, 0);
+      const m = props.margin;
+      const mt = props.marginTop ?? m;
+      const mr = props.marginRight ?? m;
+      const mb = props.marginBottom ?? m;
+      const ml = props.marginLeft ?? m;
 
       const width = (props.width as string) || "240px";
       const height = (props.height as string) || "auto";
@@ -6014,10 +6095,10 @@ function RenderNode({
             gap: fluidSpace(gap, 0, 0.4, 1.8, useFixedPx),
             boxSizing: "border-box",
             position: canvasPosition,
-            top: canvasPosition !== "static" ? (props.top as any) : undefined,
-            right: canvasPosition !== "static" ? (props.right as any) : undefined,
-            bottom: canvasPosition !== "static" ? (props.bottom as any) : undefined,
-            left: canvasPosition !== "static" ? (props.left as any) : undefined,
+            top: canvasPosition !== "static" ? adjustedTop : undefined,
+            right: canvasPosition !== "static" ? adjustedRight : undefined,
+            bottom: canvasPosition !== "static" ? adjustedBottom : undefined,
+            left: canvasPosition !== "static" ? adjustedLeft : undefined,
             zIndex: zIndex,
             alignSelf: alignSelf,
             transform: rotation ? `rotate(${rotation}deg)` : undefined,
@@ -6321,7 +6402,7 @@ export function WebPreview({
           // In builder parity mode we want a fixed-size artboard, but wheel scrolling should
           // still "chain" to the parent page/canvas when the pointer is over the artboard.
           overscrollBehavior: builderParityMode ? undefined : (isContainedScroller ? "contain" : undefined),
-          background: background,
+          background: "#0d0d0f",
         }}
       >
         {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
@@ -6577,12 +6658,17 @@ export function LiveSite({
           key={currentPageId}
           style={{
             ...pageFrameStyles,
-            width: isScaling ? pageWidthPx : (isPhoneSize || fillViewport || shouldUseResponsiveViewport ? "100%" : pageFrameStyles.width),
-            maxWidth: isPhoneSize || fillViewport || shouldUseResponsiveViewport ? "100%" : pageFrameStyles.maxWidth,
+            width: isScaling ? pageWidthPx : "100%",
+            minWidth: "100%",
             height: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : undefined,
             minHeight: isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (fillViewport ? "100%" : minHeight),
             background: background,
-            margin: "0 auto",
+            margin: "0",
+            padding: "0",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "flex-start",
             transform: isScaling ? `scale(${scale})${pageRotation !== 0 ? ` rotate(${pageRotation}deg)` : ""}` : (pageRotation !== 0 ? `rotate(${pageRotation}deg)` : ""),
             transformOrigin: "top center",
             overflow: "visible",
