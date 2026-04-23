@@ -17,7 +17,7 @@ type ProjectContextType = {
   selectedProjectId: string | null;
   selectedProject: Project | null;
   setSelectedProjectId: (id: string | null) => void;
-  refreshProjects: () => Promise<void>;
+  refreshProjects: (silent?: boolean) => Promise<void>;
 };
 
 const ProjectContext = createContext<ProjectContextType>({
@@ -159,7 +159,9 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
   };
 
-  const refreshProjects = useCallback(() => fetchProjects(true), [fetchProjects]);
+  const refreshProjects = useCallback(async (silent = true) => {
+    await fetchProjects(true, silent);
+  }, [fetchProjects]);
 
   const value: ProjectContextType = {
     projects,
