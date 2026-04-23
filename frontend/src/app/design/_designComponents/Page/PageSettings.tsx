@@ -98,7 +98,7 @@ export const PageSettings = () => {
             <label className="text-[10px] text-[var(--builder-text)]">Page name</label>
             <input
               type="text"
-              value={pageName ?? "Page Name"}
+              value={pageName ?? ""}
               onChange={(e) => handlePageNameChange(e.target.value)}
               placeholder="Page Name"
               className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none"

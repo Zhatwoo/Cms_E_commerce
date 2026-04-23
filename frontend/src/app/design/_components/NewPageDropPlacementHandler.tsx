@@ -11,6 +11,7 @@ type DropPoint = {
 
 const NEW_PAGE_WIDTH = 1920;
 const NEW_PAGE_HEIGHT = 1200;
+const GENERIC_PAGE_NAME_PATTERN = /^(page name|page|untitled|unnamed|new page|new page component)$/i;
 
 function canonicalResolvedName(rawName: unknown): string {
   const name = typeof rawName === "string" ? rawName.trim() : "";
@@ -254,14 +255,23 @@ export const NewPageDropPlacementHandler = () => {
       const dropPoint = getDropCanvasPoint(drop);
 
       if (newPageIds.length > 0) {
+        const existingPageCount = Math.max(0, currentViewportPageIds.length - newPageIds.length);
         newPageIds.forEach((pageId, index) => {
           // Top-left anchoring for the first page, subsequent pages offset by 36px
           const canvasX = Math.round(dropPoint.x + index * 36);
           const canvasY = Math.round(dropPoint.y + index * 36);
+          const nextPageName = `Page ${existingPageCount + index + 1}`;
+          const pageProps = nodes[pageId]?.data?.props as Record<string, unknown> | undefined;
+          const currentName = typeof pageProps?.pageName === "string" ? pageProps.pageName.trim() : "";
+          const shouldAutoName = currentName.length === 0 || GENERIC_PAGE_NAME_PATTERN.test(currentName);
 
           actions.setProp(pageId, (props: Record<string, unknown>) => {
             props.canvasX = canvasX;
             props.canvasY = canvasY;
+            if (shouldAutoName) {
+              props.pageName = nextPageName;
+              props.pageSlug = `page-${existingPageCount + index}`;
+            }
           });
         });
 
