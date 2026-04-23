@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
-import { WebPreview } from '@/app/design/_lib/webRenderer';
+import { LiveSite } from '@/app/design/_lib/webRenderer';
 import { parseContentToCleanDoc } from '@/app/design/_lib/contentParser';
 import { PREVIEW_TABLET_BREAKPOINT } from '@/app/design/_lib/viewportConstants';
 import type { BuilderDocument } from '@/app/design/_types/schema';
@@ -221,12 +221,11 @@ function PublicSiteContent() {
   return (
     <StorefrontRenderBoundary>
       <>
-        <WebPreview
+        <LiveSite
           doc={doc}
           pageIndex={selectedPageIndex}
           mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
           enableFormInputs
-          builderParityMode={false}
           storeContext={storefrontContext}
         />
         {storefrontContext ? <CartFab /> : null}
