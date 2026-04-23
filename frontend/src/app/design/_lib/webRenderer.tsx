@@ -6163,16 +6163,19 @@ export function WebPreview({
   const pageWidthPx = parsePixelValue(width) ?? 1920;
   const background = (pageProps.background || pageProps.backgroundColor) as string || "#ffffff";
   const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const pageHeightPx = parsePixelValue(minHeight) ?? 800;
   const pageRotation = toNumber(pageProps.pageRotation, 0);
 
   const { ref, width: measuredWidth } = useContainerWidth(1200);
   const viewportWidth = simulatedWidth ?? responsiveViewportWidth ?? measuredWidth;
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
-  const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
+  const isPhoneSize = viewportWidth > 0 && viewportWidth <= effectiveMobileBreakpoint;
   const shouldUseResponsiveViewport = !fillViewport && viewportWidth > 0 && viewportWidth < pageWidthPx;
   const isScaling = !isPhoneSize && !fillViewport && !shouldUseResponsiveViewport && measuredWidth < pageWidthPx && measuredWidth > 0;
   const scale = isScaling ? measuredWidth / pageWidthPx : 1;
   const pageFrameStyles = resolvePageFrameStyles(width);
+  const layoutReferenceWidth = pageWidthPx;
+  const layoutReferenceHeight = pageHeightPx;
 
   const mobileWrapperRef = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -6236,6 +6239,8 @@ export function WebPreview({
             enableFormInputs={enableFormInputs}
             builderParityMode={builderParityMode}
             renderAllNodes={renderAllNodes}
+            layoutReferenceWidth={layoutReferenceWidth}
+            layoutReferenceHeight={layoutReferenceHeight}
           />
         );
       })}
@@ -6381,8 +6386,8 @@ export function LiveSite({
 
   const { ref, width: measuredWidth } = useContainerWidth(1200);
   const effectiveMobileBreakpoint = mobileBreakpoint ?? PREVIEW_TABLET_BREAKPOINT;
-  const isPhoneSize = measuredWidth > 0 && measuredWidth <= effectiveMobileBreakpoint;
   const viewportWidth = measuredWidth;
+  const isPhoneSize = viewportWidth > 0 && viewportWidth <= effectiveMobileBreakpoint;
 
   // Live site always stays full screen (responsive), ignoring fixed builder dimensions.
   const shouldUseResponsiveViewport = true; 
