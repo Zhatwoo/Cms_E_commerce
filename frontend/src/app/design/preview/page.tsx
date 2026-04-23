@@ -29,7 +29,7 @@ import {
 import { templateService } from "@/lib/templateService";
 import { upsertTemplateProjectEntry } from "@/lib/templateProjectRegistry";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
-import { apiFetch, getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
+import { apiFetch, createProject, getProject, getSchedule, getStoredUser, publishProject, schedulePublish, updateProject, getMyDomains, getMe, uploadMediaApi, listProducts, type Project, type ApiProduct } from "@/lib/api";
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
@@ -1181,51 +1181,61 @@ function PreviewContent() {
         }
       };
 
-      const template = templateService.saveTemplate(
+      const fallbackIndustry = String(project?.industry || templateCategory || 'General').trim() || 'General';
+      const sourceTitle = String(project?.title || project?.templateName || templateName || 'Untitled Project').trim() || 'Untitled Project';
+      const createResult = await createProject({
+        title: templateName.trim() || sourceTitle,
+        industry: fallbackIndustry,
+      });
+
+      if (!createResult.success || !createResult.project?.id) {
+        showAlert(createResult.message || "Failed to create template copy. Please try again.");
+        return;
+      }
+
+      const templateProjectId = createResult.project.id;
+
+      try {
+        const saveResult = await autoSavePage(rawJson, templateProjectId);
+        if (!saveResult.success) {
+          console.warn("Template snapshot save warning:", saveResult.error);
+        }
+      } catch (error) {
+        console.warn("Template snapshot save failed:", error);
+      }
+
+      const updatedTemplate = await updateProject(templateProjectId, {
+        status: 'template',
+        templateName: templateName.trim(),
+        templateContent: rawJson,
+        thumbnail: project?.thumbnail || null,
+      });
+
+      templateService.saveTemplate(
         templateName.trim(),
         templateCategory,
         templateDescription.trim(),
         rawJson,
-        projectId
+        templateProjectId
       );
 
-      if (template) {
-        persistTemplateSnapshot(projectId, rawJson);
-        try {
-          const saveResult = await autoSavePage(rawJson, projectId);
-          if (!saveResult.success) {
-            console.warn("Template snapshot save warning:", saveResult.error);
-          }
-        } catch (error) {
-          console.warn("Template snapshot save failed:", error);
-        }
+      persistTemplateSnapshot(templateProjectId, rawJson);
+      upsertTemplateProjectEntry({
+        projectId: templateProjectId,
+        name: templateName.trim(),
+        category: templateCategory,
+        description: templateDescription.trim(),
+      });
 
-        upsertTemplateProjectEntry({
-          projectId,
-          name: templateName.trim(),
-          category: templateCategory,
-          description: templateDescription.trim(),
-        });
-        try {
-          const updated = await updateProject(projectId, {
-            status: 'template',
-            templateName: templateName.trim(),
-            templateContent: rawJson,
-          });
-          if (updated?.success && updated.project) {
-            setProject(updated.project);
-          }
-        } catch {
-          // Keep local template save even if project status update fails.
-        }
+      if (updatedTemplate?.success && updatedTemplate.project) {
         showAlert("Template saved successfully!");
-        setShowSaveDialog(false);
-        setTemplateName("");
-        setTemplateDescription("");
-        router.push(projectId ? `/design?projectId=${projectId}` : "/design");
       } else {
-        showAlert("Failed to save template. Please try again.");
+        showAlert("Template copy created, but metadata update needs a retry. Refresh the templates list if needed.");
       }
+      setShowSaveDialog(false);
+      setTemplateName("");
+      setTemplateDescription("");
+      router.push(projectId ? `/design?projectId=${projectId}` : "/design");
     } catch (error) {
       console.error("Error saving template:", error);
       showAlert("Error saving template. Please try again.");

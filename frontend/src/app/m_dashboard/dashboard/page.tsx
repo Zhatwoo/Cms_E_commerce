@@ -15,6 +15,7 @@ import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
+import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
@@ -87,6 +88,10 @@ function toWorkspaceLabel(project?: Project | null) {
     .toUpperCase();
 }
 
+function isTemplateProject(project?: Project | null) {
+  return String(project?.status || '').trim().toLowerCase() === 'template';
+}
+
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
@@ -132,7 +137,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       return bDate - aDate;
     });
     setAllProjects(sorted);
-    setRecentProjects(sorted.slice(0, 3));
+    setRecentProjects(sorted.filter((project) => !isTemplateProject(project)).slice(0, 3));
     setActiveProjectIndex(0);
     setIsSliderTransitionEnabled(true);
     setShowAllOtherProjects(false);
@@ -154,15 +159,45 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return () => document.removeEventListener('click', closeMenu);
   }, [openProjectMenuId]);
 
+  useEffect(() => {
+    const refreshFromLibrary = () => {
+      void refreshProjects?.();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFromLibrary();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshFromLibrary();
+      }
+    }, 15000);
+
+    window.addEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
+    window.addEventListener('focus', refreshFromLibrary);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
+      window.removeEventListener('focus', refreshFromLibrary);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshProjects]);
+
   const projectCount = recentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
   const featuredProject = recentProjects[displayProjectIndex] ?? null;
   const carouselProjects = projectCount > 1 ? [...recentProjects, recentProjects[0]] : recentProjects;
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
   const recentProjectIds = new Set(recentProjects.map((project) => project.id));
-  const otherProjects = allProjects.length > 3 && !showAllOtherProjects
-    ? allProjects.filter((project) => !recentProjectIds.has(project.id))
-    : allProjects;
+  const designProjects = allProjects.filter((project) => !isTemplateProject(project));
+  const otherProjects = designProjects.length > 3 && !showAllOtherProjects
+    ? designProjects.filter((project) => !recentProjectIds.has(project.id))
+    : designProjects;
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
@@ -458,7 +493,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               displayProjectIndex={displayProjectIndex}
               carouselProjects={carouselProjects}
               otherProjects={otherProjects}
-              allProjectsCount={allProjects.length}
+              allProjectsCount={designProjects.length}
               showAllOtherProjects={showAllOtherProjects}
               openProjectMenuId={openProjectMenuId}
               isSliderTransitionEnabled={isSliderTransitionEnabled}

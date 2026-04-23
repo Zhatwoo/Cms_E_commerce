@@ -64,6 +64,7 @@ export function TemplatesTabContent({
     const fromRegistry = entries
       .map((entry) => {
         const project = byProjectId.get(entry.projectId) ?? null;
+        if (!project || String(project.status || '').trim().toLowerCase() !== 'template') return null;
         return {
           projectId: entry.projectId,
           title: entry.name || project?.title || 'Untitled Template',
@@ -73,11 +74,10 @@ export function TemplatesTabContent({
           project,
         };
       })
-      .filter((item) => item.project && item.projectId !== selectedProject?.id);
+      .filter((item): item is TemplateCard => item !== null);
 
     const fromProjectStatus = projects
       .filter((project) => String(project.status || '').trim().toLowerCase() === 'template')
-      .filter((project) => project.id !== selectedProject?.id)
       .map((project) => ({
         projectId: project.id,
         title: project.title || 'Untitled Template',
@@ -223,7 +223,7 @@ export function TemplatesTabContent({
               ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}
             `}
           >
-            Saved Templates
+            Your Templates
           </h3>
           <span className={`text-xs ${theme === 'dark' ? 'text-[#8C84C8]' : 'text-[#7C3AED]/70'}`}>
             Apply to: {selectedProject?.title || 'Select a project in Your Designs first'}
@@ -237,7 +237,7 @@ export function TemplatesTabContent({
               : 'border-[#E5D7FF] bg-[#FAF6FF] text-[#4A2D84]'
             }`}
           >
-            No saved template projects found. Open a design preview, click Template, and save it first.
+            No templates found yet. Open a design preview, click Template, and save it first.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">

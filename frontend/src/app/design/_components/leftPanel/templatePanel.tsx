@@ -307,7 +307,7 @@ export const TemplatePanel = () => {
         const projectRes = await listTemplateLibrary(120);
         const allProjects = projectRes.success ? projectRes.templates : [];
 
-        const merge = new Map<string, SavedTemplateItem>(localOnly);
+        const merge = new Map<string, SavedTemplateItem>();
 
         allProjects
           .filter((project) => project.id !== currentProjectId)
@@ -329,6 +329,8 @@ export const TemplatePanel = () => {
         registry.forEach((entry) => {
           const project = allProjects.find((item: Project) => item.id === entry.projectId);
           if (!project || project.id === currentProjectId) return;
+          const normalizedStatus = String(project.status || "").trim().toLowerCase();
+          if (normalizedStatus !== "template") return;
           merge.set(entry.projectId, {
             projectId: entry.projectId,
             title: entry.name || project.templateName || project.title || "Untitled Template",
@@ -534,7 +536,7 @@ export const TemplatePanel = () => {
           onClick={() => toggle("saved-templates")}
           className="w-full flex items-center justify-between px-3 py-2 bg-brand-white/5 hover:bg-brand-white/10"
         >
-          <span className="text-xs font-semibold uppercase tracking-wider text-brand-medium">Saved Templates</span>
+          <span className="text-xs font-semibold uppercase tracking-wider text-brand-medium">Your Templates</span>
           <span className="text-brand-medium text-xs">{open["saved-templates"] ? "−" : "+"}</span>
         </button>
 
@@ -543,7 +545,7 @@ export const TemplatePanel = () => {
             {savedLoading && <p className="text-xs text-brand-medium">Loading saved templates...</p>}
             {!savedLoading && savedError && <p className="text-xs text-red-300">{savedError}</p>}
             {!savedLoading && !savedError && savedTemplates.length === 0 && (
-              <p className="text-xs text-brand-medium">No saved template projects yet. Save one from Preview first.</p>
+              <p className="text-xs text-brand-medium">No templates yet. Save one from Preview first.</p>
             )}
 
             {!savedLoading && !savedError && savedTemplates.map((template) => (
