@@ -849,19 +849,16 @@ if (typeof window !== "undefined") {
       if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
       // Suppress ALL image-related errors from external CDNs (Firebase, Unsplash, etc.)
       // Images have visual fallbacks, so console noise is unnecessary
-      if (
-        (
-          (concat.includes("Error loading") || concat.includes("error loading")) &&
-          concat.includes("image") &&
-          (concat.includes("firebasestorage") || concat.includes("firebasestorage.app") || concat.includes("firebasestorage.googleapis.com"))
-        ) ||
-        (
-          concat.includes("firebasestorage") &&
-          (concat.includes("image") || concat.includes("Error"))
-        ) ||
-        concat.includes("firebasestorage.app") ||
-        concat.includes("firebasestorage.googleapis.com")
-      ) {
+      const isImageError = 
+        (concat.includes("Error loading") || concat.includes("error loading")) &&
+        (concat.includes("image") || concat.includes("background-image"));
+        
+      const isFirebaseError = 
+        concat.includes("firebasestorage") || 
+        concat.includes("firebasestorage.app") || 
+        concat.includes("firebasestorage.googleapis.com");
+
+      if (isImageError || isFirebaseError) {
         return;
       }
       originalError(...args);
