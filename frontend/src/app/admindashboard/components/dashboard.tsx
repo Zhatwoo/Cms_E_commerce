@@ -10,7 +10,6 @@ import {
     getAnalytics,
     type User 
 } from '@/lib/api';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
     ADMIN_CHART_SERIES,
     ADMIN_STATS,
@@ -93,8 +92,6 @@ function DashboardLineChart({ series }: { series: readonly ChartSeriesItem[] }) 
                         })}
                     </g>
                 ))}
-                <text x={LP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="start">7 DAYS AGO</text>
-                <text x={CW - RP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="end">TODAY</text>
             </svg>
             <div className="mt-1 flex items-center justify-center gap-4 text-[10px] text-[#9A8CB4]">
                 {series.map((item) => (
@@ -117,21 +114,6 @@ function DashboardStatCard({
 }: {
     title: string; value: string; liveLabel: string; series: readonly ChartSeriesItem[]; index: number;
 }) {
-    const points = series[0]?.points || [];
-    const calculateChange = (pts: readonly number[]) => {
-        if (pts.length < 2) return { value: '0.0%', isIncrease: true, isNeutral: true };
-        const curr = pts[pts.length - 1];
-        const prev = pts[pts.length - 2];
-        if (prev === 0) return { value: curr > 0 ? '+100%' : '0.0%', isIncrease: curr > 0, isNeutral: curr === 0 };
-        const pct = ((curr - prev) / prev) * 100;
-        return {
-            value: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
-            isIncrease: pct >= 0,
-            isNeutral: pct === 0
-        };
-    };
-    const change = calculateChange(points);
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 22 }}
@@ -143,16 +125,6 @@ function DashboardStatCard({
                     <div className="flex-1">
                         <div className="flex items-center gap-3">
                             <p className="text-[2.1rem] font-bold leading-none tracking-tight text-[#26155E]">{value}</p>
-                            {!change.isNeutral && (
-                                <div className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                                    change.isIncrease 
-                                        ? 'bg-emerald-50 text-emerald-700' 
-                                        : 'bg-rose-50 text-rose-700'
-                                }`}>
-                                    {change.isIncrease ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
-                                    {change.value}
-                                </div>
-                            )}
                         </div>
                         <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#7E4FB4]">{title}</p>
                     </div>
@@ -168,7 +140,7 @@ function DashboardStatCard({
 
                 <div className="mt-4 flex items-center justify-between border-t border-[#E9D8FF] pt-4">
                     <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-widest text-[#7E4FB4]">Weekly Momentum</span>
-                    <span className="whitespace-nowrap text-[9px] font-medium text-[#A48ABF]">Compared to last week</span>
+                    <span className="whitespace-nowrap text-[9px] font-medium text-[#A48ABF]">Live trend overview</span>
                 </div>
             </DashboardPanel>
         </motion.div>

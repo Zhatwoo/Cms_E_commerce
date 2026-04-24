@@ -41,7 +41,7 @@ export function UserAccountShell({ activePath, children }: UserAccountShellProps
 			<div className="flex min-h-0 flex-1 flex-col">
 				<AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 				<main className="flex-1 min-h-0 overflow-y-auto">
-					<div className="mx-auto w-full max-w-[90rem] space-y-8 p-8 pb-20 lg:p-10">
+					<div className="w-full space-y-8 p-8 pb-20 lg:p-10">
 						<AdminPageHero
 							title="Account Settings"
 							subtitle="Manage your personal information, security preferences, and billing details across the platform."

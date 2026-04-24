@@ -142,10 +142,15 @@ export default function ProfilePage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className="rounded-[32px] border border-[#E5E7EB] bg-white p-10 shadow-[0_4px_20px_rgba(0,0,0,0.03)]"
+						className="admin-dashboard-panel rounded-[32px] border border-[rgba(177,59,255,0.16)] bg-white p-10 shadow-[0_14px_32px_rgba(123,78,192,0.10)]"
 					>
 						{/* Header Section */}
-						<div className="mb-10 flex items-center justify-between gap-6">
+						<div className="mb-10 space-y-6">
+							<div>
+								<h2 className="text-3xl font-bold tracking-tight text-[#471396]">Profile Settings</h2>
+								<p className="mt-2 text-sm font-medium text-[#8A86A4]">Update your account details, identity, and personal info.</p>
+							</div>
+							<div className="flex items-center justify-between gap-6">
 							<div className="flex items-center gap-6">
 								<div className="relative group/avatar">
 									<div className="h-24 w-24 overflow-hidden rounded-full border-4 border-[#F3E8FF] bg-[#F5F4FF] shadow-sm transition-transform duration-300 group-hover/avatar:scale-[1.02]">
@@ -207,7 +212,7 @@ export default function ProfilePage() {
 									</AnimatePresence>
 								</div>
 								<div>
-									<h2 className="text-2xl font-bold text-[#4a1a8a]">{profile.displayName}</h2>
+									<h3 className="text-2xl font-bold text-[#4a1a8a]">{profile.displayName}</h3>
 									<p className="font-medium text-[#7a6aa0]">@{profile.username}</p>
 								</div>
 							</div>
@@ -223,6 +228,7 @@ export default function ProfilePage() {
 									Edit Profile
 								</button>
 							)}
+							</div>
 						</div>
 
 						{/* Form Grid */}

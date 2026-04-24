@@ -208,7 +208,7 @@ export default function AnalyticsPageContent() {
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.1 }}
+                                transition={{ duration: 0.32, delay: 0.08 }}
                             >
                                 <ActiveUsersChart 
                                     period={period} 
@@ -223,12 +223,12 @@ export default function AnalyticsPageContent() {
                         {/* Middle Section: Charts & Tabs */}
                         <div className="space-y-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="relative flex w-fit overflow-hidden rounded-2xl border border-[rgba(166,61,255,0.22)] bg-white p-1.5 shadow-[0_10px_24px_rgba(103,2,191,0.1)]">
+                                <div className="relative flex w-full overflow-x-auto rounded-2xl border border-[rgba(166,61,255,0.22)] bg-white p-1.5 shadow-[0_10px_24px_rgba(103,2,191,0.1)] sm:w-fit">
                                     {(['platform', 'engagement', 'trends'] as const).map((t) => (
                                         <button
                                             key={t}
                                             onClick={() => setActiveTab(t)}
-                                            className={`relative z-10 px-8 py-3 rounded-xl text-sm font-black transition-all duration-300 uppercase tracking-widest active:scale-95 ${
+                                            className={`relative z-10 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all duration-300 active:scale-95 sm:px-8 sm:py-3 sm:text-sm sm:tracking-widest ${
                                                 activeTab === t ? 'text-[#471396]' : 'text-[#7a6aa0] hover:text-[#471396]'
                                             }`}
                                         >
@@ -236,7 +236,7 @@ export default function AnalyticsPageContent() {
                                                 <motion.div
                                                     layoutId="activeTabBackgroundAnalytics"
                                                     className="absolute inset-0 z-[-1] bg-[#FFCC00] rounded-xl shadow-lg border border-yellow-400/20"
-                                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                                    transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                                                 />
                                             )}
                                             {tabNames[t]}
@@ -256,7 +256,7 @@ export default function AnalyticsPageContent() {
                                 key={activeTab}
                                 initial={{ opacity: 0}}
                                 animate={{ opacity: 1}}
-                                transition={{ duration: 0.3 }}
+                                transition={{ duration: 0.32 }}
                             >
                                 <div className={loading && !analytics ? "opacity-40" : "opacity-100"}>
                                     {activeTab === 'platform' && <PlatformTraffic period={period} onPeriodChange={setPeriod} signupsOverTime={analytics?.signupsOverTime} loading={loading} />}
@@ -268,7 +268,7 @@ export default function AnalyticsPageContent() {
 
 
                         {/* Bottom Section: Workspace Cards */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+                        <div className="grid grid-cols-1 gap-6 pb-10 lg:grid-cols-3 lg:gap-8">
                             {[
                                 { 
                                     title: 'Content Workspace', 
@@ -298,7 +298,7 @@ export default function AnalyticsPageContent() {
                                 <motion.div
                                     key={item.title}
                                     variants={cardVariants}
-                                    className="group relative overflow-hidden rounded-[28px] border border-[rgba(166,61,255,0.2)] bg-white p-8 shadow-[0_14px_32px_rgba(103,2,191,0.09)]"
+                                    className="group relative overflow-hidden rounded-[28px] border border-[rgba(166,61,255,0.2)] bg-white p-6 shadow-[0_14px_32px_rgba(103,2,191,0.09)] sm:p-8"
                                     whileHover={{ y: -4 }}
                                 >
                                     <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">

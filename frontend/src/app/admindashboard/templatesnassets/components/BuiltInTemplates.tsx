@@ -32,12 +32,13 @@ export default function BuiltInTemplates({ templates }: BuiltInTemplatesProps) {
               key={template.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.24 }}
+              transition={{ duration: 0.3 }}
+              whileHover={{ y: -4 }}
               className="group relative flex flex-col overflow-hidden cursor-pointer rounded-[24px] border border-[rgba(177,59,255,0.18)] bg-white shadow-[0_12px_30px_rgba(71,19,150,0.12)]"
             >
               <div className="relative h-48 w-full overflow-hidden bg-[#DAD6F8] sm:h-52">
                 {template.thumbnail ? (
-                  <Image src={template.thumbnail} alt={template.name} fill className="object-cover transition-transform duration-700 group-hover:scale-105" unoptimized />
+                  <Image src={template.thumbnail} alt={template.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#8FC67E] via-[#4F805C] to-[#1E3C3C]">
                     <span className="text-lg font-semibold text-white/90">{template.category}</span>

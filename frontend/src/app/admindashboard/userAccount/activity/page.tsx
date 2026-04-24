@@ -161,11 +161,11 @@ export default function ActivityPage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className="admin-dashboard-panel space-y-8 rounded-[30px] border border-[rgba(177,59,255,0.15)] bg-white/95 p-10 shadow-[0_15px_40px_rgba(74,26,138,0.04)]"
+						className="admin-dashboard-panel space-y-8 rounded-[32px] border border-[rgba(177,59,255,0.16)] bg-white p-10 shadow-[0_14px_32px_rgba(123,78,192,0.10)]"
 					>
 						<div className="flex items-center justify-between">
 							<div>
-								<h2 className="text-2xl font-bold text-[#471396] tracking-tight">System Activity</h2>
+								<h2 className="text-3xl font-bold tracking-tight text-[#471396]">System Activity</h2>
 								<div className="mt-1.5 flex items-center gap-2 text-sm font-medium text-[#7a6aa0]">
 									<Shield size={14} className="text-[#4a1a8a]/60" />
 									<span>A comprehensive audit trail of system events and administrative actions.</span>
@@ -177,7 +177,7 @@ export default function ActivityPage() {
 						</div>
 
 						{/* Search and Filter Header */}
-						<div className="flex flex-col xl:flex-row items-center justify-between gap-6 bg-white/40 p-2 rounded-[28px] border border-white/60">
+						<div className="flex flex-col xl:flex-row items-center justify-between gap-6 rounded-[28px] border border-[rgba(177,59,255,0.12)] bg-white p-2">
 							<div className="relative w-full xl:max-w-md">
 								<input
 									type="text"
@@ -253,7 +253,7 @@ export default function ActivityPage() {
 																				<span className="ml-2 inline-flex h-2 w-2 rounded-full bg-current animate-pulse opacity-50 shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
 																			)}
 																		</p>
-																		<div className="flex items-center gap-1.5 text-[10px] font-bold text-[#9CA3AF] uppercase tracking-wider bg-white/60 px-2.5 py-1 rounded-full shadow-sm border border-white/40">
+																		<div className="flex items-center gap-1.5 rounded-full border border-[rgba(177,59,255,0.12)] bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-[#9CA3AF] shadow-sm">
 																			<Clock size={11} strokeWidth={2.5} />
 																			{new Date(item.createdAt).toLocaleTimeString("en-US", {
 																				hour: "2-digit",
@@ -301,7 +301,7 @@ export default function ActivityPage() {
 									Showing {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredActivities.length)} of {filteredActivities.length} logs
 								</p>
 								
-								<div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/40 border border-white/60">
+								<div className="flex items-center gap-1.5 rounded-2xl border border-[rgba(177,59,255,0.12)] bg-white p-1">
 									<button
 										onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
 										disabled={currentPage === 1}
