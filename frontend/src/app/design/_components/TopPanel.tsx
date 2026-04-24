@@ -603,50 +603,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             </button>
           </DesignTooltip>
 
-          {/* Page Size Presets */}
-          <div className="relative" ref={pageSizeMenuRef}>
-            <DesignTooltip content="Page size presets" position="bottom">
-              <button
-                type="button"
-                onClick={() => setShowPageSizeMenu((v) => !v)}
-                className="p-2 rounded-lg transition-colors border border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] active:scale-95 flex items-center gap-2"
-              >
-                <Monitor className="w-4 h-4" />
-                <span className="text-xs font-medium">
-                  {activePageSize.width && activePageSize.height
-                    ? `${activePageSize.width}×${activePageSize.height}`
-                    : "Page Size"}
-                </span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showPageSizeMenu ? "rotate-180" : ""}`} />
-              </button>
-            </DesignTooltip>
-
-            {showPageSizeMenu && (
-              <div className="absolute right-0 top-full mt-2 w-48 rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] shadow-2xl overflow-hidden z-[1001]">
-                {PAGE_SIZE_PRESETS.map((preset) => {
-                  const isActive = activePageSize.width === preset.width && activePageSize.height === preset.height;
-                  return (
-                    <button
-                      key={preset.label}
-                      type="button"
-                      onClick={() => applyPageSizePreset(preset)}
-                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors hover:bg-[var(--builder-surface-3)] ${isActive
-                        ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-                        : "text-[var(--builder-text-muted)]"
-                        }`}
-                    >
-                      <span className="shrink-0">{preset.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-[var(--builder-text)]">{preset.label}</div>
-                        <div className="text-[10px] text-[var(--builder-text-faint)]">{preset.width} × {preset.height}</div>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
           {/* Divider */}
           <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
 
