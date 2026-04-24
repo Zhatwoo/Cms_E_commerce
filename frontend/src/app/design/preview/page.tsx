@@ -1689,156 +1689,148 @@ function PreviewContent() {
                           style={{
                             left: desktopPreviewBounds.left,
                             width: desktopPreviewBounds.width,
-                            top: 0,
-                            bottom: 0
+                            top: desktopPreviewBounds.top,
+                            height: desktopPreviewBounds.height
                           }}
                         >
                           <div className="relative w-full h-full">
-                            {!previewCartOpen && (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewCartOpen(prev => !prev)}
-                                className={`pointer-events-auto absolute bottom-8 right-8 z-40 w-12 h-12 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 ${
-                                  previewCart.length > 0 && previewLastAddedAt ? 'scale-110' : 'scale-100'
-                                }`}
-                                aria-label="Toggle preview cart"
-                              >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 border border-white text-[10px] font-bold flex items-center justify-center rounded-full">
-                                    {previewCart.reduce((s, i) => s + i.quantity, 0)}
-                                  </span>
-                                )}
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => setPreviewCartOpen((prev) => !prev)}
+                              className={`pointer-events-auto absolute bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-black text-white shadow-xl inline-flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 ${
+                                previewCart.length > 0 && previewLastAddedAt ? "scale-105" : "scale-100"
+                              }`}
+                              aria-label="Toggle preview cart"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                              </svg>
+                              {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
+                                <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 bg-red-600 border border-white text-[10px] font-bold inline-flex items-center justify-center rounded-full">
+                                  {previewCart.reduce((s, i) => s + i.quantity, 0)}
+                                </span>
+                              )}
+                            </button>
 
                             {previewCartOpen && (
-                              <div className="pointer-events-none absolute inset-0 flex justify-end">
-                                <div 
-                                  className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
-                                />
-                                <div className="pointer-events-auto relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-between p-5 border-b border-zinc-100">
-                                    <h2 className="text-base font-medium text-zinc-900">
-                                      Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
-                                    </h2>
-                                    <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                      <X className="w-5 h-5" />
-                                    </button>
-                                  </div>
-
-                                  <div className="flex-1 overflow-y-auto p-5">
-                                    {previewCart.length === 0 ? (
-                                      <div className="h-full flex flex-col items-center justify-center text-center">
-                                        <p className="text-zinc-400 text-sm">Your cart is empty</p>
+                              <div className="pointer-events-auto absolute top-0 right-0 w-full max-w-sm h-full bg-white shadow-2xl flex flex-col border border-zinc-200">
+                                <div className="flex items-center justify-between p-5 border-b border-zinc-100">
+                                  <h2 className="text-base font-medium text-zinc-900">
+                                    Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
+                                  </h2>
+                                  <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
+                                    <X className="w-5 h-5" />
+                                  </button>
+                                </div>
+                                <div className="flex-1 overflow-y-auto p-5">
+                                  {previewCart.length === 0 ? (
+                                    <div className="h-full flex flex-col items-center justify-center text-center">
+                                      <p className="text-zinc-400 text-sm">Your cart is empty</p>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <div className="mb-3 flex items-center justify-between">
+                                        <label className="flex items-center gap-2 text-xs text-zinc-700 cursor-pointer">
+                                          <input
+                                            type="checkbox"
+                                            checked={true}
+                                            readOnly
+                                            className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black"
+                                          />
+                                          Select all
+                                        </label>
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreviewCart([])}
+                                          className="text-xs text-red-600 hover:underline"
+                                        >
+                                          Clear
+                                        </button>
                                       </div>
-                                    ) : (
-                                      <>
-                                        <div className="mb-3 flex items-center justify-between">
-                                          <label className="flex items-center gap-2 text-xs text-zinc-700 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={true}
-                                              readOnly
-                                              className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black"
-                                            />
-                                            Select all
-                                          </label>
-                                          <button
-                                            type="button"
-                                            onClick={() => setPreviewCart([])}
-                                            className="text-xs text-red-600 hover:underline"
-                                          >
-                                            Clear
-                                          </button>
-                                        </div>
-                                        <div className="flex flex-col">
-                                          {previewCart.map((item) => (
-                                            <div key={item.id} className="flex gap-4 py-4 border-b border-zinc-100 last:border-0 group">
-                                              <div className="pt-0.5">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={true}
-                                                  readOnly
-                                                  className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
+                                      <div className="flex flex-col">
+                                        {previewCart.map((item) => (
+                                          <div key={item.id} className="flex gap-4 py-4 border-b border-zinc-100 last:border-0 group">
+                                            <div className="pt-0.5">
+                                              <input
+                                                type="checkbox"
+                                                checked={true}
+                                                readOnly
+                                                className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
+                                              />
+                                            </div>
+                                            <div className="w-16 h-16 flex-shrink-0">
+                                              {item.image ? (
+                                                <img
+                                                  src={item.image}
+                                                  alt=""
+                                                  className="w-full h-full object-cover bg-zinc-50 border border-zinc-100"
                                                 />
-                                              </div>
-                                              <div className="w-16 h-16 flex-shrink-0">
-                                                {item.image ? (
-                                                  <img
-                                                    src={item.image}
-                                                    alt=""
-                                                    className="w-full h-full object-cover bg-zinc-50 border border-zinc-100"
-                                                  />
-                                                ) : (
-                                                  <div className="w-full h-full bg-zinc-100 border border-zinc-200" />
-                                                )}
-                                              </div>
-                                              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                <div>
-                                                  <div className="flex justify-between items-start">
-                                                    <h4 className="text-sm font-medium text-zinc-900 truncate pr-4">{item.name}</h4>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))}
-                                                      className="text-zinc-300 hover:text-zinc-600 transition-colors"
-                                                    >
-                                                      <X className="w-4 h-4" />
-                                                    </button>
-                                                  </div>
-                                                  <p className="text-xs text-zinc-500 mt-0.5">₱{item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                              ) : (
+                                                <div className="w-full h-full bg-zinc-100 border border-zinc-200" />
+                                              )}
+                                            </div>
+                                            <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                              <div>
+                                                <div className="flex justify-between items-start">
+                                                  <h4 className="text-sm font-medium text-zinc-900 truncate pr-4">{item.name}</h4>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))}
+                                                    className="text-zinc-300 hover:text-zinc-600 transition-colors"
+                                                  >
+                                                    <X className="w-4 h-4" />
+                                                  </button>
                                                 </div>
-                                                <div className="flex items-center justify-between mt-2">
-                                                  <div className="flex items-center border border-zinc-200 rounded">
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
-                                                        setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
-                                                      }}
-                                                      className="px-2 py-1 text-zinc-500 hover:text-black transition-colors"
-                                                    >
-                                                      -
-                                                    </button>
-                                                    <span className="text-xs font-medium text-zinc-900 w-8 text-center">{item.quantity}</span>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
-                                                        setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
-                                                      }}
-                                                      className="px-2 py-1 text-zinc-500 hover:text-black transition-colors"
-                                                    >
-                                                      +
-                                                    </button>
-                                                  </div>
-                                                  <p className="text-sm font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                <p className="text-xs text-zinc-500 mt-0.5">₱{item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                              </div>
+                                              <div className="flex items-center justify-between mt-2">
+                                                <div className="flex items-center border border-zinc-200 rounded">
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
+                                                    }}
+                                                    className="px-2 py-1 text-zinc-500 hover:text-black transition-colors"
+                                                  >
+                                                    -
+                                                  </button>
+                                                  <span className="text-xs font-medium text-zinc-900 w-8 text-center">{item.quantity}</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                      setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
+                                                    }}
+                                                    className="px-2 py-1 text-zinc-500 hover:text-black transition-colors"
+                                                  >
+                                                    +
+                                                  </button>
                                                 </div>
+                                                <p className="text-sm font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                                               </div>
                                             </div>
-                                          ))}
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-
-                                  {previewCart.length > 0 && (
-                                    <div className="p-5 bg-zinc-50 border-t border-zinc-200">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <span className="text-sm text-zinc-500 font-medium">Total</span>
-                                        <span className="text-lg font-bold text-zinc-900">
-                                          ₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </span>
+                                          </div>
+                                        ))}
                                       </div>
-                                      <button
-                                        disabled
-                                        className="w-full h-12 bg-black text-white text-sm font-medium opacity-30 cursor-not-allowed"
-                                      >
-                                        Checkout (Preview Only)
-                                      </button>
-                                    </div>
+                                    </>
                                   )}
                                 </div>
+
+                                {previewCart.length > 0 && (
+                                  <div className="p-5 bg-zinc-50 border-t border-zinc-200">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <span className="text-sm text-zinc-500 font-medium">Total</span>
+                                      <span className="text-lg font-bold text-zinc-900">
+                                        ₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                      </span>
+                                    </div>
+                                    <button
+                                      disabled
+                                      className="w-full h-12 bg-black text-white text-sm font-medium opacity-30 cursor-not-allowed"
+                                    >
+                                      Checkout (Preview Only)
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -2476,7 +2468,7 @@ function PreviewContent() {
       )}
 
       {/* Preview Cart FAB */}
-      {previewStoreContext && (
+      {viewMode === "Web-Preview" && previewStoreContext && (
         <>
           {/* Add to Cart Success Modal */}
           {showAddToCartSuccess && lastAddedProduct && (
