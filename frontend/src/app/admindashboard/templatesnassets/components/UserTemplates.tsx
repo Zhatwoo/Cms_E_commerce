@@ -159,12 +159,8 @@ export default function UserTemplates({
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.28, delay: index * 0.04 }}
                   whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                  className="group relative flex flex-col overflow-hidden cursor-pointer rounded-[24px]"
+                  className="group relative flex flex-col overflow-hidden cursor-pointer rounded-[24px] border border-[rgba(177,59,255,0.18)] bg-white shadow-[0_12px_30px_rgba(71,19,150,0.12)]"
                   style={{
-                    border: '1px solid rgba(166,61,255,0.13)',
-                    boxShadow: '0 4px 24px rgba(103,2,191,0.07), inset 0 1px 0 rgba(255,255,255,0.9)',
-                    background: 'rgba(255,255,255,0.88)',
-                    backdropFilter: 'blur(12px)',
                     minHeight: 340,
                   }}
                   onClick={() => onPreview?.(template)}
@@ -178,8 +174,7 @@ export default function UserTemplates({
                   }}
                 >
                   {/* Thumbnail */}
-                  <div className="relative h-44 overflow-hidden"
-                    style={{ background: 'rgba(240,235,255,0.6)', borderBottom: '1px solid rgba(166,61,255,0.08)' }}>
+                  <div className="relative h-48 overflow-hidden bg-[#DAD6F8]">
                     {template.thumbnail ? (
                       <Image
                         src={template.thumbnail}
@@ -246,8 +241,8 @@ export default function UserTemplates({
                     </div>
 
                     {/* Action buttons */}
-                    <div className="rounded-2xl p-2"
-                      style={{ background: 'rgba(240,235,255,0.55)', border: '1px solid rgba(166,61,255,0.09)' }}>
+                    <div className="rounded-[18px] p-2"
+                      style={{ background: 'rgba(240,235,255,0.7)', border: '1px solid rgba(166,61,255,0.09)' }}>
                       <div className="grid grid-cols-3 gap-1.5">
                         {/* Suspend */}
                         <button
