@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Users, DollarSign, Globe, Link, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getAnalytics, type AnalyticsResponse } from '@/lib/api';
+import { AdminPageHero } from '../../components/AdminPageHero';
 
 const AdminSidebar = dynamic(() => import('../../components/sidebar'), { ssr: false });
 const AdminHeader = dynamic(() => import('../../components/header'), { ssr: false });
@@ -135,17 +136,17 @@ export default function AnalyticsPageContent() {
                         animate="visible"
                         className="mx-auto max-w-7xl space-y-10"
                     >
-                        {/* Header Section */}
-                        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-4">
-                            <div>
-                                <h1 className="admin-dashboard-purple text-[2.75rem] font-bold tracking-tight leading-[1.05]">Monitoring & Analytics</h1>
-                                <p className="admin-dashboard-soft-text mt-2 text-base max-w-xl font-medium">Real-time performance metrics and user behavior insights for all websites.</p>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-[#471396] font-bold bg-[#F5F4FF] px-5 py-3 rounded-2xl border border-[rgba(166,61,255,0.12)] shadow-sm">
-                                <span className={`flex h-2.5 w-2.5 rounded-full ${loading ? "bg-amber-400" : "bg-[#10B981]"} animate-pulse`}></span>
-                                {loading ? "Syncing System..." : "Live System Overview"}
-                            </div>
-                        </div>
+                        <AdminPageHero
+                            title="Monitoring & Analytics"
+                            subtitle="Real-time performance metrics and user behavior insights for all websites."
+                            rightContent={(
+                                <div className="flex items-center gap-2 text-sm text-[#471396] font-bold bg-[#F5F4FF] px-5 py-3 rounded-2xl border border-[rgba(166,61,255,0.12)] shadow-sm">
+                                    <span className={`flex h-2.5 w-2.5 rounded-full ${loading ? "bg-amber-400" : "bg-[#10B981]"} animate-pulse`}></span>
+                                    {loading ? "Syncing System..." : "Live System Overview"}
+                                </div>
+                            )}
+                            className="pb-7"
+                        />
 
                         {error && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm font-medium flex items-center gap-3">

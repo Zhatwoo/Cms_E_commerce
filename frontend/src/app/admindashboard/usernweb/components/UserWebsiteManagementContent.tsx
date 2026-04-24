@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { useAdminLoading } from "../../components/LoadingProvider";
+import { AdminPageHero } from '../../components/AdminPageHero';
 
 const AdminSidebar = dynamic(() => import('../../components/sidebar'), { ssr: false }) as any;
 const AdminHeader = dynamic(() => import('../../components/header'), { ssr: false }) as any;
@@ -54,14 +55,10 @@ export default function UserWebsiteManagementContent() {
         <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 p-8">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-            >
-              <h1 className="mb-2 text-3xl font-bold text-[#B13BFF] sm:text-4xl">User &amp; Website Management</h1>
-              <p className="text-sm font-medium text-[#A78BFA]">Oversee all user accounts and published websites</p>
-            </motion.div>
+            <AdminPageHero
+              title="User & Website Management"
+              subtitle="Oversee all user accounts and published websites."
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 12 }}

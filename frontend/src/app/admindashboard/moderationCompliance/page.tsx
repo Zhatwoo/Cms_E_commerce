@@ -4,15 +4,9 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
+import { AdminPageHero } from '../components/AdminPageHero';
 import { addNotification } from '@/lib/notifications';
 import { useAdminLoading } from '../components/LoadingProvider';
-
-/* ── icon helpers ─────────────────────────────────────────────── */
-const ChevronRightIcon = () => (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-);
 
 const SearchIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -321,23 +315,16 @@ function ModerationComplianceBoard() {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="space-y-6">
-            {/* Header */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mb-2">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <h1 className="mb-1 text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>Moderation &amp; Compliance</h1>
-                        <div className="mt-1 flex items-center gap-2 text-sm" style={{ color: '#a78bfa' }}>
-                            <span>Moderation &amp; Compliance</span>
-                            <ChevronRightIcon />
-                            <span className="font-semibold" style={{ color: '#7b1de8' }}>{tabLabel}</span>
-                        </div>
-                    </div>
+            <AdminPageHero
+                title="Moderation & Compliance"
+                subtitle={`Review and resolve policy cases in the ${tabLabel} queue.`}
+                rightContent={(
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex items-center gap-3">
                         <div className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: '#FFCC00', color: '#232323' }}>Auto-review on</div>
                         <div className="rounded-full border px-3 py-1 text-xs" style={{ border: '1px solid rgba(138,134,164,0.35)', color: '#8A86A4' }}>Last sync 2 min ago</div>
                     </motion.div>
-                </div>
-            </motion.div>
+                )}
+            />
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="space-y-4">
                 {/* Stat cards */}

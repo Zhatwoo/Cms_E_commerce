@@ -8,6 +8,7 @@ import { AdminHeader } from '../components/header';
 import BuiltInTemplates from './components/BuiltInTemplates';
 import UserTemplates from './components/UserTemplates';
 import { useAdminLoading } from '../components/LoadingProvider';
+import { AdminPageHero } from '../components/AdminPageHero';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT, templateService } from '@/lib/templateService';
 import {
   deleteProject,
@@ -338,14 +339,10 @@ export default function TemplatesAssetsPage() {
         <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-6 p-8">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-            >
-              <h1 className="mb-2 text-3xl font-bold text-[#B13BFF] sm:text-4xl">Templates &amp; Assets</h1>
-              <p className="text-sm font-medium text-[#A78BFA]">Templates &amp; Assets</p>
-            </motion.div>
+            <AdminPageHero
+              title="Templates & Assets"
+              subtitle="Manage built-in and user-uploaded templates and assets."
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 12 }}

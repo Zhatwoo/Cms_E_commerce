@@ -22,6 +22,7 @@ import { formatToPHTimeShort } from '@/lib/dateUtils';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 import { useAdminLoading } from '../components/LoadingProvider';
+import { AdminPageHero } from '../components/AdminPageHero';
 import {
   BookOpen,
   Car,
@@ -1178,15 +1179,10 @@ function MonitoringPageContent() {
           <main className="flex-1 overflow-y-auto">
             <div className="p-6 lg:p-8">
 
-              {/* Page header */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6">
-                <h1 className="text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>
-                  Website Card &amp; Product Monitoring
-                </h1>
-                <p className="mt-1 text-sm font-medium" style={{ color: '#a78bfa' }}>
-                  Track performance and status for all active digital entities.
-                </p>
-              </motion.div>
+              <AdminPageHero
+                title="Website & Product Monitoring"
+                subtitle="Track performance and status for all active digital entities."
+              />
 
               {/* Toolbar */}
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.06 }}
@@ -1310,8 +1306,8 @@ function MonitoringPageContent() {
               {/* Websites tab */}
               {activeTab === 'websites' && (
                 <motion.div key="websites-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
-                  className="grid grid-cols-1 xl:grid-cols-[480px_minmax(0,1fr)] gap-4 items-start">
-                  {renderAnalyticsColumn()}
+                  className="grid grid-cols-1 gap-4 items-start">
+                  <div className="hidden" aria-hidden="true">{renderAnalyticsColumn()}</div>
                   <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
                     {loading ? (
                       <p className="text-sm" style={{ color: '#a090c8' }}>Loading websites…</p>
@@ -1339,8 +1335,8 @@ function MonitoringPageContent() {
               {/* Products tab */}
               {activeTab === 'products' && (
                 <motion.div key="products-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
-                  className="grid grid-cols-1 xl:grid-cols-[480px_minmax(0,1fr)] gap-4 items-start">
-                  {renderAnalyticsColumn()}
+                  className="grid grid-cols-1 gap-4 items-start">
+                  <div className="hidden" aria-hidden="true">{renderAnalyticsColumn()}</div>
                   <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
                     {loading ? (
                       <p className="text-sm" style={{ color: '#a090c8' }}>Loading products…</p>
