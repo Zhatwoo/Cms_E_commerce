@@ -518,8 +518,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 )}
             </AnimatePresence>
 
-            <div className="flex w-full items-center justify-between gap-4">
-                <div className="flex flex-1 items-center gap-3">
+            <div className="admin-dashboard-panel flex w-full items-center justify-between gap-4 rounded-[28px] px-4 py-3 sm:px-5 lg:px-6">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     {onMenuClick && (
                         <motion.button
                             whileTap={{ scale: 0.94 }}
@@ -533,7 +533,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         </motion.button>
                     )}
 
-                    <div ref={searchContainerRef} className="relative w-full max-w-[23rem] sm:max-w-[24rem]">
+                    <div ref={searchContainerRef} className="relative w-full max-w-[24rem] sm:max-w-[28rem]">
                         <div className="relative">
                             <input
                                 type="text"
@@ -590,9 +590,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-
-
+                <div className="flex shrink-0 items-center gap-3">
                     <div ref={notificationsRef} className="relative">
                         <motion.button
                             whileTap={{ scale: 0.94 }}
