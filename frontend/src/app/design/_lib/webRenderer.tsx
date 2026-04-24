@@ -6226,6 +6226,14 @@ export function WebPreview({
   const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
   const [history, setHistory] = React.useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+  const requestedPageId = React.useMemo(
+    () =>
+      (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug)?.id : undefined) ??
+      safePages[pageIndex]?.id ??
+      safePages[0]?.id ??
+      "",
+    [safePages, pageIndex, initialPageSlug]
+  );
 
   const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
   const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
@@ -6279,6 +6287,12 @@ export function WebPreview({
     },
     [currentPageId, history, pageMeta, onNavigate, safePages]
   );
+
+  React.useEffect(() => {
+    if (!requestedPageId || requestedPageId === currentPageId) return;
+    setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+    setCurrentPageId(requestedPageId);
+  }, [requestedPageId, currentPageId]);
 
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
@@ -6405,9 +6419,9 @@ export function WebPreview({
           background: "#0d0d0f",
         }}
       >
-        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
+        {/* Inner wrapper: keep mounted to avoid preview flicker on page changes */}
         <div
-          key={currentPageId}
+          data-preview-page-frame="true"
           style={{
             ...pageFrameStyles,
             width: builderParityMode
@@ -6487,6 +6501,14 @@ export function LiveSite({
   const [currentPageId, setCurrentPageId] = React.useState<string>(initialPage?.id || "");
   const [history, setHistory] = React.useState<string[]>([]);
   const [transitionStyle, setTransitionStyle] = React.useState<React.CSSProperties>({});
+  const requestedPageId = React.useMemo(
+    () =>
+      (initialPageSlug ? safePages.find((p, index) => getPageSlug(p, index) === initialPageSlug)?.id : undefined) ??
+      safePages[pageIndex]?.id ??
+      safePages[0]?.id ??
+      "",
+    [safePages, pageIndex, initialPageSlug]
+  );
 
   const currentPage = safePages.find((p) => p.id === currentPageId) ?? safePages[0];
   const currentPageIndex = safePages.findIndex((p) => p.id === currentPageId);
@@ -6585,6 +6607,12 @@ export function LiveSite({
     }
   }, [currentPageId, history, pageMeta]);
 
+  React.useEffect(() => {
+    if (!requestedPageId || requestedPageId === currentPageId) return;
+    setTransitionStyle(PAGE_TRANSITION_STYLES.dissolve);
+    setCurrentPageId(requestedPageId);
+  }, [requestedPageId, currentPageId]);
+
   if (!currentPage) {
     const hasPages = safePages.length > 0;
     return (
@@ -6653,9 +6681,8 @@ export function LiveSite({
           ...transitionStyle,
         }}
       >
-        {/* Inner wrapper: key={currentPageId} so page content re-mounts on navigation */}
+        {/* Inner wrapper: keep mounted to avoid page flicker on navigation */}
         <div
-          key={currentPageId}
           style={{
             ...pageFrameStyles,
             width: isScaling ? pageWidthPx : "100%",
