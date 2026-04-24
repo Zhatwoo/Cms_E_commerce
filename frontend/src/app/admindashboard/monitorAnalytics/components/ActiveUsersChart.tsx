@@ -68,13 +68,14 @@ export default function ActiveUsersChart({
                     {
                         label: 'Actual Active Users',
                         data: actualData,
-                        borderColor: '#FFB800',
-                        backgroundColor: 'rgba(255, 184, 0, 0.12)',
-                        borderWidth: 2.5,
+                        borderColor: '#9333EA',
+                        backgroundColor: 'rgba(147, 51, 234, 0.08)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
                         pointRadius: chartLabels.length > 31 ? 0 : 3,
                         pointHoverRadius: 5,
                         pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#FFB800',
+                        pointBorderColor: '#9333EA',
                         pointBorderWidth: 2,
                         fill: true,
                         tension: 0.4,
@@ -190,13 +191,13 @@ export default function ActiveUsersChart({
             transition={{ duration: 0.3 }}
             className="space-y-6"
         >
-            <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+            <div className="rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] p-5 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:p-6">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Active Users Performance</h2>
                         <p className="admin-dashboard-soft-text mt-1 text-sm">Peak vs. actual daily active users trend</p>
                     </div>
-                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1 relative" suppressHydrationWarning>
+                    <div className="relative flex gap-1 rounded-xl border border-[rgba(166,61,255,0.2)] bg-white p-1 shadow-[0_8px_20px_rgba(103,2,191,0.08)]" suppressHydrationWarning>
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -207,14 +208,14 @@ export default function ActiveUsersChart({
                                 onClick={() => onPeriodChange(p.id)}
                                 disabled={loading}
                                 className={`relative z-10 rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-200 ${
-                                    period === p.id ? 'admin-dashboard-purple' : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
+                                    period === p.id ? 'text-white' : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
                                 } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
                                 {period === p.id && (
                                     <motion.div
                                         layoutId="periodTabBackgroundActiveUsers"
-                                        className="absolute inset-0 rounded-lg admin-dashboard-yellow-fill shadow-sm"
+                                        className="absolute inset-0 rounded-lg bg-[#B13BFF] shadow-sm"
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
                                 )}
@@ -224,14 +225,14 @@ export default function ActiveUsersChart({
                     </div>
                 </div>
 
-                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8 w-full">
+                <div className="w-full rounded-[20px] border border-[rgba(166,61,255,0.2)] bg-white p-6 shadow-[0_14px_30px_rgba(103,2,191,0.09)] sm:p-8">
                     <canvas ref={chartRef} height="110" className="w-full"></canvas>
                 </div>
             </div>
 
             {/* Info Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="admin-dashboard-inset-panel rounded-[16px] p-4 bg-white border border-purple-100">
+                <div className="rounded-[16px] border border-[rgba(166,61,255,0.2)] bg-white p-4 shadow-[0_10px_22px_rgba(103,2,191,0.08)]">
                     <div className="flex items-center gap-3">
                         <div className="w-4 h-4 rounded-full bg-purple-600"></div>
                         <div>
@@ -242,9 +243,9 @@ export default function ActiveUsersChart({
                         </div>
                     </div>
                 </div>
-                <div className="admin-dashboard-inset-panel rounded-[16px] p-4 bg-white border border-yellow-100">
+                <div className="rounded-[16px] border border-[rgba(166,61,255,0.2)] bg-white p-4 shadow-[0_10px_22px_rgba(103,2,191,0.08)]">
                     <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full bg-yellow-400"></div>
+                        <div className="w-4 h-4 rounded-full bg-purple-500/60"></div>
                         <div>
                             <p className="admin-dashboard-soft-text text-xs font-bold uppercase tracking-widest">Current Active Users</p>
                             <p className="admin-dashboard-purple text-xl font-bold mt-1">

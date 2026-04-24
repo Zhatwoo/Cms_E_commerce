@@ -119,7 +119,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                         <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Revenue Growth</h2>
                         <p className="admin-dashboard-soft-text mt-1 text-sm">Revenue over time (orders)</p>
                     </div>
-                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1 relative">
+                    <div className="relative flex gap-1 rounded-xl border border-[rgba(166,61,255,0.2)] bg-white p-1 shadow-[0_8px_20px_rgba(103,2,191,0.08)]">
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -147,7 +147,7 @@ export default function RevenueGrowth({ period, onPeriodChange, revenueOverTime,
                     </div>
                 </div>
 
-                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8 w-full">
+                <div className="w-full rounded-[20px] border border-[rgba(166,61,255,0.2)] bg-white p-6 shadow-[0_14px_30px_rgba(103,2,191,0.09)] sm:p-8">
                     <canvas ref={revenueChartRef} height="110" className="w-full"></canvas>
                 </div>
             </div>

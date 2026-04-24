@@ -10,7 +10,6 @@ import {
     getAnalytics,
     type User 
 } from '@/lib/api';
-import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
     ADMIN_CHART_SERIES,
     ADMIN_STATS,
@@ -24,7 +23,7 @@ import { useAdminLoading } from './LoadingProvider';
 function DashboardPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
     return (
         <section
-            className={`rounded-3xl border border-[#E2C7FF] bg-[#FDFCFF]/95 shadow-[0_14px_40px_rgba(177,59,255,0.14)] backdrop-blur-sm ${className}`.trim()}
+            className={`rounded-3xl border border-[rgba(177,59,255,0.16)] bg-white shadow-[0_16px_36px_rgba(177,59,255,0.10)] backdrop-blur-sm ${className}`.trim()}
         >
             {children}
         </section>
@@ -93,8 +92,6 @@ function DashboardLineChart({ series }: { series: readonly ChartSeriesItem[] }) 
                         })}
                     </g>
                 ))}
-                <text x={LP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="start">7 DAYS AGO</text>
-                <text x={CW - RP} y={CH - 9} fontSize="7" fontWeight="bold" fill={CHART_TEXT_COLOR} textAnchor="end">TODAY</text>
             </svg>
             <div className="mt-1 flex items-center justify-center gap-4 text-[10px] text-[#9A8CB4]">
                 {series.map((item) => (
@@ -117,21 +114,6 @@ function DashboardStatCard({
 }: {
     title: string; value: string; liveLabel: string; series: readonly ChartSeriesItem[]; index: number;
 }) {
-    const points = series[0]?.points || [];
-    const calculateChange = (pts: readonly number[]) => {
-        if (pts.length < 2) return { value: '0.0%', isIncrease: true, isNeutral: true };
-        const curr = pts[pts.length - 1];
-        const prev = pts[pts.length - 2];
-        if (prev === 0) return { value: curr > 0 ? '+100%' : '0.0%', isIncrease: curr > 0, isNeutral: curr === 0 };
-        const pct = ((curr - prev) / prev) * 100;
-        return {
-            value: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
-            isIncrease: pct >= 0,
-            isNeutral: pct === 0
-        };
-    };
-    const change = calculateChange(points);
-
     return (
         <motion.div
             initial={{ opacity: 0, y: 22 }}
@@ -143,16 +125,6 @@ function DashboardStatCard({
                     <div className="flex-1">
                         <div className="flex items-center gap-3">
                             <p className="text-[2.1rem] font-bold leading-none tracking-tight text-[#26155E]">{value}</p>
-                            {!change.isNeutral && (
-                                <div className={`flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                                    change.isIncrease 
-                                        ? 'bg-emerald-50 text-emerald-700' 
-                                        : 'bg-rose-50 text-rose-700'
-                                }`}>
-                                    {change.isIncrease ? <ArrowUpRight size={12} strokeWidth={3} /> : <ArrowDownRight size={12} strokeWidth={3} />}
-                                    {change.value}
-                                </div>
-                            )}
                         </div>
                         <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.15em] text-[#7E4FB4]">{title}</p>
                     </div>
@@ -168,7 +140,7 @@ function DashboardStatCard({
 
                 <div className="mt-4 flex items-center justify-between border-t border-[#E9D8FF] pt-4">
                     <span className="whitespace-nowrap text-[9px] font-semibold uppercase tracking-widest text-[#7E4FB4]">Weekly Momentum</span>
-                    <span className="whitespace-nowrap text-[9px] font-medium text-[#A48ABF]">Compared to last week</span>
+                    <span className="whitespace-nowrap text-[9px] font-medium text-[#A48ABF]">Live trend overview</span>
                 </div>
             </DashboardPanel>
         </motion.div>
@@ -192,12 +164,12 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
                     </button>
                 </div>
                 <div
-                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-2xl border border-[#E2C7FF] bg-[#F8F2FF]/70 p-3 sm:p-4"
+                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-2xl border border-[rgba(177,59,255,0.12)] bg-[#F8F2FF]/85 p-3 sm:p-4"
                 >
                     <div className="space-y-3">
                     {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 rounded-2xl border border-[#E9D8FF] bg-white px-4 py-4">
-                            <div className="w-1 shrink-0 rounded-full bg-[#FFCC00]" />
+                        <div key={item.id} className="flex gap-4 rounded-2xl border border-[rgba(177,59,255,0.12)] bg-white px-4 py-4">
+                            <div className="w-1 shrink-0 rounded-full bg-[#B13BFF]" />
                             <div className="min-w-0">
                                 <p className="text-base font-semibold text-[#26155E]">{item.title}</p>
                                 <p className="mt-1 text-sm text-[#6F657E]">{item.action}</p>
@@ -245,7 +217,7 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
                         <p className="text-sm text-[#7E4FB4]">No recent notifications.</p>
                     ) : (
                         items.map((item) => (
-                            <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-[#E9D8FF] bg-[#F8F2FF]/70 px-3 py-2.5">
+                            <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-[rgba(177,59,255,0.12)] bg-[#F8F2FF]/85 px-3 py-2.5">
                                 <div className="flex items-start gap-4">
                                     <span 
                                         className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${typeDotClass[item.type] || 'bg-[#A48ABF]'}`}
@@ -393,7 +365,7 @@ export function AdminDashboard() {
     return (
         <main className="flex-1 overflow-y-auto">
             <div className="w-full px-4 pb-24 pt-4 sm:px-6 lg:px-6 lg:pb-32 lg:pt-6">
-                <div className="rounded-3xl border border-[rgba(177,59,255,0.29)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.14)] sm:px-7">
+                <div className="rounded-3xl border border-[rgba(177,59,255,0.24)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:px-7">
                 <div className="flex flex-col gap-2">
                     <motion.h1
                         className="text-[2.45rem] font-bold leading-none tracking-[-0.04em] text-[#26155E] sm:text-[3.35rem]"

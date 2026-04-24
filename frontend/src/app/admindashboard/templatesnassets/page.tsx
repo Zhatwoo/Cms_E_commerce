@@ -8,6 +8,7 @@ import { AdminHeader } from '../components/header';
 import BuiltInTemplates from './components/BuiltInTemplates';
 import UserTemplates from './components/UserTemplates';
 import { useAdminLoading } from '../components/LoadingProvider';
+import { AdminPageHero } from '../components/AdminPageHero';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT, templateService } from '@/lib/templateService';
 import {
   deleteProject,
@@ -337,23 +338,19 @@ export default function TemplatesAssetsPage() {
       <div className="flex min-h-0 flex-1 flex-col">
         <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
         <main className="flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-6 p-8">
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45 }}
-            >
-              <h1 className="mb-2 text-3xl font-bold text-[#B13BFF] sm:text-4xl">Templates &amp; Assets</h1>
-              <p className="text-sm font-medium text-[#A78BFA]">Templates &amp; Assets</p>
-            </motion.div>
+          <div className="space-y-6 p-4 sm:p-6 lg:p-8">
+            <AdminPageHero
+              title="Templates & Assets"
+              subtitle="Manage built-in and user-uploaded templates and assets."
+            />
 
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, delay: 0.08 }}
+              transition={{ duration: 0.32, delay: 0.06 }}
               className="flex flex-wrap items-center gap-3"
             >
-              <div className="relative flex-1 min-w-[17rem]">
+              <div className="relative w-full min-w-0 flex-1 sm:min-w-[17rem]">
                 <input
                   type="text"
                   placeholder="Search templates or assets"
@@ -367,11 +364,11 @@ export default function TemplatesAssetsPage() {
                 </div>
               </div>
 
-              <div className="ml-auto flex gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1 relative">
+              <div className="relative flex w-full flex-wrap gap-1 rounded-xl border border-[rgba(177,59,255,0.29)] bg-[#F5F4FF] p-1 sm:ml-auto sm:w-auto sm:flex-nowrap">
                 <button
                   type="button"
                   onClick={() => handleTabChange('builtin')}
-                  className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                  className={`relative z-10 flex-1 rounded-lg px-4 py-2.5 text-xs font-semibold transition-colors duration-300 sm:flex-none sm:px-6 sm:text-sm ${
                     activeTab === 'builtin' ? 'text-[#471396]' : 'text-[#6F657E] hover:text-[#471396]'
                   }`}
                 >
@@ -379,7 +376,7 @@ export default function TemplatesAssetsPage() {
                     <motion.div
                       layoutId="activeTabBackground"
                       className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                     />
                   )}
                   <span className="relative z-10">Built-in Templates</span>
@@ -387,7 +384,7 @@ export default function TemplatesAssetsPage() {
                 <button
                   type="button"
                   onClick={() => handleTabChange('user')}
-                  className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                  className={`relative z-10 flex-1 rounded-lg px-4 py-2.5 text-xs font-semibold transition-colors duration-300 sm:flex-none sm:px-6 sm:text-sm ${
                     activeTab === 'user' ? 'text-[#471396]' : 'text-[#6F657E] hover:text-[#471396]'
                   }`}
                 >
@@ -395,7 +392,7 @@ export default function TemplatesAssetsPage() {
                     <motion.div
                       layoutId="activeTabBackground"
                       className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                      transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                     />
                   )}
                   <span className="relative z-10">User Templates</span>
@@ -445,11 +442,11 @@ export default function TemplatesAssetsPage() {
                     initial={{ y: 18, scale: 0.98, opacity: 0 }}
                     animate={{ y: 0, scale: 1, opacity: 1 }}
                     exit={{ y: 12, scale: 0.98, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="w-full max-w-md rounded-[24px] border border-[rgba(177,59,255,0.2)] bg-white p-6 shadow-[0_20px_54px_rgba(71,19,150,0.18)]"
+                    transition={{ duration: 0.28 }}
+                    className="w-full max-w-md rounded-[24px] border border-[rgba(177,59,255,0.2)] bg-white p-5 shadow-[0_20px_54px_rgba(71,19,150,0.18)] sm:p-6"
                     onClick={(event) => event.stopPropagation()}
                   >
-                    <h3 className="text-xl font-bold text-[#4A1A8A]">
+                    <h3 className="text-lg font-bold text-[#4A1A8A] sm:text-xl">
                       {actionModal.mode === 'rename'
                         ? 'Rename Template'
                         : actionModal.mode === 'suspend'

@@ -471,33 +471,38 @@ body:has(.m-dashboard-shell) {
 
 /* ── Admin Dashboard — Light Mode ─────────────────────────── */
 .admin-dashboard-shell {
-  background-color: #f0eeff;
-  background-image: linear-gradient(180deg, #f5f3ff 0%, #ede9ff 50%, #e8e3ff 100%);
+  background-color: #f4f1ff;
+  background-image:
+    radial-gradient(circle at top left, rgba(177, 59, 255, 0.10), transparent 28%),
+    radial-gradient(circle at top right, rgba(255, 204, 0, 0.08), transparent 24%),
+    linear-gradient(180deg, #f7f4ff 0%, #efeaff 52%, #eae4ff 100%);
   font-family: var(--font-outfit), 'Outfit', sans-serif;
 }
 
 .admin-dashboard-panel {
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid rgba(166, 61, 255, 0.16);
-  box-shadow: 
-    0 20px 50px rgba(103, 2, 191, 0.12), 
-    0 4px 12px rgba(103, 2, 191, 0.04);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(166, 61, 255, 0.14);
+  box-shadow:
+    0 16px 36px rgba(103, 2, 191, 0.10),
+    0 3px 10px rgba(103, 2, 191, 0.04);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }
 
 .admin-dashboard-panel-soft {
-  background: rgba(255, 255, 255, 0.72);
-  border: 1.5px solid rgba(166, 61, 255, 0.14);
-  box-shadow: 0 2px 12px rgba(103, 2, 191, 0.06);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.90);
+  border: 1.5px solid rgba(166, 61, 255, 0.12);
+  box-shadow: 0 2px 10px rgba(103, 2, 191, 0.05);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
 }
 
 .admin-dashboard-inset-panel {
-  background: rgba(240, 235, 255, 0.65);
-  border: 1px solid rgba(166, 61, 255, 0.09);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  background: rgba(250, 247, 255, 0.95);
+  border: 1px solid rgba(166, 61, 255, 0.11);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(103, 2, 191, 0.03);
 }
 
 .admin-dashboard-purple {

@@ -103,10 +103,10 @@ export default function UserTemplates({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 16 }}
       transition={{ duration: 0.3 }}
-      className="space-y-5"
+      className="space-y-4 sm:space-y-5"
     >
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-medium" style={{ color: '#a090c8' }}>
           {loading ? 'Loading…' : `${templates.length} template${templates.length !== 1 ? 's' : ''}`}
         </p>
@@ -129,13 +129,13 @@ export default function UserTemplates({
 
       {/* Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)}
         </div>
       ) : templates.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-3">
           <AnimatePresence mode="popLayout">
             {templates.map((template, index) => {
               const isDeleting = deletingTemplateId === template.id;
@@ -157,14 +157,10 @@ export default function UserTemplates({
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ duration: 0.28, delay: index * 0.04 }}
-                  whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                  className="group relative flex flex-col overflow-hidden cursor-pointer rounded-[24px]"
+                    transition={{ duration: 0.3, delay: index * 0.04 }}
+                    whileHover={{ y: -4, transition: { duration: 0.3 } }}
+                  className="group relative flex flex-col overflow-hidden cursor-pointer rounded-[24px] border border-[rgba(177,59,255,0.18)] bg-white shadow-[0_12px_30px_rgba(71,19,150,0.12)]"
                   style={{
-                    border: '1px solid rgba(166,61,255,0.13)',
-                    boxShadow: '0 4px 24px rgba(103,2,191,0.07), inset 0 1px 0 rgba(255,255,255,0.9)',
-                    background: 'rgba(255,255,255,0.88)',
-                    backdropFilter: 'blur(12px)',
                     minHeight: 340,
                   }}
                   onClick={() => onPreview?.(template)}
@@ -178,14 +174,13 @@ export default function UserTemplates({
                   }}
                 >
                   {/* Thumbnail */}
-                  <div className="relative h-44 overflow-hidden"
-                    style={{ background: 'rgba(240,235,255,0.6)', borderBottom: '1px solid rgba(166,61,255,0.08)' }}>
+                  <div className="relative h-48 overflow-hidden bg-[#DAD6F8]">
                     {template.thumbnail ? (
                       <Image
                         src={template.thumbnail}
                         alt={template.name}
                         fill
-                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
                         unoptimized
                       />
                     ) : (
@@ -217,7 +212,7 @@ export default function UserTemplates({
                     </div>
 
                     {/* Preview hint on hover */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
                       style={{ background: 'rgba(74,26,138,0.18)', backdropFilter: 'blur(2px)' }}>
                       <div className="flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-semibold text-white shadow-lg"
                         style={{ background: 'rgba(74,26,138,0.85)' }}>
@@ -228,7 +223,7 @@ export default function UserTemplates({
                   </div>
 
                   {/* Card body */}
-                  <div className="flex flex-1 flex-col p-5">
+                  <div className="flex flex-1 flex-col p-4 sm:p-5">
                     {/* Title + author */}
                     <div className="mb-4 flex-1">
                       <h4 className="truncate text-[0.95rem] font-bold tracking-tight leading-snug" style={{ color: '#2d1a50' }} title={template.name}>
@@ -246,8 +241,8 @@ export default function UserTemplates({
                     </div>
 
                     {/* Action buttons */}
-                    <div className="rounded-2xl p-2"
-                      style={{ background: 'rgba(240,235,255,0.55)', border: '1px solid rgba(166,61,255,0.09)' }}>
+                    <div className="rounded-[18px] p-2"
+                      style={{ background: 'rgba(240,235,255,0.7)', border: '1px solid rgba(166,61,255,0.09)' }}>
                       <div className="grid grid-cols-3 gap-1.5">
                         {/* Suspend */}
                         <button
@@ -255,7 +250,7 @@ export default function UserTemplates({
                           onClick={(e) => { stopEvent(e); onSuspend?.(template); }}
                           disabled={isBusy}
                           title="Suspend Template"
-                          className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-[9px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex min-h-10 flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed disabled:opacity-50"
                           style={{ color: '#dc2626' }}
                           onMouseEnter={(e) => !isBusy && (e.currentTarget.style.background = 'rgba(239,68,68,0.08)')}
                           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
@@ -273,7 +268,7 @@ export default function UserTemplates({
                           onClick={(e) => { stopEvent(e); onRename?.(template); }}
                           disabled={isBusy}
                           title="Rename Template"
-                          className="flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-[9px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed disabled:opacity-50"
+                          className="flex min-h-10 flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all disabled:cursor-not-allowed disabled:opacity-50"
                           style={{ color: '#7b1de8' }}
                           onMouseEnter={(e) => !isBusy && (e.currentTarget.style.background = 'rgba(123,29,232,0.08)')}
                           onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}

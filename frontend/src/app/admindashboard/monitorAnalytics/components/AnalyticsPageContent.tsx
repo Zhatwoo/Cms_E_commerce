@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
 import { Users, DollarSign, Globe, Link, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getAnalytics, type AnalyticsResponse } from '@/lib/api';
+import { AdminPageHero } from '../../components/AdminPageHero';
 
 const AdminSidebar = dynamic(() => import('../../components/sidebar'), { ssr: false });
 const AdminHeader = dynamic(() => import('../../components/header'), { ssr: false });
@@ -133,19 +134,19 @@ export default function AnalyticsPageContent() {
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="mx-auto max-w-7xl space-y-10"
+                        className="w-full space-y-10"
                     >
-                        {/* Header Section */}
-                        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-4">
-                            <div>
-                                <h1 className="admin-dashboard-purple text-[2.75rem] font-bold tracking-tight leading-[1.05]">Monitoring & Analytics</h1>
-                                <p className="admin-dashboard-soft-text mt-2 text-base max-w-xl font-medium">Real-time performance metrics and user behavior insights for all websites.</p>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm text-[#471396] font-bold bg-[#F5F4FF] px-5 py-3 rounded-2xl border border-[rgba(166,61,255,0.12)] shadow-sm">
-                                <span className={`flex h-2.5 w-2.5 rounded-full ${loading ? "bg-amber-400" : "bg-[#10B981]"} animate-pulse`}></span>
-                                {loading ? "Syncing System..." : "Live System Overview"}
-                            </div>
-                        </div>
+                        <AdminPageHero
+                            title="Monitoring & Analytics"
+                            subtitle="Real-time performance metrics and user behavior insights for all websites."
+                            rightContent={(
+                                <div className="flex items-center gap-2 text-sm text-[#471396] font-bold bg-[#F5F4FF] px-5 py-3 rounded-2xl border border-[rgba(166,61,255,0.12)] shadow-sm">
+                                    <span className={`flex h-2.5 w-2.5 rounded-full ${loading ? "bg-purple-400" : "bg-[#10B981]"} animate-pulse`}></span>
+                                    {loading ? "Syncing System..." : "Live System Overview"}
+                                </div>
+                            )}
+                            className="pb-7"
+                        />
 
                         {error && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-700 text-sm font-medium flex items-center gap-3">
@@ -159,7 +160,7 @@ export default function AnalyticsPageContent() {
                             {stats.map((stat) => (
                                 <div
                                     key={stat.label}
-                                    className="admin-dashboard-panel p-6 shadow-sm border border-[rgba(166,61,255,0.08)] bg-white relative overflow-hidden"
+                                    className="admin-dashboard-panel relative overflow-hidden rounded-[24px] border border-[rgba(166,61,255,0.18)] bg-[rgba(255,255,255,0.86)] p-6 shadow-[0_14px_34px_rgba(103,2,191,0.09)]"
                                 >
                                     <div className="flex items-center justify-between mb-5">
                                         <div className="p-3.5 rounded-2xl shadow-sm bg-purple-50/50" style={{ color: stat.color }}>
@@ -185,7 +186,7 @@ export default function AnalyticsPageContent() {
                                     </div>
 
                                     {/* Performance Container - Always Displayed */}
-                                    <div className="admin-dashboard-inset-panel rounded-xl p-3 flex items-center justify-between bg-[rgba(245,244,255,0.6)] border border-[rgba(177,59,255,0.08)]">
+                                    <div className="admin-dashboard-inset-panel flex items-center justify-between rounded-xl border border-[rgba(177,59,255,0.14)] bg-[rgba(245,244,255,0.9)] p-3">
                                         <div className="flex flex-col">
                                             <span className="text-[9px] font-black uppercase tracking-widest text-[#A78BFA]">Trend Factor</span>
                                             <span className="text-[11px] font-bold text-[#471396]">{stat.change.isIncrease ? 'Growth Positive' : 'Action Required'}</span>
@@ -207,7 +208,7 @@ export default function AnalyticsPageContent() {
                             <motion.div
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.4, delay: 0.1 }}
+                                transition={{ duration: 0.32, delay: 0.08 }}
                             >
                                 <ActiveUsersChart 
                                     period={period} 
@@ -222,20 +223,20 @@ export default function AnalyticsPageContent() {
                         {/* Middle Section: Charts & Tabs */}
                         <div className="space-y-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="admin-dashboard-inset-panel flex p-1.5 rounded-2xl relative w-fit overflow-hidden bg-white/40 border border-white/60">
+                                <div className="relative flex w-full overflow-x-auto rounded-2xl border border-[rgba(166,61,255,0.22)] bg-white p-1.5 shadow-[0_10px_24px_rgba(103,2,191,0.1)] sm:w-fit">
                                     {(['platform', 'engagement', 'trends'] as const).map((t) => (
                                         <button
                                             key={t}
                                             onClick={() => setActiveTab(t)}
-                                            className={`relative z-10 px-8 py-3 rounded-xl text-sm font-black transition-all duration-300 uppercase tracking-widest active:scale-95 ${
-                                                activeTab === t ? 'text-[#471396]' : 'text-[#7a6aa0] hover:text-[#471396]'
+                                            className={`relative z-10 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all duration-300 active:scale-95 sm:px-8 sm:py-3 sm:text-sm sm:tracking-widest ${
+                                                activeTab === t ? 'text-white' : 'text-[#7a6aa0] hover:text-[#471396]'
                                             }`}
                                         >
                                             {activeTab === t && (
                                                 <motion.div
                                                     layoutId="activeTabBackgroundAnalytics"
-                                                    className="absolute inset-0 z-[-1] bg-[#FFCC00] rounded-xl shadow-lg border border-yellow-400/20"
-                                                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                                    className="absolute inset-0 z-[-1] bg-[#B13BFF] rounded-xl shadow-lg border border-purple-400/20"
+                                                    transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                                                 />
                                             )}
                                             {tabNames[t]}
@@ -243,8 +244,8 @@ export default function AnalyticsPageContent() {
                                     ))}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-purple-100 shadow-sm">
-                                        <div className={`h-2 w-2 rounded-full ${loading ? "bg-amber-400 animate-bounce" : "bg-emerald-500"}`} />
+                                    <div className="flex items-center gap-2 rounded-xl border border-[rgba(166,61,255,0.18)] bg-white px-4 py-2 shadow-[0_6px_16px_rgba(103,2,191,0.08)]">
+                                        <div className={`h-2 w-2 rounded-full ${loading ? "bg-purple-400 animate-bounce" : "bg-emerald-500"}`} />
                                         <span className="text-xs font-black uppercase tracking-widest text-[#471396]">{loading ? "Updating..." : "Real-time"}</span>
                                     </div>
                                     <span className="font-black uppercase tracking-[0.1em] text-[10px] text-[#A78BFA]">{tabNames[activeTab]}</span>
@@ -255,7 +256,7 @@ export default function AnalyticsPageContent() {
                                 key={activeTab}
                                 initial={{ opacity: 0}}
                                 animate={{ opacity: 1}}
-                                transition={{ duration: 0.3 }}
+                                transition={{ duration: 0.32 }}
                             >
                                 <div className={loading && !analytics ? "opacity-40" : "opacity-100"}>
                                     {activeTab === 'platform' && <PlatformTraffic period={period} onPeriodChange={setPeriod} signupsOverTime={analytics?.signupsOverTime} loading={loading} />}
@@ -267,7 +268,7 @@ export default function AnalyticsPageContent() {
 
 
                         {/* Bottom Section: Workspace Cards */}
-                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pb-10">
+                        <div className="grid grid-cols-1 gap-6 pb-10 lg:grid-cols-3 lg:gap-8">
                             {[
                                 { 
                                     title: 'Content Workspace', 
@@ -297,7 +298,7 @@ export default function AnalyticsPageContent() {
                                 <motion.div
                                     key={item.title}
                                     variants={cardVariants}
-                                    className="admin-dashboard-panel p-8 group relative overflow-hidden"
+                                    className="group relative overflow-hidden rounded-[28px] border border-[rgba(166,61,255,0.2)] bg-white p-6 shadow-[0_14px_32px_rgba(103,2,191,0.09)] sm:p-8"
                                     whileHover={{ y: -4 }}
                                 >
                                     <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
