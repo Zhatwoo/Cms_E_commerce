@@ -134,7 +134,7 @@ export default function AnalyticsPageContent() {
                         variants={containerVariants}
                         initial="hidden"
                         animate="visible"
-                        className="mx-auto max-w-7xl space-y-10"
+                        className="w-full space-y-10"
                     >
                         <AdminPageHero
                             title="Monitoring & Analytics"
@@ -160,7 +160,7 @@ export default function AnalyticsPageContent() {
                             {stats.map((stat) => (
                                 <div
                                     key={stat.label}
-                                    className="admin-dashboard-panel p-6 shadow-sm border border-[rgba(166,61,255,0.08)] bg-white relative overflow-hidden"
+                                    className="admin-dashboard-panel relative overflow-hidden rounded-[24px] border border-[rgba(166,61,255,0.18)] bg-[rgba(255,255,255,0.86)] p-6 shadow-[0_14px_34px_rgba(103,2,191,0.09)]"
                                 >
                                     <div className="flex items-center justify-between mb-5">
                                         <div className="p-3.5 rounded-2xl shadow-sm bg-purple-50/50" style={{ color: stat.color }}>
@@ -186,7 +186,7 @@ export default function AnalyticsPageContent() {
                                     </div>
 
                                     {/* Performance Container - Always Displayed */}
-                                    <div className="admin-dashboard-inset-panel rounded-xl p-3 flex items-center justify-between bg-[rgba(245,244,255,0.6)] border border-[rgba(177,59,255,0.08)]">
+                                    <div className="admin-dashboard-inset-panel flex items-center justify-between rounded-xl border border-[rgba(177,59,255,0.14)] bg-[rgba(245,244,255,0.9)] p-3">
                                         <div className="flex flex-col">
                                             <span className="text-[9px] font-black uppercase tracking-widest text-[#A78BFA]">Trend Factor</span>
                                             <span className="text-[11px] font-bold text-[#471396]">{stat.change.isIncrease ? 'Growth Positive' : 'Action Required'}</span>
@@ -223,7 +223,7 @@ export default function AnalyticsPageContent() {
                         {/* Middle Section: Charts & Tabs */}
                         <div className="space-y-6">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <div className="admin-dashboard-inset-panel flex p-1.5 rounded-2xl relative w-fit overflow-hidden bg-white/40 border border-white/60">
+                                <div className="relative flex w-fit overflow-hidden rounded-2xl border border-[rgba(166,61,255,0.22)] bg-white p-1.5 shadow-[0_10px_24px_rgba(103,2,191,0.1)]">
                                     {(['platform', 'engagement', 'trends'] as const).map((t) => (
                                         <button
                                             key={t}
@@ -244,7 +244,7 @@ export default function AnalyticsPageContent() {
                                     ))}
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-purple-100 shadow-sm">
+                                    <div className="flex items-center gap-2 rounded-xl border border-[rgba(166,61,255,0.18)] bg-white px-4 py-2 shadow-[0_6px_16px_rgba(103,2,191,0.08)]">
                                         <div className={`h-2 w-2 rounded-full ${loading ? "bg-amber-400 animate-bounce" : "bg-emerald-500"}`} />
                                         <span className="text-xs font-black uppercase tracking-widest text-[#471396]">{loading ? "Updating..." : "Real-time"}</span>
                                     </div>
@@ -298,7 +298,7 @@ export default function AnalyticsPageContent() {
                                 <motion.div
                                     key={item.title}
                                     variants={cardVariants}
-                                    className="admin-dashboard-panel p-8 group relative overflow-hidden"
+                                    className="group relative overflow-hidden rounded-[28px] border border-[rgba(166,61,255,0.2)] bg-white p-8 shadow-[0_14px_32px_rgba(103,2,191,0.09)]"
                                     whileHover={{ y: -4 }}
                                 >
                                     <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.06] transition-opacity">
