@@ -169,7 +169,7 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
                     <div className="space-y-3">
                     {items.map((item) => (
                         <div key={item.id} className="flex gap-4 rounded-2xl border border-[rgba(177,59,255,0.12)] bg-white px-4 py-4">
-                            <div className="w-1 shrink-0 rounded-full bg-[#FFCC00]" />
+                            <div className="w-1 shrink-0 rounded-full bg-[#B13BFF]" />
                             <div className="min-w-0">
                                 <p className="text-base font-semibold text-[#26155E]">{item.title}</p>
                                 <p className="mt-1 text-sm text-[#6F657E]">{item.action}</p>

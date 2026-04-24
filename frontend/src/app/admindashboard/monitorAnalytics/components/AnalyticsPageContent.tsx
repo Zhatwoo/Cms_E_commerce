@@ -141,7 +141,7 @@ export default function AnalyticsPageContent() {
                             subtitle="Real-time performance metrics and user behavior insights for all websites."
                             rightContent={(
                                 <div className="flex items-center gap-2 text-sm text-[#471396] font-bold bg-[#F5F4FF] px-5 py-3 rounded-2xl border border-[rgba(166,61,255,0.12)] shadow-sm">
-                                    <span className={`flex h-2.5 w-2.5 rounded-full ${loading ? "bg-amber-400" : "bg-[#10B981]"} animate-pulse`}></span>
+                                    <span className={`flex h-2.5 w-2.5 rounded-full ${loading ? "bg-purple-400" : "bg-[#10B981]"} animate-pulse`}></span>
                                     {loading ? "Syncing System..." : "Live System Overview"}
                                 </div>
                             )}
@@ -229,13 +229,13 @@ export default function AnalyticsPageContent() {
                                             key={t}
                                             onClick={() => setActiveTab(t)}
                                             className={`relative z-10 whitespace-nowrap rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-wide transition-all duration-300 active:scale-95 sm:px-8 sm:py-3 sm:text-sm sm:tracking-widest ${
-                                                activeTab === t ? 'text-[#471396]' : 'text-[#7a6aa0] hover:text-[#471396]'
+                                                activeTab === t ? 'text-white' : 'text-[#7a6aa0] hover:text-[#471396]'
                                             }`}
                                         >
                                             {activeTab === t && (
                                                 <motion.div
                                                     layoutId="activeTabBackgroundAnalytics"
-                                                    className="absolute inset-0 z-[-1] bg-[#FFCC00] rounded-xl shadow-lg border border-yellow-400/20"
+                                                    className="absolute inset-0 z-[-1] bg-[#B13BFF] rounded-xl shadow-lg border border-purple-400/20"
                                                     transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                                                 />
                                             )}
@@ -245,7 +245,7 @@ export default function AnalyticsPageContent() {
                                 </div>
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-2 rounded-xl border border-[rgba(166,61,255,0.18)] bg-white px-4 py-2 shadow-[0_6px_16px_rgba(103,2,191,0.08)]">
-                                        <div className={`h-2 w-2 rounded-full ${loading ? "bg-amber-400 animate-bounce" : "bg-emerald-500"}`} />
+                                        <div className={`h-2 w-2 rounded-full ${loading ? "bg-purple-400 animate-bounce" : "bg-emerald-500"}`} />
                                         <span className="text-xs font-black uppercase tracking-widest text-[#471396]">{loading ? "Updating..." : "Real-time"}</span>
                                     </div>
                                     <span className="font-black uppercase tracking-[0.1em] text-[10px] text-[#A78BFA]">{tabNames[activeTab]}</span>

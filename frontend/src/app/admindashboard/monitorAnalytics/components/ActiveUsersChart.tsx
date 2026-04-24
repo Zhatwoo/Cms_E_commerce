@@ -68,13 +68,14 @@ export default function ActiveUsersChart({
                     {
                         label: 'Actual Active Users',
                         data: actualData,
-                        borderColor: '#FFB800',
-                        backgroundColor: 'rgba(255, 184, 0, 0.12)',
-                        borderWidth: 2.5,
+                        borderColor: '#9333EA',
+                        backgroundColor: 'rgba(147, 51, 234, 0.08)',
+                        borderWidth: 2,
+                        borderDash: [5, 5],
                         pointRadius: chartLabels.length > 31 ? 0 : 3,
                         pointHoverRadius: 5,
                         pointBackgroundColor: '#FFFFFF',
-                        pointBorderColor: '#FFB800',
+                        pointBorderColor: '#9333EA',
                         pointBorderWidth: 2,
                         fill: true,
                         tension: 0.4,
@@ -207,14 +208,14 @@ export default function ActiveUsersChart({
                                 onClick={() => onPeriodChange(p.id)}
                                 disabled={loading}
                                 className={`relative z-10 rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-200 ${
-                                    period === p.id ? 'admin-dashboard-purple' : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
+                                    period === p.id ? 'text-white' : 'admin-dashboard-soft-text hover:admin-dashboard-purple'
                                 } disabled:opacity-50`}
                                 suppressHydrationWarning
                             >
                                 {period === p.id && (
                                     <motion.div
                                         layoutId="periodTabBackgroundActiveUsers"
-                                        className="absolute inset-0 rounded-lg admin-dashboard-yellow-fill shadow-sm"
+                                        className="absolute inset-0 rounded-lg bg-[#B13BFF] shadow-sm"
                                         transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                                     />
                                 )}
@@ -242,9 +243,9 @@ export default function ActiveUsersChart({
                         </div>
                     </div>
                 </div>
-                <div className="rounded-[16px] border border-[rgba(255,184,0,0.32)] bg-white p-4 shadow-[0_10px_22px_rgba(103,2,191,0.08)]">
+                <div className="rounded-[16px] border border-[rgba(166,61,255,0.2)] bg-white p-4 shadow-[0_10px_22px_rgba(103,2,191,0.08)]">
                     <div className="flex items-center gap-3">
-                        <div className="w-4 h-4 rounded-full bg-yellow-400"></div>
+                        <div className="w-4 h-4 rounded-full bg-purple-500/60"></div>
                         <div>
                             <p className="admin-dashboard-soft-text text-xs font-bold uppercase tracking-widest">Current Active Users</p>
                             <p className="admin-dashboard-purple text-xl font-bold mt-1">

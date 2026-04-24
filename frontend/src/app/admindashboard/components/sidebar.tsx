@@ -373,12 +373,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <span className={`mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
                                             <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                         </span>
-                                        {isActive && (
-                                            <span
-                                                className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
-                                                style={{ background: '#f5c000' }}
-                                            />
-                                        )}
+
                                     </button>
                                 ) : (
                                     <Link
@@ -399,12 +394,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         >
                                             {item.label}
                                         </span>
-                                        {isActive && (
-                                            <span
-                                                className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
-                                                style={{ background: '#f5c000' }}
-                                            />
-                                        )}
+
                                     </Link>
                                 )}
 
