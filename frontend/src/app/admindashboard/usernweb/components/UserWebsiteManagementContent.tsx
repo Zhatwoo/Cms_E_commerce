@@ -72,13 +72,13 @@ export default function UserWebsiteManagementContent() {
                   type="button"
                   onClick={() => handleTabToggle('clients')}
                   className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
-                    activeTab === 'clients' ? 'text-[#471396]' : 'text-[#6F657E] hover:text-[#471396]'
+                    activeTab === 'clients' ? 'text-white' : 'text-[#6F657E] hover:text-[#471396]'
                   }`}
                 >
                   {activeTab === 'clients' && (
                     <motion.div
                       layoutId="userWebTabBackground"
-                      className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                      className="absolute inset-0 rounded-lg bg-[#B13BFF] shadow-sm"
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
                   )}
@@ -89,13 +89,13 @@ export default function UserWebsiteManagementContent() {
                   type="button"
                   onClick={() => handleTabToggle('domains')}
                   className={`relative z-10 rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
-                    activeTab === 'domains' ? 'text-[#471396]' : 'text-[#6F657E] hover:text-[#471396]'
+                    activeTab === 'domains' ? 'text-white' : 'text-[#6F657E] hover:text-[#471396]'
                   }`}
                 >
                   {activeTab === 'domains' && (
                     <motion.div
                       layoutId="userWebTabBackground"
-                      className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
+                      className="absolute inset-0 rounded-lg bg-[#B13BFF] shadow-sm"
                       transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                     />
                   )}

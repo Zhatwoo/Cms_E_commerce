@@ -25,7 +25,7 @@ export function getWebsiteStatusMeta(status: string | null | undefined): { label
 export function getStatusBadgeClasses(status: string | null | undefined): string {
   if (isPublishedLikeStatus(status)) return 'bg-green-100 text-green-800';
   if (isOfflineLikeStatus(status) || normalize(status) === 'flagged') return 'bg-red-100 text-red-800';
-  return 'bg-yellow-100 text-yellow-800';
+  return 'bg-[#F3E8FF] text-[#6D28D9] border-[#E9D5FF]';
 }
 
 export function getStatusLabel(status: string | null | undefined): string {
