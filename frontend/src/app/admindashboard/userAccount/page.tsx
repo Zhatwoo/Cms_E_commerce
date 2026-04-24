@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { AdminSidebar } from "../components/sidebar";
 import { AdminHeader } from "../components/header";
+import { AdminPageHero } from "../components/AdminPageHero";
 
 export const Skeleton = ({ className = "" }: { className?: string }) => (
 	<div className={`animate-pulse rounded-2xl bg-[#E8E4FF] ${className}`} />
@@ -40,16 +41,11 @@ export function UserAccountShell({ activePath, children }: UserAccountShellProps
 			<div className="flex min-h-0 flex-1 flex-col">
 				<AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 				<main className="flex-1 min-h-0 overflow-y-auto">
-					<div className="mx-auto max-w-7xl space-y-10 p-10 pb-20">
-						<motion.div 
-							initial={{ opacity: 0, x: -10 }}
-							animate={{ opacity: 1, x: 0 }}
-							transition={{ duration: 0.4 }}
-							className="space-y-2"
-						>
-							<h1 className="text-4xl font-black tracking-tight text-[#4a1a8a]">Account Settings</h1>
-							<p className="text-sm font-medium text-[#7a6aa0] opacity-80">Manage your personal information, security preferences, and billing details across the platform.</p>
-						</motion.div>
+					<div className="mx-auto w-full max-w-[90rem] space-y-8 p-8 pb-20 lg:p-10">
+						<AdminPageHero
+							title="Account Settings"
+							subtitle="Manage your personal information, security preferences, and billing details across the platform."
+						/>
 
 						<div className="relative min-h-[400px]">
 							<AnimatePresence mode="wait">

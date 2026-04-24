@@ -24,7 +24,7 @@ import { useAdminLoading } from './LoadingProvider';
 function DashboardPanel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
     return (
         <section
-            className={`rounded-3xl border border-[#E2C7FF] bg-[#FDFCFF]/95 shadow-[0_14px_40px_rgba(177,59,255,0.14)] backdrop-blur-sm ${className}`.trim()}
+            className={`rounded-3xl border border-[rgba(177,59,255,0.16)] bg-white shadow-[0_16px_36px_rgba(177,59,255,0.10)] backdrop-blur-sm ${className}`.trim()}
         >
             {children}
         </section>
@@ -192,11 +192,11 @@ function DashboardActivityPanel({ items }: { items: readonly { id: string; title
                     </button>
                 </div>
                 <div
-                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-2xl border border-[#E2C7FF] bg-[#F8F2FF]/70 p-3 sm:p-4"
+                    className="mt-5 h-[calc(100%-3.2rem)] overflow-y-auto rounded-2xl border border-[rgba(177,59,255,0.12)] bg-[#F8F2FF]/85 p-3 sm:p-4"
                 >
                     <div className="space-y-3">
                     {items.map((item) => (
-                        <div key={item.id} className="flex gap-4 rounded-2xl border border-[#E9D8FF] bg-white px-4 py-4">
+                        <div key={item.id} className="flex gap-4 rounded-2xl border border-[rgba(177,59,255,0.12)] bg-white px-4 py-4">
                             <div className="w-1 shrink-0 rounded-full bg-[#FFCC00]" />
                             <div className="min-w-0">
                                 <p className="text-base font-semibold text-[#26155E]">{item.title}</p>
@@ -245,7 +245,7 @@ function DashboardNotificationsPanel({ items }: { items: NotificationItem[] }) {
                         <p className="text-sm text-[#7E4FB4]">No recent notifications.</p>
                     ) : (
                         items.map((item) => (
-                            <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-[#E9D8FF] bg-[#F8F2FF]/70 px-3 py-2.5">
+                            <div key={item.id} className="flex items-start justify-between gap-4 rounded-xl border border-[rgba(177,59,255,0.12)] bg-[#F8F2FF]/85 px-3 py-2.5">
                                 <div className="flex items-start gap-4">
                                     <span 
                                         className={`mt-1.5 h-3 w-3 shrink-0 rounded-full ${typeDotClass[item.type] || 'bg-[#A48ABF]'}`}
@@ -393,7 +393,7 @@ export function AdminDashboard() {
     return (
         <main className="flex-1 overflow-y-auto">
             <div className="w-full px-4 pb-24 pt-4 sm:px-6 lg:px-6 lg:pb-32 lg:pt-6">
-                <div className="rounded-3xl border border-[rgba(177,59,255,0.29)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.14)] sm:px-7">
+                <div className="rounded-3xl border border-[rgba(177,59,255,0.24)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:px-7">
                 <div className="flex flex-col gap-2">
                     <motion.h1
                         className="text-[2.45rem] font-bold leading-none tracking-[-0.04em] text-[#26155E] sm:text-[3.35rem]"
