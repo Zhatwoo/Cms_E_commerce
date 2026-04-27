@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { motion, AnimatePresence, type Variants } from 'framer-motion';
-import { Users, DollarSign, Globe, Link, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { getAnalytics, type AnalyticsResponse } from '@/lib/api';
 import { AdminPageHero } from '../../components/AdminPageHero';
 
@@ -93,28 +93,24 @@ export default function AnalyticsPageContent() {
             label: 'Active Users', 
             value: (summary?.activeUsers?.toLocaleString() || '0'), 
             change: calculateChange(analytics?.trends?.users),
-            icon: Users, 
             color: '#B13BFF' 
         },
         { 
             label: 'System Revenue', 
             value: ('₱' + (summary?.revenue?.toLocaleString() || '0')), 
             change: calculateChange(analytics?.revenueOverTime?.data), 
-            icon: DollarSign, 
             color: '#FFB800' 
         },
         { 
             label: 'Live Websites', 
             value: (summary?.publishedWebsites?.toLocaleString() || '0'), 
             change: calculateChange(analytics?.trends?.websites), 
-            icon: Globe, 
             color: '#10B981' 
         },
         { 
             label: 'Custom Domains', 
             value: (summary?.activeDomains?.toLocaleString() || '0'), 
             change: calculateChange(analytics?.trends?.domains), 
-            icon: Link, 
             color: '#8A78FF' 
         },
     ];
@@ -137,7 +133,7 @@ export default function AnalyticsPageContent() {
                         className="w-full space-y-10"
                     >
                         <AdminPageHero
-                            title="Monitoring & Analytics"
+                            title="Analytics"
                             subtitle="Real-time performance metrics and user behavior insights for all websites."
                             rightContent={(
                                 <div className="flex items-center gap-2 text-sm text-[#471396] font-bold bg-[#F5F4FF] px-5 py-3 rounded-2xl border border-[rgba(166,61,255,0.12)] shadow-sm">
@@ -162,9 +158,10 @@ export default function AnalyticsPageContent() {
                                     key={stat.label}
                                     className="admin-dashboard-panel relative overflow-hidden rounded-[24px] border border-[rgba(166,61,255,0.18)] bg-[rgba(255,255,255,0.86)] p-6 shadow-[0_14px_34px_rgba(103,2,191,0.09)]"
                                 >
-                                    <div className="flex items-center justify-between mb-5">
-                                        <div className="p-3.5 rounded-2xl shadow-sm bg-purple-50/50" style={{ color: stat.color }}>
-                                            <stat.icon className="w-6 h-6 stroke-[2.5]" />
+                                    <div className="mb-4 flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: stat.color }} />
+                                            <h3 className="text-[13px] font-bold uppercase tracking-[0.15em] text-[#7a6aa0] opacity-80">{stat.label}</h3>
                                         </div>
                                         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black tracking-wider ${
                                             stat.change.isNeutral 
@@ -179,7 +176,6 @@ export default function AnalyticsPageContent() {
                                     </div>
                                     
                                     <div className="space-y-1 mb-6">
-                                        <h3 className="admin-dashboard-soft-text text-[13px] font-bold uppercase tracking-[0.15em] opacity-80">{stat.label}</h3>
                                         <p className="admin-dashboard-purple text-[2.25rem] font-black tracking-tight leading-tight">
                                             {loading && !analytics ? '...' : stat.value}
                                         </p>
