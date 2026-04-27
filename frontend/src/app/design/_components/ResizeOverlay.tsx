@@ -1863,6 +1863,36 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
                 zIndex: 1,
               }}
             />
+
+            <div
+              data-resize-handle
+              style={{
+                position: "absolute",
+                left: "calc(50% + 32px)",
+                top: -ROTATION_HANDLE_OFFSET,
+                transform: "translate(-50%, -50%)",
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                border: "2px solid #3b82f6",
+                backgroundColor: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: isExternalDragActive ? "default" : "grab",
+                pointerEvents: isExternalDragActive ? "none" : "auto",
+                zIndex: 2,
+              }}
+              onMouseDown={(e) => startDrag(e, "move")}
+              title="Move"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="8" cy="8" r="1.5" />
+                <circle cx="16" cy="8" r="1.5" />
+                <circle cx="8" cy="16" r="1.5" />
+                <circle cx="16" cy="16" r="1.5" />
+              </svg>
+            </div>
           </>
         )}
       </div>

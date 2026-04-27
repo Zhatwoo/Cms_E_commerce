@@ -73,7 +73,7 @@ function normalizeComponentType(rawType: unknown): ComponentType {
   if (lowered.includes("productdescriptioncard")) return "ProductDescriptionCard";
   if (lowered.includes("productdescription") && !lowered.includes("productdescriptioncard")) return "ProductDescriptionCanvas";
   if (lowered === "categorytile" || lowered === "category tile" || lowered.includes("categorytile")) return "CategoryTile";
-  if (lowered === "teammembercard" || lowered === "team member card" || lowered.includes("teammembercard")) return "TeamMemberCardCanvas";
+  if (lowered === "teammembercard" || lowered === "team member card" || lowered.includes("teammembercard")) return "Team Member Card";
   if (lowered === "productcard" || lowered === "product card" || lowered.includes("productcard")) return "ProductCard";
   if (lowered === "productslider" || lowered === "product slider" || lowered.includes("productslider")) return "ProductSlider";
   
@@ -641,7 +641,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
   Accordion: {
     items: [],
   },
-  TeamMemberCardCanvas: {
+  "Team Member Card": {
     paddingTop: "16px",
     paddingRight: "12px",
     paddingBottom: "16px",

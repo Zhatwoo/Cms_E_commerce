@@ -1,112 +1,30 @@
 "use client";
 
 import React from "react";
-import { Element, useNode } from "@craftjs/core";
+import { Element } from "@craftjs/core";
+import { useNode } from "@craftjs/core";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
 import { Container } from "../../../design/_designComponents/Container/Container";
 import { TemplateEntry } from "../../_types";
 
-// Layout-accurate wrapper for the Team Member Card in the web renderer/canvas.
-const toCssValue = (value: unknown): string | undefined => {
-  if (value == null) return undefined;
-  if (typeof value === "number" && Number.isFinite(value)) return `${value}px`;
-  const text = String(value).trim();
-  return text ? text : undefined;
-};
+import { ContainerSettings } from "../../../design/_designComponents/Container/ContainerSettings";
+import { ContainerDefaultProps } from "../../../design/_designComponents/Container/Container";
 
-export const TeamMemberCardCanvas = ({
-  paddingTop,
-  paddingRight,
-  paddingBottom,
-  paddingLeft,
-  background,
-  borderRadius,
-  boxShadow,
-  width,
-  height,
-  gap,
-  borderWidth,
-  borderColor,
-  borderStyle,
-  position,
-  top,
-  right,
-  bottom,
-  left,
-  zIndex,
-  alignSelf,
-  rotation,
-  customClassName,
-  className,
-  children,
-}: any) => {
-  const {
-    id,
-    connectors: { connect, drag },
-  } = useNode();
-
-  const bw = typeof borderWidth === "number" ? borderWidth : 1;
-  const bs = borderStyle || "solid";
-  const bc = borderColor || "#e5e7eb";
-  const border = bw > 0 ? `${bw}px ${bs} ${bc}` : "none";
-  
-  const resolvedClassName = `${(customClassName || "").trim()} ${(className || "").trim()}`.trim() || undefined;
-
-  const parsePx = (v: unknown, fallback: number): string => {
-    if (typeof v === "number") return `${v}px`;
-    if (typeof v === "string" && v.trim().endsWith("px")) return v.trim();
-    if (typeof v === "string" && !isNaN(Number(v.trim()))) return `${v.trim()}px`;
-    return `${fallback}px`;
-  };
-
-  const resolvedWidth = parsePx(width, 240);
-  const gapPx = typeof gap === "number" ? gap : 12;
-
-  const canvasPosition = (position as React.CSSProperties["position"]) || "relative";
-
+export const TeamMemberCardComp = ({ children, ...props }: any) => {
   return (
-    <div
-      ref={(ref) => {
-        if (ref) connect(drag(ref));
-      }}
-      data-node-id={id}
-      className={resolvedClassName}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        width: resolvedWidth,
-        height: toCssValue(height) || "auto",
-        background: background || "#ffffff",
-        paddingTop: parsePx(paddingTop, 16),
-        paddingRight: parsePx(paddingRight, 12),
-        paddingBottom: parsePx(paddingBottom, 16),
-        paddingLeft: parsePx(paddingLeft, 12),
-        borderRadius: typeof borderRadius === "number" ? `${borderRadius}px` : String(borderRadius || 12),
-        boxShadow: boxShadow || "0 4px 6px rgba(0, 0, 0, 0.1)",
-        border: border,
-        gap: `${gapPx}px`,
-        boxSizing: "border-box",
-        position: canvasPosition,
-        top: canvasPosition !== "static" ? toCssValue(top) : undefined,
-        right: canvasPosition !== "static" ? toCssValue(right) : undefined,
-        bottom: canvasPosition !== "static" ? toCssValue(bottom) : undefined,
-        left: canvasPosition !== "static" ? toCssValue(left) : undefined,
-        zIndex: zIndex as any,
-        alignSelf: alignSelf as any,
-        transform: rotation ? `rotate(${rotation}deg)` : undefined,
-        overflow: "hidden",
-      }}
-    >
+    <Container {...props}>
       {children}
-    </div>
+    </Container>
   );
 };
 
-(TeamMemberCardCanvas as any).craft = {
+(TeamMemberCardComp as any).craft = {
   displayName: "Team Member Card",
+  props: ContainerDefaultProps,
+  related: {
+    settings: ContainerSettings,
+  },
 };
 
 export const TeamMemberCard: TemplateEntry = {
@@ -117,37 +35,40 @@ export const TeamMemberCard: TemplateEntry = {
   element: React.createElement(
     Element,
     {
-      is: TeamMemberCardCanvas,
+      is: TeamMemberCardComp,
       canvas: true,
       background: "#ffffff",
-      width: "240px",
+      width: "280px",
       height: "auto",
-      paddingTop: 16,
-      paddingBottom: 16,
-      paddingLeft: 12,
-      paddingRight: 12,
-      borderRadius: 12,
-      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      paddingTop: 32,
+      paddingBottom: 32,
+      paddingLeft: 24,
+      paddingRight: 24,
+      borderRadius: 20,
+      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
       borderWidth: 1,
-      borderColor: "#e5e7eb",
+      borderColor: "#f1f5f9",
       borderStyle: "solid",
-      gap: 12,
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 16,
     },
     React.createElement(Image as any, {
-      src: "",
-      alt: "Team Member Avatar",
-      width: "80px",
-      height: "80px",
+      src: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200",
+      alt: "Team Member",
+      width: "96px",
+      height: "96px",
       objectFit: "cover",
-      borderRadius: 50,
+      borderRadius: 9999,
       marginBottom: 0,
       marginTop: 0,
     }),
     React.createElement(Text as any, {
       text: "John Doe",
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: "700",
-      color: "#1e293b",
+      color: "#0f172a",
       textAlign: "center",
       width: "auto",
       marginTop: 0,
@@ -155,7 +76,7 @@ export const TeamMemberCard: TemplateEntry = {
     }),
     React.createElement(Text as any, {
       text: "Web Developer",
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: "600",
       color: "#3b82f6",
       textAlign: "center",
@@ -164,12 +85,12 @@ export const TeamMemberCard: TemplateEntry = {
       marginBottom: 0,
     }),
     React.createElement(Text as any, {
-      text: "Passionate about creating beautiful websites.",
-      fontSize: 12,
+      text: "Passionate about creating beautiful and functional user experiences.",
+      fontSize: 14,
       fontWeight: "400",
       color: "#64748b",
       textAlign: "center",
-      width: "auto",
+      width: "100%",
       lineHeight: 1.6,
       marginTop: 0,
       marginBottom: 0,
@@ -177,4 +98,4 @@ export const TeamMemberCard: TemplateEntry = {
   ),
 };
 
-export default TeamMemberCard;
+export default TeamMemberCard;

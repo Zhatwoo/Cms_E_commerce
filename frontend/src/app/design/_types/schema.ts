@@ -103,6 +103,7 @@ export type ComponentType =
   | "MinimalTypeHeroBlock"
   | "VideoStyleHeroBlock"
   | "CollectionHeroBlock"
+  | "Team Member Card"
   | "TeamMemberCardCanvas"
   | "Diamond"
   | "Heart"

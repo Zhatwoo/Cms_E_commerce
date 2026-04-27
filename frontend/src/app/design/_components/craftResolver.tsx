@@ -63,7 +63,8 @@ import { CategoryTile as CategoryTileComponent } from "../_designComponents/Cate
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
 import { FeaturedProductCanvas } from "../../_assets/Cards/FeaturedProduct/FeaturedProduct";
 import { ProductDescriptionCanvas } from "../../_assets/Cards/ProductDescription/ProductDescription";
-import { TeamMemberCardCanvas } from "../../_assets/Cards/teammembercard/teammembercard";
+import { TeamMemberCardComp } from "../../_assets/Cards/teammembercard/teammembercard";
+
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -81,7 +82,18 @@ function withResolverFallback<T extends Resolver>(base: T): T {
       if (typeof prop !== "string") return direct;
 
       const normalized = prop.trim().toLowerCase();
-      
+
+      // If the name ends with 'Comp' (common in our asset names), try the name without that suffix
+      // e.g. 'TeamMemberCardComp' -> try 'TeamMemberCard' / 'teammembercard' / 'TeamMemberCard'
+      if (normalized.endsWith("comp")) {
+        const withoutComp = prop.trim().slice(0, -4); // remove the 'Comp' suffix (preserve case for some lookups)
+        const candidates = [withoutComp, withoutComp.trim().toLowerCase(), withoutComp.charAt(0).toUpperCase() + withoutComp.slice(1)];
+        for (const candidate of candidates) {
+          const found = Reflect.get(target, candidate, receiver);
+          if (found) return found;
+        }
+      }
+
       // Fuzzy shape match for numbered names (e.g. "Heart 1" -> "Heart")
       const fuzzyShape = shapes.find(s => normalized.includes(s));
       if (fuzzyShape) {
@@ -198,7 +210,8 @@ export function buildCraftResolver(): Resolver {
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
   const FeaturedProductCanvasComp = asComponent(FeaturedProductCanvas, ContainerComp);
   const ProductDescriptionCanvasComp = asComponent(ProductDescriptionCanvas, ContainerComp);
-  const TeamMemberCardCanvasComp = asComponent(TeamMemberCardCanvas, ContainerComp);
+  const TeamMemberCardCompResolved = asComponent(TeamMemberCardComp, ContainerComp);
+
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -353,11 +366,11 @@ export function buildCraftResolver(): Resolver {
     ProductDescription: ProductDescriptionCanvasComp,
     productdescription: ProductDescriptionCanvasComp,
     "Product Description": ProductDescriptionCanvasComp,
-    TeamMemberCardCanvas: TeamMemberCardCanvasComp,
-    teammembercardcanvas: TeamMemberCardCanvasComp,
-    TeamMemberCard: TeamMemberCardCanvasComp,
-    teammembercard: TeamMemberCardCanvasComp,
-    "Team Member Card": TeamMemberCardCanvasComp,
+    TeamMemberCardComp: TeamMemberCardCompResolved,
+    teammembercardcomp: TeamMemberCardCompResolved,
+    TeamMemberCard: TeamMemberCardCompResolved,
+    teammembercard: TeamMemberCardCompResolved,
+    "Team Member Card": TeamMemberCardCompResolved,
     FeaturesGridBlock: FeaturesGridBlockComp,
     featuresgridblock: FeaturesGridBlockComp,
     "Features Grid Block": FeaturesGridBlockComp,
@@ -409,7 +422,7 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "CategoriesCard", CategoriesCardCanvasComp, ["Categories Card", "categoriescard"]);
   addAliases(base, "FeaturedProductCanvas", FeaturedProductCanvasComp, ["Featured Product", "featuredproduct", "FeaturedProduct"]);
   addAliases(base, "ProductDescriptionCanvas", ProductDescriptionCanvasComp, ["Product Description", "productdescription", "ProductDescription"]);
-  addAliases(base, "TeamMemberCardCanvas", TeamMemberCardCanvasComp, ["Team Member Card", "teammembercard", "TeamMemberCard"]);
+  addAliases(base, "Team Member Card", TeamMemberCardCompResolved, ["teammembercard", "TeamMemberCard", "TeamMemberCardComp", "TeamMemberCardCanvas"]);
   addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);
