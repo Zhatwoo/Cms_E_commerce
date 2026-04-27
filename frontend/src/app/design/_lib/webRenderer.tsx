@@ -6403,9 +6403,9 @@ export function WebPreview({
         ref={ref}
         data-preview-scroll-root={isContainedScroller ? "true" : undefined}
         style={{
-          width: "100%",
+          width: builderParityMode ? "auto" : "100%",
           // For builder parity mode, lock the preview to the canvas container (no `vh`, no internal scroll).
-          height: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
+          height: builderParityMode ? "auto" : (isContainedScroller ? "100%" : undefined),
           maxHeight: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
           minHeight: builderParityMode ? 0 : (isContainedScroller ? "100%" : "100vh"),
           display: "flex",
@@ -6416,7 +6416,7 @@ export function WebPreview({
           // In builder parity mode we want a fixed-size artboard, but wheel scrolling should
           // still "chain" to the parent page/canvas when the pointer is over the artboard.
           overscrollBehavior: builderParityMode ? undefined : (isContainedScroller ? "contain" : undefined),
-          background: "#0d0d0f",
+          background: builderParityMode ? "transparent" : "#0d0d0f",
         }}
       >
         {/* Inner wrapper: keep mounted to avoid preview flicker on page changes */}
@@ -6431,10 +6431,10 @@ export function WebPreview({
               ? `${pageWidthPx}px`
               : (isContainedScroller ? "100%" : pageFrameStyles.maxWidth),
             height: builderParityMode
-              ? `${pageHeightPx}px`
+              ? ((pageProps.height as string) === "auto" ? "auto" : `${pageHeightPx}px`)
               : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : undefined),
             minHeight: builderParityMode
-              ? `${pageHeightPx}px`
+              ? ((pageProps.height as string) === "auto" ? "0px" : `${pageHeightPx}px`)
               : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (fillViewport ? "100%" : minHeight)),
             background: background,
             margin: "0 auto",
@@ -6524,7 +6524,7 @@ export function LiveSite({
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background || pageProps.backgroundColor) as string || "#ffffff";
-  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const minHeight = (pageProps.height as string) === "auto" ? "0px" : (pageProps.height as string);
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
 
@@ -6672,7 +6672,7 @@ export function LiveSite({
         ref={ref}
         style={{
           width: "100%",
-          minHeight: "100vh",
+          minHeight: fillViewport ? "100vh" : "0",
           background: background,
           display: "flex",
           flexDirection: "column",

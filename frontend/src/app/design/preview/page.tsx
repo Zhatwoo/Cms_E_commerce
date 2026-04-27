@@ -343,7 +343,6 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
   }
 
   // Backward compatibility for older Syncly footer snapshots.
-  // These snapshots may store Button text in `text` and include a white 240px Container block.
   const synclyAnchorText = "Ready to start syncing your data?";
   const anchorTextNodeId = Object.keys(out).find((id) => {
     const node: CraftStorageNode | undefined = out[id];
@@ -416,12 +415,6 @@ function sanitizeCraftStorageDoc(input: Record<string, any>): Record<string, Cra
   return out;
 }
 
-/**
- * Craft.js can serialize in two shapes:
- * - Storage shape: { id: { type: { resolvedName }, nodes, props, ... } }
- * - State shape:   { id: { type: ComponentRef, data: { nodes, props, displayName, ... } } }
- * Frame expects storage shape. Normalize so preview doesn't crash.
- */
 function normalizeCraftToStorageShape(raw: string): string {
   try {
     const parsed = JSON.parse(raw) as Record<string, any>;
@@ -513,7 +506,6 @@ function normalizeCraftSnapshotForPreview(raw: string, preferredPageSlug?: strin
     const pageId = resolvePageId();
     if (!pageId) return raw;
 
-    // Convert ROOT into a lightweight preview root so we don't inherit infinite-canvas sizing.
     parsed.ROOT = {
       ...(parsed.ROOT ?? {}),
       type: { resolvedName: "PreviewRoot" },
@@ -523,7 +515,6 @@ function normalizeCraftSnapshotForPreview(raw: string, preferredPageSlug?: strin
       isCanvas: true,
     };
 
-    // Bring the selected page to (0,0) so it appears immediately in preview.
     const pageNode = parsed[pageId];
     if (pageNode) {
       const nextProps = { ...(pageNode.props ?? {}) };
@@ -543,10 +534,6 @@ function normalizeCraftSnapshotForPreview(raw: string, preferredPageSlug?: strin
   }
 }
 
-/**
- * Readonly renderer that matches the Craft.js canvas exactly.
- * Used in Preview when we have a valid Craft raw snapshot (contains ROOT).
- */
 function CraftCanvasPreview({ data }: { data: string }) {
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
@@ -636,13 +623,11 @@ function PreviewContent() {
   const [storeActionsEnabled, setStoreActionsEnabled] = useState(true);
   const [showAddToCartSuccess, setShowAddToCartSuccess] = useState(false);
   const [lastAddedProduct, setLastAddedProduct] = useState<{ name: string; image?: string } | null>(null);
-  const [desktopPreviewBounds, setDesktopPreviewBounds] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const [preferredPageIdFromEditor, setPreferredPageIdFromEditor] = useState<string | undefined>(undefined);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const thumbnailCaptureRef = useRef(false);
-
 
   useEffect(() => {
     getMe().then((res: any) => {
@@ -704,12 +689,9 @@ function PreviewContent() {
       if (looksLikeCraftRawSnapshot(persistent)) return persistent;
       if (looksLikeCleanDocSnapshot(persistent)) return persistent;
     }
-
-    // Ignore invalid cache values; let API draft load next.
     return null;
   };
 
-  /** Fetch published content from the same API the live subdomain uses. */
   const loadPublishedContent = React.useCallback(async (subdomain: string): Promise<string | null> => {
     try {
       const data = await apiFetch<{
@@ -739,15 +721,12 @@ function PreviewContent() {
   const handleRefresh = React.useCallback(async () => {
     setLoading(true);
     try {
-      // 1. Try to load the latest snapshot (Session/Local) for instant parity with editor
       const cache = readLatestSnapshot(projectId);
       if (cache) {
         setRawJson(cache);
         setLoading(false);
         return;
       }
-
-      // 2. Try the Draft API (Firestore)
       const result = await getDraft(projectId);
       if (result.success && result.data?.content) {
         const content = result.data.content;
@@ -755,8 +734,6 @@ function PreviewContent() {
         setLoading(false);
         return;
       }
-
-      // 3. Fallback to Published Content
       if (project?.subdomain) {
         const published = await loadPublishedContent(project.subdomain);
         if (published) {
@@ -770,7 +747,6 @@ function PreviewContent() {
     }
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  // Fetch project metadata so we know the subdomain
   useEffect(() => {
     let cancelled = false;
     async function loadProject() {
@@ -783,15 +759,12 @@ function PreviewContent() {
     return () => { cancelled = true; };
   }, [projectId]);
 
-  // Main data loader: load published content (same as live subdomain) when available.
-  // Depends on `project` so it re-runs once project metadata (with subdomain) arrives.
   useEffect(() => {
     let cancelled = false;
 
     async function loadData() {
       setLoading(true);
       try {
-        // 1. Try local snapshot first (Instant parity with Editor)
         const snapshot = readLatestSnapshot(projectId);
         if (snapshot && !cancelled) {
           setRawJson(snapshot);
@@ -799,7 +772,6 @@ function PreviewContent() {
           return;
         }
 
-        // 2. Try Draft API
         const timeoutMs = 8000;
         const result = await Promise.race([
           getDraft(projectId),
@@ -821,7 +793,6 @@ function PreviewContent() {
           return;
         }
 
-        // 3. Last fallback: Published Content (only when subdomain metadata is available)
         if (project?.subdomain) {
           const published = await loadPublishedContent(project.subdomain);
           if (!cancelled && published) {
@@ -839,11 +810,9 @@ function PreviewContent() {
     return () => { cancelled = true; };
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-  // Optional sync with published site when tab becomes visible — do NOT replace draft/session preview.
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.visibilityState !== "visible" || !project?.subdomain) return;
-      // User is previewing local/editor snapshot — refetching published overwrites JSON and causes layout jumps.
       const local = readLatestSnapshot(projectId);
       if (local) return;
       loadPublishedContent(project.subdomain).then((published) => {
@@ -857,15 +826,13 @@ function PreviewContent() {
     return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, [projectId, project?.subdomain, loadPublishedContent]);
 
-
-  // Fetch products for the preview store context
   useEffect(() => {
     const subdomain = project?.subdomain;
     if (!subdomain) return;
     let active = true;
     listProducts({ subdomain, status: 'active', limit: 100 })
       .then((res) => { if (active && res.success) setPreviewProducts(res.items); })
-      .catch(() => {});
+      .catch(() => { });
     return () => { active = false; };
   }, [project?.subdomain]);
 
@@ -888,14 +855,11 @@ function PreviewContent() {
     [previewProducts, previewAddToCart, storeActionsEnabled]
   );
 
-
-  // Compute clean document
   const cleanDoc = useMemo(() => {
     if (!rawJson) return null;
     return parseContentToCleanDoc(rawJson);
   }, [rawJson]);
 
-  // Keep preview animation behavior identical to editor canvas.
   const effectiveCleanDoc = useMemo(() => {
     let doc = cleanDoc;
     if (!doc && rawJson && looksLikeCraftRawSnapshot(rawJson)) {
@@ -919,38 +883,12 @@ function PreviewContent() {
     if (!craftPreviewData) return null;
     return readPageDimensionsFromCraftSnapshot(craftPreviewData, selectedPreviewPageSlug);
   }, [craftPreviewData, selectedPreviewPageSlug]);
-  const canUseCraftCanvasPreview = Boolean(craftPreviewData);
 
-  const craftDesktopPreviewStyle = useMemo<React.CSSProperties>(() => {
-    const fallback: React.CSSProperties = { width: "100%" };
-
-    if (!craftPageDimensions?.width) return fallback;
-    const w = craftPageDimensions.width;
-    if (typeof w === "number" && Number.isFinite(w) && w > 0) {
-      return { width: `${w}px`, minWidth: `${w}px` };
-    }
-    if (typeof w === "string" && w.trim()) {
-      const trimmed = w.trim();
-      const lower = trimmed.toLowerCase();
-      const isFluid =
-        lower.includes("%") ||
-        lower.includes("vw") ||
-        lower.startsWith("min(") ||
-        lower.startsWith("max(") ||
-        lower.startsWith("clamp(");
-      return isFluid ? { width: trimmed } : { width: trimmed, minWidth: trimmed };
-    }
-    return fallback;
-  }, [craftPageDimensions?.width]);
-
-  const craftDesktopPreviewHeightStyle = useMemo<React.CSSProperties>(() => {
-    const h = craftPageDimensions?.height;
-    if (!h) return {};
-    if (h === "auto") return { height: "auto" };
-    if (typeof h === "number" && Number.isFinite(h) && h > 0) return { height: `${h}px` };
-    if (typeof h === "string" && h.trim()) return { height: h.trim() };
-    return {};
-  }, [craftPageDimensions?.height]);
+  const desktopWidth = useMemo(() => {
+    return typeof craftPageDimensions?.width === "number"
+      ? craftPageDimensions.width
+      : (parseInt(String(craftPageDimensions?.width)) || 1440);
+  }, [craftPageDimensions]);
 
   const cleanJson = useMemo(
     () => (cleanDoc ? JSON.stringify(cleanDoc, null, 2) : null),
@@ -958,19 +896,14 @@ function PreviewContent() {
   );
 
   const previewPages = useMemo(() => {
-    // IMPORTANT: use effectiveCleanDoc (same source as WebPreview) so slugs match exactly
     const doc = effectiveCleanDoc;
     if (!doc?.pages?.length) return [] as Array<{ id: string; slug: string; name: string }>;
-    // Generic placeholder names used by the editor that should be replaced with numbered labels
-    const GENERIC_NAME_PATTERNS = /^(page name|page|untitled|unnamed|new page)$/i;
     return doc.pages.map((page, index) => {
       const pageProps = (page?.props ?? {}) as Record<string, unknown>;
       const id = (page?.id as string) || `page-${index}`;
       const rawName = page?.name ?? pageProps.pageName;
       const name = typeof rawName === "string" && rawName.trim() ? rawName.trim() : `Page ${index + 1}`;
       const rawSlug = page?.slug ?? pageProps.pageSlug;
-      // Keep fallback slugs aligned with renderer/publish logic (`page-${index}`),
-      // otherwise selected page slugs can fail to resolve and always fall back to page 0.
       const slug = typeof rawSlug === "string" && rawSlug.trim() ? rawSlug.trim() : `page-${index}`;
       return { id, slug, name };
     });
@@ -1023,89 +956,16 @@ function PreviewContent() {
     }
   }, [previewPages, selectedPreviewPageSlug, initialPageSlug, initialPageId, preferredPageIdFromEditor, effectiveCleanDoc]);
 
-  useEffect(() => {
-    if (!preferredPageIdFromEditor || initialPageId || initialPageSlug || previewPages.length === 0) return;
-    const preferred = previewPages.find((p) => p.id === preferredPageIdFromEditor);
-    if (!preferred) return;
-    setSelectedPreviewPageSlug((prev) => (prev === preferred.slug ? prev : preferred.slug));
-  }, [preferredPageIdFromEditor, initialPageId, initialPageSlug, previewPages]);
-
   const selectedPreviewPage = useMemo(() => {
     if (previewPages.length === 0) return null;
     return previewPages.find((p) => p.slug === selectedPreviewPageSlug) ?? previewPages[0] ?? null;
   }, [previewPages, selectedPreviewPageSlug]);
-
-  const updateDesktopPreviewBounds = React.useCallback(() => {
-    if (previewViewport !== "desktop" || !previewRef.current) {
-      setDesktopPreviewBounds(null);
-      return;
-    }
-
-    const container = previewRef.current;
-    const pageFrame =
-      (container.querySelector('[data-preview-page-frame="true"]') as HTMLElement | null) ??
-      (container.querySelector("[data-preview-scroll-root] > *") as HTMLElement | null) ??
-      (container.firstElementChild?.firstElementChild as HTMLElement | null);
-    if (!pageFrame) {
-      setDesktopPreviewBounds(null);
-      return;
-    }
-
-    const containerRect = container.getBoundingClientRect();
-    const pageRect = pageFrame.getBoundingClientRect();
-    setDesktopPreviewBounds({
-      left: Math.max(0, pageRect.left - containerRect.left),
-      top: Math.max(0, pageRect.top - containerRect.top),
-      width: Math.max(0, pageRect.width),
-      height: Math.max(0, pageRect.height),
-    });
-  }, [previewViewport]);
-
-  useEffect(() => {
-    if (previewViewport !== "desktop" || !previewRef.current) {
-      setDesktopPreviewBounds(null);
-      return;
-    }
-
-    const container = previewRef.current;
-    let rafId: number | null = null;
-    const syncBounds = () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      rafId = window.requestAnimationFrame(updateDesktopPreviewBounds);
-    };
-
-    syncBounds();
-    const timeoutId = window.setTimeout(syncBounds, 120);
-    window.addEventListener("resize", syncBounds);
-    container.addEventListener("scroll", syncBounds);
-
-    const resizeObserver = new ResizeObserver(syncBounds);
-    resizeObserver.observe(container);
-    const previewRoot =
-      (container.querySelector("[data-preview-scroll-root]") as HTMLElement | null) ??
-      (container.firstElementChild as HTMLElement | null);
-    const pageFrame =
-      (container.querySelector('[data-preview-page-frame="true"]') as HTMLElement | null) ??
-      (container.querySelector("[data-preview-scroll-root] > *") as HTMLElement | null) ??
-      (container.firstElementChild?.firstElementChild as HTMLElement | null);
-    if (previewRoot) resizeObserver.observe(previewRoot);
-    if (pageFrame) resizeObserver.observe(pageFrame);
-
-    return () => {
-      if (rafId) window.cancelAnimationFrame(rafId);
-      window.clearTimeout(timeoutId);
-      window.removeEventListener("resize", syncBounds);
-      container.removeEventListener("scroll", syncBounds);
-      resizeObserver.disconnect();
-    };
-  }, [previewViewport, selectedPreviewPage?.slug, effectiveCleanDoc, updateDesktopPreviewBounds]);
 
   const selectedPreviewPageIndex = useMemo(() => {
     const doc = effectiveCleanDoc;
     if (!doc?.pages?.length) return 0;
     if (!selectedPreviewPage?.slug) return 0;
     const idx = doc.pages.findIndex((p, i) => {
-      // Match WebPreview's getPageSlug: page?.slug ?? `page-${index}` (0-based)
       const slug = (p?.slug as string | undefined)?.trim() || `page-${i}`;
       return slug === selectedPreviewPage.slug;
     });
@@ -1116,14 +976,10 @@ function PreviewContent() {
     if (!rawJson) return null;
     try {
       const parsed = JSON.parse(rawJson);
-
-      // If the data from DB is already CLEAN (BuilderDocument),
-      // we must reconstruct the RAW (Craft.js) format for this specific view.
       if (parsed.version !== undefined && parsed.pages && parsed.nodes) {
         const reconstructedRaw = deserializeCleanToCraft(parsed);
         return JSON.stringify(JSON.parse(reconstructedRaw), null, 2);
       }
-
       return JSON.stringify(parsed, null, 2);
     } catch {
       return rawJson;
@@ -1176,9 +1032,6 @@ function PreviewContent() {
     return () => clearTimeout(timeout);
   }, [viewMode, loading, cleanDoc]);
 
-  // ── Stats ──────────────────────────────────────────
-  const rawBytes = rawJson ? new Blob([rawJson]).size : 0;
-  const cleanBytes = cleanJson ? new Blob([cleanJson]).size : 0;
   const rawMinBytes = rawJson
     ? new Blob([JSON.stringify(JSON.parse(rawJson))]).size
     : 0;
@@ -1202,7 +1055,6 @@ function PreviewContent() {
     return `${(bytes / 1024).toFixed(1)} KB`;
   };
 
-  // ── Actions ────────────────────────────────────────
   const handleCopy = async () => {
     if (!activeJson) return;
     await navigator.clipboard.writeText(activeJson);
@@ -1238,20 +1090,6 @@ function PreviewContent() {
 
     setSaving(true);
     try {
-      const persistTemplateSnapshot = (targetProjectId: string, snapshot: string) => {
-        if (typeof window === "undefined") return;
-        try {
-          window.sessionStorage.setItem(`${STORAGE_KEY_PREFIX}_${targetProjectId}`, snapshot);
-        } catch {
-          // Ignore storage failures and keep the template save flow going.
-        }
-        try {
-          window.localStorage.setItem(`${PERSISTENT_STORAGE_KEY_PREFIX}_${targetProjectId}`, snapshot);
-        } catch {
-          // Ignore storage failures and keep the template save flow going.
-        }
-      };
-
       const fallbackIndustry = String(project?.industry || templateCategory || 'General').trim() || 'General';
       const sourceTitle = String(project?.title || project?.templateName || templateName || 'Untitled Project').trim() || 'Untitled Project';
       const createResult = await createProject({
@@ -1265,17 +1103,9 @@ function PreviewContent() {
       }
 
       const templateProjectId = createResult.project.id;
+      await autoSavePage(rawJson, templateProjectId);
 
-      try {
-        const saveResult = await autoSavePage(rawJson, templateProjectId);
-        if (!saveResult.success) {
-          console.warn("Template snapshot save warning:", saveResult.error);
-        }
-      } catch (error) {
-        console.warn("Template snapshot save failed:", error);
-      }
-
-      const updatedTemplate = await updateProject(templateProjectId, {
+      await updateProject(templateProjectId, {
         status: 'template',
         templateName: templateName.trim(),
         templateContent: rawJson,
@@ -1290,7 +1120,6 @@ function PreviewContent() {
         templateProjectId
       );
 
-      persistTemplateSnapshot(templateProjectId, rawJson);
       upsertTemplateProjectEntry({
         projectId: templateProjectId,
         name: templateName.trim(),
@@ -1298,11 +1127,7 @@ function PreviewContent() {
         description: templateDescription.trim(),
       });
 
-      if (updatedTemplate?.success && updatedTemplate.project) {
-        showAlert("Template saved successfully!");
-      } else {
-        showAlert("Template copy created, but metadata update needs a retry. Refresh the templates list if needed.");
-      }
+      showAlert("Template saved successfully!");
       setShowSaveDialog(false);
       setTemplateName("");
       setTemplateDescription("");
@@ -1314,7 +1139,7 @@ function PreviewContent() {
       setSaving(false);
     }
   };
-  //cjdhv
+
   const handlePublishClick = async () => {
     const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
     if (isCollaborator) {
@@ -1389,11 +1214,7 @@ function PreviewContent() {
         setShowPublishedSuccessModal(true);
         showAlert(`Published! Your site is live. You can change the domain later in the dashboard.`);
       } else {
-        if (res.message?.includes('Limit reached')) {
-          showAlert(res.message);
-        } else {
-          showAlert(res.message || "Publish failed.");
-        }
+        showAlert(res.message || "Publish failed.");
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Publish failed.";
@@ -1464,7 +1285,7 @@ function PreviewContent() {
     <DesignProjectProvider projectId={projectId} pageId={selectedPreviewPageSlug ?? null}>
       <div className="min-h-screen bg-[#0d0d0f] text-brand-lighter font-sans flex flex-col">
         {/* Animations */}
-      <style>{`
+        <style>{`
         .preview-fadein { animation: previewFadeIn 0.5s cubic-bezier(.4,0,.2,1); }
         @keyframes previewFadeIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
         .preview-scroll { scroll-behavior: smooth; }
@@ -1518,196 +1339,384 @@ function PreviewContent() {
         @keyframes pvDot { 0%,80%,100%{transform:scale(0.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
       `}</style>
 
-      {/* ── Toolbar ─────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-50 bg-[#0d0d0f]/95 backdrop-blur-md border-b border-white/[0.07] flex-shrink-0">
-        <div className="flex items-center justify-between px-4 h-13 gap-2" style={{ minHeight: 52 }}>
-
-          {/* Left: Nav */}
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={() => router.back()}
-              className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]"
-            >
-              <ArrowLeft size={15} />
-              <span className="hidden sm:inline">Editor</span>
-            </button>
-            <button
-              onClick={handleRefresh}
-              disabled={loading}
-              title="Reload from editor or database"
-              className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] disabled:opacity-40"
-            >
-              <RotateCw size={14} className={loading ? "animate-spin" : ""} />
-              <span className="hidden sm:inline">Refresh</span>
-            </button>
-          </div>
-
-          {/* Center: Controls */}
-          <div className="flex items-center gap-2 flex-1 justify-center flex-wrap">
-            {/* Viewport switcher */}
-            <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
-              <button onClick={() => setPreviewViewport("desktop")} className={`pv-seg-btn ${previewViewport === "desktop" ? "active" : ""}`} title="Desktop">
-                <Monitor size={13} /><span className="hidden md:inline">Desktop</span>
-              </button>
-              <button onClick={() => setPreviewViewport("tablet")} className={`pv-seg-btn ${previewViewport === "tablet" ? "active" : ""}`} title="Tablet">
-                <Tablet size={13} /><span className="hidden md:inline">Tablet</span>
-              </button>
-              <button onClick={() => setPreviewViewport("mobile")} className={`pv-seg-btn ${previewViewport === "mobile" ? "active" : ""}`} title="Mobile">
-                <Smartphone size={13} /><span className="hidden md:inline">Mobile</span>
-              </button>
-            </div>
-
-            {/* View mode switcher */}
-            <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
-              <button onClick={() => setViewMode("Web-Preview")} className={`pv-seg-btn ${viewMode === "Web-Preview" ? "active" : ""}`}>
-                <Globe size={13} />Preview
-              </button>
-              <button onClick={() => setViewMode("clean")} className={`pv-seg-btn ${viewMode === "clean" ? "active" : ""}`}>
-                <Layers size={13} />Clean
-              </button>
-              <button onClick={() => setViewMode("raw")} className={`pv-seg-btn ${viewMode === "raw" ? "active" : ""}`}>
-                <Braces size={13} />Raw
-              </button>
-            </div>
-
-            {/* Store Interaction Toggle */}
-            <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
-              <button 
-                onClick={() => setStoreActionsEnabled(!storeActionsEnabled)} 
-                className={`pv-seg-btn ${storeActionsEnabled ? "active" : "text-zinc-600 opacity-50"}`}
-                title={storeActionsEnabled ? "Store Interactions Enabled" : "Store Interactions Disabled"}
+        {/* ── Toolbar ─────────────────────────────────────────────────── */}
+        <div className="sticky top-0 z-50 bg-[#0d0d0f]/95 backdrop-blur-md border-b border-white/[0.07] flex-shrink-0">
+          <div className="flex items-center justify-between px-4 h-13 gap-2" style={{ minHeight: 52 }}>
+            {/* Left: Nav */}
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={() => router.back()}
+                className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]"
               >
-                <ShoppingBag size={13} />
-                <span className="hidden lg:inline">{storeActionsEnabled ? "Store: On" : "Store: Off"}</span>
+                <ArrowLeft size={15} />
+                <span className="hidden sm:inline">Editor</span>
+              </button>
+              <button
+                onClick={handleRefresh}
+                disabled={loading}
+                title="Reload from editor or database"
+                className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] disabled:opacity-40"
+              >
+                <RotateCw size={14} className={loading ? "animate-spin" : ""} />
+                <span className="hidden sm:inline">Refresh</span>
               </button>
             </div>
 
-            {/* Page selector — always visible */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-zinc-600 font-medium hidden sm:inline">Page</span>
-              <select
-                value={selectedPreviewPage?.slug ?? ""}
-                onChange={(e) => setSelectedPreviewPageSlug(e.target.value || undefined)}
-                disabled={previewPages.length === 0}
-                className="bg-[#18181b] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-white/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed min-w-[90px]"
-              >
-                {previewPages.length === 0
-                  ? <option value="">—</option>
-                  : previewPages.map((page, idx) => (
-                    <option key={page.id || `page-${idx}`} value={page.slug}>{page.name}</option>
-                  ))
-                }
-              </select>
-            </div>
-          </div>
+            {/* Center: Controls */}
+            <div className="flex items-center gap-2 flex-1 justify-center flex-wrap">
+              {/* Viewport switcher */}
+              <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
+                <button onClick={() => setPreviewViewport("desktop")} className={`pv-seg-btn ${previewViewport === "desktop" ? "active" : ""}`} title="Desktop">
+                  <Monitor size={13} /><span className="hidden md:inline">Desktop</span>
+                </button>
+                <button onClick={() => setPreviewViewport("tablet")} className={`pv-seg-btn ${previewViewport === "tablet" ? "active" : ""}`} title="Tablet">
+                  <Tablet size={13} /><span className="hidden md:inline">Tablet</span>
+                </button>
+                <button onClick={() => setPreviewViewport("mobile")} className={`pv-seg-btn ${previewViewport === "mobile" ? "active" : ""}`} title="Mobile">
+                  <Smartphone size={13} /><span className="hidden md:inline">Mobile</span>
+                </button>
+              </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {viewMode !== "Web-Preview" && activeJson && (
-              <>
-                <button onClick={handleCopy} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]">
-                  {copied ? <><Check size={13} className="text-emerald-400" /><span className="hidden sm:inline text-emerald-400">Copied</span></> : <><Copy size={13} /><span className="hidden sm:inline">Copy</span></>}
+              {/* View mode switcher */}
+              <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
+                <button onClick={() => setViewMode("Web-Preview")} className={`pv-seg-btn ${viewMode === "Web-Preview" ? "active" : ""}`}>
+                  <Globe size={13} />Preview
                 </button>
-                <button onClick={handleDownload} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]">
-                  <Download size={13} /><span className="hidden sm:inline">Download</span>
+                <button onClick={() => setViewMode("clean")} className={`pv-seg-btn ${viewMode === "clean" ? "active" : ""}`}>
+                  <Layers size={13} />Clean
                 </button>
-                <div className="w-px h-4 bg-white/10 mx-0.5" />
-              </>
-            )}
-            <button
-              onClick={() => {
-                const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
-                if (isCollaborator) setShowPermissionModal(true);
-                else if (project) setShowSaveDialog(true);
-              }}
-              disabled={loading || !project}
-              className="pv-btn bg-emerald-500/10 border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20"
-            >
-              <Save size={13} /><span className="hidden sm:inline">Template</span>
-            </button>
-            <button
-              onClick={handlePublishClick}
-              disabled={loading || !project}
-              className="pv-btn bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25"
-            >
-              <Upload size={13} /><span className="hidden sm:inline">Publish</span>
-            </button>
+                <button onClick={() => setViewMode("raw")} className={`pv-seg-btn ${viewMode === "raw" ? "active" : ""}`}>
+                  <Braces size={13} />Raw
+                </button>
+              </div>
+
+              {/* Store Interaction Toggle */}
+              <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
+                <button
+                  onClick={() => setStoreActionsEnabled(!storeActionsEnabled)}
+                  className={`pv-seg-btn ${storeActionsEnabled ? "active" : "text-zinc-600 opacity-50"}`}
+                  title={storeActionsEnabled ? "Store Interactions Enabled" : "Store Interactions Disabled"}
+                >
+                  <ShoppingBag size={13} />
+                  <span className="hidden lg:inline">{storeActionsEnabled ? "Store: On" : "Store: Off"}</span>
+                </button>
+              </div>
+
+              {/* Page selector */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] text-zinc-600 font-medium hidden sm:inline">Page</span>
+                <select
+                  value={selectedPreviewPage?.slug ?? ""}
+                  onChange={(e) => setSelectedPreviewPageSlug(e.target.value || undefined)}
+                  disabled={previewPages.length === 0}
+                  className="bg-[#18181b] border border-white/[0.08] rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:ring-1 focus:ring-white/20 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed min-w-[90px]"
+                >
+                  {previewPages.length === 0
+                    ? <option value="">—</option>
+                    : previewPages.map((page, idx) => (
+                      <option key={page.id || `page-${idx}`} value={page.slug}>{page.name}</option>
+                    ))
+                  }
+                </select>
+              </div>
+            </div>
+
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              {viewMode !== "Web-Preview" && activeJson && (
+                <>
+                  <button onClick={handleCopy} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]">
+                    {copied ? <><Check size={13} className="text-emerald-400" /><span className="hidden sm:inline text-emerald-400">Copied</span></> : <><Copy size={13} /><span className="hidden sm:inline">Copy</span></>}
+                  </button>
+                  <button onClick={handleDownload} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06]">
+                    <Download size={13} /><span className="hidden sm:inline">Download</span>
+                  </button>
+                  <div className="w-px h-4 bg-white/10 mx-0.5" />
+                </>
+              )}
+              <button
+                onClick={() => {
+                  const isCollaborator = project?.isShared || (project?.ownerId && currentUser?.id && project.ownerId !== currentUser.id);
+                  if (isCollaborator) setShowPermissionModal(true);
+                  else if (project) setShowSaveDialog(true);
+                }}
+                disabled={loading || !project}
+                className="pv-btn bg-emerald-500/10 border-emerald-500/25 text-emerald-400 hover:bg-emerald-500/20"
+              >
+                <Save size={13} /><span className="hidden sm:inline">Template</span>
+              </button>
+              <button
+                onClick={handlePublishClick}
+                disabled={loading || !project}
+                className="pv-btn bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25"
+              >
+                <Upload size={13} /><span className="hidden sm:inline">Publish</span>
+              </button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Stats bar ───────────────────────────────────────────────── */}
-      {rawJson && (
-        <div className="flex items-center justify-center gap-5 px-6 py-1.5 border-b border-white/[0.05] text-[11px] text-zinc-600 flex-wrap bg-[#0d0d0f] flex-shrink-0">
-          <span><span className="text-zinc-700">Pages:</span> <span className="text-zinc-500">{pageCount}</span></span>
-          <span className="text-zinc-800">·</span>
-          <span><span className="text-zinc-700">Nodes:</span> <span className="text-zinc-500">{viewMode === "raw" ? rawNodeCount : cleanNodeCount}</span></span>
-          <span className="text-zinc-800">·</span>
-          <span className="text-zinc-700">Raw <span className="text-zinc-500">{formatBytes(rawMinBytes)}</span> → Clean <span className="text-emerald-600">{formatBytes(cleanMinBytes)}</span></span>
-          {reduction > 0 && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">-{reduction}%</span>}
-        </div>
-      )}
-
-      {/* ── Main content ────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32">
-            <div className="flex items-center gap-2">
-              <div className="pv-loading-dot" /><div className="pv-loading-dot" /><div className="pv-loading-dot" />
-            </div>
-            <p className="text-sm text-zinc-600">Loading preview…</p>
+        {/* ── Stats bar ───────────────────────────────────────────────── */}
+        {rawJson && (
+          <div className="flex items-center justify-center gap-5 px-6 py-1.5 border-b border-white/[0.05] text-[11px] text-zinc-600 flex-wrap bg-[#0d0d0f] flex-shrink-0">
+            <span><span className="text-zinc-700">Pages:</span> <span className="text-zinc-500">{pageCount}</span></span>
+            <span className="text-zinc-800">·</span>
+            <span><span className="text-zinc-700">Nodes:</span> <span className="text-zinc-500">{viewMode === "raw" ? rawNodeCount : cleanNodeCount}</span></span>
+            <span className="text-zinc-800">·</span>
+            <span className="text-zinc-700">Raw <span className="text-zinc-500">{formatBytes(rawMinBytes)}</span> → Clean <span className="text-emerald-600">{formatBytes(cleanMinBytes)}</span></span>
+            {reduction > 0 && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600">-{reduction}%</span>}
           </div>
-        ) : viewMode === "Web-Preview" ? (
-          <div className={`flex-1 flex flex-col items-center overflow-x-hidden ${previewViewport === "desktop" ? "p-0" : "py-8 px-4"}`}>
-            {effectiveCleanDoc ? (
-              <>
-                {/* Desktop — full width */}
-                {previewViewport === "desktop" && (
-                  <div className="flex-1 w-full relative overflow-hidden preview-fadein bg-white h-[calc(100vh-140px)]">
-                    <div
-                      ref={previewRef}
-                      className="absolute inset-0 overflow-y-auto overflow-x-hidden"
-                    >
-                      <WebPreview
-                        doc={effectiveCleanDoc}
-                        pageIndex={selectedPreviewPageIndex}
-                        initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                        mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                        enableFormInputs
-                        builderParityMode={false}
-                        fillViewport={false}
-                        storeContext={previewStoreContext}
-                        onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
-                      />
+        )}
+
+        {/* ── Main content ────────────────────────────────────────────── */}
+        <div className="flex-1 flex flex-col">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32">
+              <div className="flex items-center gap-2">
+                <div className="pv-loading-dot" /><div className="pv-loading-dot" /><div className="pv-loading-dot" />
+              </div>
+              <p className="text-sm text-zinc-600">Loading preview…</p>
+            </div>
+          ) : viewMode === "Web-Preview" ? (
+            <div className="flex-1 w-full flex flex-col items-center overflow-x-hidden overflow-y-auto py-0">
+              {effectiveCleanDoc ? (
+                <>
+                  {/* Desktop — device frame */}
+                  {previewViewport === "desktop" && (
+                    <div className="flex-1 w-full flex flex-col items-center py-6 px-4 preview-fadein" style={{ minHeight: 0 }}>
+                      <p className="text-xs text-zinc-600 mb-3 flex-shrink-0">
+                        {desktopWidth}px · Desktop
+                      </p>
+                      <style>{`
+                        .desktop-preview-frame > div:first-child {
+                          background: #ffffff !important;
+                          min-height: unset !important;
+                        }
+                      `}</style>
+                      <div
+                        ref={previewRef}
+                        className="desktop-preview-frame relative flex-shrink-0"
+                        style={{
+                          width: `min(100%, ${desktopWidth}px)`,
+                          minHeight: "unset",
+                          borderRadius: 4,
+                          overflowX: "hidden",
+                          overflowY: "visible",
+                          boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.6)",
+                        }}
+                      >
+                        <WebPreview
+                          doc={effectiveCleanDoc}
+                          pageIndex={selectedPreviewPageIndex}
+                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                          enableFormInputs
+                          builderParityMode={true}
+                          fillViewport={false}
+                          storeContext={previewStoreContext}
+                          simulatedWidth={desktopWidth}
+                          responsiveViewportWidth={desktopWidth}
+                          onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
+                        />
+
+                        {/* Cart UI Layer — Constrained to the frame's visible viewport */}
+                        {previewStoreContext && (
+                          <div className="absolute inset-0 pointer-events-none">
+                            {/* Sticky container for the Drawer/Sidebar */}
+                            <div className="sticky top-0 w-full h-screen max-h-full overflow-visible z-[200]">
+                              {previewCartOpen && (
+                                <div className="absolute inset-0 flex justify-end">
+                                  <div
+                                    className="pointer-events-auto absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+                                    onClick={() => setPreviewCartOpen(false)}
+                                  />
+                                  <div 
+                                    className="pointer-events-auto relative w-full max-w-sm h-full bg-white flex flex-col border-l border-zinc-200 shadow-2xl" 
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    <div className="flex items-center justify-between p-5 border-b border-zinc-100">
+                                      <h2 className="text-base font-medium text-zinc-900">
+                                        Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
+                                      </h2>
+                                      <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
+                                        <X className="w-5 h-5" />
+                                      </button>
+                                    </div>
+
+                                    <div className="flex-1 overflow-y-auto p-5">
+                                      {previewCart.length === 0 ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-center">
+                                          <p className="text-zinc-400 text-sm">Your cart is empty</p>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          <div className="mb-4 flex items-center justify-between">
+                                            <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                                              <input
+                                                type="checkbox"
+                                                checked={true}
+                                                readOnly
+                                                className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black"
+                                              />
+                                              Select all
+                                            </label>
+                                            <button
+                                              type="button"
+                                              onClick={() => setPreviewCart([])}
+                                              className="text-sm text-red-600 hover:underline"
+                                            >
+                                              Clear
+                                            </button>
+                                          </div>
+                                          <div className="flex flex-col gap-4">
+                                            {previewCart.map((item) => (
+                                              <div key={item.id} className="flex gap-4 py-4 border-b border-zinc-50 last:border-0">
+                                                <div className="pt-1">
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={true}
+                                                    readOnly
+                                                    className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
+                                                  />
+                                                </div>
+                                                <div className="w-20 h-20 flex-shrink-0">
+                                                  {item.image ? (
+                                                    <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" />
+                                                  ) : (
+                                                    <div className="w-full h-full bg-zinc-50 border border-zinc-100" />
+                                                  )}
+                                                </div>
+                                                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                                  <div className="flex justify-between items-start">
+                                                    <h4 className="text-sm font-medium text-zinc-900 truncate pr-4">{item.name}</h4>
+                                                    <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500">
+                                                      <X className="w-4 h-4" />
+                                                    </button>
+                                                  </div>
+                                                  <div className="flex justify-between items-end">
+                                                    <div className="flex items-center border border-zinc-200 rounded-lg">
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
+                                                        }}
+                                                        className="px-2 py-1 text-zinc-500 hover:text-black"
+                                                      >
+                                                        -
+                                                      </button>
+                                                      <span className="text-sm font-medium text-zinc-900 w-8 text-center">{item.quantity}</span>
+                                                      <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                          setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
+                                                        }}
+                                                        className="px-2 py-1 text-zinc-500 hover:text-black"
+                                                      >
+                                                        +
+                                                      </button>
+                                                    </div>
+                                                    <p className="text-sm font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            ))}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                    <div className="p-5 border-t border-zinc-100 bg-zinc-50/50">
+                                      <div className="flex items-center justify-between mb-4">
+                                        <span className="text-sm text-zinc-500">Total</span>
+                                        <span className="text-lg font-semibold text-zinc-900">₱{previewCart.reduce((s, i) => s + (i.price * i.quantity), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        disabled={previewCart.length === 0}
+                                        className="w-full bg-black text-white py-3.5 rounded-xl font-medium hover:bg-zinc-900 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Checkout (Preview Only)
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Sticky container for the FAB */}
+                            <div className="sticky bottom-0 w-full h-0 overflow-visible z-[100]">
+                              {!previewCartOpen && (
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewCartOpen(prev => !prev)}
+                                  className={`pointer-events-auto absolute z-40 w-12 h-12 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 ${
+                                    previewCart.length > 0 && previewLastAddedAt ? 'scale-110' : 'scale-100'
+                                  }`}
+                                  style={{ bottom: 32, right: 32 }}
+                                  aria-label="Toggle preview cart"
+                                >
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                  </svg>
+                                  {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
+                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 border border-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                                      {previewCart.reduce((s, i) => s + i.quantity, 0)}
+                                    </span>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
+                  )}
 
-                    {/* Fixed Cart UI Layer — Desktop (Aligned to content bounds) */}
-                    <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden">
-                      {previewStoreContext && desktopPreviewBounds && (
-                        <div
-                          className="absolute pointer-events-none"
-                          style={{
-                            left: desktopPreviewBounds.left,
-                            width: desktopPreviewBounds.width,
-                            top: 0,
-                            bottom: 0
-                          }}
-                        >
+                  {/* Tablet — device frame */}
+                  {previewViewport === "tablet" && (
+                    <div className="flex flex-col items-center gap-3 preview-fadein py-8 px-4 overflow-y-auto flex-1">
+                      <p className="text-xs text-zinc-600 mb-1">{PREVIEW_TABLET_VIEWPORT_WIDTH}px · Tablet</p>
+                      <div
+                        className="device-frame-tablet flex flex-col bg-white"
+                        style={{ width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px", minHeight: "1024px", position: "relative" }}
+                      >
+                        <div className="flex-shrink-0 h-8 bg-[#18181b] flex items-center justify-between px-4">
+                          <div className="flex gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-[#3f3f46]" /><div className="w-2 h-2 rounded-full bg-[#3f3f46]" /><div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                          </div>
+                          <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
+                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                        </div>
+                        <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
+                          <WebPreview
+                            doc={effectiveCleanDoc}
+                            pageIndex={selectedPreviewPageIndex}
+                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                            mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
+                            enableFormInputs
+                            builderParityMode={false}
+                            fillViewport
+                            storeContext={previewStoreContext}
+                            simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                            responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
+                            onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
+                          />
+                        </div>
+
+                        {/* Sticky Floating UI Layer — Tablet */}
+                        <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden rounded-b-[20px] top-8">
                           <div className="relative w-full h-full">
-                            {!previewCartOpen && (
+                            {previewStoreContext && !previewCartOpen && (
                               <button
                                 type="button"
                                 onClick={() => setPreviewCartOpen(prev => !prev)}
-                                className={`pointer-events-auto absolute bottom-8 right-8 z-40 w-12 h-12 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 ${
-                                  previewCart.length > 0 && previewLastAddedAt ? 'scale-110' : 'scale-100'
-                                }`}
+                                className={`pointer-events-auto absolute bottom-6 right-6 z-40 w-10 h-10 rounded-full bg-black text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 scale-90 origin-bottom-right ${previewCart.length > 0 && previewLastAddedAt ? 'scale-100' : 'scale-90'}`}
                                 aria-label="Toggle preview cart"
                               >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                                 </svg>
                                 {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 border border-white text-[10px] font-bold flex items-center justify-center rounded-full">
+                                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 border border-white text-[9px] font-bold flex items-center justify-center rounded-full">
                                     {previewCart.reduce((s, i) => s + i.quantity, 0)}
                                   </span>
                                 )}
@@ -1716,103 +1725,49 @@ function PreviewContent() {
 
                             {previewCartOpen && (
                               <div className="pointer-events-none absolute inset-0 flex justify-end">
-                                <div 
-                                  className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
-                                />
-                                <div className="pointer-events-auto relative w-full max-w-sm bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-between p-5 border-b border-zinc-100">
-                                    <h2 className="text-base font-medium text-zinc-900">
-                                      Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
-                                    </h2>
+                                <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" />
+                                <div className="pointer-events-auto relative w-full max-w-[280px] bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-between p-4 border-b border-zinc-100">
+                                    <h2 className="text-sm font-medium text-zinc-900">Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})</h2>
                                     <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                      <X className="w-5 h-5" />
+                                      <X className="w-4 h-4" />
                                     </button>
                                   </div>
-
-                                  <div className="flex-1 overflow-y-auto p-5">
+                                  <div className="flex-1 overflow-y-auto p-4">
                                     {previewCart.length === 0 ? (
                                       <div className="h-full flex flex-col items-center justify-center text-center">
-                                        <p className="text-zinc-400 text-sm">Your cart is empty</p>
+                                        <p className="text-zinc-400 text-xs">Your cart is empty</p>
                                       </div>
                                     ) : (
                                       <>
                                         <div className="mb-3 flex items-center justify-between">
-                                          <label className="flex items-center gap-2 text-xs text-zinc-700 cursor-pointer">
-                                            <input
-                                              type="checkbox"
-                                              checked={true}
-                                              readOnly
-                                              className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black"
-                                            />
+                                          <label className="flex items-center gap-2 text-[10px] text-zinc-700 cursor-pointer">
+                                            <input type="checkbox" checked={true} readOnly className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black" />
                                             Select all
                                           </label>
-                                          <button
-                                            type="button"
-                                            onClick={() => setPreviewCart([])}
-                                            className="text-xs text-red-600 hover:underline"
-                                          >
-                                            Clear
-                                          </button>
+                                          <button type="button" onClick={() => setPreviewCart([])} className="text-[10px] text-red-600 hover:underline">Clear</button>
                                         </div>
                                         <div className="flex flex-col">
                                           {previewCart.map((item) => (
-                                            <div key={item.id} className="flex gap-4 py-4 border-b border-zinc-100 last:border-0 group">
+                                            <div key={item.id} className="flex gap-3 py-3 border-b border-zinc-50 last:border-0 group">
                                               <div className="pt-0.5">
-                                                <input
-                                                  type="checkbox"
-                                                  checked={true}
-                                                  readOnly
-                                                  className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
-                                                />
+                                                <input type="checkbox" checked={true} readOnly className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black cursor-pointer" />
                                               </div>
-                                              <div className="w-16 h-16 flex-shrink-0">
-                                                {item.image ? (
-                                                  <img
-                                                    src={item.image}
-                                                    alt=""
-                                                    className="w-full h-full object-cover bg-zinc-50 border border-zinc-100"
-                                                  />
-                                                ) : (
-                                                  <div className="w-full h-full bg-zinc-100 border border-zinc-200" />
-                                                )}
+                                              <div className="w-12 h-12 flex-shrink-0">
+                                                {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" /> : <div className="w-full h-full bg-zinc-50 border border-zinc-100" />}
                                               </div>
-                                              <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                <div>
-                                                  <div className="flex justify-between items-start">
-                                                    <h4 className="text-sm font-medium text-zinc-900 truncate pr-4">{item.name}</h4>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))}
-                                                      className="text-zinc-300 hover:text-zinc-600 transition-colors"
-                                                    >
-                                                      <X className="w-4 h-4" />
-                                                    </button>
-                                                  </div>
-                                                  <p className="text-xs text-zinc-500 mt-0.5">₱{item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                                                <div className="flex justify-between items-start">
+                                                  <h4 className="text-[11px] font-medium text-zinc-900 truncate pr-2">{item.name}</h4>
+                                                  <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500"><X className="w-3.5 h-3.5" /></button>
                                                 </div>
-                                                <div className="flex items-center justify-between mt-2">
-                                                  <div className="flex items-center border border-zinc-200 rounded">
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
-                                                        setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
-                                                      }}
-                                                      className="px-2 py-1 text-zinc-500 hover:text-black transition-colors"
-                                                    >
-                                                      -
-                                                    </button>
-                                                    <span className="text-xs font-medium text-zinc-900 w-8 text-center">{item.quantity}</span>
-                                                    <button
-                                                      type="button"
-                                                      onClick={() => {
-                                                        setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
-                                                      }}
-                                                      className="px-2 py-1 text-zinc-500 hover:text-black transition-colors"
-                                                    >
-                                                      +
-                                                    </button>
+                                                <div className="flex justify-between items-end">
+                                                  <div className="flex items-center border border-zinc-200 rounded scale-90 origin-left">
+                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="px-1.5 py-0.5 text-zinc-500 hover:text-black">-</button>
+                                                    <span className="text-[10px] font-medium text-zinc-900 w-5 text-center">{item.quantity}</span>
+                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))} className="px-1.5 py-0.5 text-zinc-500 hover:text-black">+</button>
                                                   </div>
-                                                  <p className="text-sm font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                  <p className="text-[11px] font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                                                 </div>
                                               </div>
                                             </div>
@@ -1821,21 +1776,13 @@ function PreviewContent() {
                                       </>
                                     )}
                                   </div>
-
                                   {previewCart.length > 0 && (
-                                    <div className="p-5 bg-zinc-50 border-t border-zinc-200">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <span className="text-sm text-zinc-500 font-medium">Total</span>
-                                        <span className="text-lg font-bold text-zinc-900">
-                                          ₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                        </span>
+                                    <div className="p-4 bg-zinc-50 border-t border-zinc-200">
+                                      <div className="flex items-center justify-between mb-3">
+                                        <span className="text-[10px] text-zinc-500 font-medium">Total</span>
+                                        <span className="text-base font-bold text-zinc-900">₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                       </div>
-                                      <button
-                                        disabled
-                                        className="w-full h-12 bg-black text-white text-sm font-medium opacity-30 cursor-not-allowed"
-                                      >
-                                        Checkout (Preview Only)
-                                      </button>
+                                      <button disabled className="w-full h-10 bg-black text-white text-xs font-medium opacity-30">Checkout</button>
                                     </div>
                                   )}
                                 </div>
@@ -1843,684 +1790,286 @@ function PreviewContent() {
                             )}
                           </div>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Tablet — device frame */}
-                {previewViewport === "tablet" && (
-                  <div className="flex flex-col items-center gap-3 preview-fadein">
-                    <p className="text-xs text-zinc-600 mb-1">{PREVIEW_TABLET_VIEWPORT_WIDTH}px · Tablet</p>
-                    <div
-                      className="device-frame-tablet flex flex-col bg-white"
-                      style={{ width: "100%", maxWidth: `${PREVIEW_TABLET_VIEWPORT_WIDTH}px`, minWidth: "600px", minHeight: "1024px", position: "relative" }}
-                    >
-                      {/* Top bar of tablet */}
-                      <div className="flex-shrink-0 h-8 bg-[#18181b] flex items-center justify-between px-4">
-                        <div className="flex gap-1.5">
-                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
-                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
-                          <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
+                  {/* Mobile — device frame */}
+                  {previewViewport === "mobile" && (
+                    <div className="flex flex-col items-center gap-3 preview-fadein py-8 px-4 overflow-y-auto flex-1">
+                      <p className="text-xs text-zinc-600 mb-1">{PREVIEW_MOBILE_VIEWPORT_WIDTH}px · Mobile</p>
+                      <div
+                        className="device-frame-mobile flex flex-col bg-white"
+                        style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px", minHeight: "844px", position: "relative" }}
+                      >
+                        <div className="device-notch"><div className="device-notch-pill" /></div>
+                        <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
+                          <WebPreview
+                            doc={effectiveCleanDoc}
+                            pageIndex={selectedPreviewPageIndex}
+                            initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
+                            mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
+                            enableFormInputs
+                            builderParityMode={false}
+                            fillViewport
+                            storeContext={previewStoreContext}
+                            simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                            responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
+                            onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
+                          />
                         </div>
-                        <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
-                        <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
-                      </div>
-                      <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
-                        <WebPreview
-                          doc={effectiveCleanDoc}
-                          pageIndex={selectedPreviewPageIndex}
-                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                          mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
-                          enableFormInputs
-                          builderParityMode={false}
-                          fillViewport
-                          storeContext={previewStoreContext}
-                          simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                          responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
-                          onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
-                        />
-                      </div>
 
-                      {/* Sticky Floating UI Layer — Tablet (Moved outside previewRef to be fixed relative to frame) */}
-                      <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden rounded-b-[20px] top-8">
-                        <div className="relative w-full h-full">
-                          {/* Cart FAB */}
-                          {previewStoreContext && !previewCartOpen && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewCartOpen(prev => !prev)}
-                              className={`pointer-events-auto absolute bottom-6 right-6 z-40 w-10 h-10 rounded-full bg-black text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 scale-90 origin-bottom-right ${
-                                previewCart.length > 0 && previewLastAddedAt ? 'scale-100' : 'scale-90'
-                              }`}
-                              aria-label="Toggle preview cart"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                              </svg>
-                              {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 border border-white text-[9px] font-bold flex items-center justify-center rounded-full">
-                                  {previewCart.reduce((s, i) => s + i.quantity, 0)}
-                                </span>
-                              )}
-                            </button>
-                          )}
+                        {/* Sticky Floating UI Layer — Mobile */}
+                        <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden rounded-b-[2.5rem] top-[28px]">
+                          <div className="relative w-full h-full">
+                            {previewStoreContext && !previewCartOpen && (
+                              <button
+                                type="button"
+                                onClick={() => setPreviewCartOpen(prev => !prev)}
+                                className={`pointer-events-auto absolute bottom-10 right-6 z-40 w-9 h-9 rounded-full bg-black text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 scale-90 origin-bottom-right ${previewCart.length > 0 && previewLastAddedAt ? 'scale-100' : 'scale-90'}`}
+                                aria-label="Toggle preview cart"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                </svg>
+                                {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
+                                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 border border-white text-[8px] font-bold flex items-center justify-center rounded-full">
+                                    {previewCart.reduce((s, i) => s + i.quantity, 0)}
+                                  </span>
+                                )}
+                              </button>
+                            )}
 
-                          {previewCartOpen && (
-                            <div className="pointer-events-none absolute inset-0 flex justify-end">
-                              <div 
-                                className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
-                              />
-                              <div className="pointer-events-auto relative w-full max-w-[280px] bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between p-4 border-b border-zinc-100">
-                                  <h2 className="text-sm font-medium text-zinc-900">
-                                    Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
-                                  </h2>
-                                  <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-4">
-                                  {previewCart.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-center">
-                                      <p className="text-zinc-400 text-xs">Your cart is empty</p>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="mb-3 flex items-center justify-between">
-                                        <label className="flex items-center gap-2 text-[10px] text-zinc-700 cursor-pointer">
-                                          <input
-                                            type="checkbox"
-                                            checked={true}
-                                            readOnly
-                                            className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black"
-                                          />
-                                          Select all
-                                        </label>
-                                        <button
-                                          type="button"
-                                          onClick={() => setPreviewCart([])}
-                                          className="text-[10px] text-red-600 hover:underline"
-                                        >
-                                          Clear
-                                        </button>
-                                      </div>
-                                      <div className="flex flex-col">
-                                        {previewCart.map((item) => (
-                                          <div key={item.id} className="flex gap-3 py-3 border-b border-zinc-50 last:border-0 group">
-                                            <div className="pt-0.5">
-                                              <input
-                                                type="checkbox"
-                                                checked={true}
-                                                readOnly
-                                                className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
-                                              />
-                                            </div>
-                                            <div className="w-12 h-12 flex-shrink-0">
-                                              {item.image ? (
-                                                <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" />
-                                              ) : (
-                                                <div className="w-full h-full bg-zinc-50 border border-zinc-100" />
-                                              )}
-                                            </div>
-                                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                                              <div className="flex justify-between items-start">
-                                                <h4 className="text-[11px] font-medium text-zinc-900 truncate pr-2">{item.name}</h4>
-                                                <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500">
-                                                  <X className="w-3.5 h-3.5" />
-                                                </button>
-                                              </div>
-                                              <div className="flex justify-between items-end">
-                                                <div className="flex items-center border border-zinc-200 rounded scale-90 origin-left">
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
-                                                    }}
-                                                    className="px-1.5 py-0.5 text-zinc-500 hover:text-black"
-                                                  >
-                                                    -
-                                                  </button>
-                                                  <span className="text-[10px] font-medium text-zinc-900 w-5 text-center">{item.quantity}</span>
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
-                                                    }}
-                                                    className="px-1.5 py-0.5 text-zinc-500 hover:text-black"
-                                                  >
-                                                    +
-                                                  </button>
-                                                </div>
-                                                <p className="text-[11px] font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
-                                {previewCart.length > 0 && (
-                                  <div className="p-4 bg-zinc-50 border-t border-zinc-200">
-                                    <div className="flex items-center justify-between mb-3">
-                                      <span className="text-[10px] text-zinc-500 font-medium">Total</span>
-                                      <span className="text-base font-bold text-zinc-900">
-                                        ₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                    <button disabled className="w-full h-10 bg-black text-white text-xs font-medium opacity-30">
-                                      Checkout
+                            {previewCartOpen && (
+                              <div className="pointer-events-none absolute inset-0 flex justify-end">
+                                <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" />
+                                <div className="pointer-events-auto relative w-full max-w-[260px] bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
+                                  <div className="flex items-center justify-between p-4 border-b border-zinc-100">
+                                    <h2 className="text-xs font-medium text-zinc-900">Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})</h2>
+                                    <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
+                                      <X className="w-4 h-4" />
                                     </button>
                                   </div>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Mobile — device frame */}
-                {previewViewport === "mobile" && (
-                  <div className="flex flex-col items-center gap-3 preview-fadein">
-                    <p className="text-xs text-zinc-600 mb-1">{PREVIEW_MOBILE_VIEWPORT_WIDTH}px · Mobile</p>
-                    <div
-                      className="device-frame-mobile flex flex-col bg-white"
-                      style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px", minHeight: "844px", position: "relative" }}
-                    >
-                      <div className="device-notch"><div className="device-notch-pill" /></div>
-                      <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
-                        <WebPreview
-                          doc={effectiveCleanDoc}
-                          pageIndex={selectedPreviewPageIndex}
-                          initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
-                          mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
-                          enableFormInputs
-                          builderParityMode={false}
-                          fillViewport
-                          storeContext={previewStoreContext}
-                          simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                          responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
-                          onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
-                        />
-                      </div>
-
-                      {/* Sticky Floating UI Layer — Mobile (Moved outside previewRef to be fixed relative to frame) */}
-                      <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden rounded-b-[2.5rem] top-[28px]">
-                        <div className="relative w-full h-full">
-                          {/* Cart FAB */}
-                          {previewStoreContext && !previewCartOpen && (
-                            <button
-                              type="button"
-                              onClick={() => setPreviewCartOpen(prev => !prev)}
-                              className={`pointer-events-auto absolute bottom-10 right-6 z-40 w-9 h-9 rounded-full bg-black text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 scale-90 origin-bottom-right ${
-                                previewCart.length > 0 && previewLastAddedAt ? 'scale-100' : 'scale-90'
-                              }`}
-                              aria-label="Toggle preview cart"
-                            >
-                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                              </svg>
-                              {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 border border-white text-[8px] font-bold flex items-center justify-center rounded-full">
-                                  {previewCart.reduce((s, i) => s + i.quantity, 0)}
-                                </span>
-                              )}
-                            </button>
-                          )}
-
-                          {previewCartOpen && (
-                            <div className="pointer-events-none absolute inset-0 flex justify-end">
-                              <div 
-                                className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
-                              />
-                              <div className="pointer-events-auto relative w-full max-w-[260px] bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex items-center justify-between p-4 border-b border-zinc-100">
-                                  <h2 className="text-xs font-medium text-zinc-900">
-                                    Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
-                                  </h2>
-                                  <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                    <X className="w-4 h-4" />
-                                  </button>
-                                </div>
-                                <div className="flex-1 overflow-y-auto p-3">
-                                  {previewCart.length === 0 ? (
-                                    <div className="h-full flex flex-col items-center justify-center text-center">
-                                      <p className="text-zinc-400 text-[10px]">Your cart is empty</p>
-                                    </div>
-                                  ) : (
-                                    <>
-                                      <div className="mb-2 flex items-center justify-between">
-                                        <label className="flex items-center gap-1.5 text-[9px] text-zinc-700 cursor-pointer">
-                                          <input
-                                            type="checkbox"
-                                            checked={true}
-                                            readOnly
-                                            className="h-3 w-3 rounded border-zinc-300 text-black focus:ring-black"
-                                          />
-                                          Select all
-                                        </label>
-                                        <button
-                                          type="button"
-                                          onClick={() => setPreviewCart([])}
-                                          className="text-[9px] text-red-600 hover:underline"
-                                        >
-                                          Clear
-                                        </button>
+                                  <div className="flex-1 overflow-y-auto p-3">
+                                    {previewCart.length === 0 ? (
+                                      <div className="h-full flex flex-col items-center justify-center text-center">
+                                        <p className="text-zinc-400 text-[10px]">Your cart is empty</p>
                                       </div>
-                                      <div className="flex flex-col">
-                                        {previewCart.map((item) => (
-                                          <div key={item.id} className="flex gap-2.5 py-3 border-b border-zinc-50 last:border-0">
-                                            <div className="pt-0.5">
-                                              <input
-                                                type="checkbox"
-                                                checked={true}
-                                                readOnly
-                                                className="h-3 w-3 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
-                                              />
-                                            </div>
-                                            <div className="w-10 h-10 flex-shrink-0">
-                                              {item.image ? (
-                                                <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" />
-                                              ) : (
-                                                <div className="w-full h-full bg-zinc-50 border border-zinc-100" />
-                                              )}
-                                            </div>
-                                            <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                                              <div className="flex justify-between items-start">
-                                                <h4 className="text-[10px] font-medium text-zinc-900 truncate pr-1">{item.name}</h4>
-                                                <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500">
-                                                  <X className="w-3 h-3" />
-                                                </button>
+                                    ) : (
+                                      <>
+                                        <div className="mb-2 flex items-center justify-between">
+                                          <label className="flex items-center gap-1.5 text-[9px] text-zinc-700 cursor-pointer">
+                                            <input type="checkbox" checked={true} readOnly className="h-3 w-3 rounded border-zinc-300 text-black focus:ring-black" />
+                                            Select all
+                                          </label>
+                                          <button type="button" onClick={() => setPreviewCart([])} className="text-[9px] text-red-600 hover:underline">Clear</button>
+                                        </div>
+                                        <div className="flex flex-col">
+                                          {previewCart.map((item) => (
+                                            <div key={item.id} className="flex gap-2.5 py-3 border-b border-zinc-50 last:border-0">
+                                              <div className="pt-0.5">
+                                                <input type="checkbox" checked={true} readOnly className="h-3 w-3 rounded border-zinc-300 text-black focus:ring-black cursor-pointer" />
                                               </div>
-                                              <div className="flex justify-between items-end">
-                                                <div className="flex items-center border border-zinc-200 rounded scale-[0.8] origin-left">
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
-                                                    }}
-                                                    className="px-1 py-0.5 text-zinc-500 hover:text-black"
-                                                  >
-                                                    -
-                                                  </button>
-                                                  <span className="text-[9px] font-medium text-zinc-900 w-4 text-center">{item.quantity}</span>
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                      setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
-                                                    }}
-                                                    className="px-1 py-0.5 text-zinc-500 hover:text-black"
-                                                  >
-                                                    +
-                                                  </button>
+                                              <div className="w-10 h-10 flex-shrink-0">
+                                                {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" /> : <div className="w-full h-full bg-zinc-50 border border-zinc-100" />}
+                                              </div>
+                                              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                                                <div className="flex justify-between items-start">
+                                                  <h4 className="text-[10px] font-medium text-zinc-900 truncate pr-1">{item.name}</h4>
+                                                  <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500"><X className="w-3 h-3" /></button>
                                                 </div>
-                                                <p className="text-[10px] font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                <div className="flex justify-between items-end">
+                                                  <div className="flex items-center border border-zinc-200 rounded scale-[0.8] origin-left">
+                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="px-1 py-0.5 text-zinc-500 hover:text-black">-</button>
+                                                    <span className="text-[9px] font-medium text-zinc-900 w-4 text-center">{item.quantity}</span>
+                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))} className="px-1 py-0.5 text-zinc-500 hover:text-black">+</button>
+                                                  </div>
+                                                  <p className="text-[10px] font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                                                </div>
                                               </div>
                                             </div>
-                                          </div>
-                                        ))}
+                                          ))}
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                  {previewCart.length > 0 && (
+                                    <div className="p-3 bg-zinc-50 border-t border-zinc-200">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-[9px] text-zinc-500 font-medium">Total</span>
+                                        <span className="text-sm font-bold text-zinc-900">₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                       </div>
-                                    </>
+                                      <button disabled className="w-full h-8 bg-black text-white text-[10px] font-medium opacity-30">Checkout</button>
+                                    </div>
                                   )}
                                 </div>
-                                {previewCart.length > 0 && (
-                                  <div className="p-3 bg-zinc-50 border-t border-zinc-200">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <span className="text-[9px] text-zinc-500 font-medium">Total</span>
-                                      <span className="text-sm font-bold text-zinc-900">
-                                        ₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                      </span>
-                                    </div>
-                                    <button disabled className="w-full h-8 bg-black text-white text-[10px] font-medium opacity-30">
-                                      Checkout
-                                    </button>
-                                  </div>
-                                )}
                               </div>
-                            </div>
-                          )}
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32 text-center">
+                  <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-2">
+                    <Globe size={28} className="text-zinc-700" />
                   </div>
-                )}
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32 text-center">
-                <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-2">
-                  <Globe size={28} className="text-zinc-700" />
+                  <p className="text-sm font-medium text-zinc-400">No page data</p>
+                  <p className="text-xs text-zinc-600 max-w-xs">Go back to the editor, design your page, then return here to preview it.</p>
+                  <button onClick={() => router.back()} className="mt-2 pv-btn bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300 text-sm">
+                    <ArrowLeft size={14} /> Back to Editor
+                  </button>
                 </div>
-                <p className="text-sm font-medium text-zinc-400">No page data</p>
-                <p className="text-xs text-zinc-600 max-w-xs">Go back to the editor, design your page, then return here to preview it.</p>
-                <button onClick={() => router.back()} className="mt-2 pv-btn bg-white/5 border-white/10 hover:bg-white/10 text-zinc-300 text-sm">
-                  <ArrowLeft size={14} /> Back to Editor
-                </button>
-              </div>
-            )}
-          </div>
-        ) : activeJson ? (
-          <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-6 py-6">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-xs text-zinc-600 font-mono uppercase tracking-widest">{viewMode === "clean" ? "Clean Document" : "Raw CraftJS"}</span>
-              <div className="flex items-center gap-2">
-                <button onClick={handleCopy} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] text-xs">
-                  {copied ? <><Check size={12} className="text-emerald-400" /> Copied</> : <><Copy size={12} /> Copy</>}
-                </button>
-                <button onClick={handleDownload} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] text-xs">
-                  <Download size={12} /> Download
-                </button>
-              </div>
+              )}
             </div>
-            <pre className="flex-1 bg-[#111113] rounded-xl border border-white/[0.08] p-5 text-[12.5px] leading-relaxed overflow-auto font-mono text-zinc-400 whitespace-pre-wrap break-all" style={{ maxHeight: "calc(100vh - 200px)" }}>
-              {activeJson}
-            </pre>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center flex-1 gap-3 py-32 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-2">
-              <Braces size={24} className="text-zinc-700" />
+          ) : activeJson ? (
+            <div className="flex-1 flex flex-col max-w-7xl mx-auto w-full px-6 py-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs text-zinc-600 font-mono uppercase tracking-widest">{viewMode === "clean" ? "Clean Document" : "Raw CraftJS"}</span>
+                <div className="flex items-center gap-2">
+                  <button onClick={handleCopy} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] text-xs">
+                    {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
+                  </button>
+                  <button onClick={handleDownload} className="pv-btn text-zinc-400 hover:text-zinc-100 hover:bg-white/[0.06] text-xs">
+                    <Download size={12} /> Download
+                  </button>
+                </div>
+              </div>
+              <pre className="flex-1 bg-[#111113] rounded-xl border border-white/[0.08] p-5 text-[12.5px] leading-relaxed overflow-auto font-mono text-zinc-400 whitespace-pre-wrap break-all" style={{ maxHeight: "calc(100vh - 200px)" }}>
+                {activeJson}
+              </pre>
             </div>
-            <p className="text-sm font-medium text-zinc-400">No JSON data found</p>
-            <p className="text-xs text-zinc-600">Go back to the editor and press Play to generate output.</p>
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center flex-1 gap-3 py-32 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-white/[0.04] border border-white/10 flex items-center justify-center mb-2">
+                <Braces size={24} className="text-zinc-700" />
+              </div>
+              <p className="text-sm font-medium text-zinc-400">No JSON data found</p>
+              <p className="text-xs text-zinc-600">Go back to the editor and press Play to generate output.</p>
+            </div>
+          )}
+        </div>
 
-      {/* Publish confirmation – Publish now or Schedule for a date */}
-      {showPublishDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
-            {scheduleInfo && (
-              <p className="text-sm text-amber-400/90 mb-2">
-                Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
-              </p>
-            )}
-            <p className="text-sm text-zinc-400 mb-4">
-              {publishDomainName.trim()
-                ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
-                : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
-            </p>
-            <div className="space-y-2 mb-4">
-              <label className="block text-sm font-medium text-gray-300">
-                Live domain (subdomain) <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                value={publishDomainName}
-                onChange={(e) => {
-                  setPublishDomainName(e.target.value);
-                  setPublishDomainError("");
-                }}
-                placeholder="e.g. mystore → mystore.localhost (dev) or mystore.websitelink (prod)"
-                className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                autoFocus
-              />
-              <p className="text-xs text-zinc-500">Only letters, numbers, and hyphens.</p>
-              {publishDomainName.trim() && (
-                <p className="text-xs text-emerald-400/90 mt-1">
-                  Your site will be live at: <span className="font-mono font-medium">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
+        {/* Publish confirmation */}
+        {showPublishDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+              <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
+              {scheduleInfo && (
+                <p className="text-sm text-amber-400/90 mb-2">
+                  Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
                 </p>
               )}
-              {publishDomainError && (
-                <p className="text-xs text-red-400">{publishDomainError}</p>
-              )}
-            </div>
-            <div className="flex gap-2 mb-4 p-1 bg-[#0a0a0a] rounded-lg">
-              <button
-                type="button"
-                onClick={() => setPublishMode("now")}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${publishMode === "now" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
-              >
-                Publish now
-              </button>
-              <button
-                type="button"
-                onClick={() => setPublishMode("schedule")}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${publishMode === "schedule" ? "bg-blue-600 text-white" : "text-zinc-400 hover:text-white"}`}
-              >
-                Schedule for date
-              </button>
-            </div>
-            {publishMode === "schedule" && (
+              <p className="text-sm text-zinc-400 mb-4">
+                {publishDomainName.trim()
+                  ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
+                  : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
+              </p>
               <div className="space-y-2 mb-4">
                 <label className="block text-sm font-medium text-gray-300">
-                  When should your edits go live?
-                </label>
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <p className="text-xs text-zinc-500">Your current draft will go live at this date and time.</p>
-              </div>
-            )}
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPublishDialog(false);
-                  setPublishDomainName("");
-                  setPublishDomainError("");
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              {publishMode === "now" ? (
-                <button
-                  type="button"
-                  onClick={handlePublishConfirm}
-                  disabled={publishing}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {publishing ? "Publishing…" : "Confirm & Publish"}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleScheduleConfirm}
-                  disabled={scheduling}
-                  className="px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-lg hover:bg-amber-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {scheduling ? "Scheduling…" : "Set schedule"}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showPublishedSuccessModal && publishedSubdomain && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
-            <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
-            <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
-              {typeof window !== 'undefined'
-                ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
-                : `localhost/sites/${publishedSubdomain}`}
-            </p>
-
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowPublishedSuccessModal(false);
-                  setPublishedSubdomain(null);
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-              >
-                Keep editing
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  const target = publishedSubdomain;
-                  setShowPublishedSuccessModal(false);
-                  setPublishedSubdomain(null);
-                  const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
-                  if (url !== '#') window.open(url, '_blank', 'noopener,noreferrer');
-                }}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Visit live site
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Save Template Dialog */}
-      {showSaveDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-            <h2 className="text-xl font-semibold text-white mb-4">Save Template</h2>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Template Name *
+                  Live domain (subdomain) <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
-                  value={templateName}
-                  onChange={(e) => setTemplateName(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter template name"
+                  value={publishDomainName}
+                  onChange={(e) => {
+                    setPublishDomainName(e.target.value);
+                    setPublishDomainError("");
+                  }}
+                  placeholder="e.g. mystore"
+                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
                 />
+                {publishDomainName.trim() && (
+                  <p className="text-xs text-emerald-400/90 mt-1">
+                    Your site will be live at: <span className="font-mono">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
+                  </p>
+                )}
+                {publishDomainError && <p className="text-xs text-red-400">{publishDomainError}</p>}
               </div>
+              <div className="flex gap-2 mb-4 p-1 bg-[#0a0a0a] rounded-lg">
+                <button type="button" onClick={() => setPublishMode("now")} className={`flex-1 py-2 rounded-md text-sm font-medium ${publishMode === "now" ? "bg-blue-600 text-white" : "text-zinc-400"}`}>Publish now</button>
+                <button type="button" onClick={() => setPublishMode("schedule")} className={`flex-1 py-2 rounded-md text-sm font-medium ${publishMode === "schedule" ? "bg-blue-600 text-white" : "text-zinc-400"}`}>Schedule</button>
+              </div>
+              {publishMode === "schedule" && (
+                <div className="space-y-2 mb-4">
+                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white" />
+                </div>
+              )}
+              <div className="flex justify-end gap-3 mt-6">
+                <button type="button" onClick={() => setShowPublishDialog(false)} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
+                <button type="button" onClick={publishMode === "now" ? handlePublishConfirm : handleScheduleConfirm} disabled={publishing || scheduling} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg">{publishing || scheduling ? "Processing..." : "Confirm"}</button>
+              </div>
+            </div>
+          </div>
+        )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Category *
-                </label>
-                <select
-                  value={templateCategory}
-                  onChange={(e) => setTemplateCategory(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
+        {showPublishedSuccessModal && publishedSubdomain && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md text-center">
+              <h2 className="text-xl font-semibold text-white mb-2">Your site is live!</h2>
+              <p className="text-sm font-mono text-emerald-400 mb-6">{getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')}</p>
+              <div className="flex justify-center gap-3">
+                <button onClick={() => setShowPublishedSuccessModal(false)} className="px-4 py-2 text-sm text-gray-400">Back</button>
+                <button onClick={() => window.open(getSubdomainSiteUrl(publishedSubdomain, window.location.origin), '_blank')} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg">Visit Site</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Save Template Dialog */}
+        {showSaveDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+              <h2 className="text-xl font-semibold text-white mb-4">Save Template</h2>
+              <div className="space-y-4">
+                <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white" placeholder="Template Name" />
+                <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white">
                   <option value="Landing Page">Landing Page</option>
                   <option value="E-commerce">E-commerce</option>
                   <option value="Blog">Blog</option>
                   <option value="Portfolio">Portfolio</option>
-                  <option value="Business">Business</option>
-                  <option value="Dashboard">Dashboard</option>
                 </select>
+                <textarea value={templateDescription} onChange={(e) => setTemplateDescription(e.target.value)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white resize-none" rows={3} placeholder="Description" />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Description *
-                </label>
-                <textarea
-                  value={templateDescription}
-                  onChange={(e) => setTemplateDescription(e.target.value)}
-                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  rows={3}
-                  placeholder="Describe your template..."
-                />
+              <div className="flex justify-end gap-3 mt-6">
+                <button onClick={() => setShowSaveDialog(false)} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
+                <button onClick={handleSaveTemplate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg">{saving ? "Saving..." : "Save"}</button>
               </div>
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6">
-              <button
-                onClick={() => {
-                  setShowSaveDialog(false);
-                  setTemplateName("");
-                  setTemplateDescription("");
-                }}
-                className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveTemplate}
-                disabled={saving}
-                className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {saving ? "Saving..." : "Save Template"}
-              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Permission Denied Modal */}
-      {showPermissionModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="flex flex-col items-center text-center">
-              <div className="w-12 h-12 bg-red-500/10 rounded-full flex items-center justify-center mb-4">
-                <Lock className="w-6 h-6 text-red-500" />
-              </div>
+        {/* Permission Denied Modal */}
+        {showPermissionModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 text-center">
+              <Lock className="w-12 h-12 text-red-500 mx-auto mb-4" />
               <h3 className="text-xl font-bold text-white mb-2">Owner Access Required</h3>
-              <p className="text-sm text-gray-400 mb-6 leading-relaxed">
-                Only the project owner has permission to publish or save templates. Please contact the owner if you need these actions performed.
-              </p>
-              <button
-                onClick={() => setShowPermissionModal(false)}
-                className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white text-sm font-semibold transition-all active:scale-[0.98]"
-              >
-                Got it
-              </button>
+              <p className="text-sm text-gray-400 mb-6">Only the project owner can perform this action.</p>
+              <button onClick={() => setShowPermissionModal(false)} className="w-full py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm font-semibold">Got it</button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Preview Cart FAB */}
-      {previewStoreContext && (
-        <>
-          {/* Add to Cart Success Modal */}
-          {showAddToCartSuccess && lastAddedProduct && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-              <div className="w-full max-w-sm bg-white rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300">
-                <div className="p-8 flex flex-col items-center text-center">
-                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mb-6">
-                    <Check className="w-8 h-8 text-emerald-500" />
-                  </div>
-                  <h3 className="text-xl font-bold text-zinc-900 mb-2">Added to Cart!</h3>
-                  <div className="flex items-center gap-4 p-4 bg-zinc-50 rounded-2xl w-full mb-8">
-                    {lastAddedProduct.image ? (
-                      <img src={lastAddedProduct.image} alt="" className="w-12 h-12 rounded-xl object-cover shadow-sm" />
-                    ) : (
-                      <div className="w-12 h-12 bg-zinc-200 rounded-xl flex items-center justify-center">
-                        <ShoppingBag className="w-5 h-5 text-zinc-400" />
-                      </div>
-                    )}
-                    <p className="text-sm font-semibold text-zinc-800 text-left line-clamp-2">{lastAddedProduct.name}</p>
-                  </div>
-                  
-                  <div className="flex flex-col gap-3 w-full">
-                    <button
-                      onClick={() => {
-                        setShowAddToCartSuccess(false);
-                        setPreviewCartOpen(true);
-                      }}
-                      className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold text-sm hover:bg-zinc-800 transition-all active:scale-[0.98] shadow-lg shadow-zinc-900/10"
-                    >
-                      View Shopping Cart
-                    </button>
-                    <button
-                      onClick={() => setShowAddToCartSuccess(false)}
-                      className="w-full py-4 bg-white text-zinc-500 rounded-2xl font-bold text-sm hover:bg-zinc-50 transition-all active:scale-[0.98]"
-                    >
-                      Continue Shopping
-                    </button>
-                  </div>
-                </div>
+        {/* Add to Cart Success Modal */}
+        {showAddToCartSuccess && lastAddedProduct && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="w-full max-w-sm bg-white rounded-3xl p-8 text-center">
+              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Check className="w-8 h-8 text-emerald-500" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-900 mb-2">Added to Cart!</h3>
+              <p className="text-sm font-semibold text-zinc-800 mb-8">{lastAddedProduct.name}</p>
+              <div className="flex flex-col gap-3">
+                <button onClick={() => { setShowAddToCartSuccess(false); setPreviewCartOpen(true); }} className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold text-sm">View Cart</button>
+                <button onClick={() => setShowAddToCartSuccess(false)} className="w-full py-4 bg-white text-zinc-500 rounded-2xl font-bold text-sm">Continue Shopping</button>
               </div>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
       </div>
     </DesignProjectProvider>
   );

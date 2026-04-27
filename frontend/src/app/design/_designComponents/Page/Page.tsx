@@ -85,14 +85,14 @@ export const Page = ({
       data-node-id={id}
       data-page-node="true"
       ref={ref => { if (ref) connect(ref); }}
-      className={`no-scrollbar rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150 ${isMobile ? "is-mobile-view" : ""} ${isTablet ? "is-tablet-view" : ""}`}
+      className={`no-scrollbar rounded-lg shadow-xl relative transition-[outline] duration-150 ${isMobile ? "is-mobile-view" : ""} ${isTablet ? "is-tablet-view" : ""}`}
       style={{
         position: "absolute",
         left: `${canvasX}px`,
         top: `${canvasY}px`,
         width,
         height: height === "auto" ? "auto" : height,
-        minHeight: "800px",
+        minHeight: height === "auto" ? "unset" : height,
         background: (() => {
           if (backgroundImage && backgroundImage.trim()) {
             const overlayLayer = backgroundOverlay && backgroundOverlay !== "transparent"
