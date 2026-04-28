@@ -616,7 +616,7 @@ function PreviewContent() {
   const [scheduleInfo, setScheduleInfo] = useState<{ scheduledAt: string; subdomain: string | null } | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
-  const [previewProducts, setPreviewProducts] = useState<ApiProduct[]>([]);
+  const [previewProducts, setPreviewProducts] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const [preferredPageIdFromEditor, setPreferredPageIdFromEditor] = useState<string | undefined>(undefined);
@@ -831,7 +831,7 @@ function PreviewContent() {
   }, [project?.subdomain]);
 
   const previewStoreContext = React.useMemo(
-    () => (previewProducts.length > 0) ? { products: previewProducts, addToCart: () => {} } : null,
+    () => (previewProducts.length > 0) ? { products: previewProducts, addToCart: () => { } } : null,
     [previewProducts]
   );
 
@@ -1466,6 +1466,8 @@ function PreviewContent() {
                           enableFormInputs
                           builderParityMode={false}
                           fillViewport={false}
+                          simulatedWidth={desktopWidth}
+                          responsiveViewportWidth={desktopWidth}
                           storeContext={previewStoreContext}
                           onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
                         />
