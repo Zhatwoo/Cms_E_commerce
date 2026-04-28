@@ -849,13 +849,13 @@ if (typeof window !== "undefined") {
       if (concat.includes("Cannot update a component") && concat.includes("while rendering a different component")) return;
       // Suppress ALL image-related errors from external CDNs (Firebase, Unsplash, etc.)
       // Images have visual fallbacks, so console noise is unnecessary
-      const isImageError = 
+      const isImageError =
         (concat.includes("Error loading") || concat.includes("error loading")) &&
         (concat.includes("image") || concat.includes("background-image"));
-        
-      const isFirebaseError = 
-        concat.includes("firebasestorage") || 
-        concat.includes("firebasestorage.app") || 
+
+      const isFirebaseError =
+        concat.includes("firebasestorage") ||
+        concat.includes("firebasestorage.app") ||
         concat.includes("firebasestorage.googleapis.com");
 
       if (isImageError || isFirebaseError) {
@@ -1224,7 +1224,7 @@ const CollabCursorBroadcaster = ({
   return null;
 };
 
-const COLLAB_EMIT_DEBOUNCE_MS = 250; 
+const COLLAB_EMIT_DEBOUNCE_MS = 250;
 const DB_SAVE_DEBOUNCE_MS = 800;     // Reduced from 2.5s to 0.8s for much faster auto-save
 const DB_FORCE_SAVE_INTERVAL = 8000; // Reduced from 15s to 8s
 
@@ -3013,7 +3013,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
           flushToDb();
         } else {
           if (dbSaveTimerRef.current) clearTimeout(dbSaveTimerRef.current);
-          
+
           dbSaveTimerRef.current = setTimeout(() => {
             dbSaveTimerRef.current = null;
             lastDbSaveAtRef.current = Date.now();

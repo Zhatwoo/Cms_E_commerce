@@ -2384,10 +2384,10 @@ function RenderNode({
     "product card": "ProductCard",
     productslider: "ProductSlider",
     "product slider": "ProductSlider",
-    teammembercardcanvas: "TeamMemberCardCanvas",
-    "team member card canvas": "TeamMemberCardCanvas",
-    teammembercard: "TeamMemberCardCanvas",
-    "team member card": "TeamMemberCardCanvas",
+    teammembercardcanvas: "Team Member Card",
+    "team member card canvas": "Team Member Card",
+    teammembercard: "Team Member Card",
+    "team member card": "Team Member Card",
     featuresgridblock: "FeaturesGridBlock",
     "features grid block": "FeaturesGridBlock",
     testimonialblock: "TestimonialBlock",
@@ -2532,7 +2532,7 @@ function RenderNode({
   const animation = props.animation as AnimationConfig | undefined;
   const prototype = props.prototype as PrototypeConfig | undefined;
   const nextInsideTabsContext = Boolean(insideTabsContext || type === "Tabs" || type === "TabContent");
-  const childBuilderParityMode = Boolean(builderParityMode || type === "TeamMemberCardCanvas");
+  const childBuilderParityMode = Boolean(builderParityMode || type === "Team Member Card");
   const childIds = node.children ?? [];
   const childNodeMap: Record<string, React.ReactNode> = {};
   const directProductTemplateIds =
@@ -3450,6 +3450,13 @@ function RenderNode({
       );
     }
 
+    case "FooterCanvas": {
+      return (
+        <RenderNode nodeId={nodeId} type="Container" />
+      );
+    }
+
+    case "Team Member Card":
     case "Container": {
       const isLegacyCategoryTileContainer =
         typeof props.label === "string" &&
@@ -6044,73 +6051,6 @@ function RenderNode({
           })()}
         />
       );
-    case "TeamMemberCardCanvas": {
-      const p = typeof props.padding === "number" ? props.padding : 0;
-      const pt = toNumber(props.paddingTop ?? p, 16);
-      const pr = toNumber(props.paddingRight ?? p, 12);
-      const pb = toNumber(props.paddingBottom ?? p, 16);
-      const pl = toNumber(props.paddingLeft ?? p, 12);
-
-      const m = props.margin;
-      const mt = props.marginTop ?? m;
-      const mr = props.marginRight ?? m;
-      const mb = props.marginBottom ?? m;
-      const ml = props.marginLeft ?? m;
-
-      const width = (props.width as string) || "240px";
-      const height = (props.height as string) || "auto";
-      const borderRadius = toNumber(props.borderRadius, 12);
-      const boxShadow = (props.boxShadow as string) || "0 4px 6px rgba(0, 0, 0, 0.1)";
-      const background = (props.background || props.backgroundColor || "#ffffff") as string;
-
-      const bw = toNumber(props.borderWidth, 1);
-      const bs = (props.borderStyle as string) || "solid";
-      const bc = (props.borderColor as string) || "#e5e7eb";
-      const borderDecl = bw > 0 ? `${bw}px ${bs} ${bc}` : undefined;
-
-      const gap = toNumber(props.gap, 12);
-      
-      const canvasPosition = (props.position as React.CSSProperties["position"]) || "relative";
-      const zIndex = props.zIndex as any;
-      const rotation = toNumber(props.rotation, 0);
-      const alignSelf = (props.alignSelf as string) || "auto";
-
-      return wrap(
-        <div
-          data-fluid-space="true"
-          className={((props.customClassName as string) || "").trim() || undefined}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "flex-start",
-            width: normalizeLayoutWidthForNarrow(width, isNarrowPreview, builderParityMode) || width,
-            height: height,
-            background: background,
-            borderRadius: `${borderRadius}px`,
-            border: borderDecl,
-            boxShadow: boxShadow,
-            padding: `${fluidSpace(pt, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pr, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pb, 0, 0.45, 2.2, useFixedPx)} ${fluidSpace(pl, 0, 0.45, 2.2, useFixedPx)}`,
-            margin: `${fluidSpace(mt, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mr, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(mb, 0, 0.35, 1.4, useFixedPx)} ${fluidSpace(ml, 0, 0.35, 1.4, useFixedPx)}`,
-            gap: fluidSpace(gap, 0, 0.4, 1.8, useFixedPx),
-            boxSizing: "border-box",
-            position: canvasPosition,
-            top: canvasPosition !== "static" ? adjustedTop : undefined,
-            right: canvasPosition !== "static" ? adjustedRight : undefined,
-            bottom: canvasPosition !== "static" ? adjustedBottom : undefined,
-            left: canvasPosition !== "static" ? adjustedLeft : undefined,
-            zIndex: zIndex,
-            alignSelf: alignSelf,
-            transform: rotation ? `rotate(${rotation}deg)` : undefined,
-            overflow: "hidden",
-            cursor: interactiveClick ? "pointer" : undefined,
-          }}
-          onClick={interactiveClick}
-        >
-          {children}
-        </div>
-      );
-    }
 
     default:
 
@@ -6403,9 +6343,9 @@ export function WebPreview({
         ref={ref}
         data-preview-scroll-root={isContainedScroller ? "true" : undefined}
         style={{
-          width: "100%",
+          width: builderParityMode ? "auto" : "100%",
           // For builder parity mode, lock the preview to the canvas container (no `vh`, no internal scroll).
-          height: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
+          height: builderParityMode ? "auto" : (isContainedScroller ? "100%" : undefined),
           maxHeight: builderParityMode ? "100%" : (isContainedScroller ? "100%" : undefined),
           minHeight: builderParityMode ? 0 : (isContainedScroller ? "100%" : "100vh"),
           display: "flex",
@@ -6416,7 +6356,7 @@ export function WebPreview({
           // In builder parity mode we want a fixed-size artboard, but wheel scrolling should
           // still "chain" to the parent page/canvas when the pointer is over the artboard.
           overscrollBehavior: builderParityMode ? undefined : (isContainedScroller ? "contain" : undefined),
-          background: "#0d0d0f",
+          background: builderParityMode ? "transparent" : "#0d0d0f",
         }}
       >
         {/* Inner wrapper: keep mounted to avoid preview flicker on page changes */}
@@ -6431,10 +6371,10 @@ export function WebPreview({
               ? `${pageWidthPx}px`
               : (isContainedScroller ? "100%" : pageFrameStyles.maxWidth),
             height: builderParityMode
-              ? `${pageHeightPx}px`
+              ? ((pageProps.height as string) === "auto" ? "auto" : `${pageHeightPx}px`)
               : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : undefined),
             minHeight: builderParityMode
-              ? `${pageHeightPx}px`
+              ? ((pageProps.height as string) === "auto" ? "0px" : `${pageHeightPx}px`)
               : (isScaling ? (parsePixelValue(minHeight) ?? 0) * scale : (fillViewport ? "100%" : minHeight)),
             background: background,
             margin: "0 auto",
@@ -6524,7 +6464,7 @@ export function LiveSite({
   const pageProps = mergeProps("Page", currentPage?.props ?? {}) as Record<string, unknown>;
   const width = (pageProps.width as string) || "1920px";
   const background = (pageProps.background || pageProps.backgroundColor) as string || "#ffffff";
-  const minHeight = (pageProps.height as string) === "auto" ? "800px" : (pageProps.height as string);
+  const minHeight = (pageProps.height as string) === "auto" ? "0px" : (pageProps.height as string);
   const pageRotation = toNumber(pageProps.pageRotation, 0);
   const pageWidthPx = parsePixelValue(width) ?? 1920;
 
@@ -6672,7 +6612,7 @@ export function LiveSite({
         ref={ref}
         style={{
           width: "100%",
-          minHeight: "100vh",
+          minHeight: fillViewport ? "100vh" : "0",
           background: background,
           display: "flex",
           flexDirection: "column",

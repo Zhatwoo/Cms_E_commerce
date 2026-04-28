@@ -432,10 +432,13 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   parallelogram: asComponent(Parallelogram),
   Kite: asComponent(Kite),
   kite: asComponent(Kite),
-  TeamMemberCardCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).TeamMemberCardCanvas),
-  teammembercardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).TeamMemberCardCanvas),
-  TeamMemberCard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).TeamMemberCardCanvas),
-  teammembercard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).TeamMemberCardCanvas),
+  TeamMemberCardCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  teammembercardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  TeamMemberCard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  teammembercard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  "Team Member Card": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  FooterCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FooterCanvas),
+  footer: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FooterCanvas),
 });
 
 export const AssetLivePreview = ({
