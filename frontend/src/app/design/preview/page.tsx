@@ -1640,12 +1640,39 @@ function PreviewContent() {
 
         {showPublishedSuccessModal && publishedSubdomain && (
           <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md text-center">
-              <h2 className="text-xl font-semibold text-white mb-2">Your site is live!</h2>
-              <p className="text-sm font-mono text-emerald-400 mb-6">{getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')}</p>
-              <div className="flex justify-center gap-3">
-                <button onClick={() => setShowPublishedSuccessModal(false)} className="px-4 py-2 text-sm text-gray-400">Back</button>
-                <button onClick={() => window.open(getSubdomainSiteUrl(publishedSubdomain, window.location.origin), '_blank')} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg">Visit Site</button>
+            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
+              <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
+              <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
+              <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
+                {typeof window !== 'undefined'
+                  ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
+                  : `localhost/sites/${publishedSubdomain}`}
+              </p>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPublishedSuccessModal(false);
+                    setPublishedSubdomain(null);
+                  }}
+                  className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  Keep editing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = publishedSubdomain;
+                    setShowPublishedSuccessModal(false);
+                    setPublishedSubdomain(null);
+                    const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
+                    if (url !== '#') window.open(url, '_blank', 'noopener,noreferrer');
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Visit live site
+                </button>
               </div>
             </div>
           </div>
