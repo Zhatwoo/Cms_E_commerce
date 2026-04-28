@@ -1439,7 +1439,7 @@ function PreviewContent() {
         )}
 
         {/* ── Main content ────────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex flex-col">
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32">
               <div className="flex items-center gap-2">
@@ -1448,15 +1448,15 @@ function PreviewContent() {
               <p className="text-sm text-zinc-600">Loading preview…</p>
             </div>
           ) : viewMode === "Web-Preview" ? (
-            <div className={`flex-1 flex flex-col items-center overflow-x-hidden ${previewViewport === "desktop" ? "p-0" : "py-8 px-4"}`}>
+            <div className={`w-full flex flex-col items-center ${previewViewport === "desktop" ? "p-0" : "py-8 px-4"}`}>
               {effectiveCleanDoc ? (
                 <>
                   {/* Desktop — full width */}
-                  {previewViewport === "desktop" && (
-                    <div className="flex-1 w-full relative overflow-hidden preview-fadein bg-white h-[calc(100vh-140px)]">
+                   {previewViewport === "desktop" && (
+                    <div className="w-full relative preview-fadein bg-white">
                       <div
                         ref={previewRef}
-                        className="absolute inset-0 overflow-y-auto overflow-x-hidden"
+                        className="relative overflow-x-hidden"
                       >
                         <WebPreview
                           doc={effectiveCleanDoc}
@@ -1479,7 +1479,7 @@ function PreviewContent() {
 
                   {/* Tablet — device frame */}
                   {previewViewport === "tablet" && (
-                    <div className="flex flex-col items-center gap-3 preview-fadein py-8 px-4 overflow-y-auto flex-1">
+                    <div className="flex flex-col items-center gap-3 preview-fadein py-8 px-4">
                       <p className="text-xs text-zinc-600 mb-1">{PREVIEW_TABLET_VIEWPORT_WIDTH}px · Tablet</p>
                       <div
                         className="device-frame-tablet flex flex-col bg-white"
@@ -1492,7 +1492,7 @@ function PreviewContent() {
                           <div className="flex-1 mx-8"><div className="h-4 rounded-full bg-[#27272a] w-full" /></div>
                           <div className="w-2 h-2 rounded-full bg-[#3f3f46]" />
                         </div>
-                        <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
+                        <div ref={previewRef} className="overflow-x-hidden relative">
                           <WebPreview
                             doc={effectiveCleanDoc}
                             pageIndex={selectedPreviewPageIndex}
@@ -1500,7 +1500,7 @@ function PreviewContent() {
                             mobileBreakpoint={PREVIEW_TABLET_BREAKPOINT}
                             enableFormInputs
                             builderParityMode={false}
-                            fillViewport
+                            fillViewport={false}
                             storeContext={previewStoreContext}
                             simulatedWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
                             responsiveViewportWidth={PREVIEW_TABLET_VIEWPORT_WIDTH}
@@ -1515,14 +1515,14 @@ function PreviewContent() {
 
                   {/* Mobile — device frame */}
                   {previewViewport === "mobile" && (
-                    <div className="flex flex-col items-center gap-3 preview-fadein py-8 px-4 overflow-y-auto flex-1">
+                    <div className="flex flex-col items-center gap-3 preview-fadein py-8 px-4">
                       <p className="text-xs text-zinc-600 mb-1">{PREVIEW_MOBILE_VIEWPORT_WIDTH}px · Mobile</p>
                       <div
                         className="device-frame-mobile flex flex-col bg-white"
                         style={{ width: "100%", maxWidth: `${PREVIEW_MOBILE_VIEWPORT_WIDTH}px`, minWidth: "320px", minHeight: "844px", position: "relative" }}
                       >
                         <div className="device-notch"><div className="device-notch-pill" /></div>
-                        <div ref={previewRef} className="flex-1 overflow-y-auto overflow-x-hidden relative">
+                        <div ref={previewRef} className="overflow-x-hidden relative">
                           <WebPreview
                             doc={effectiveCleanDoc}
                             pageIndex={selectedPreviewPageIndex}
@@ -1530,7 +1530,7 @@ function PreviewContent() {
                             mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                             enableFormInputs
                             builderParityMode={false}
-                            fillViewport
+                            fillViewport={false}
                             storeContext={previewStoreContext}
                             simulatedWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}
                             responsiveViewportWidth={PREVIEW_MOBILE_VIEWPORT_WIDTH}

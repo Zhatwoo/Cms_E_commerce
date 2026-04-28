@@ -6324,7 +6324,7 @@ export function WebPreview({
   );
 
   // In builder parity mode, preview must match the canvas artboard size exactly.
-  const isContainedScroller = !builderParityMode && (fillViewport || isPhoneSize || shouldUseResponsiveViewport);
+  const isContainedScroller = !builderParityMode && fillViewport;
 
   return (
     <>
