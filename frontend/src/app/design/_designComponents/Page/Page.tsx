@@ -2,13 +2,19 @@
 
 import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
-import type { Node } from "@craftjs/core";
+import type { Node, NodeHelper } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
 import type { PageProps } from "../../_types";
-import { slugFromName } from "../../_lib/slug";
 
-/** Helper type: (nodeId) => { ancestors(), get() } - used by Craft.js in rules */
-type NodeHelper = (nodeId: string) => { ancestors: () => string[]; get: () => Node | null };
+// Global mouse tracker for safe zone enforcement in Craft.js rules
+const mousePos = { x: 0, y: 0 };
+if (typeof window !== "undefined") {
+  window.addEventListener("mousemove", (e) => {
+    mousePos.x = e.clientX;
+    mousePos.y = e.clientY;
+  }, { passive: true });
+}
+import { slugFromName } from "../../_lib/slug";
 
 export const Page = ({
   children,
@@ -92,7 +98,7 @@ export const Page = ({
         top: `${canvasY}px`,
         width,
         height: height === "auto" ? "auto" : height,
-        minHeight: height === "auto" ? "unset" : height,
+        minHeight: height === "auto" ? "900px" : height,
         background: (() => {
           if (backgroundImage && backgroundImage.trim()) {
             const overlayLayer = backgroundOverlay && backgroundOverlay !== "transparent"
@@ -103,8 +109,8 @@ export const Page = ({
           }
           return background;
         })(),
-        overflowX: "hidden",
-        overflowY: "auto",
+        overflowX: height === "auto" ? "visible" : "hidden",
+        overflowY: height === "auto" ? "visible" : "hidden",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
         transformOrigin: "center center",
         transition: "transform 220ms ease-out, width 220ms ease-out",
@@ -258,7 +264,7 @@ export const Page = ({
 
 export const PageDefaultProps: Partial<PageProps> = {
   width: "1440px",
-  height: "900px",
+  height: "auto",
   background: "#ffffff",
   backgroundImage: "",
   backgroundSize: "cover",
@@ -294,6 +300,29 @@ Page.craft = {
   rules: {
     canDrag: () => true,
     canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelper) => {
+      // 1. SAFE ZONE ENFORCEMENT: Block insertion if mouse is outside the page (for fixed height)
+      if (currentNode.data.props.height !== "auto") {
+        try {
+          const dom = helper(currentNode.id).get().dom;
+          if (dom) {
+            const rect = dom.getBoundingClientRect();
+            // Add a small 10px buffer for better UX
+            const buffer = 10;
+            if (
+              mousePos.x < rect.left - buffer || 
+              mousePos.x > rect.right + buffer || 
+              mousePos.y < rect.top - buffer || 
+              mousePos.y > rect.bottom + buffer
+            ) {
+              return false;
+            }
+          }
+        } catch (e) {
+          // Fallback if DOM is not ready
+        }
+      }
+
+      // 2. Prevent nesting Pages or Viewports
       for (const node of incomingNodes) {
         if (node.data.displayName === "Page" || node.data.displayName === "Viewport") return false;
       }

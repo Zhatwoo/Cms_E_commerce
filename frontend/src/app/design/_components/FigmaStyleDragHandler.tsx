@@ -274,8 +274,8 @@ function findPageTargetAt(
     if (!id || exclude.has(id)) continue;
     if (String(nodes[id]?.data?.displayName ?? "") === "Page") return id;
   }
-  const fallback = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
-  return fallback ?? null;
+  // No fallback to prevent accidental drops outside the "Safe Zone"
+  return null;
 }
 
 function isPointerInsideCanvas(clientX: number, clientY: number): boolean {
@@ -1303,6 +1303,26 @@ export const FigmaStyleDragHandler = () => {
                 const nextTop = Math.round((entry.startRect.top + dyScreen - dropTargetRect.top) / dropScaleY);
                 placementById.set(entry.id, { left: nextLeft, top: nextTop });
               });
+
+              // SAFE ZONE ENFORCEMENT for fixed-height pages
+              const dropTargetNode = nodes[dropTargetId];
+              const dropTargetDisplayName = String(dropTargetNode?.data?.displayName ?? "");
+              const dropTargetProps = (dropTargetNode?.data?.props ?? {}) as Record<string, unknown>;
+              const isFixedPage = dropTargetDisplayName === "Page" && dropTargetProps.height !== "auto";
+
+              if (isFixedPage) {
+                const pageHeight = parsePxOrAuto(dropTargetProps.height);
+                const pageWidth = parsePxOrAuto(dropTargetProps.width);
+                const isOutOfBounds = ids.some(id => {
+                  const placement = placementById.get(id);
+                  if (!placement) return false;
+                  // Block if the drop coordinate (top-left) is outside the page area
+                  return placement.top < -5 || placement.top > pageHeight + 5 || placement.left < -5 || placement.left > pageWidth + 5;
+                });
+                if (isOutOfBounds) {
+                  throw new Error("Out of safe zone");
+                }
+              }
             }
 
             ids.forEach((nodeId, i) => {
