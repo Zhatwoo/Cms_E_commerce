@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Element } from "@craftjs/core";
 import { TemplateEntry } from "../_assets/_types";
 import { HeaderWithSearch, SimpleHeader } from "../_assets/Header";
@@ -10,67 +11,45 @@ import { ProductsOverview, CategoriesCard, TeamMemberCard } from "../_assets/Car
 import { DarkCommerceFooter, MinimalFooter } from "../_assets/Footer";
 import { Container } from "../design/_designComponents/Container/Container";
 
-const EcommerceLandingPreview = () => (
-  <div className="flex h-full flex-col justify-between rounded-xl border border-slate-200 bg-white p-3 text-[10px] text-slate-600 shadow-sm">
-    <div className="h-2.5 w-14 rounded-full bg-slate-200" />
-    <div className="space-y-2 mt-3 flex-1">
-      <div className="h-3 rounded-full bg-slate-200 w-5/6" />
-      <div className="h-3 rounded-full bg-slate-200 w-4/6" />
-      <div className="h-3 rounded-full bg-slate-200 w-3/6" />
-    </div>
-    <div className="flex gap-2 items-center mt-3">
-      <div className="h-3 w-20 rounded-full bg-slate-200" />
-      <div className="h-3 w-12 rounded-full bg-slate-200" />
+const AssetPreviewFrame = ({ src, alt, accent }: { src: string; alt: string; accent: string }) => (
+  <div className="relative aspect-[16/10] w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+    <Image src={src} alt={alt} fill className="object-cover" unoptimized />
+    <div className={`absolute inset-x-0 bottom-0 bg-linear-to-t ${accent} to-transparent p-3`}>
+      <div className="h-2 w-16 rounded-full bg-white/80" />
     </div>
   </div>
 );
 
-// REMOVED: EcommerceLandingTemplate - had rendering issues
-
 const SaaSLandingPreview = () => (
-  <div className="flex h-full flex-col justify-between rounded-xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white p-3 text-[10px] text-blue-600 shadow-sm">
-    <div className="h-2 w-16 rounded-full bg-blue-300" />
-    <div className="space-y-2 mt-2">
-      <div className="h-2.5 rounded-full bg-blue-200 w-full" />
-      <div className="h-2.5 rounded-full bg-blue-200 w-5/6" />
-    </div>
-    <div className="flex gap-1 mt-2">
-      {[...Array(3)].map((_, i) => (
-        <div key={i} className="h-1.5 w-8 rounded bg-blue-200" />
-      ))}
-    </div>
-  </div>
+  <AssetPreviewFrame src="/images/template-saas.jpg" alt="SaaS landing page preview" accent="from-blue-900/70" />
 );
 
 const BlogLandingPreview = () => (
-  <div className="flex h-full flex-col justify-between rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-3 text-[10px] text-amber-600 shadow-sm">
-    <div className="h-2 w-14 rounded-full bg-amber-300" />
-    <div className="space-y-1.5 mt-2 flex-1">
-      {[...Array(4)].map((_, i) => (
-        <div key={i} className="h-1.5 rounded-full bg-amber-200 w-full" />
-      ))}
+  <div className="flex aspect-[16/10] w-full flex-col overflow-hidden rounded-xl border border-amber-200 bg-white shadow-sm">
+    <div className="relative h-[58%] min-h-[74px] bg-linear-to-br from-amber-100 to-rose-100">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.9),transparent_60%)]" />
+      <div className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-amber-700 shadow-sm">
+        Blog
+      </div>
+      <div className="absolute bottom-3 left-3 right-3 space-y-1.5">
+        <div className="h-2.5 w-20 rounded-full bg-white/85" />
+        <div className="h-2.5 w-5/6 rounded-full bg-white/70" />
+      </div>
     </div>
-    <div className="h-12 w-full rounded bg-amber-100 mt-2" />
+    <div className="flex flex-1 flex-col gap-1.5 p-3 text-[10px] text-amber-700">
+      <div className="h-2.5 w-4/5 rounded-full bg-amber-100" />
+      <div className="h-2.5 w-3/5 rounded-full bg-amber-100" />
+      <div className="mt-1 h-8 rounded-lg bg-amber-50" />
+    </div>
   </div>
 );
 
 const AgencyLandingPreview = () => (
-  <div className="flex h-full flex-col justify-between rounded-xl border border-purple-200 bg-gradient-to-br from-purple-50 to-white p-3 text-[10px] text-purple-600 shadow-sm">
-    <div className="h-2 w-20 rounded-full bg-purple-300" />
-    <div className="grid grid-cols-3 gap-1 mt-2 flex-1">
-      {[...Array(6)].map((_, i) => (
-        <div key={i} className="h-4 w-full rounded bg-purple-200" />
-      ))}
-    </div>
-  </div>
+  <AssetPreviewFrame src="/images/template-portfolio.jpg" alt="Agency portfolio preview" accent="from-purple-900/70" />
 );
 
 const ProductLaunchPreview = () => (
-  <div className="flex h-full flex-col justify-between rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-white p-3 text-[10px] text-green-600 shadow-sm">
-    <div className="h-3 w-24 rounded-full bg-green-300" />
-    <div className="h-full bg-green-100 rounded mt-2 mb-2" />
-    <div className="h-2 w-12 rounded-full bg-green-200" />
-  </div>
+  <AssetPreviewFrame src="/images/template-fashion.jpg" alt="Product launch preview" accent="from-emerald-900/70" />
 );
 
 // REMOVED: EcommerceLandingTemplate - had rendering issues
@@ -150,5 +129,13 @@ export const TEMPLATES: TemplateEntry[] = [
 ];
 
 export const GROUPED_TEMPLATES = [
-  // Intentionally empty: prebuilt template cards are disabled.
+  {
+    folder: "Landing Pages",
+    items: [
+      AgencyLandingTemplate,
+      ProductLaunchTemplate,
+      BlogLandingTemplate,
+      SaaSLandingTemplate,
+    ],
+  },
 ];
