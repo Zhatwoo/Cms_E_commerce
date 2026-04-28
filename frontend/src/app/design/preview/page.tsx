@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
-import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw, ShoppingBag } from "lucide-react";
+import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Editor, Frame } from "@craftjs/core";
 import gsap from "gsap";
@@ -617,12 +617,6 @@ function PreviewContent() {
   const [scheduling, setScheduling] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [previewProducts, setPreviewProducts] = useState<ApiProduct[]>([]);
-  const [previewCart, setPreviewCart] = useState<Array<{ id: string; name: string; price: number; image?: string; quantity: number }>>([]);
-  const [previewCartOpen, setPreviewCartOpen] = useState(false);
-  const [previewLastAddedAt, setPreviewLastAddedAt] = useState(0);
-  const [storeActionsEnabled, setStoreActionsEnabled] = useState(true);
-  const [showAddToCartSuccess, setShowAddToCartSuccess] = useState(false);
-  const [lastAddedProduct, setLastAddedProduct] = useState<{ name: string; image?: string } | null>(null);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [selectedPreviewPageSlug, setSelectedPreviewPageSlug] = useState<string | undefined>(initialPageSlug);
   const [preferredPageIdFromEditor, setPreferredPageIdFromEditor] = useState<string | undefined>(undefined);
@@ -836,23 +830,9 @@ function PreviewContent() {
     return () => { active = false; };
   }, [project?.subdomain]);
 
-  const previewAddToCart = React.useCallback(
-    (product: { id: string; name: string; price: number; image?: string }) => {
-      setPreviewCart((prev) => {
-        const existing = prev.find((i) => i.id === product.id);
-        if (existing) return prev.map((i) => i.id === product.id ? { ...i, quantity: i.quantity + 1 } : i);
-        return [...prev, { ...product, quantity: 1 }];
-      });
-      setPreviewLastAddedAt(Date.now());
-      setLastAddedProduct({ name: product.name, image: product.image });
-      setShowAddToCartSuccess(true);
-    },
-    []
-  );
-
   const previewStoreContext = React.useMemo(
-    () => (previewProducts.length > 0 && storeActionsEnabled) ? { products: previewProducts, addToCart: previewAddToCart } : null,
-    [previewProducts, previewAddToCart, storeActionsEnabled]
+    () => (previewProducts.length > 0) ? { products: previewProducts, addToCart: () => {} } : null,
+    [previewProducts]
   );
 
   const cleanDoc = useMemo(() => {
@@ -1390,17 +1370,7 @@ function PreviewContent() {
                 </button>
               </div>
 
-              {/* Store Interaction Toggle */}
-              <div className="flex items-center bg-[#18181b] rounded-lg border border-white/[0.08] p-[3px] gap-[2px]">
-                <button
-                  onClick={() => setStoreActionsEnabled(!storeActionsEnabled)}
-                  className={`pv-seg-btn ${storeActionsEnabled ? "active" : "text-zinc-600 opacity-50"}`}
-                  title={storeActionsEnabled ? "Store Interactions Enabled" : "Store Interactions Disabled"}
-                >
-                  <ShoppingBag size={13} />
-                  <span className="hidden lg:inline">{storeActionsEnabled ? "Store: On" : "Store: Off"}</span>
-                </button>
-              </div>
+
 
               {/* Page selector */}
               <div className="flex items-center gap-1.5">
@@ -1478,32 +1448,15 @@ function PreviewContent() {
               <p className="text-sm text-zinc-600">Loading preview…</p>
             </div>
           ) : viewMode === "Web-Preview" ? (
-            <div className="flex-1 w-full flex flex-col items-center overflow-x-hidden overflow-y-auto py-0">
+            <div className={`flex-1 flex flex-col items-center overflow-x-hidden ${previewViewport === "desktop" ? "p-0" : "py-8 px-4"}`}>
               {effectiveCleanDoc ? (
                 <>
-                  {/* Desktop — device frame */}
+                  {/* Desktop — full width */}
                   {previewViewport === "desktop" && (
-                    <div className="flex-1 w-full flex flex-col items-center py-6 px-4 preview-fadein" style={{ minHeight: 0 }}>
-                      <p className="text-xs text-zinc-600 mb-3 flex-shrink-0">
-                        {desktopWidth}px · Desktop
-                      </p>
-                      <style>{`
-                        .desktop-preview-frame > div:first-child {
-                          background: #ffffff !important;
-                          min-height: unset !important;
-                        }
-                      `}</style>
+                    <div className="flex-1 w-full relative overflow-hidden preview-fadein bg-white h-[calc(100vh-140px)]">
                       <div
                         ref={previewRef}
-                        className="desktop-preview-frame relative flex-shrink-0"
-                        style={{
-                          width: `min(100%, ${desktopWidth}px)`,
-                          minHeight: "unset",
-                          borderRadius: 4,
-                          overflowX: "hidden",
-                          overflowY: "visible",
-                          boxShadow: "0 0 0 1px rgba(255,255,255,0.06), 0 24px 64px rgba(0,0,0,0.6)",
-                        }}
+                        className="absolute inset-0 overflow-y-auto overflow-x-hidden"
                       >
                         <WebPreview
                           doc={effectiveCleanDoc}
@@ -1511,163 +1464,14 @@ function PreviewContent() {
                           initialPageSlug={selectedPreviewPage?.slug ?? initialPageSlug}
                           mobileBreakpoint={PREVIEW_MOBILE_BREAKPOINT}
                           enableFormInputs
-                          builderParityMode={true}
+                          builderParityMode={false}
                           fillViewport={false}
                           storeContext={previewStoreContext}
-                          simulatedWidth={desktopWidth}
-                          responsiveViewportWidth={desktopWidth}
                           onNavigate={(pageSlug) => setSelectedPreviewPageSlug(pageSlug)}
                         />
-
-                        {/* Cart UI Layer — Constrained to the frame's visible viewport */}
-                        {previewStoreContext && (
-                          <div className="absolute inset-0 pointer-events-none">
-                            {/* Sticky container for the Drawer/Sidebar */}
-                            <div className="sticky top-0 w-full h-screen max-h-full overflow-visible z-[200]">
-                              {previewCartOpen && (
-                                <div className="absolute inset-0 flex justify-end">
-                                  <div
-                                    className="pointer-events-auto absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
-                                    onClick={() => setPreviewCartOpen(false)}
-                                  />
-                                  <div 
-                                    className="pointer-events-auto relative w-full max-w-sm h-full bg-white flex flex-col border-l border-zinc-200 shadow-2xl" 
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <div className="flex items-center justify-between p-5 border-b border-zinc-100">
-                                      <h2 className="text-base font-medium text-zinc-900">
-                                        Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})
-                                      </h2>
-                                      <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                        <X className="w-5 h-5" />
-                                      </button>
-                                    </div>
-
-                                    <div className="flex-1 overflow-y-auto p-5">
-                                      {previewCart.length === 0 ? (
-                                        <div className="h-full flex flex-col items-center justify-center text-center">
-                                          <p className="text-zinc-400 text-sm">Your cart is empty</p>
-                                        </div>
-                                      ) : (
-                                        <>
-                                          <div className="mb-4 flex items-center justify-between">
-                                            <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
-                                              <input
-                                                type="checkbox"
-                                                checked={true}
-                                                readOnly
-                                                className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black"
-                                              />
-                                              Select all
-                                            </label>
-                                            <button
-                                              type="button"
-                                              onClick={() => setPreviewCart([])}
-                                              className="text-sm text-red-600 hover:underline"
-                                            >
-                                              Clear
-                                            </button>
-                                          </div>
-                                          <div className="flex flex-col gap-4">
-                                            {previewCart.map((item) => (
-                                              <div key={item.id} className="flex gap-4 py-4 border-b border-zinc-50 last:border-0">
-                                                <div className="pt-1">
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={true}
-                                                    readOnly
-                                                    className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
-                                                  />
-                                                </div>
-                                                <div className="w-20 h-20 flex-shrink-0">
-                                                  {item.image ? (
-                                                    <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" />
-                                                  ) : (
-                                                    <div className="w-full h-full bg-zinc-50 border border-zinc-100" />
-                                                  )}
-                                                </div>
-                                                <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                                  <div className="flex justify-between items-start">
-                                                    <h4 className="text-sm font-medium text-zinc-900 truncate pr-4">{item.name}</h4>
-                                                    <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500">
-                                                      <X className="w-4 h-4" />
-                                                    </button>
-                                                  </div>
-                                                  <div className="flex justify-between items-end">
-                                                    <div className="flex items-center border border-zinc-200 rounded-lg">
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                          setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i));
-                                                        }}
-                                                        className="px-2 py-1 text-zinc-500 hover:text-black"
-                                                      >
-                                                        -
-                                                      </button>
-                                                      <span className="text-sm font-medium text-zinc-900 w-8 text-center">{item.quantity}</span>
-                                                      <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                          setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i));
-                                                        }}
-                                                        className="px-2 py-1 text-zinc-500 hover:text-black"
-                                                      >
-                                                        +
-                                                      </button>
-                                                    </div>
-                                                    <p className="text-sm font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                                  </div>
-                                                </div>
-                                              </div>
-                                            ))}
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                    <div className="p-5 border-t border-zinc-100 bg-zinc-50/50">
-                                      <div className="flex items-center justify-between mb-4">
-                                        <span className="text-sm text-zinc-500">Total</span>
-                                        <span className="text-lg font-semibold text-zinc-900">₱{previewCart.reduce((s, i) => s + (i.price * i.quantity), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        disabled={previewCart.length === 0}
-                                        className="w-full bg-black text-white py-3.5 rounded-xl font-medium hover:bg-zinc-900 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
-                                      >
-                                        Checkout (Preview Only)
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Sticky container for the FAB */}
-                            <div className="sticky bottom-0 w-full h-0 overflow-visible z-[100]">
-                              {!previewCartOpen && (
-                                <button
-                                  type="button"
-                                  onClick={() => setPreviewCartOpen(prev => !prev)}
-                                  className={`pointer-events-auto absolute z-40 w-12 h-12 rounded-full bg-black text-white shadow-xl flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 ${
-                                    previewCart.length > 0 && previewLastAddedAt ? 'scale-110' : 'scale-100'
-                                  }`}
-                                  style={{ bottom: 32, right: 32 }}
-                                  aria-label="Toggle preview cart"
-                                >
-                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                  </svg>
-                                  {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-600 border border-white text-[10px] font-bold flex items-center justify-center rounded-full">
-                                      {previewCart.reduce((s, i) => s + i.quantity, 0)}
-                                    </span>
-                                  )}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
                       </div>
+
+
                     </div>
                   )}
 
@@ -1702,94 +1506,7 @@ function PreviewContent() {
                           />
                         </div>
 
-                        {/* Sticky Floating UI Layer — Tablet */}
-                        <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden rounded-b-[20px] top-8">
-                          <div className="relative w-full h-full">
-                            {previewStoreContext && !previewCartOpen && (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewCartOpen(prev => !prev)}
-                                className={`pointer-events-auto absolute bottom-6 right-6 z-40 w-10 h-10 rounded-full bg-black text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 scale-90 origin-bottom-right ${previewCart.length > 0 && previewLastAddedAt ? 'scale-100' : 'scale-90'}`}
-                                aria-label="Toggle preview cart"
-                              >
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 border border-white text-[9px] font-bold flex items-center justify-center rounded-full">
-                                    {previewCart.reduce((s, i) => s + i.quantity, 0)}
-                                  </span>
-                                )}
-                              </button>
-                            )}
 
-                            {previewCartOpen && (
-                              <div className="pointer-events-none absolute inset-0 flex justify-end">
-                                <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" />
-                                <div className="pointer-events-auto relative w-full max-w-[280px] bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-between p-4 border-b border-zinc-100">
-                                    <h2 className="text-sm font-medium text-zinc-900">Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})</h2>
-                                    <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                  <div className="flex-1 overflow-y-auto p-4">
-                                    {previewCart.length === 0 ? (
-                                      <div className="h-full flex flex-col items-center justify-center text-center">
-                                        <p className="text-zinc-400 text-xs">Your cart is empty</p>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div className="mb-3 flex items-center justify-between">
-                                          <label className="flex items-center gap-2 text-[10px] text-zinc-700 cursor-pointer">
-                                            <input type="checkbox" checked={true} readOnly className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black" />
-                                            Select all
-                                          </label>
-                                          <button type="button" onClick={() => setPreviewCart([])} className="text-[10px] text-red-600 hover:underline">Clear</button>
-                                        </div>
-                                        <div className="flex flex-col">
-                                          {previewCart.map((item) => (
-                                            <div key={item.id} className="flex gap-3 py-3 border-b border-zinc-50 last:border-0 group">
-                                              <div className="pt-0.5">
-                                                <input type="checkbox" checked={true} readOnly className="h-3.5 w-3.5 rounded border-zinc-300 text-black focus:ring-black cursor-pointer" />
-                                              </div>
-                                              <div className="w-12 h-12 flex-shrink-0">
-                                                {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" /> : <div className="w-full h-full bg-zinc-50 border border-zinc-100" />}
-                                              </div>
-                                              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                                                <div className="flex justify-between items-start">
-                                                  <h4 className="text-[11px] font-medium text-zinc-900 truncate pr-2">{item.name}</h4>
-                                                  <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500"><X className="w-3.5 h-3.5" /></button>
-                                                </div>
-                                                <div className="flex justify-between items-end">
-                                                  <div className="flex items-center border border-zinc-200 rounded scale-90 origin-left">
-                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="px-1.5 py-0.5 text-zinc-500 hover:text-black">-</button>
-                                                    <span className="text-[10px] font-medium text-zinc-900 w-5 text-center">{item.quantity}</span>
-                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))} className="px-1.5 py-0.5 text-zinc-500 hover:text-black">+</button>
-                                                  </div>
-                                                  <p className="text-[11px] font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                  {previewCart.length > 0 && (
-                                    <div className="p-4 bg-zinc-50 border-t border-zinc-200">
-                                      <div className="flex items-center justify-between mb-3">
-                                        <span className="text-[10px] text-zinc-500 font-medium">Total</span>
-                                        <span className="text-base font-bold text-zinc-900">₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                      </div>
-                                      <button disabled className="w-full h-10 bg-black text-white text-xs font-medium opacity-30">Checkout</button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -1819,94 +1536,7 @@ function PreviewContent() {
                           />
                         </div>
 
-                        {/* Sticky Floating UI Layer — Mobile */}
-                        <div className="pointer-events-none absolute inset-0 z-[160] overflow-hidden rounded-b-[2.5rem] top-[28px]">
-                          <div className="relative w-full h-full">
-                            {previewStoreContext && !previewCartOpen && (
-                              <button
-                                type="button"
-                                onClick={() => setPreviewCartOpen(prev => !prev)}
-                                className={`pointer-events-auto absolute bottom-10 right-6 z-40 w-9 h-9 rounded-full bg-black text-white shadow-lg flex items-center justify-center transition-all duration-300 hover:bg-zinc-800 scale-90 origin-bottom-right ${previewCart.length > 0 && previewLastAddedAt ? 'scale-100' : 'scale-90'}`}
-                                aria-label="Toggle preview cart"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                                </svg>
-                                {previewCart.reduce((s, i) => s + i.quantity, 0) > 0 && (
-                                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-600 border border-white text-[8px] font-bold flex items-center justify-center rounded-full">
-                                    {previewCart.reduce((s, i) => s + i.quantity, 0)}
-                                  </span>
-                                )}
-                              </button>
-                            )}
 
-                            {previewCartOpen && (
-                              <div className="pointer-events-none absolute inset-0 flex justify-end">
-                                <div className="pointer-events-none absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity" />
-                                <div className="pointer-events-auto relative w-full max-w-[260px] bg-white h-full shadow-2xl flex flex-col border-l border-zinc-200" onClick={(e) => e.stopPropagation()}>
-                                  <div className="flex items-center justify-between p-4 border-b border-zinc-100">
-                                    <h2 className="text-xs font-medium text-zinc-900">Shopping Cart ({previewCart.reduce((s, i) => s + i.quantity, 0)})</h2>
-                                    <button type="button" onClick={() => setPreviewCartOpen(false)} className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors">
-                                      <X className="w-4 h-4" />
-                                    </button>
-                                  </div>
-                                  <div className="flex-1 overflow-y-auto p-3">
-                                    {previewCart.length === 0 ? (
-                                      <div className="h-full flex flex-col items-center justify-center text-center">
-                                        <p className="text-zinc-400 text-[10px]">Your cart is empty</p>
-                                      </div>
-                                    ) : (
-                                      <>
-                                        <div className="mb-2 flex items-center justify-between">
-                                          <label className="flex items-center gap-1.5 text-[9px] text-zinc-700 cursor-pointer">
-                                            <input type="checkbox" checked={true} readOnly className="h-3 w-3 rounded border-zinc-300 text-black focus:ring-black" />
-                                            Select all
-                                          </label>
-                                          <button type="button" onClick={() => setPreviewCart([])} className="text-[9px] text-red-600 hover:underline">Clear</button>
-                                        </div>
-                                        <div className="flex flex-col">
-                                          {previewCart.map((item) => (
-                                            <div key={item.id} className="flex gap-2.5 py-3 border-b border-zinc-50 last:border-0">
-                                              <div className="pt-0.5">
-                                                <input type="checkbox" checked={true} readOnly className="h-3 w-3 rounded border-zinc-300 text-black focus:ring-black cursor-pointer" />
-                                              </div>
-                                              <div className="w-10 h-10 flex-shrink-0">
-                                                {item.image ? <img src={item.image} alt="" className="w-full h-full object-cover bg-zinc-50 border border-zinc-100" /> : <div className="w-full h-full bg-zinc-50 border border-zinc-100" />}
-                                              </div>
-                                              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                                                <div className="flex justify-between items-start">
-                                                  <h4 className="text-[10px] font-medium text-zinc-900 truncate pr-1">{item.name}</h4>
-                                                  <button onClick={() => setPreviewCart((prev) => prev.filter((i) => i.id !== item.id))} className="text-zinc-300 hover:text-zinc-500"><X className="w-3 h-3" /></button>
-                                                </div>
-                                                <div className="flex justify-between items-end">
-                                                  <div className="flex items-center border border-zinc-200 rounded scale-[0.8] origin-left">
-                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: Math.max(1, i.quantity - 1) } : i))} className="px-1 py-0.5 text-zinc-500 hover:text-black">-</button>
-                                                    <span className="text-[9px] font-medium text-zinc-900 w-4 text-center">{item.quantity}</span>
-                                                    <button type="button" onClick={() => setPreviewCart(prev => prev.map(i => i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i))} className="px-1 py-0.5 text-zinc-500 hover:text-black">+</button>
-                                                  </div>
-                                                  <p className="text-[10px] font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                                                </div>
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </>
-                                    )}
-                                  </div>
-                                  {previewCart.length > 0 && (
-                                    <div className="p-3 bg-zinc-50 border-t border-zinc-200">
-                                      <div className="flex items-center justify-between mb-2">
-                                        <span className="text-[9px] text-zinc-500 font-medium">Total</span>
-                                        <span className="text-sm font-bold text-zinc-900">₱{previewCart.reduce((s, i) => s + i.price * i.quantity, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                                      </div>
-                                      <button disabled className="w-full h-8 bg-black text-white text-[10px] font-medium opacity-30">Checkout</button>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
                       </div>
                     </div>
                   )}
@@ -2054,22 +1684,7 @@ function PreviewContent() {
           </div>
         )}
 
-        {/* Add to Cart Success Modal */}
-        {showAddToCartSuccess && lastAddedProduct && (
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-white rounded-3xl p-8 text-center">
-              <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                <Check className="w-8 h-8 text-emerald-500" />
-              </div>
-              <h3 className="text-xl font-bold text-zinc-900 mb-2">Added to Cart!</h3>
-              <p className="text-sm font-semibold text-zinc-800 mb-8">{lastAddedProduct.name}</p>
-              <div className="flex flex-col gap-3">
-                <button onClick={() => { setShowAddToCartSuccess(false); setPreviewCartOpen(true); }} className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold text-sm">View Cart</button>
-                <button onClick={() => setShowAddToCartSuccess(false)} className="w-full py-4 bg-white text-zinc-500 rounded-2xl font-bold text-sm">Continue Shopping</button>
-              </div>
-            </div>
-          </div>
-        )}
+
       </div>
     </DesignProjectProvider>
   );
