@@ -31,7 +31,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    "src/app/m_dashboard/dashboard/page.restore.tsx",
   ]),
 ]);
 
