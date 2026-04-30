@@ -31,11 +31,7 @@ export type Project = {
 };
 
 export async function listProjects(): Promise<{ success: boolean; projects: Project[] }> {
-  const t0 = Date.now();
-  console.log("[READ] listProjects fetch start");
-  const res = await apiFetch<{ success: boolean; projects: Project[] }>("/api/projects");
-  console.log("[READ] listProjects fetch done", { projects: res?.projects?.length, ms: Date.now() - t0 });
-  return res;
+  return apiFetch<{ success: boolean; projects: Project[] }>("/api/projects");
 }
 
 export async function listTemplateLibrary(limit = 60): Promise<{ success: boolean; templates: Project[] }> {

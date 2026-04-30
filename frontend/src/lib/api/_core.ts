@@ -85,7 +85,7 @@ export function isBackendUnavailableError(error: unknown): boolean {
   return getApiErrorMessage(error).includes("Backend is unreachable");
 }
 
-export function isAccountDeactivatedError(error: unknown): boolean {
+function isAccountDeactivatedError(error: unknown): boolean {
   const message = getApiErrorMessage(error).toLowerCase();
   return message.includes("account has been deactivated") || message.includes("your account has been deactivated");
 }
@@ -110,15 +110,7 @@ let inMemoryUser: User | null = (typeof window !== "undefined")
     })()
   : null;
 
-/** Token is in HttpOnly cookie only; not readable from JS. */
-export function getToken(): string | null {
-  return null;
-}
-
-export function setToken(_token: string): void {
-  // No-op: token is set by backend in HttpOnly cookie
-}
-
+/** Auth token lives in an HttpOnly cookie, not in JS. removeToken just clears any in-memory user state and the legacy non-HttpOnly mercato_user cookie. */
 export function removeToken(): void {
   inMemoryUser = null;
   if (typeof window !== "undefined") {

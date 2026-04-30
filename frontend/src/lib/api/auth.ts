@@ -19,7 +19,7 @@ import {
 } from "./_core";
 
 /** Login with Firebase idToken (browser signs in; works even if backend API key is restricted). */
-export async function loginWithIdToken(idToken: string): Promise<AuthResponse> {
+async function loginWithIdToken(idToken: string): Promise<AuthResponse> {
   return authFetch<AuthResponse>("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ idToken }),
