@@ -8,7 +8,8 @@ import { SearchBar } from '../components/ui/searchbar';
 import { Pagination } from '../components/ui/Pagination';
 import { ViewModeToggle } from '../components/buttons/viewModeToggle';
 import { EmptyState } from '../components/ui/emptyState';
-import { listMyPublishedOrders, updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
+import { updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
+import { usePublishedOrders } from './hooks/usePublishedOrders';
 import { CustomDropdown } from '../components/ui/customDropdown';
 
 type OrderStatus = 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
@@ -162,35 +163,25 @@ export default function OrdersPage() {
   const { colors, theme } = useTheme();
   const { selectedProject, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
-  const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<CheckoutTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<OrderStatus>('Pending');
 
-  const loadOrders = useCallback(async () => {
-    if (projectLoading) { setLoading(true); return; }
-    setLoading(true);
-    setError(null);
-    if (!selectedSubdomain) { setOrders([]); setLoading(false); return; }
-    try {
-      const res = await listMyPublishedOrders({ subdomain: selectedSubdomain || undefined, limit: 200, page: 1 });
-      setOrders(Array.isArray(res.items) ? res.items : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectLoading, selectedSubdomain]);
-
-  useEffect(() => { void loadOrders(); }, [loadOrders]);
+  const {
+    orders,
+    loading,
+    error,
+    reload: loadOrders,
+  } = usePublishedOrders({
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+  });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
