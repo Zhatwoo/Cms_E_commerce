@@ -490,7 +490,6 @@ export default function ProductsPage() {
   );
   const {
     products,
-    setProducts,
     loading: loadingProducts,
     reload: loadProducts,
   } = useProducts<Product>({

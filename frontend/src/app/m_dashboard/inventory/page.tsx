@@ -407,9 +407,7 @@ export default function InventoryPage() {
 
   const {
     items,
-    setItems,
     summary,
-    setSummary,
     movements,
     setMovements,
     loading,
