@@ -19,7 +19,7 @@ type TemplateCard = {
   category: string;
   description: string;
   savedAt: string;
-  project: Project | null;
+  project: Project;
 };
 
 type TemplatesTabContentProps = {

@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
+import type { ApiProduct } from "@/lib/api";
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
@@ -34,7 +35,7 @@ import { CollectionHeroBlock } from "@/app/_assets/Hero/CollectionHeroBlock";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
-  products: Array<{ id: string; name: string; price: number; description?: string; images?: string[] }>;
+  products: Array<{ id: string; name: string; price: number; finalPrice?: number; description?: string; images?: string[] }>;
   addToCart: (product: { id: string; name: string; price: number; image?: string }) => void;
 };
 
@@ -2657,7 +2658,7 @@ function RenderNode({
       // For parity with standard blocks, we'll favor the saved children if they exist.
       const tileNodes = orderedIds
         .map((id) => renderChildNode(id))
-        .filter((entry): entry is React.ReactNode => Boolean(entry));
+        .filter(Boolean);
 
       const containerClassName = layoutMode === "compact"
         ? "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -3450,12 +3451,7 @@ function RenderNode({
       );
     }
 
-    case "FooterCanvas": {
-      return (
-        <RenderNode nodeId={nodeId} type="Container" />
-      );
-    }
-
+    case "FooterCanvas":
     case "Team Member Card":
     case "Container": {
       const isLegacyCategoryTileContainer =

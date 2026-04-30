@@ -5,7 +5,7 @@ import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
-import { TopPanel, type DevicePreset } from "./TopPanel";
+import { TopPanel } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
 import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";

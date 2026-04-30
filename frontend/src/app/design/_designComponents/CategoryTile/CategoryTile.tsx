@@ -624,6 +624,34 @@ const CategoryTileSettings = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
+  const looksLikeImageUrl = (value: string) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return false;
+    if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith("data:image/") && !trimmed.startsWith("blob:")) return false;
+    if (trimmed.startsWith("data:image/") || trimmed.startsWith("blob:")) return true;
+    return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(trimmed);
+  };
+
+  const extractDroppedImageUrl = (dataTransfer: DataTransfer | null | undefined): string => {
+    if (!dataTransfer) return "";
+    const libraryUrl = dataTransfer.getData("media-library-url") || "";
+    const canvasUrl = dataTransfer.getData("canvas-image-url") || "";
+    const uriList = dataTransfer.getData("text/uri-list") || "";
+    const plainText = dataTransfer.getData("text/plain") || "";
+    const html = dataTransfer.getData("text/html") || "";
+    const htmlMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const htmlUrl = htmlMatch?.[1] || "";
+    return [libraryUrl, canvasUrl, uriList, plainText, htmlUrl].find((item) => looksLikeImageUrl(item)) || "";
+  };
+
+  const applyImageUrl = (nextUrl: string) => {
+    const normalized = String(nextUrl || "").trim();
+    if (!normalized) return;
+    setProp((props: CategoryTileProps) => {
+      props.imageUrl = normalized;
+    });
+  };
+
   const onUploadFile = async (file: File) => {
     if (!file.type.startsWith("image/")) return;
 

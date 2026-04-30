@@ -234,7 +234,7 @@ export const NewPageDropPlacementHandler = () => {
 
       // 2. Look for new Pages in the viewport first
       const currentViewportPageIds = viewportChildren.filter((id) => {
-        const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+        const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
         return canonicalResolvedName(dname) === "Page";
       });
       const preDrop = preDropPageIdsRef.current;
@@ -244,7 +244,7 @@ export const NewPageDropPlacementHandler = () => {
       // (Sometimes Craft.js might add it to ROOT or elsewhere temporarily)
       if (newPageIds.length === 0) {
         const allPageIds = Object.keys(nodes).filter((id) => {
-          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
           return canonicalResolvedName(dname) === "Page";
         });
         newPageIds = allPageIds.filter((id) => !preDrop.has(id));
@@ -278,7 +278,7 @@ export const NewPageDropPlacementHandler = () => {
         lastDropPointRef.current = null;
         // Update baseline to include all current pages
         const latestPageIds = Object.keys(nodes).filter((id) => {
-          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
           return canonicalResolvedName(dname) === "Page";
         });
         preDropPageIdsRef.current = new Set(latestPageIds);
@@ -336,14 +336,14 @@ export const NewPageDropPlacementHandler = () => {
         : [];
       
       let pageIds = viewportChildren.filter((id) => {
-        const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+        const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
         return canonicalResolvedName(dname) === "Page";
       });
       
       // If no viewport found yet, capture ALL pages currently in state as baseline
       if (!viewportId || pageIds.length === 0) {
         pageIds = Object.keys(nodes).filter((id) => {
-          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
           return canonicalResolvedName(dname) === "Page";
         });
       }

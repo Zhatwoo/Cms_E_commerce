@@ -1999,5 +1999,25 @@ export async function getAdmins(search?: string): Promise<{ success: boolean; da
   }
 }
 
+/**
+ * Conversation/messaging stubs. The messaging feature is currently
+ * half-implemented; these stubs let callers compile and render an
+ * empty state without making network calls.
+ */
+export async function getConversations(): Promise<{ success: boolean; data: Conversation[] }> {
+  return { success: false, data: [] };
+}
+
+export async function getConversationMessages(_otherUserId: string): Promise<{ success: boolean; data: ChatMessage[] }> {
+  return { success: false, data: [] };
+}
+
+export async function sendDirectMessage(
+  _recipientId: string,
+  _message: string,
+): Promise<{ success: boolean; message?: string; data?: ChatMessage }> {
+  return { success: false, message: "Messaging feature is not yet available." };
+}
+
 
 const api = { getMe, updateProfile }; export default api;
