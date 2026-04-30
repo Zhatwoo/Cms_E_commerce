@@ -3,7 +3,7 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -11,6 +11,7 @@ import type { RatingProps, SetProp } from "../../_types/components";
 
 export const RatingSettings = () => {
   const {
+    id,
     value,
     max,
     size,
@@ -46,6 +47,7 @@ export const RatingSettings = () => {
     right,
     bottom,
     left,
+    isFreeform,
     editorVisibility,
     rotation,
     flipHorizontal,
@@ -56,6 +58,7 @@ export const RatingSettings = () => {
     cursor,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     value: Math.round(node.data.props.value ?? 4),
     max: node.data.props.max ?? 5,
     size: node.data.props.size ?? 20,
@@ -91,6 +94,7 @@ export const RatingSettings = () => {
     right: node.data.props.right ?? "auto",
     bottom: node.data.props.bottom ?? "auto",
     left: node.data.props.left ?? "auto",
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility ?? "auto",
     rotation: node.data.props.rotation ?? 0,
     flipHorizontal: node.data.props.flipHorizontal ?? false,
@@ -220,9 +224,11 @@ export const RatingSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -230,7 +236,7 @@ export const RatingSettings = () => {
           bottom={bottom}
           left={left}
           editorVisibility={editorVisibility}
-          setProp={typedSetProp}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 

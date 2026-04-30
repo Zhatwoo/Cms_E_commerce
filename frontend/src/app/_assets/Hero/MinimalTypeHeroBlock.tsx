@@ -17,6 +17,7 @@ export interface MinimalTypeHeroBlockProps {
   primaryLabel?: string;
   secondaryLabel?: string;
   backgroundImage?: string;
+  imageOpacity?: number;
   minHeight?: number;
   overlayColor?: string;
   buttonColor?: string;
@@ -129,6 +130,10 @@ export const MinimalTypeHeroBlockSettings = () => {
             </div>
           </div>
           <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image opacity (%)</label>
+            <NumericInput value={props.imageOpacity != null ? (props.imageOpacity <= 1 ? props.imageOpacity * 100 : props.imageOpacity) : 85} onChange={(val) => set("imageOpacity", val)} min={0} max={100} step={1} unit="%" />
+          </div>
+          <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
             <ColorPicker value={props.overlayColor ?? "rgba(255,255,255,0.95)"} onChange={(val) => set("overlayColor", val)} className="w-full" />
           </div>
@@ -160,42 +165,74 @@ export const MinimalTypeHeroBlockSettings = () => {
 };
 
 export const MinimalTypeHeroBlock = ({
+  nodeId,
   layoutStyle = "close-up",
   title = "Elevate Your Style",
   subtitle = "Premium quality products crafted for those who appreciate the finer things in life.",
   primaryLabel = "Explore Collection",
   secondaryLabel = "Our Story",
   backgroundImage = "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
+  imageOpacity = 0.85,
   minHeight = 580,
   overlayColor = "rgba(255,255,255,0.95)",
   buttonColor = "#0f172a",
   titleColor = "#0f172a",
   subtitleColor = "#64748b",
 }: MinimalTypeHeroBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
+  const getImageOpacity = (value: number) => Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",
         minHeight,
+        position: "relative",
+        overflow: "hidden",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        backgroundImage: `linear-gradient(${overlayColor}, ${overlayColor}), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundColor: overlayColor,
         padding: "12px",
         boxSizing: "border-box",
       }}
     >
       <div
+        aria-hidden="true"
         style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: getImageOpacity(imageOpacity),
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
           width: "min(100%, 1000px)",
           display: "flex",
           flexDirection: isCloseUp ? "column" : imageOnRight ? "row-reverse" : "row",
@@ -306,6 +343,7 @@ MinimalTypeHeroBlock.craft = {
     primaryLabel: "Explore Collection",
     secondaryLabel: "Our Story",
     backgroundImage: "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=2070&auto=format&fit=crop",
+    imageOpacity: 0.85,
     minHeight: 580,
     overlayColor: "rgba(255,255,255,0.95)",
     buttonColor: "#0f172a",

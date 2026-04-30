@@ -7,7 +7,6 @@ import { Container } from "../../../design/_designComponents/Container/Container
 import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
 import { Text } from "../../../design/_designComponents/Text/Text";
-import { Image } from "../../../design/_designComponents/Image/Image";
 import { Icon } from "../../../design/_designComponents/Icon/Icon";
 import { TemplateEntry } from "../../_types";
 
@@ -23,7 +22,7 @@ export const HeaderWithSearch: TemplateEntry = {
 			display: "flex",
 			background: "#ffffff",
 			width: "100%",
-			height: "52px",
+			height: "auto",
 			paddingTop: 0,
 			paddingRight: 0,
 			paddingBottom: 0,
@@ -31,7 +30,7 @@ export const HeaderWithSearch: TemplateEntry = {
 			flexDirection: "row",
 			alignItems: "center",
 			justifyContent: "center",
-			overflow: "hidden",
+			overflow: "visible",
 		},
 		React.createElement(
 			Element as any,
@@ -40,14 +39,13 @@ export const HeaderWithSearch: TemplateEntry = {
 				canvas: true,
 				background: "transparent",
 				width: "100%",
-				height: "100%",
-				minHeight: "100%",
+				height: "auto",
 				paddingTop: 6,
-				paddingRight: 50,
+				paddingRight: 16,
 				paddingBottom: 6,
 				paddingLeft: 16,
-				gap: 18,
-				flexWrap: "wrap",
+				gap: 12,
+				flexWrap: "nowrap",
 				alignItems: "center",
 				justifyContent: "space-between",
 			},
@@ -58,8 +56,8 @@ export const HeaderWithSearch: TemplateEntry = {
 					canvas: true,
 					customClassName: "min-h-0",
 					background: "transparent",
-					width: "33.33%",
-					height: "100%",
+					width: "auto",
+					height: "auto",
 					padding: 0,
 					flexDirection: "row",
 					alignItems: "center",
@@ -95,20 +93,19 @@ export const HeaderWithSearch: TemplateEntry = {
 					canvas: true,
 					customClassName: "min-h-0",
 					background: "transparent",
-					width: "33.33%",
-					height: "100%",
+					width: "auto",
+					height: "auto",
 					padding: 0,
 					flexDirection: "column",
 					alignItems: "center",
 					justifyContent: "center",
 				},
-				React.createElement(Image as any, {
-					src: "",
-					alt: "Image",
-					width: "46px",
-					height: "32px",
-					objectFit: "cover",
-					allowUpload: true,
+				React.createElement(Text as any, {
+					text: "ShopEase",
+					width: "auto",
+					fontSize: 13,
+					fontWeight: "bold",
+					color: "#2563eb",
 				})
 			),
 			React.createElement(
@@ -118,8 +115,8 @@ export const HeaderWithSearch: TemplateEntry = {
 					canvas: true,
 					customClassName: "min-h-0",
 					background: "transparent",
-					width: "33.33%",
-					height: "100%",
+					width: "auto",
+					height: "auto",
 					padding: 0,
 					flexDirection: "row",
 					alignItems: "center",

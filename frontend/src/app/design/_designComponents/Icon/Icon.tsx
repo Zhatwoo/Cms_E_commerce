@@ -138,6 +138,7 @@ export const Icon = ({
   overflow = "visible",
   cursor = "default",
   customClassName = "",
+  isFreeform,
 }: IconProps) => {
   let connect: any;
   let drag: any;
@@ -462,8 +463,9 @@ export const Icon = ({
   const resolvedWidth = hasExplicitBox ? width : `${size}px`;
   const resolvedHeight = hasExplicitBox ? height : `${size}px`;
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "inline-flex"
@@ -535,6 +537,8 @@ export const IconDefaultProps: Partial<IconProps> = {
   paddingLeft: 0,
   opacity: 1,
   link: "",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Icon.craft = {

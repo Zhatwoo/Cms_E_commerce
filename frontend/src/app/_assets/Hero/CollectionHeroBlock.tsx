@@ -11,6 +11,7 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type CollectionLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface CollectionHeroBlockProps {
+  nodeId?: string;
   layoutStyle?: CollectionLayoutStyle;
   title?: string;
   subtitle?: string;
@@ -18,6 +19,14 @@ export interface CollectionHeroBlockProps {
   primaryLabel?: string;
   secondaryLabel?: string;
   backgroundImage?: string;
+  categoryMode?: "auto" | "manual";
+  selectedCategories?: string[];
+  categoryTags?: string[];
+  collectionImage1?: string;
+  collectionImage2?: string;
+  collectionImage3?: string;
+  collectionImage4?: string;
+  imageOpacity?: number;
   minHeight?: number;
   overlayColor?: string;
   buttonColor?: string;
@@ -67,25 +76,62 @@ const LayoutThumb = ({ style, active, onClick, label }: { style: CollectionLayou
   );
 };
 
+const COLLECTION_IMAGE_SLOTS = [
+  { key: "collectionImage1", label: "Image 1", tint: "rgba(234,88,12,0.12)", stroke: "#ea580c" },
+  { key: "collectionImage2", label: "Image 2", tint: "rgba(168,85,247,0.10)", stroke: "#a855f7" },
+  { key: "collectionImage3", label: "Image 3", tint: "rgba(14,165,233,0.10)", stroke: "#0ea5e9" },
+  { key: "collectionImage4", label: "Image 4", tint: "rgba(34,197,94,0.10)", stroke: "#22c55e" },
+] as const;
+
 export const CollectionHeroBlockSettings = () => {
   const { props, actions: { setProp } } = useNode((node) => ({ props: node.data.props as CollectionHeroBlockProps }));
   const { projectId } = useDesignProject();
   const fileRef = useRef<HTMLInputElement>(null);
+  const backgroundFileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [backgroundUploading, setBackgroundUploading] = useState(false);
+  const [uploadSlot, setUploadSlot] = useState<number | null>(null);
 
   const set = <K extends keyof CollectionHeroBlockProps>(key: K, val: CollectionHeroBlockProps[K]) =>
     setProp((p: CollectionHeroBlockProps) => { p[key] = val; });
 
+  const setImageSlot = (slot: number, value: string) => {
+    const key = COLLECTION_IMAGE_SLOTS[slot]?.key;
+    if (!key) return;
+    set(key, value);
+  };
+
+  const setSelectedCategory = (index: number, value: string) => {
+    const current = [...(props.selectedCategories ?? ["Women", "Men", "Accessories", "Shoes"])];
+    while (current.length < 4) current.push("");
+    current[index] = value;
+    set("selectedCategories", current);
+  };
+
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !projectId) return;
+    const key = uploadSlot != null ? COLLECTION_IMAGE_SLOTS[uploadSlot]?.key : null;
+    if (!file || !projectId || !key) return;
     setUploading(true);
+    try {
+      const item = await addFileToMediaLibrary(projectId, file);
+      set(key, item.url);
+    } catch { /* upload failed */ }
+    setUploading(false);
+    setUploadSlot(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const handleBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+    setBackgroundUploading(true);
     try {
       const item = await addFileToMediaLibrary(projectId, file);
       set("backgroundImage", item.url);
     } catch { /* upload failed */ }
-    setUploading(false);
-    if (fileRef.current) fileRef.current.value = "";
+    setBackgroundUploading(false);
+    if (backgroundFileRef.current) backgroundFileRef.current.value = "";
   };
 
   const inputCls = "w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent";
@@ -117,20 +163,60 @@ export const CollectionHeroBlockSettings = () => {
           <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.primaryLabel ?? "Shop Sale"} onChange={(e) => set("primaryLabel", e.target.value)} />
           <label className="text-[11px] text-builder-text-muted">Secondary button</label>
           <input className="w-full h-8 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-builder-accent" value={props.secondaryLabel ?? "View All"} onChange={(e) => set("secondaryLabel", e.target.value)} />
+          <label className="text-[11px] text-builder-text-muted mt-2">Category source</label>
+          <select
+            className={inputCls}
+            value={props.categoryMode ?? "auto"}
+            onChange={(e) => set("categoryMode", e.target.value as "auto" | "manual")}
+          >
+            <option value="auto">Auto (from product categories)</option>
+            <option value="manual">Manual</option>
+          </select>
+
+          {(props.categoryMode ?? "auto") === "manual" && (
+            <>
+              {[0, 1, 2, 3].map((index) => (
+                <React.Fragment key={`category-input-${index}`}>
+                  <label className="text-[11px] text-builder-text-muted">Category tag {index + 1}</label>
+                  <input
+                    className={inputCls}
+                    value={props.selectedCategories?.[index] ?? ["Women", "Men", "Accessories", "Shoes"][index]}
+                    onChange={(e) => setSelectedCategory(index, e.target.value)}
+                    placeholder="Enter category"
+                  />
+                </React.Fragment>
+              ))}
+            </>
+          )}
         </div>
       </DesignSection>
 
       <DesignSection title="Background" defaultOpen={false}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-builder-text-muted">Image</label>
+            <label className="text-[10px] text-builder-text-muted">Background image</label>
             <div className="flex gap-1.5">
-              <input className={inputCls + " flex-1 min-w-0"} value={props.backgroundImage ?? ""} onChange={(e) => set("backgroundImage", e.target.value)} placeholder="https://..." />
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50" title="Upload image">
-                {uploading ? "..." : "Upload"}
+              <input
+                className={inputCls + " flex-1 min-w-0"}
+                value={props.backgroundImage ?? ""}
+                onChange={(e) => set("backgroundImage", e.target.value)}
+                placeholder="https://..."
+              />
+              <button
+                type="button"
+                onClick={() => backgroundFileRef.current?.click()}
+                disabled={backgroundUploading}
+                className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50"
+                title="Upload background image"
+              >
+                {backgroundUploading ? "..." : "Upload"}
               </button>
-              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
+              <input ref={backgroundFileRef} type="file" accept="image/*" className="hidden" onChange={handleBackgroundUpload} />
             </div>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-builder-text-muted">Image opacity (%)</label>
+            <NumericInput value={props.imageOpacity != null ? (props.imageOpacity <= 1 ? props.imageOpacity * 100 : props.imageOpacity) : 85} onChange={(val) => set("imageOpacity", val)} min={0} max={100} step={1} unit="%" />
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Overlay color</label>
@@ -139,6 +225,42 @@ export const CollectionHeroBlockSettings = () => {
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-builder-text-muted">Min height</label>
             <NumericInput value={props.minHeight ?? 520} onChange={(val) => set("minHeight", val)} min={200} max={1200} step={10} unit="px" />
+          </div>
+        </div>
+      </DesignSection>
+
+      <DesignSection title="Collection Images" defaultOpen={false}>
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-1 gap-3">
+            {COLLECTION_IMAGE_SLOTS.map((slot, index) => {
+              const value = props[slot.key] ?? "";
+              return (
+                <div key={slot.key} className="flex flex-col gap-1">
+                  <label className="text-[10px] text-builder-text-muted">{slot.label}</label>
+                  <div className="flex gap-1.5">
+                    <input
+                      className={inputCls + " flex-1 min-w-0"}
+                      value={value}
+                      onChange={(e) => setImageSlot(index, e.target.value)}
+                      placeholder="https://..."
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUploadSlot(index);
+                        fileRef.current?.click();
+                      }}
+                      disabled={uploading}
+                      className="h-8 px-2.5 rounded text-[10px] font-semibold bg-builder-surface-3 border border-(--builder-border) text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 transition-colors shrink-0 disabled:opacity-50"
+                      title={`Upload ${slot.label}`}
+                    >
+                      {uploading && uploadSlot === index ? "..." : "Upload"}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleUpload} />
           </div>
         </div>
       </DesignSection>
@@ -168,6 +290,7 @@ export const CollectionHeroBlockSettings = () => {
 };
 
 export const CollectionHeroBlock = ({
+  nodeId,
   layoutStyle = "image-right",
   title = "Summer Sale",
   subtitle = "Shop our biggest sale of the year. Hundreds of styles marked down for a limited time.",
@@ -175,6 +298,14 @@ export const CollectionHeroBlock = ({
   primaryLabel = "Shop Sale",
   secondaryLabel = "View All",
   backgroundImage = "https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070&auto=format&fit=crop",
+  categoryMode = "auto",
+  selectedCategories = ["Women", "Men", "Accessories", "Shoes"],
+  categoryTags,
+  collectionImage1 = "",
+  collectionImage2 = "",
+  collectionImage3 = "",
+  collectionImage4 = "",
+  imageOpacity = 0.85,
   minHeight = 520,
   overlayColor = "rgba(255,241,235,0.88)",
   buttonColor = "#ea580c",
@@ -182,30 +313,66 @@ export const CollectionHeroBlock = ({
   subtitleColor = "#64748b",
   badgeColor = "#dc2626",
 }: CollectionHeroBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
+  const getImageOpacity = (value: number) => Math.min(1, Math.max(0, value > 1 ? value / 100 : value));
+
+  const collectionImages = [collectionImage1, collectionImage2, collectionImage3, collectionImage4];
+  const manualTags = (selectedCategories ?? []).map((tag) => String(tag || "").trim()).filter(Boolean);
+  const autoTags = (categoryTags ?? []).map((tag) => String(tag || "").trim()).filter(Boolean);
+  const activeTags = categoryMode === "manual" ? manualTags : autoTags;
+  const visibleCategoryTags = (activeTags.length > 0 ? activeTags : ["Women", "Men", "Accessories", "Shoes"]).slice(0, 4);
+
 
   const isCloseUp = layoutStyle === "close-up";
   const imageOnRight = layoutStyle === "image-right";
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",
         minHeight,
+        position: "relative",
+        overflow: "hidden",
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        backgroundImage: `linear-gradient(${overlayColor}, ${overlayColor}), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundColor: overlayColor,
         padding: "12px",
         boxSizing: "border-box",
       }}
     >
       <div
+        aria-hidden="true"
         style={{
+          position: "absolute",
+          inset: 0,
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          opacity: getImageOpacity(imageOpacity),
+        }}
+      />
+      <div
+        style={{
+          position: "relative",
+          zIndex: 1,
           width: "min(100%, 1200px)",
           display: "flex",
           flexDirection: isCloseUp ? "column" : imageOnRight ? "row-reverse" : "row",
@@ -229,22 +396,35 @@ export const CollectionHeroBlock = ({
             gap: 12,
           }}
         >
-          {[0, 1, 2, 3].map((i) => (
-            <div key={i} style={{
-              borderRadius: 12,
-              background: i === 0 ? "rgba(234,88,12,0.12)" : i === 1 ? "rgba(168,85,247,0.10)" : i === 2 ? "rgba(14,165,233,0.10)" : "rgba(34,197,94,0.10)",
-              border: "1px solid rgba(148,163,184,0.15)",
-              minHeight: 140,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
-                <rect x="3" y="3" width="18" height="18" rx="3" stroke={i === 0 ? "#ea580c" : i === 1 ? "#a855f7" : i === 2 ? "#0ea5e9" : "#22c55e"} strokeWidth="1.5" fill="none" />
-                <path d="M3 15l5-5 4 4 3-3 6 6" stroke={i === 0 ? "#ea580c" : i === 1 ? "#a855f7" : i === 2 ? "#0ea5e9" : "#22c55e"} strokeWidth="1.5" fill="none" />
-              </svg>
-            </div>
-          ))}
+          {COLLECTION_IMAGE_SLOTS.map((slot, index) => {
+            const imageUrl = collectionImages[index];
+            return (
+              <div
+                key={slot.key}
+                style={{
+                  borderRadius: 12,
+                  background: imageUrl
+                    ? `linear-gradient(rgba(15,23,42,0.08), rgba(15,23,42,0.08)), url(${imageUrl})`
+                    : slot.tint,
+                  backgroundSize: imageUrl ? "cover" : undefined,
+                  backgroundPosition: imageUrl ? "center" : undefined,
+                  border: "1px solid rgba(148,163,184,0.15)",
+                  minHeight: 140,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                {!imageUrl && (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none">
+                    <rect x="3" y="3" width="18" height="18" rx="3" stroke={slot.stroke} strokeWidth="1.5" fill="none" />
+                    <path d="M3 15l5-5 4 4 3-3 6 6" stroke={slot.stroke} strokeWidth="1.5" fill="none" />
+                  </svg>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Content */}
@@ -286,7 +466,7 @@ export const CollectionHeroBlock = ({
 
           {/* Category tags */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "4px 0" }}>
-            {["Women", "Men", "Accessories", "Shoes"].map((tag) => (
+            {visibleCategoryTags.map((tag) => (
               <span key={tag} style={{
                 fontSize: 12,
                 fontWeight: 500,
@@ -341,6 +521,13 @@ CollectionHeroBlock.craft = {
     primaryLabel: "Shop Sale",
     secondaryLabel: "View All",
     backgroundImage: "https://images.unsplash.com/photo-1607082349566-187342175e2f?q=80&w=2070&auto=format&fit=crop",
+    categoryMode: "auto",
+    selectedCategories: ["Women", "Men", "Accessories", "Shoes"],
+    collectionImage1: "",
+    collectionImage2: "",
+    collectionImage3: "",
+    collectionImage4: "",
+    imageOpacity: 0.85,
     minHeight: 520,
     overlayColor: "rgba(255,241,235,0.88)",
     buttonColor: "#ea580c",

@@ -59,6 +59,7 @@ export const Image = ({
   editorVisibility = "auto",
   _autoFitInTabs = false,
   _isDraggingSource = false,
+  isFreeform,
 }: ImageProps) => {
   const [isDraggingOver, setIsDraggingOver] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -137,8 +138,9 @@ export const Image = ({
       ? "100%"
       : (height ?? "auto");
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "block"
@@ -368,6 +370,10 @@ export const ImageDefaultProps: Partial<ImageProps> = {
   badge: "",
   badgeColor: "#1e293b",
   _autoFitInTabs: false,
+  alignSelf: "auto",
+  isFreeform: false,
+  position: "static",
+  display: "flex",
 };
 
 Image.craft = {

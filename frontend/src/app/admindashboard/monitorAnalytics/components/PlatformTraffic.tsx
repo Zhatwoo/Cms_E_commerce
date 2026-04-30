@@ -122,13 +122,13 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
             transition={{ duration: 0.3 }}
             className="space-y-6"
         >
-            <div>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
+            <div className="rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] p-5 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:p-6">
+                <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Platform Traffic</h2>
                         <p className="admin-dashboard-soft-text mt-1 text-sm">New client signups overtime</p>
                     </div>
-                    <div className="admin-dashboard-inset-panel flex gap-1 rounded-xl p-1 relative" suppressHydrationWarning>
+                    <div className="relative flex gap-1 rounded-xl border border-[rgba(166,61,255,0.2)] bg-white p-1 shadow-[0_8px_20px_rgba(103,2,191,0.08)]" suppressHydrationWarning>
                         {[
                             { id: '7days' as const, label: 'Last 7 days' },
                             { id: '30days' as const, label: 'Last 30 days' },
@@ -156,7 +156,7 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
                     </div>
                 </div>
 
-                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8 w-full">
+                <div className="w-full rounded-[20px] border border-[rgba(166,61,255,0.2)] bg-white p-6 shadow-[0_14px_30px_rgba(103,2,191,0.09)] sm:p-8">
                     <canvas ref={trafficChartRef} height="110" className="w-full"></canvas>
                 </div>
             </div>

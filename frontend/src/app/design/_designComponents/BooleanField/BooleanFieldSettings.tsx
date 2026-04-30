@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
@@ -16,6 +16,7 @@ function makeOptionId(): string {
 
 export const BooleanFieldSettings = () => {
   const {
+    id,
     controlType,
     name,
     disabled,
@@ -46,6 +47,7 @@ export const BooleanFieldSettings = () => {
     marginLeft,
     position,
     display,
+    isFreeform,
     alignSelf,
     zIndex,
     top,
@@ -59,6 +61,7 @@ export const BooleanFieldSettings = () => {
     cursor,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     controlType: node.data.props.controlType ?? "checkbox",
     name: node.data.props.name ?? "choice",
     disabled: node.data.props.disabled ?? false,
@@ -89,6 +92,7 @@ export const BooleanFieldSettings = () => {
     marginLeft: node.data.props.marginLeft ?? 0,
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf ?? "auto",
     zIndex: node.data.props.zIndex ?? 0,
     top: node.data.props.top ?? "auto",
@@ -237,7 +241,7 @@ export const BooleanFieldSettings = () => {
               )}
 
               {normalizedOptions.map((opt, idx) => (
-                <div key={opt.id} className="bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md p-2 flex flex-col gap-2">
+                <div key={opt.id} className="bg-[var(--builder-surface-2)]/30 border border-[var(--builder-border)] rounded-md p-2 flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -293,9 +297,11 @@ export const BooleanFieldSettings = () => {
 
       {/* Layout & Layer */}
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

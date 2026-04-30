@@ -212,7 +212,7 @@ export function RecentProjects() {
           Recent Projects
         </h2>
         <button
-          onClick={() => router.push('/m_dashboard/web-builder#projects-section')}
+          onClick={() => router.push('/m_dashboard/projects#projects-section')}
           className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
           style={{
             backgroundColor: colors.bg.elevated,

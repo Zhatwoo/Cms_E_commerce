@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNode, useEditor, Element } from "@craftjs/core";
 import { TabsSettings } from "./TabsSettings";
 import { TabContent } from "./TabContent";
-import type { TabsProps, TabItem } from "../../_types/components";
+import type { TabsProps, TabItem, TypographyProps } from "../../_types/components";
 
 const genId = () => Math.random().toString(36).substring(2, 9);
 
@@ -64,6 +64,8 @@ export const Tabs = ({
   gridGap = 0,
   gridColumnGap = 0,
   gridRowGap = 0,
+  gridTemplateColumns: _ignoredGTC,
+  gridTemplateRows: _ignoredGTR,
   gridAutoRows = "auto",
   gridAutoFlow = "row",
   display = "flex",
@@ -92,6 +94,7 @@ export const Tabs = ({
   textAlign = "center",
   textTransform = "none",
   textDecoration = "none",
+  isFreeform,
   children,
 }: TabsProps & { children?: React.ReactNode }) => {
   const {
@@ -173,17 +176,15 @@ export const Tabs = ({
   const rbr = radiusBottomRight !== undefined ? radiusBottomRight : br;
   const rbl = radiusBottomLeft !== undefined ? radiusBottomLeft : br;
 
-  // In preview (enabled === false), we should always respect the display prop 
-  // and ignore editorVisibility (unless it's set to hide and we want to hide it in live too,
-  // but usually editorVisibility is for builder UI control).
-  // If display is already "none", it stays hidden.
-  const effectiveDisplay = !enabled 
-    ? display 
-    : (editorVisibility === "hide"
-        ? "none"
-        : editorVisibility === "show" && display === "none"
-          ? "flex"
-          : display);
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : !enabled 
+      ? display 
+      : (editorVisibility === "hide"
+          ? "none"
+          : editorVisibility === "show" && display === "none"
+            ? "flex"
+            : display);
 
   const transformStyle = React.useMemo(
     () =>
@@ -243,61 +244,63 @@ export const Tabs = ({
       }}
     >
       {/* Tab Headers */}
-      <div 
-        className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
-        style={{ 
-          borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
-          justifyContent: tabAlignment === "center" ? "center" : tabAlignment === "right" ? "flex-end" : "flex-start"
-        }}
-      >
-        {tabs.map((tab) => {
-          const isActive = tab.id === currentActiveTabId;
-          return (
-            <button
-              key={tab.id}
-              data-canvas-interactive="true"
-              draggable={false}
-              onDragStart={(e) => e.preventDefault()}
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-              onMouseDown={(e) => e.stopPropagation()}
-              onTouchStart={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                setLocalActiveTabId(tab.id);
-                if (enabled) {
-                  setProp((props: any) => {
-                    props.activeTabId = tab.id;
-                  });
-                }
-              }}
-              className="px-6 py-4 font-semibold text-sm transition-all duration-300 border-b-2 whitespace-nowrap hover:bg-black/5 active:scale-95"
-              style={{
-                backgroundColor: isActive ? activeTabBackgroundColor : tabHeaderBackgroundColor,
-                color: isActive ? activeTabTextColor : tabHeaderTextColor,
-                borderBottomColor: isActive ? (activeTabTextColor || "#3b82f6") : "transparent",
-                transform: isActive ? "scale(1.02)" : "scale(1)",
-                zIndex: isActive ? 1 : 0,
-                fontSize,
-                fontWeight,
-                fontFamily,
-                fontStyle,
-                lineHeight,
-                letterSpacing,
-                textAlign,
-                textTransform,
-                textDecoration,
-              }}
-            >
-              {tab.title}
-            </button>
-          );
-        })}
-      </div>
+      {!isFreeform && (
+        <div 
+          className="tabs-header flex flex-row w-full overflow-x-auto border-b no-scrollbar"
+          style={{ 
+            borderColor: borderColor !== "transparent" ? borderColor : "#e5e7eb",
+            justifyContent: tabAlignment === "center" ? "center" : tabAlignment === "right" ? "flex-end" : "flex-start"
+          }}
+        >
+          {tabs.map((tab: TabItem) => {
+            const isActive = tab.id === currentActiveTabId;
+            return (
+              <button
+                key={tab.id}
+                data-canvas-interactive="true"
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
+                onPointerDownCapture={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLocalActiveTabId(tab.id);
+                  if (enabled) {
+                    setProp((props: any) => {
+                      props.activeTabId = tab.id;
+                    });
+                  }
+                }}
+                className="px-6 py-4 font-semibold text-sm transition-all duration-300 border-b-2 whitespace-nowrap hover:bg-black/5 active:scale-95"
+                style={{
+                  backgroundColor: isActive ? activeTabBackgroundColor : tabHeaderBackgroundColor,
+                  color: isActive ? activeTabTextColor : tabHeaderTextColor,
+                  borderBottomColor: isActive ? (activeTabTextColor || "#3b82f6") : "transparent",
+                  transform: isActive ? "scale(1.02)" : "scale(1)",
+                  zIndex: isActive ? 1 : 0,
+                  fontSize,
+                  fontWeight,
+                  fontFamily,
+                  fontStyle,
+                  lineHeight,
+                  letterSpacing,
+                  textAlign,
+                  textTransform,
+                  textDecoration,
+                }}
+              >
+                {tab.title}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Tab Content Areas */}
       <div className="tabs-content relative w-full flex-grow min-h-[100px]">
-        {tabs.map((tab) => {
+        {tabs.map((tab: TabItem) => {
           const isActive = tab.id === currentActiveTabId;
           const computedCanvasId = `tab-content-${tab.id}`;
           
@@ -319,7 +322,7 @@ export const Tabs = ({
             <div 
               key={tab.id}
               className="w-full min-h-[100px] flex flex-col relative"
-              style={{ display: isActive ? "flex" : "none" }}
+              style={{ display: (isFreeform || isActive) ? "flex" : "none" }}
             >
               <Element id={canvasId} is={TabContent} canvas />
             </div>

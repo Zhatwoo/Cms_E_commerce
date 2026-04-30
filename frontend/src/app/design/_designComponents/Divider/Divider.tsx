@@ -22,6 +22,7 @@ export const Divider = ({
   zIndex = 0,
   alignSelf = "auto",
   display,
+  isFreeform,
 }: DividerProps & { height?: string; marginLeft?: number; marginRight?: number }) => {
   const { id, connectors: { connect, drag } } = useNode();
 
@@ -49,7 +50,7 @@ export const Divider = ({
         left: position !== "static" ? left : undefined,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,
-        display: display ?? undefined,
+        display: isFreeform ? "block" : (display ?? undefined),
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
       }}
       className="cursor-pointer"
@@ -64,6 +65,8 @@ export const DividerDefaultProps: Partial<DividerProps> = {
   width: "100%",
   marginTop: 8,
   marginBottom: 8,
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Divider.craft = {

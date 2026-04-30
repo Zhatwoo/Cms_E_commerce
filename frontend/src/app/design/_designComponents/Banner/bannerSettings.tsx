@@ -60,6 +60,7 @@ export const BannerSettings = () => {
     boxShadow,
     opacity,
     overflow,
+    isFreeform,
     actions: { setProp },
   } = useNode((node) => ({
     id: node.id,
@@ -108,6 +109,7 @@ export const BannerSettings = () => {
     bottom: node.data.props.bottom,
     left: node.data.props.left,
     editorVisibility: node.data.props.editorVisibility,
+    isFreeform: node.data.props.isFreeform,
     boxShadow: node.data.props.boxShadow,
     opacity: node.data.props.opacity,
     overflow: node.data.props.overflow,
@@ -134,6 +136,7 @@ export const BannerSettings = () => {
           nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

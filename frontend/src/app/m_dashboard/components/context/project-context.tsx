@@ -17,7 +17,7 @@ type ProjectContextType = {
   selectedProjectId: string | null;
   selectedProject: Project | null;
   setSelectedProjectId: (id: string | null) => void;
-  refreshProjects: () => Promise<void>;
+  refreshProjects: (silent?: boolean) => Promise<void>;
 };
 
 const ProjectContext = createContext<ProjectContextType>({
@@ -82,11 +82,20 @@ export function ProjectProvider({ children }: ProviderProps) {
           } catch (_) {}
         }
 
-        // Keep last selected project when still available, otherwise fall back once.
+        const nonTemplateProjects = res.projects.filter(
+          (project) => String(project.status || '').trim().toLowerCase() !== 'template'
+        );
+
+        // Keep last selected project when still available, otherwise prefer a normal design.
         setSelectedProjectIdState((prev) => {
           if (res.projects.length === 0) return null;
-          if (prev && res.projects.some((p) => p.id === prev)) return prev;
-          return res.projects[0].id;
+          if (prev && res.projects.some((p) => p.id === prev)) {
+            const prevProject = res.projects.find((p) => p.id === prev);
+            if (prevProject && String(prevProject.status || '').trim().toLowerCase() !== 'template') {
+              return prev;
+            }
+          }
+          return nonTemplateProjects[0]?.id || res.projects[0].id;
         });
       } else {
         setProjects([]);
@@ -121,6 +130,17 @@ export function ProjectProvider({ children }: ProviderProps) {
   }, [fetchProjects, storageKey]);
 
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleTemplateRegistryChange = () => {
+      void fetchProjects(true, true);
+    };
+
+    window.addEventListener('template-project-registry:changed', handleTemplateRegistryChange);
+    return () => window.removeEventListener('template-project-registry:changed', handleTemplateRegistryChange);
+  }, [fetchProjects]);
+
+  useEffect(() => {
     setActiveProjectId(selectedProjectId);
   }, [selectedProjectId]);
 
@@ -139,7 +159,9 @@ export function ProjectProvider({ children }: ProviderProps) {
     }
   };
 
-  const refreshProjects = useCallback(() => fetchProjects(true), [fetchProjects]);
+  const refreshProjects = useCallback(async (silent = true) => {
+    await fetchProjects(true, silent);
+  }, [fetchProjects]);
 
   const value: ProjectContextType = {
     projects,

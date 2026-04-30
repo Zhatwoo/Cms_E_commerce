@@ -9,7 +9,8 @@ function parsePx(value: string | undefined): number | null {
   return m ? parseFloat(m[1]) : null;
 }
 
-function fluidSpace(value: number, min = 0): string {
+function fluidSpace(value: number | string, min = 0): string {
+  if (typeof value === "string") return value;
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
   const preferred = Math.max(0.1, value / 12);
   const floor = Math.max(min, Math.round(value * 0.45));
@@ -73,6 +74,8 @@ export const Container = ({
   gridRowGap = 0,
   gridAutoRows = "auto",
   gridAutoFlow = "row",
+  justifyItems = "stretch",
+  alignContent = "flex-start",
   display = "flex",
   position = "static",
   zIndex = 0,
@@ -89,6 +92,7 @@ export const Container = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  isFreeform = false,
   designWidth = 1440,
   designHeight = 900,
   customClassName = "",
@@ -238,31 +242,33 @@ export const Container = ({
         position: resolvedPosition,
         containerType: "inline-size",
         contain: "layout",
-        display: effectiveDisplay,
+        display: isFreeform ? "block" : effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,
         top: isPositioned ? top : undefined,
         right: isPositioned ? posRight : undefined,
         bottom: isPositioned ? bottom : undefined,
         left: isPositioned ? posLeft : undefined,
-        flexDirection: isFlexDisplay ? flexDirection : undefined,
-        flexWrap: isFlexDisplay ? flexWrap : undefined,
-        alignItems: isFlexDisplay || isGridDisplay ? alignItems : undefined,
-        justifyContent: isFlexDisplay || isGridDisplay ? justifyContent : undefined,
-        columnGap: isFlexDisplay
+        flexDirection: !isFreeform && isFlexDisplay ? flexDirection : undefined,
+        flexWrap: !isFreeform && isFlexDisplay ? flexWrap : undefined,
+        alignItems: !isFreeform && (isFlexDisplay || isGridDisplay) ? alignItems : undefined,
+        justifyContent: !isFreeform && (isFlexDisplay || isGridDisplay) ? justifyContent : undefined,
+        columnGap: !isFreeform && isFlexDisplay
           ? fluidSpace(gap, 0)
-          : isGridDisplay
+          : !isFreeform && isGridDisplay
             ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
-        rowGap: isFlexDisplay
+        rowGap: !isFreeform && isFlexDisplay
           ? fluidSpace(gap, 0)
-          : isGridDisplay
+          : !isFreeform && isGridDisplay
             ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
-        gridTemplateColumns: isGridDisplay ? gridTemplateColumns : undefined,
-        gridTemplateRows: isGridDisplay ? gridTemplateRows : undefined,
-        gridAutoRows: isGridDisplay ? gridAutoRows : undefined,
-        gridAutoFlow: isGridDisplay ? gridAutoFlow : undefined,
+        gridTemplateColumns: !isFreeform && isGridDisplay ? gridTemplateColumns : undefined,
+        gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
+        gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
+        gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
+        justifyItems: !isFreeform && isGridDisplay ? justifyItems : undefined,
+        alignContent: !isFreeform && isGridDisplay ? alignContent : undefined,
         boxShadow,
         opacity,
         overflow,
@@ -303,7 +309,7 @@ export const Container = ({
 };
 
 export const ContainerDefaultProps: Partial<ContainerProps> = {
-  background: "#ffffff",
+  background: "transparent",
   padding: 0,
   paddingTop: 0,
   paddingRight: 0,
@@ -339,6 +345,8 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   gridRowGap: 0,
   gridAutoRows: "auto",
   gridAutoFlow: "row",
+  justifyItems: "stretch",
+  alignContent: "flex-start",
   position: "static",
   display: "flex",
   zIndex: 0,
@@ -351,6 +359,8 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   opacity: 1,
   overflow: "visible",
   cursor: "default",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Container.craft = {

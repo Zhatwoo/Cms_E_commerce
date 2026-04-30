@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { db } = require('../config/firebase');
 const Project = require('../models/Project');
 const User = require('../models/User');
 const Domain = require('../models/Domain');
@@ -7,6 +8,17 @@ const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const Notification = require('../models/Notification');
+
+async function resolveOwnerForAdminProject(projectId) {
+  try {
+    const projectSnap = await db.collectionGroup('projects').get();
+    const projectDoc = projectSnap.docs.find((doc) => doc.id === projectId);
+    return projectDoc?.ref.parent?.parent?.id || null;
+  } catch (error) {
+    console.warn('[projectController] resolveOwnerForAdminProject failed:', error.message);
+    return null;
+  }
+}
 
 // @desc    List current user's projects
 // @route   GET /api/projects
@@ -35,6 +47,27 @@ exports.list = async (req, res) => {
     res.status(200).json({
       success: true,
       projects,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
+// @desc    List shared template library projects (status=template across users)
+// @route   GET /api/projects/templates/library
+// @access  Private
+exports.listTemplateLibrary = async (req, res) => {
+  try {
+    const requestedLimit = Number.parseInt(String(req.query.limit || ''), 10);
+    const items = await Project.listTemplateLibrary(Number.isFinite(requestedLimit) ? requestedLimit : 60);
+
+    res.status(200).json({
+      success: true,
+      templates: items,
     });
   } catch (error) {
     res.status(500).json({
@@ -184,20 +217,45 @@ exports.getOne = async (req, res) => {
 exports.update = async (req, res) => {
   try {
     const userId = req.user.id;
-    const existing = await Project.get(userId, req.params.id);
+    const userRole = String(req.user.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
+
+    let ownerId = userId;
+    let existing = await Project.get(ownerId, req.params.id);
+
+    if (!existing && isAdmin) {
+      const resolvedOwnerId = await resolveOwnerForAdminProject(req.params.id);
+      if (resolvedOwnerId) {
+        ownerId = resolvedOwnerId;
+        existing = await Project.get(ownerId, req.params.id);
+      }
+    }
+
     if (!existing) {
       return res.status(404).json({
         success: false,
         message: 'Project not found',
       });
     }
-    const { title, status, thumbnail, subdomain, industry, general_access, general_access_role } = req.body;
-    const project = await Project.update(userId, req.params.id, {
+    const {
+      title,
+      status,
+      thumbnail,
+      subdomain,
+      industry,
+      general_access,
+      general_access_role,
+      templateName,
+      templateContent,
+    } = req.body;
+    const project = await Project.update(ownerId, req.params.id, {
       ...(title !== undefined && { title }),
       ...(status !== undefined && { status }),
       ...(industry !== undefined && { industry }),
       ...(subdomain !== undefined && { subdomain }),
       ...(thumbnail !== undefined && { thumbnail }),
+      ...(templateName !== undefined && { templateName }),
+      ...(templateContent !== undefined && { templateContent }),
       ...(general_access !== undefined && { general_access }),
       ...(general_access_role !== undefined && { general_access_role }),
     });
@@ -280,8 +338,21 @@ exports.restore = async (req, res) => {
 exports.delete = async (req, res) => {
   try {
     const userId = req.user.id;
+    const userRole = String(req.user.role || '').toLowerCase();
+    const isAdmin = userRole === 'admin' || userRole === 'super_admin';
     const retentionDays = getTrashRetentionDays();
-    const existing = await Project.get(userId, req.params.id);
+
+    let ownerId = userId;
+    let existing = await Project.get(ownerId, req.params.id);
+
+    if (!existing && isAdmin) {
+      const resolvedOwnerId = await resolveOwnerForAdminProject(req.params.id);
+      if (resolvedOwnerId) {
+        ownerId = resolvedOwnerId;
+        existing = await Project.get(ownerId, req.params.id);
+      }
+    }
+
     if (!existing) {
       return res.status(404).json({
         success: false,
@@ -289,14 +360,14 @@ exports.delete = async (req, res) => {
       });
     }
     // Delete only the project (website) document — client/user is preserved
-    await Project.delete(userId, req.params.id);
+    await Project.delete(ownerId, req.params.id);
 
     // Delete only this project's folder in Firebase Storage: clients/{client}/{website}/ (not the client folder)
     // Requires backend .env: FIREBASE_STORAGE_BUCKET=cms-e-commerce-75653.firebasestorage.app
     const clientName = req.user.name || 'client';
     let clientNameForStorage = clientName;
     try {
-      const user = await User.get(userId);
+      const user = await User.get(ownerId);
       if (user) {
         clientNameForStorage = (user.displayName || user.username || user.email || clientName).trim() || clientName;
       }
@@ -618,6 +689,7 @@ module.exports = {
   create: exports.create,
   getOne: exports.getOne,
   getBySubdomain: exports.getBySubdomain,
+  listTemplateLibrary: exports.listTemplateLibrary,
   update: exports.update,
   delete: exports.delete,
   listTrash: exports.listTrash,

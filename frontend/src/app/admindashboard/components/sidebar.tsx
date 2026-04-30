@@ -47,9 +47,9 @@ function isChildPathMatch(pathname: string, matchIncludes: string): boolean {
 let desktopSidebarExpandedMemory = false;
 
 const panelStyle: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.86)',
-    border: '1px solid rgba(166,61,255,0.13)',
-    boxShadow: '0 8px 32px rgba(103,2,191,0.09), inset 0 1px 0 rgba(255,255,255,0.9)',
+    background: 'rgba(255,255,255,0.94)',
+    border: '1px solid rgba(166,61,255,0.12)',
+    boxShadow: '0 12px 34px rgba(103,2,191,0.10), inset 0 1px 0 rgba(255,255,255,0.92)',
     backdropFilter: 'blur(16px)',
 };
 
@@ -174,8 +174,8 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
 
     const matchedActiveItem = ADMIN_NAV_ITEMS.find((item) => isAdminNavItemMatch(pathname, item))?.id;
     const activeItem = forcedActiveItemId ?? matchedActiveItem;
-    const COLLAPSED_WIDTH = 104;
-    const EXPANDED_WIDTH = 322;
+    const COLLAPSED_WIDTH = 122;
+    const EXPANDED_WIDTH = 320;
 
     // Helper to render a nav item icon — supports both image src and the MessageIcon SVG
     const renderIcon = (item: typeof ADMIN_NAV_ITEMS[number]) => {
@@ -329,16 +329,16 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
-            <div className="flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-2 py-5" style={panelStyle}>
+            <div className="flex h-full w-full flex-col items-center overflow-hidden rounded-[28px] px-3 py-5" style={panelStyle}>
                 {/* Logo */}
-                <div className="mb-4 flex w-full shrink-0 items-center justify-center px-1 pt-1">
+                <div className="mb-6 flex w-full shrink-0 items-center justify-center px-1 pt-1">
                     <Link href="/admindashboard" aria-label="Dashboard Home" onClick={handleNavigate}>
                         <Image src="/images/logo.svg" alt="CMS E-commerce" width={48} height={48} className="h-9 w-auto max-w-[48px] object-contain" />
                     </Link>
                 </div>
 
                 {/* Nav items */}
-                <nav className="mt-[50px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
+                <nav className="mt-[34px] flex min-h-0 w-full flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
                     {ADMIN_NAV_ITEMS.map((item) => {
                         const isActive = activeItem === item.id;
                         const hasChildren = !!(item.children?.length);
@@ -356,7 +356,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         type="button"
                                         aria-label={item.label}
                                         suppressHydrationWarning
-                                        className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
+                                        className="group relative flex w-full items-center rounded-2xl px-3 py-3 transition-colors"
                                         style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
@@ -373,19 +373,14 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         <span className={`mr-1 transition-opacity duration-100 ${isHovered ? 'opacity-100' : 'opacity-0'}`} style={{ color: '#4a1a8a' }}>
                                             <ChevronDownIcon className={`h-4 w-4 transition-transform duration-200${isOpen ? ' rotate-180' : ''}`} />
                                         </span>
-                                        {isActive && (
-                                            <span
-                                                className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
-                                                style={{ background: '#f5c000' }}
-                                            />
-                                        )}
+
                                     </button>
                                 ) : (
                                     <Link
                                         href={item.href}
                                         aria-label={item.label}
                                         onClick={handleNavigate}
-                                        className="group relative flex w-full items-center rounded-2xl px-2 py-2 transition-colors"
+                                        className="group relative flex w-full items-center rounded-2xl px-3 py-3 transition-colors"
                                         style={{ color: '#4a1a8a', ...(isActive ? navActiveStyle : {}) }}
                                     >
                                         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl" style={iconWrapStyle}>
@@ -399,12 +394,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                                         >
                                             {item.label}
                                         </span>
-                                        {isActive && (
-                                            <span
-                                                className={`absolute left-0 top-1/2 h-7 w-1 -translate-y-1/2 rounded-r-full transition-opacity duration-100 ${isHovered ? 'opacity-0' : 'opacity-100'}`}
-                                                style={{ background: '#f5c000' }}
-                                            />
-                                        )}
+
                                     </Link>
                                 )}
 
@@ -454,7 +444,7 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
                     onClick={handleLogout}
                     disabled={isLoggingOut}
                     suppressHydrationWarning
-                    className="mt-auto flex w-full shrink-0 items-center justify-start overflow-hidden rounded-2xl px-2 py-2 transition"
+                    className="mt-auto flex w-full shrink-0 items-center justify-start overflow-hidden rounded-2xl px-3 py-3 transition"
                     style={{ color: '#b13bff' }}
                     aria-label="Log out"
                     title="Log out"
@@ -477,4 +467,4 @@ export function AdminSidebar({ mobile = false, onClose, forcedActiveItemId, forc
     );
 }
 
-export default AdminSidebar;
+export default AdminSidebar;

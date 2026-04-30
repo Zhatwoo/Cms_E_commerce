@@ -60,6 +60,7 @@ export const Video = ({
     editorVisibility = "auto",
     _autoFitInTabs = false,
     _isDraggingSource = false,
+    isFreeform,
 }: VideoProps) => {
     const [isDraggingOver, setIsDraggingOver] = React.useState(false);
     const containerRef = React.useRef<HTMLDivElement>(null);
@@ -166,8 +167,9 @@ export const Video = ({
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
 
-    const effectiveDisplay =
-        editorVisibility === "hide"
+    const effectiveDisplay = isFreeform
+        ? "block"
+        : editorVisibility === "hide"
             ? "none"
             : editorVisibility === "show" && display === "none"
                 ? "block"
@@ -358,6 +360,10 @@ export const VideoDefaultProps: Partial<VideoProps> = {
     marginLeft: 0,
     opacity: 1,
     boxShadow: "none",
+    alignSelf: "auto",
+    isFreeform: false,
+    position: "static",
+    display: "flex",
 };
 
 Video.craft = {

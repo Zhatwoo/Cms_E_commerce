@@ -191,6 +191,7 @@ export const ImageTextBlockSettings = () => {
 };
 
 export const ImageTextBlock = ({
+  nodeId,
   tagline = "Crafted with Care",
   heading = "Quality You Can Feel",
   description = "We believe in creating products that stand the test of time. Each piece is carefully selected for its quality, design, and sustainability. Our commitment to excellence means you get only the best.",
@@ -205,7 +206,17 @@ export const ImageTextBlock = ({
   checkColor = "#10b981",
   layoutStyle = "image-left",
 }: ImageTextBlockProps) => {
-  const { id, connectors: { connect, drag } } = useNode();
+  const node = (() => {
+    try {
+      return useNode();
+    } catch (e) {
+      return null;
+    }
+  })();
+
+  const id = node?.id || nodeId;
+  const connectors = node?.connectors;
+
 
   const features = [feature1, feature2, feature3];
 
@@ -217,7 +228,12 @@ export const ImageTextBlock = ({
 
   return (
     <section
-      ref={(ref) => { if (ref) connect(drag(ref)); }}
+      ref={(ref) => {
+        if (ref && connectors?.connect && connectors?.drag) {
+          connectors.connect(connectors.drag(ref));
+        }
+      }}
+
       data-node-id={id}
       style={{
         width: "100%",

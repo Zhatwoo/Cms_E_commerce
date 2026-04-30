@@ -2,7 +2,8 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Editor, Frame, useEditor } from "@craftjs/core";
-import { ChevronLeft, ChevronRight, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, ChevronDown, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon, Megaphone, Briefcase, ShoppingBag } from "lucide-react";
 import { DesignTooltip } from "../DesignTooltip";
 import { GROUPED_TEMPLATES } from "../../../_assets";
 import { buildCraftResolver } from "../craftResolver";
@@ -42,10 +43,10 @@ import {
 // context that isn't available in the isolated preview Editor.
 const ProductCardPreviewStub = () => (
   <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
-    {[1,2,3,4,5].map((i) => (
+    {[1, 2, 3, 4, 5].map((i) => (
       <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 5 ? "1px solid #e5e7eb" : undefined, display: "flex", flexDirection: "column" }}>
         <div style={{ height: 180, background: "#e2e8f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
         <div style={{ padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
           <div style={{ height: 11, background: "#e2e8f0", borderRadius: 3, width: "75%" }} />
@@ -60,7 +61,7 @@ const ProductSliderPreviewStub = () => (
   <div style={{ width: 1440, background: "#f8fafc", padding: "24px", boxSizing: "border-box" }}>
     <div style={{ height: 16, background: "#e2e8f0", borderRadius: 4, width: 160, margin: "0 auto 16px" }} />
     <div style={{ display: "flex", gap: 12 }}>
-      {[1,2,3,4,5].map((i) => (
+      {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} style={{ flex: 1, background: "#ffffff", borderRadius: 6, border: "1px solid #e5e7eb", overflow: "hidden" }}>
           <div style={{ height: 140, background: "#e2e8f0" }} />
           <div style={{ padding: 8, display: "flex", flexDirection: "column", gap: 5 }}>
@@ -75,10 +76,10 @@ const ProductSliderPreviewStub = () => (
 );
 const ProductDescriptionCardPreviewStub = () => (
   <div style={{ width: 1440, display: "flex", background: "#f8fafc" }}>
-    {[1,2].map((i) => (
+    {[1, 2].map((i) => (
       <div key={i} style={{ flex: 1, background: "#ffffff", borderRight: i < 2 ? "1px solid #e5e7eb" : undefined, display: "flex" }}>
         <div style={{ width: "45%", background: "#e2e8f0", minHeight: 220, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="1.5"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
         </div>
         <div style={{ flex: 1, padding: "20px 18px", display: "flex", flexDirection: "column", gap: 8, justifyContent: "center" }}>
           <div style={{ height: 14, background: "#e2e8f0", borderRadius: 3, width: "85%" }} />
@@ -97,12 +98,12 @@ const ProductDescriptionCardPreviewStub = () => (
 const SAFE_CONTAINER: React.ComponentType<any> =
   (typeof Container === "function" ? Container : null) ??
   ((props: any) => {
-    const { 
+    const {
       background, paddingTop, paddingRight, paddingBottom, paddingLeft, padding,
       width, height, borderRadius, borderColor, borderWidth, borderStyle,
-      alignItems, justifyContent, flexDirection, flexWrap, gap, 
+      alignItems, justifyContent, flexDirection, flexWrap, gap,
       display, position, top, right, bottom, left, zIndex,
-      opacity, overflow, rotation, canvas, isFreeform, anchorPoints, ...domProps 
+      opacity, overflow, rotation, canvas, isFreeform, anchorPoints, ...domProps
     } = props;
 
     const style: React.CSSProperties = {
@@ -232,6 +233,20 @@ const NAVIGATION_ICON_LABELS = new Set([
 
 const ICON_GROUP_ORDER = ["Social", "Commerce", "Support", "Navigation", "Other"] as const;
 
+const FOLDER_GROUP_ORDER: Record<string, string[]> = {
+  Layout: ["Header", "Hero", "Footer"],
+  Marketing: ["CTA", "Features", "Stats"],
+  "Social Proof": ["Testimonials", "Logos", "Team"],
+  Business: ["Auth", "Team", "About", "Contact"],
+  Commerce: ["Products", "Showcase", "Categories"],
+  Utility: ["Helpers", "Shapes"],
+};
+
+const SHAPE_LABELS = new Set([
+  "circle", "square", "triangle", "rectangle", "diamond", "heart", "trapezoid",
+  "pentagon", "hexagon", "heptagon", "octagon", "nonagon", "decagon", "parallelogram", "kite",
+]);
+
 function classifyIconLabel(label: string): (typeof ICON_GROUP_ORDER)[number] {
   const normalized = label.replace(/\s*icon$/i, "").trim().toLowerCase();
   if (SOCIAL_ICON_LABELS.has(normalized)) return "Social";
@@ -241,26 +256,71 @@ function classifyIconLabel(label: string): (typeof ICON_GROUP_ORDER)[number] {
   return "Other";
 }
 
+function classifyFolderItem(folder: string, item: AssetItem): string {
+  const label = String(item?.label ?? "").trim().toLowerCase();
+
+  if (folder === "Layout") {
+    if (label.includes("header")) return "Header";
+    if (label.includes("hero")) return "Hero";
+    if (label.includes("footer")) return "Footer";
+    return "Other";
+  }
+
+  if (folder === "Marketing") {
+    if (label.includes("cta") || label.includes("newsletter")) return "CTA";
+    if (label.includes("feature") || label.includes("image text")) return "Features";
+    if (label.includes("stat")) return "Stats";
+    return "Other";
+  }
+
+  if (folder === "Social Proof") {
+    if (label.includes("testimonial")) return "Testimonials";
+    if (label.includes("logo") || label.includes("brand")) return "Logos";
+    if (label.includes("team")) return "Team";
+    return "Other";
+  }
+
+  if (folder === "Business") {
+    if (label.includes("login") || label.includes("profile")) return "Auth";
+    if (label.includes("team")) return "Team";
+    if (label.includes("image text")) return "About";
+    if (label.includes("newsletter") || label.includes("contact")) return "Contact";
+    return "Other";
+  }
+
+  if (folder === "Commerce") {
+    if (label.includes("category")) return "Categories";
+    if (label.includes("featured") || label.includes("overview") || label.includes("description")) return "Showcase";
+    if (label.includes("product") || label.includes("grid")) return "Products";
+    return "Other";
+  }
+
+  if (folder === "Utility") {
+    if (SHAPE_LABELS.has(label)) return "Shapes";
+    return "Helpers";
+  }
+
+  return "Other";
+}
+
 const ASSET_ICONS: Record<string, React.ReactNode> = {
-  Header: <Layout className="w-5 h-5" />,
-  Hero: <Star className="w-5 h-5" />,
-  Content: <FileText className="w-5 h-5" />,
-  Cards: <CreditCard className="w-5 h-5" />,
-  Forms: <FormInput className="w-5 h-5" />,
-  Footer: <PanelBottom className="w-5 h-5" />,
+  Layout: <Layout className="w-5 h-5" />,
+  Marketing: <Megaphone className="w-5 h-5" />,
+  "Social Proof": <Briefcase className="w-5 h-5" />,
+  Business: <Briefcase className="w-5 h-5" />,
+  Commerce: <ShoppingBag className="w-5 h-5" />,
+  Utility: <ShapesIcon className="w-5 h-5" />,
   Icons: <Smile className="w-5 h-5" />,
-  Shapes: <ShapesIcon className="w-5 h-5" />,
 };
 
 const ASSET_FOLDER_TOOLTIPS: Record<string, string> = {
-  Header: "Pre-built header templates — navigation bars and top menus",
-  Hero: "Hero sections — full-width banners with headlines and CTAs",
-  Content: "Content blocks — features, testimonials, stats, and CTAs",
-  Cards: "Card components — product, team member, and category cards",
-  Forms: "Form templates — login, signup, contact, and more",
-  Footer: "Pre-built footer templates — links, socials, and copyright",
+  Layout: "Headers, hero sections, and footer layouts for page structure",
+  Marketing: "Call-to-action, feature, and campaign-focused conversion blocks",
+  "Social Proof": "Testimonials, logos, and trust-building content blocks",
+  Business: "Business-oriented blocks like profile/login, team cards, and info sections",
+  Commerce: "Commerce blocks — product cards, showcases, and category layouts",
+  Utility: "Reusable helper blocks and shape elements for fast composition",
   Icons: "Icon library — drag icons onto your canvas",
-  Shapes: "Geometric shapes — circles, rectangles, and polygons",
 };
 
 const BASE_CRAFT_RESOLVER = buildCraftResolver();
@@ -337,6 +397,17 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   categoriescardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
   CategoriesCard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
   categoriescard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).CategoriesCardCanvas),
+  FeaturedProductCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  featuredproductcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  "Featured Product Canvas": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  FeaturedProduct: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  featuredproduct: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  "Featured Product": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FeaturedProductCanvas),
+  ProductDescriptionCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  productdescriptioncanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  ProductDescription: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  productdescription: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
+  "Product Description": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).ProductDescriptionCanvas),
   Rectangle: asComponent(Rectangle),
   rectangle: asComponent(Rectangle),
   Diamond: asComponent(Diamond),
@@ -361,6 +432,13 @@ const PREVIEW_RESOLVER: Record<string, React.ComponentType<any>> = withResolverF
   parallelogram: asComponent(Parallelogram),
   Kite: asComponent(Kite),
   kite: asComponent(Kite),
+  TeamMemberCardCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  teammembercardcanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  TeamMemberCard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  teammembercard: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  "Team Member Card": asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>)["Team Member Card"]),
+  FooterCanvas: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FooterCanvas),
+  footer: asComponent((BASE_CRAFT_RESOLVER as Record<string, unknown>).FooterCanvas),
 });
 
 export const AssetLivePreview = ({
@@ -458,6 +536,7 @@ export const AssetsPanel = () => {
   const [panelView, setPanelView] = useState<"folders" | "items">("folders");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<AssetSelection | null>(null);
+  const [openSubgroups, setOpenSubgroups] = useState<Record<string, boolean>>({});
 
   const activeGroup = useMemo(
     () => GROUPED_TEMPLATES.find((group) => group.folder === activeFolder) ?? null,
@@ -482,6 +561,66 @@ export const AssetsPanel = () => {
 
     return buckets;
   }, [activeGroup]);
+
+  const groupedFolderItems = useMemo(() => {
+    if (!activeGroup || isIconFolder(activeGroup.folder)) return null;
+    const order = FOLDER_GROUP_ORDER[activeGroup.folder];
+    if (!order?.length) return null;
+
+    const buckets: Record<string, Array<{ item: AssetItem; idx: number }>> = {
+      Other: [],
+    };
+    order.forEach((groupName) => {
+      buckets[groupName] = [];
+    });
+
+    activeGroup.items.forEach((item: AssetItem, idx: number) => {
+      const bucket = classifyFolderItem(activeGroup.folder, item);
+      if (!buckets[bucket]) buckets[bucket] = [];
+      buckets[bucket].push({ item, idx });
+    });
+
+    const orderedGroups = [...order, "Other"];
+    return { orderedGroups, buckets };
+  }, [activeGroup]);
+
+  useEffect(() => {
+    if (!activeGroup || !groupedFolderItems) return;
+
+    setOpenSubgroups((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      groupedFolderItems.orderedGroups.forEach((groupName, idx) => {
+        const key = `${activeGroup.folder}:${groupName}`;
+        if (typeof next[key] !== "boolean") {
+          next[key] = false;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [activeGroup, groupedFolderItems]);
+
+  useEffect(() => {
+    if (!activeGroup || !groupedIconItems || !isIconFolder(activeGroup.folder)) return;
+
+    setOpenSubgroups((prev) => {
+      const next = { ...prev };
+      let changed = false;
+
+      ICON_GROUP_ORDER.forEach((groupName, idx) => {
+        const key = `${activeGroup.folder}:${groupName}`;
+        if (typeof next[key] !== "boolean") {
+          next[key] = false;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [activeGroup, groupedIconItems]);
 
   useEffect(() => {
     if (!activeGroup) {
@@ -510,7 +649,7 @@ export const AssetsPanel = () => {
           <div className="grid grid-cols-1 gap-2">
             {GROUPED_TEMPLATES.map((group) => (
               <DesignTooltip key={`tooltip-${group.folder}`} content={ASSET_FOLDER_TOOLTIPS[group.folder] || group.folder} position="right">
-                <button
+                <motion.button
                   key={group.folder}
                   type="button"
                   onClick={() => {
@@ -518,20 +657,24 @@ export const AssetsPanel = () => {
                     setPanelView("items");
                     setSelectedAsset(null);
                   }}
+                  whileHover={{ scale: 1.004 }}
+                  whileTap={{ scale: 0.985 }}
+                  transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                  style={{ willChange: "transform" }}
                   className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
                 >
-                <div className="flex h-full items-center p-2.5 gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
-                    {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div className="text-sm font-semibold text-[var(--builder-text)] group-hover:translate-x-1 transition-transform">
-                      {group.folder}
+                  <div className="flex h-full items-center p-2.5 gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
+                      {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
                     </div>
+                    <div className="flex-1 text-left">
+                      <div className="text-sm font-semibold text-[var(--builder-text)] group-hover:translate-x-1 transition-transform">
+                        {group.folder}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
-                </div>
-                </button>
+                </motion.button>
               </DesignTooltip>
             ))}
           </div>
@@ -564,21 +707,27 @@ export const AssetsPanel = () => {
                 const renderAssetCard = (item: AssetItem, idx: number) => {
                   const assetKey = buildAssetKey(activeGroup.folder, item.label, idx);
                   const isSelected = selectedAsset?.key === assetKey;
+                  const normalizedLabel = String(item.label ?? "").trim().toLowerCase();
+                  const itemIsShape = shapeFolder || (activeGroup.folder === "Utility" && SHAPE_LABELS.has(normalizedLabel));
 
                   return (
                     <DesignTooltip key={`tooltip-${assetKey}`} content="Drag to add to canvas" position="right">
-                      <div
+                      <motion.div
                         key={assetKey}
                         data-drag-source="asset"
                         data-asset-category={item.category}
                         data-asset-label={item.label}
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                        style={{ willChange: "transform" }}
                         ref={(ref) => {
                           if (!ref || !item?.element) return;
 
                           const dragElement = iconFolder
                             ? React.cloneElement(item.element as React.ReactElement<any>, {
-                                color: "#000000",
-                              })
+                              color: "#000000",
+                            })
                             : item.element;
 
                           connectors.create(ref, dragElement);
@@ -611,57 +760,70 @@ export const AssetsPanel = () => {
                         className={`group bg-[var(--builder-surface-2)] p-3 rounded-xl hover:bg-[var(--builder-surface-3)] transition-all border cursor-move shadow-sm ${isSelected ? "border-[var(--builder-accent)] bg-[var(--builder-surface-3)]" : "border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]"
                           }`}
                       >
-                      <div className="flex flex-col gap-2">
-                        {!iconFolder && (
-                          <div className="flex items-center justify-between gap-2 mb-1">
-                            <div className="text-sm text-[var(--builder-text)] font-medium leading-tight line-clamp-1">
-                              {item?.label ?? ""}
+                        <div className="flex flex-col gap-2">
+                          {!iconFolder && (
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                              <div className="text-sm text-[var(--builder-text)] font-medium leading-tight line-clamp-1">
+                                {item?.label ?? ""}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                        <div className="flex items-center justify-center">
-                          {(item.label === "Product Card" || item.label === "Product Description Card") ? (
-                            <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
-                              {item.label === "Product Card" ? (
-                                <div style={{ display: "flex", height: "100%", gap: 1 }}>
-                                  {[1,2,3].map((i) => (
-                                    <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
-                                      <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                      </div>
-                                      <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
-                                        <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
-                                        <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
-                                        <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <div style={{ display: "flex", height: "100%" }}>
-                                  <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
-                                  </div>
-                                  <div style={{ flex: 1, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 5, justifyContent: "center", background: "var(--builder-surface-2)" }}>
-                                    <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "85%" }} />
-                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2 }} />
-                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "90%" }} />
-                                    <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "70%" }} />
-                                    <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "40%", marginTop: 2 }} />
-                                    <div style={{ height: 14, border: "1px solid var(--builder-border-mid)", borderRadius: 3 }} />
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          ) : (
-                            <AssetLivePreview
-                              item={item}
-                              previewMode={iconFolder ? "icon" : shapeFolder ? "shape" : "full"}
-                            />
                           )}
+                          <div className="flex items-center justify-center">
+                            {(item.label === "Product Card" || item.label === "Product Description Card" || item.label === "Product Slider") ? (
+                              <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
+                                {item.label === "Product Card" ? (
+                                  <div style={{ display: "flex", height: "100%", gap: 1 }}>
+                                    {[1, 2, 3].map((i) => (
+                                      <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
+                                        <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                                        </div>
+                                        <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
+                                          <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
+                                          <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "55%" }} />
+                                          <div style={{ height: 10, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.3 }} />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : item.label === "Product Slider" ? (
+                                  <div style={{ display: "flex", height: "100%", gap: 2, padding: "8px", boxSizing: "border-box", background: "var(--builder-surface-2)" }}>
+                                    {[1, 2, 3].map((i) => (
+                                      <div key={i} style={{ flex: 1, background: "var(--builder-surface-3)", borderRadius: 4, border: "1px solid var(--builder-border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                                        <div style={{ flex: 1, background: "var(--builder-border)", opacity: 0.5 }} />
+                                        <div style={{ padding: "4px", display: "flex", flexDirection: "column", gap: 2 }}>
+                                          <div style={{ height: 3, background: "var(--builder-border-mid)", borderRadius: 1, width: "70%" }} />
+                                          <div style={{ height: 3, background: "var(--builder-border)", borderRadius: 1, width: "40%" }} />
+                                          <div style={{ height: 8, background: "var(--builder-text-faint)", borderRadius: 2, opacity: 0.2 }} />
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", height: "100%" }}>
+                                    <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                                    </div>
+                                    <div style={{ flex: 1, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 5, justifyContent: "center", background: "var(--builder-surface-2)" }}>
+                                      <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "85%" }} />
+                                      <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2 }} />
+                                      <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "90%" }} />
+                                      <div style={{ height: 4, background: "var(--builder-border)", borderRadius: 2, width: "70%" }} />
+                                      <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "40%", marginTop: 2 }} />
+                                      <div style={{ height: 14, border: "1px solid var(--builder-border-mid)", borderRadius: 3 }} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <AssetLivePreview
+                                item={item}
+                                previewMode={iconFolder ? "icon" : itemIsShape ? "shape" : "full"}
+                              />
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      </div>
+                      </motion.div>
                     </DesignTooltip>
                   );
                 };
@@ -672,13 +834,83 @@ export const AssetsPanel = () => {
                       {ICON_GROUP_ORDER.map((groupName) => {
                         const items = groupedIconItems[groupName];
                         if (!items.length) return null;
+                        const subgroupKey = `${activeGroup.folder}:${groupName}`;
+                        const isOpen = openSubgroups[subgroupKey] ?? false;
                         return (
-                          <div key={groupName} className="space-y-2">
-                            <div className="px-0.5 text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
-                              {groupName}
+                          <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
+                            <motion.button
+                              type="button"
+                              onClick={() => {
+                                setOpenSubgroups((prev) => ({
+                                  ...prev,
+                                  [subgroupKey]: !isOpen,
+                                }));
+                              }}
+                              whileHover={{ scale: 1.002 }}
+                              whileTap={{ scale: 0.99 }}
+                              transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                              style={{ willChange: "transform" }}
+                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
+                            >
+                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                                {groupName}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                              </div>
+                            </motion.button>
+
+                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
+                              <div className="grid grid-cols-4 gap-2">
+                                {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                              </div>
                             </div>
-                            <div className="grid grid-cols-4 gap-2">
-                              {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                }
+
+                if (groupedFolderItems) {
+                  return (
+                    <div className="space-y-4 p-0.5">
+                      {groupedFolderItems.orderedGroups.map((groupName) => {
+                        const items = groupedFolderItems.buckets[groupName] || [];
+                        if (!items.length) return null;
+                        const shapeSection = activeGroup.folder === "Utility" && groupName === "Shapes";
+                        const subgroupKey = `${activeGroup.folder}:${groupName}`;
+                        const isOpen = openSubgroups[subgroupKey] ?? false;
+                        return (
+                          <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
+                            <motion.button
+                              type="button"
+                              onClick={() => {
+                                setOpenSubgroups((prev) => ({
+                                  ...prev,
+                                  [subgroupKey]: !isOpen,
+                                }));
+                              }}
+                              whileHover={{ scale: 1.002 }}
+                              whileTap={{ scale: 0.99 }}
+                              transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+                              style={{ willChange: "transform" }}
+                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
+                            >
+                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                                {groupName}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                              </div>
+                            </motion.button>
+
+                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
+                              <div className={`grid gap-2 ${shapeSection ? "grid-cols-2" : "grid-cols-1"}`}>
+                                {items.map(({ item, idx }) => renderAssetCard(item, idx))}
+                              </div>
                             </div>
                           </div>
                         );

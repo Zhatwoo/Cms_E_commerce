@@ -273,6 +273,14 @@ function uniqueNonEmpty(values: string[]): string[] {
 
 const FALLBACK_INDUSTRY = "clothing-apparel";
 
+const SpacingRow = ({ children }: { children: React.ReactNode }) => (
+  <div className="flex items-center gap-2 mb-2">{children}</div>
+);
+
+const SpacingLabel = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
 export function CategoriesCardCanvas() {
   const {
     connectors,
@@ -280,12 +288,30 @@ export function CategoriesCardCanvas() {
     layoutMode,
     categoryMode,
     selectedCategories,
+    position,
+    top,
+    left,
+    right,
+    bottom,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
     actions: { setProp },
   } = useNode((node) => ({
     headingText: node.data.props.headingText as string,
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
     categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
     selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
+    position: node.data.props.position as string | undefined,
+    top: node.data.props.top as string | undefined,
+    left: node.data.props.left as string | undefined,
+    right: node.data.props.right as string | undefined,
+    bottom: node.data.props.bottom as string | undefined,
+    paddingTop: (node.data.props.paddingTop as number | undefined) ?? 12,
+    paddingRight: (node.data.props.paddingRight as number | undefined) ?? 12,
+    paddingBottom: (node.data.props.paddingBottom as number | undefined) ?? 12,
+    paddingLeft: (node.data.props.paddingLeft as number | undefined) ?? 12,
   }));
   const { projectIndustry, projectSubdomain } = useDesignProject();
   const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
@@ -362,7 +388,18 @@ export function CategoriesCardCanvas() {
       ref={(ref) => {
         if (ref) connectors.connect(connectors.drag(ref));
       }}
-      className="w-full box-border bg-[#f9fafb] px-2 py-3 sm:px-3 lg:px-4"
+      className="w-full box-border bg-[#f9fafb]"
+      style={{
+        position: position as any,
+        top: top ?? undefined,
+        left: left ?? undefined,
+        right: right ?? undefined,
+        bottom: bottom ?? undefined,
+        paddingTop,
+        paddingRight,
+        paddingBottom,
+        paddingLeft,
+      }}
     >
       <div className="flex w-full flex-wrap items-center justify-between gap-2">
         <h3
@@ -444,16 +481,59 @@ export function CategoriesCardCanvas() {
   );
 }
 
-export const CategoriesCardSettings = () => {
+const Row = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`flex items-center gap-2 mb-2 ${className}`}>{children}</div>
+);
+
+const Label = ({ children }: { children: React.ReactNode }) => (
+  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+);
+
+export const AlignButtons = ({
+  value,
+  onChange,
+}: {
+  value: "left" | "center" | "right";
+  onChange: (v: "left" | "center" | "right") => void;
+}) => (
+  <div className="flex gap-1">
+    {(["left", "center", "right"] as const).map((a) => (
+      <button
+        key={a}
+        type="button"
+        onClick={() => onChange(a)}
+        className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
+          value === a
+            ? "bg-[var(--builder-accent)] text-white"
+            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+        }`}
+      >
+        {a[0].toUpperCase()}
+      </button>
+    ))}
+  </div>
+);
+
+const CategoriesCardSettings = () => {
   const {
     layoutMode,
     categoryMode,
     selectedCategories,
+    paddingTop,
+    paddingRight,
+    paddingBottom,
+    paddingLeft,
+    headerAlign,
     actions: { setProp },
   } = useNode((node) => ({
     layoutMode: (node.data.props.layoutMode as CategoriesCardLayoutMode | undefined) || "auto",
     categoryMode: (node.data.props.categoryMode as CategoriesCardSourceMode | undefined) || "auto",
     selectedCategories: (node.data.props.selectedCategories as string[] | undefined) || [],
+    paddingTop: (node.data.props.paddingTop as number | undefined) ?? 12,
+    paddingRight: (node.data.props.paddingRight as number | undefined) ?? 12,
+    paddingBottom: (node.data.props.paddingBottom as number | undefined) ?? 12,
+    paddingLeft: (node.data.props.paddingLeft as number | undefined) ?? 12,
+    headerAlign: (node.data.props.headerAlign as "left" | "center" | "right" | undefined) || "left",
   }));
   const { projectIndustry, projectSubdomain } = useDesignProject();
   const [productSubcategories, setProductSubcategories] = React.useState<string[]>([]);
@@ -548,6 +628,24 @@ export const CategoriesCardSettings = () => {
             );
           })}
         </div>
+
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">Spacing</p>
+        <SpacingRow>
+          <SpacingLabel>Top</SpacingLabel>
+          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: { paddingTop?: number }) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </SpacingRow>
+        <SpacingRow>
+          <SpacingLabel>Right</SpacingLabel>
+          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: { paddingRight?: number }) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </SpacingRow>
+        <SpacingRow>
+          <SpacingLabel>Bottom</SpacingLabel>
+          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: { paddingBottom?: number }) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </SpacingRow>
+        <SpacingRow>
+          <SpacingLabel>Left</SpacingLabel>
+          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: { paddingLeft?: number }) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+        </SpacingRow>
       </DesignSection>
 
       <DesignSection title="Categories" defaultOpen>
@@ -680,6 +778,13 @@ export const CategoriesCardSettings = () => {
         )}
       </DesignSection>
 
+      <DesignSection title="Layout" defaultOpen={false}>
+        <Row>
+          <Label>Header Align</Label>
+          <AlignButtons value={headerAlign || "left"} onChange={(v) => setProp((p: { headerAlign?: string }) => { p.headerAlign = v; })} />
+        </Row>
+      </DesignSection>
+
     </div>
   );
 };
@@ -691,6 +796,13 @@ CategoriesCardCanvas.craft = {
     layoutMode: "auto",
     categoryMode: "auto",
     selectedCategories: [],
+    position: "absolute",
+    top: "0px",
+    left: "0px",
+    paddingTop: 12,
+    paddingRight: 12,
+    paddingBottom: 12,
+    paddingLeft: 12,
   },
   related: {
     settings: CategoriesCardSettings,

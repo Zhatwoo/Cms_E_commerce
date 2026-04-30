@@ -2,10 +2,30 @@
 
 import React from "react";
 import { Element } from "@craftjs/core";
+import { useNode } from "@craftjs/core";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { Image } from "../../../design/_designComponents/Image/Image";
-import { Section } from "../../../design/_designComponents/Section/Section";
+import { Container } from "../../../design/_designComponents/Container/Container";
 import { TemplateEntry } from "../../_types";
+
+import { ContainerSettings } from "../../../design/_designComponents/Container/ContainerSettings";
+import { ContainerDefaultProps } from "../../../design/_designComponents/Container/Container";
+
+export const TeamMemberCardComp = ({ children, ...props }: any) => {
+  return (
+    <Container {...props}>
+      {children}
+    </Container>
+  );
+};
+
+(TeamMemberCardComp as any).craft = {
+  displayName: "Team Member Card",
+  props: ContainerDefaultProps,
+  related: {
+    settings: ContainerSettings,
+  },
+};
 
 export const TeamMemberCard: TemplateEntry = {
   label: "Team Member Card",
@@ -13,64 +33,69 @@ export const TeamMemberCard: TemplateEntry = {
   preview: "👥",
   category: "card",
   element: React.createElement(
-    Element as any,
+    Element,
     {
-      is: Section as any,
+      is: TeamMemberCardComp,
       canvas: true,
       background: "#ffffff",
-      width: "min(calc(50% - 8px), 240px)",
-      flexShrink: 0,
-      paddingTop: 28,
-      paddingBottom: 28,
-      paddingLeft: 20,
-      paddingRight: 20,
-      borderRadius: 12,
-      boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)",
+      width: "280px",
+      height: "auto",
+      paddingTop: 32,
+      paddingBottom: 32,
+      paddingLeft: 24,
+      paddingRight: 24,
+      borderRadius: 20,
+      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)",
       borderWidth: 1,
-      borderColor: "#e5e7eb",
+      borderColor: "#f1f5f9",
       borderStyle: "solid",
       flexDirection: "column",
       alignItems: "center",
-      gap: 10,
+      justifyContent: "center",
+      gap: 16,
     },
-
-    // Avatar
     React.createElement(Image as any, {
-      src: "",
-      alt: "Team Member Avatar",
-      width: "80px",
-      height: "80px",
+      src: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&q=80&w=200&h=200",
+      alt: "Team Member",
+      width: "96px",
+      height: "96px",
       objectFit: "cover",
-      borderRadius: 50,
-      allowUpload: true,
+      borderRadius: 9999,
+      marginBottom: 0,
+      marginTop: 0,
     }),
-
-    // Name
     React.createElement(Text as any, {
       text: "John Doe",
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: "700",
-      color: "#1e293b",
+      color: "#0f172a",
       textAlign: "center",
+      width: "auto",
+      marginTop: 0,
+      marginBottom: 0,
     }),
-
-    // Role
     React.createElement(Text as any, {
       text: "Web Developer",
-      fontSize: 13,
+      fontSize: 14,
       fontWeight: "600",
       color: "#3b82f6",
       textAlign: "center",
+      width: "auto",
+      marginTop: 0,
+      marginBottom: 0,
     }),
-
-    // Bio
     React.createElement(Text as any, {
-      text: "Passionate about creating beautiful websites.",
-      fontSize: 12,
+      text: "Passionate about creating beautiful and functional user experiences.",
+      fontSize: 14,
       fontWeight: "400",
       color: "#64748b",
       textAlign: "center",
+      width: "100%",
       lineHeight: 1.6,
+      marginTop: 0,
+      marginBottom: 0,
     })
   ),
 };
+
+export default TeamMemberCard;

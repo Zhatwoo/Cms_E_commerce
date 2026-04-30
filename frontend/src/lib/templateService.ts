@@ -4,6 +4,7 @@ export interface Template {
   id: string;
   name: string;
   title: string; // For backward compatibility
+  sourceProjectId?: string;
   category: string;
   description: string;
   desc: string; // For backward compatibility  
@@ -16,6 +17,13 @@ export interface Template {
   isBuiltIn: boolean;
   username?: string;
   domainName?: string;
+}
+
+export const TEMPLATE_LIBRARY_CHANGED_EVENT = 'template-library:changed';
+
+function emitTemplateLibraryChanged() {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new CustomEvent(TEMPLATE_LIBRARY_CHANGED_EVENT));
 }
 
 class TemplateService {
@@ -91,7 +99,13 @@ class TemplateService {
    * @param description - Template description
    * @param content - Optional: current design JSON (Craft or clean format). If not provided, falls back to sessionStorage 'craftjs_preview_json'.
    */
-  saveTemplate(name: string, category: string, description: string, content?: string | null): Template | null {
+  saveTemplate(
+    name: string,
+    category: string,
+    description: string,
+    content?: string | null,
+    sourceProjectId?: string
+  ): Template | null {
     if (typeof window === 'undefined') return null;
 
     // Use provided content (e.g. from preview page) or fall back to sessionStorage
@@ -115,6 +129,7 @@ class TemplateService {
         id: `template-${Date.now()}`,
         name,
         title: name,
+        sourceProjectId: (sourceProjectId || '').trim() || undefined,
         category,
         description,
         desc: description,
@@ -133,6 +148,7 @@ class TemplateService {
       // Add new template
       userTemplates.push(template);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(userTemplates));
+      emitTemplateLibraryChanged();
 
       return template;
     } catch (error) {
@@ -219,6 +235,7 @@ class TemplateService {
       const userTemplates = JSON.parse(existing);
       const filtered = userTemplates.filter((t: Template) => t.id !== id);
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(filtered));
+      emitTemplateLibraryChanged();
       return true;
     } catch {
       return false;

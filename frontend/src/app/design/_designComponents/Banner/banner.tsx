@@ -66,6 +66,7 @@ export const Banner = ({
 	customClassName = "",
 	textDecoration = "none",
 	editorVisibility = "auto",
+	isFreeform,
 	children,
 	}: BannerProps) => {
 	const {
@@ -126,8 +127,9 @@ export const Banner = ({
 	const resolvedText = typeof text === "string" ? text : "FLASH SALE: Up to 70% off - Use code SAVE70";
 	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
 	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
-	const effectiveDisplay =
-		editorVisibility === "hide"
+	const effectiveDisplay = isFreeform
+		? "block"
+		: editorVisibility === "hide"
 			? "none"
 			: editorVisibility === "show" && display === "none"
 				? "flex"

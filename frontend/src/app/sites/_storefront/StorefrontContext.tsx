@@ -26,6 +26,9 @@ type StorefrontContextValue = {
   openCart: () => void;
   closeCart: () => void;
   cartOpen: boolean;
+  showAddToCartSuccess: boolean;
+  setShowAddToCartSuccess: (open: boolean) => void;
+  lastAddedProduct: { name: string; image?: string } | null;
 };
 
 const StorefrontContext = createContext<StorefrontContextValue | null>(null);
@@ -62,6 +65,8 @@ export function StorefrontProvider({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [lastAddedAt, setLastAddedAt] = useState(0);
+  const [showAddToCartSuccess, setShowAddToCartSuccess] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState<{ name: string; image?: string } | null>(null);
 
   useEffect(() => {
     setCart(loadCart(subdomain));
@@ -83,6 +88,8 @@ export function StorefrontProvider({
         return [...prev, { ...product, quantity: qty }];
       });
       setLastAddedAt(Date.now());
+      setLastAddedProduct({ name: product.name, image: product.image });
+      setShowAddToCartSuccess(true);
     },
     []
   );
@@ -123,6 +130,9 @@ export function StorefrontProvider({
     openCart: () => setCartOpen(true),
     closeCart: () => setCartOpen(false),
     cartOpen,
+    showAddToCartSuccess,
+    setShowAddToCartSuccess,
+    lastAddedProduct,
   };
 
   return (

@@ -77,7 +77,7 @@ export default function NotificationsPage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className={`admin-dashboard-panel space-y-8 rounded-[32px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-10 shadow-[0_10px_26px_rgba(123,78,192,0.15)] ${loading ? "animate-pulse" : ""}`}
+						className={`admin-dashboard-panel space-y-8 rounded-[32px] border border-[rgba(177,59,255,0.16)] bg-white p-10 shadow-[0_14px_32px_rgba(123,78,192,0.10)] ${loading ? "animate-pulse" : ""}`}
 					>
 						<motion.div
 							initial={{ opacity: 0, y: 10 }}
@@ -91,11 +91,11 @@ export default function NotificationsPage() {
 
 							<div className="space-y-6">
 								{rows.map((row) => (
-									<div key={row.id} className="group relative overflow-hidden rounded-[24px] border border-[rgba(166,61,255,0.12)] bg-white/60 px-8 py-8 shadow-sm transition-all duration-300 hover:bg-white/80 hover:shadow-md">
+									<div key={row.id} className="group relative overflow-hidden rounded-[24px] border border-[rgba(166,61,255,0.14)] bg-white px-8 py-8 shadow-sm transition-all duration-300 hover:shadow-md">
 										<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
 											<div className="flex-1 space-y-1">
 												<h3 className="text-lg font-bold text-[#4a1a8a]">{row.title}</h3>
-												<p className="text-[13px] leading-relaxed font-medium text-[#7a6aa0] opacity-80 max-w-lg">{row.description}</p>
+												<p className="max-w-lg text-sm font-medium leading-relaxed text-[#7a6aa0] opacity-80">{row.description}</p>
 											</div>
 											
 											<div className="flex items-center gap-4">

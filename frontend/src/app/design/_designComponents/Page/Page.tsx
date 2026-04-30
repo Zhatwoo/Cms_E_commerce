@@ -2,23 +2,44 @@
 
 import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
-import type { Node } from "@craftjs/core";
+import type { Node, NodeHelper } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
 import type { PageProps } from "../../_types";
-import { slugFromName } from "../../_lib/slug";
 
-/** Helper type: (nodeId) => { ancestors(), get() } - used by Craft.js in rules */
-type NodeHelper = (nodeId: string) => { ancestors: () => string[]; get: () => Node | null };
+// Global mouse tracker for safe zone enforcement in Craft.js rules
+const mousePos = { x: 0, y: 0 };
+if (typeof window !== "undefined") {
+  window.addEventListener("mousemove", (e) => {
+    mousePos.x = e.clientX;
+    mousePos.y = e.clientY;
+  }, { passive: true });
+}
+import { slugFromName } from "../../_lib/slug";
 
 export const Page = ({
   children,
   width = "1440px",
   height = "900px",
   background = "#ffffff",
+  backgroundImage = "",
+  backgroundSize = "cover",
+  backgroundPosition = "center",
+  backgroundRepeat = "no-repeat",
+  backgroundOverlay = "",
   pageRotation = 0,
   canvasX = 0,
   canvasY = 0,
-  pageName = "Page Name",
+  pageName = "",
+  flexDirection = "column",
+  flexWrap = "nowrap",
+  alignItems = "flex-start",
+  justifyContent = "flex-start",
+  gap = 0,
+  display = "block",
+  isFreeform = true,
+  editorVisibility = "auto",
+  justifyItems = "stretch",
+  alignContent = "flex-start",
 }: PageProps) => {
   const { id, connectors: { connect, drag }, actions: { setProp } } = useNode();
   const [editing, setEditing] = useState(false);
@@ -58,21 +79,38 @@ export const Page = ({
   const isMobile = w > 0 && w <= 640;
   const isTablet = w > 640 && w <= 1100; // Expanded tablet range for safety
 
+  const effectiveDisplay =
+    editorVisibility === "hide"
+      ? "none"
+      : editorVisibility === "show" && display === "none"
+        ? "block"
+        : display;
+
   return (
     <div
       data-node-id={id}
       data-page-node="true"
       ref={ref => { if (ref) connect(ref); }}
-      className={`rounded-lg shadow-xl relative min-h-[600px] transition-[outline] duration-150 ${isMobile ? "is-mobile-view" : ""} ${isTablet ? "is-tablet-view" : ""}`}
+      className={`no-scrollbar rounded-lg shadow-xl relative transition-[outline] duration-150 ${isMobile ? "is-mobile-view" : ""} ${isTablet ? "is-tablet-view" : ""}`}
       style={{
         position: "absolute",
         left: `${canvasX}px`,
         top: `${canvasY}px`,
         width,
         height: height === "auto" ? "auto" : height,
-        minHeight: "800px",
-        backgroundColor: background,
-        overflow: "hidden",
+        minHeight: height === "auto" ? "900px" : height,
+        background: (() => {
+          if (backgroundImage && backgroundImage.trim()) {
+            const overlayLayer = backgroundOverlay && backgroundOverlay !== "transparent"
+              ? `linear-gradient(${backgroundOverlay}, ${backgroundOverlay}), `
+              : "";
+            const imageLayer = `url(${backgroundImage}) ${backgroundPosition} / ${backgroundSize} ${backgroundRepeat}`;
+            return `${overlayLayer}${imageLayer}${background ? `, ${background}` : ""}`;
+          }
+          return background;
+        })(),
+        overflowX: height === "auto" ? "visible" : "hidden",
+        overflowY: height === "auto" ? "visible" : "hidden",
         transform: Number.isFinite(pageRotation) && pageRotation !== 0 ? `rotate(${pageRotation}deg)` : undefined,
         transformOrigin: "center center",
         transition: "transform 220ms ease-out, width 220ms ease-out",
@@ -160,7 +198,26 @@ export const Page = ({
           ` : ""}
         `
       }} />
-      <div className={`frame-responsive-inner frame-fluid h-full w-full ${isMobile ? "frame-mobile" : ""} ${isTablet ? "frame-tablet" : ""}`}>
+      <div 
+        className={`frame-responsive-inner frame-fluid h-full w-full ${isMobile ? "frame-mobile" : ""} ${isTablet ? "frame-tablet" : ""}`}
+        style={{
+          display: isFreeform ? "block" : effectiveDisplay,
+          flexDirection: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? flexDirection : undefined,
+          flexWrap: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? flexWrap : undefined,
+          alignItems: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? alignItems : undefined,
+          justifyContent: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? justifyContent : undefined,
+          gridTemplateColumns: !isFreeform && effectiveDisplay === "grid" ? gridTemplateColumns : undefined,
+          gridTemplateRows: !isFreeform && effectiveDisplay === "grid" ? gridTemplateRows : undefined,
+          gridGap: !isFreeform && effectiveDisplay === "grid" ? `${gridGap}px` : undefined,
+          gridColumnGap: !isFreeform && effectiveDisplay === "grid" ? (gridColumnGap !== undefined ? `${gridColumnGap}px` : undefined) : undefined,
+          gridRowGap: !isFreeform && effectiveDisplay === "grid" ? (gridRowGap !== undefined ? `${gridRowGap}px` : undefined) : undefined,
+          gridAutoRows: !isFreeform && effectiveDisplay === "grid" ? gridAutoRows : undefined,
+          gridAutoFlow: !isFreeform && effectiveDisplay === "grid" ? gridAutoFlow : undefined,
+          justifyItems: !isFreeform && effectiveDisplay === "grid" ? justifyItems : undefined,
+          alignContent: !isFreeform && effectiveDisplay === "grid" ? alignContent : undefined,
+          gap: !isFreeform && (effectiveDisplay === "flex" || effectiveDisplay === "inline-flex") ? `${gap}px` : undefined,
+        }}
+      >
         {/* Page Name Label - Hidden on Mobile/Tablet */}
         {!isMobile && !isTablet && (
           <div
@@ -207,12 +264,34 @@ export const Page = ({
 
 export const PageDefaultProps: Partial<PageProps> = {
   width: "1440px",
-  height: "900px",
+  height: "auto",
   background: "#ffffff",
+  backgroundImage: "",
+  backgroundSize: "cover",
+  backgroundPosition: "center",
+  backgroundRepeat: "no-repeat",
+  backgroundOverlay: "",
   pageRotation: 0,
   canvasX: 0,
   canvasY: 0,
-  pageName: "Page Name",
+  pageName: "",
+  flexDirection: "column",
+  flexWrap: "nowrap",
+  alignItems: "flex-start",
+  justifyContent: "flex-start",
+  gap: 0,
+  display: "block",
+  isFreeform: true,
+  editorVisibility: "auto",
+  gridTemplateColumns: "1fr 1fr",
+  gridTemplateRows: "auto",
+  gridGap: 0,
+  gridColumnGap: 0,
+  gridRowGap: 0,
+  gridAutoRows: "auto",
+  gridAutoFlow: "row",
+  justifyItems: "stretch",
+  alignContent: "flex-start",
 };
 
 Page.craft = {
@@ -221,17 +300,31 @@ Page.craft = {
   rules: {
     canDrag: () => true,
     canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelper) => {
+      // 1. SAFE ZONE ENFORCEMENT: Block insertion if mouse is outside the page (for fixed height)
+      if (currentNode.data.props.height !== "auto") {
+        try {
+          const dom = helper(currentNode.id).get().dom;
+          if (dom) {
+            const rect = dom.getBoundingClientRect();
+            // Add a small 10px buffer for better UX
+            const buffer = 10;
+            if (
+              mousePos.x < rect.left - buffer || 
+              mousePos.x > rect.right + buffer || 
+              mousePos.y < rect.top - buffer || 
+              mousePos.y > rect.bottom + buffer
+            ) {
+              return false;
+            }
+          }
+        } catch (e) {
+          // Fallback if DOM is not ready
+        }
+      }
+
+      // 2. Prevent nesting Pages or Viewports
       for (const node of incomingNodes) {
         if (node.data.displayName === "Page" || node.data.displayName === "Viewport") return false;
-        try {
-          const ancestorIds = helper(node.id).ancestors();
-          for (const aid of ancestorIds) {
-            const an = helper(aid).get();
-            if (an?.data?.displayName === "Page" && aid !== currentNode.id) return false;
-          }
-        } catch {
-          // New node from panel may not be in tree yet — allow
-        }
       }
       return true;
     },

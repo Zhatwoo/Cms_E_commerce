@@ -14,6 +14,8 @@ import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbn
 import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
+import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
+import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
@@ -54,14 +56,14 @@ const DASHBOARD_TABS = [
 type HeroTab = 'designs' | 'templates';
 
 function formatLastEdited(dateStr?: string) {
-  if (!dateStr) return 'Last edited recently';
+  if (!dateStr) return 'Last activity recently';
   const date = new Date(dateStr);
   const now = new Date();
   const diffMs = Math.max(0, now.getTime() - date.getTime());
   const hours = Math.floor(diffMs / 3600000);
   const days = Math.floor(diffMs / 86400000);
-  if (hours < 24) return `Last edited ${hours} hour${hours === 1 ? '' : 's'} ago`;
-  return `Last edited ${days || 1} day${days === 1 ? '' : 's'} ago`;
+  if (hours < 24) return `Last activity ${hours} hour${hours === 1 ? '' : 's'} ago`;
+  return `Last activity ${days || 1} day${days === 1 ? '' : 's'} ago`;
 }
 
 function formatEditedDate(dateStr?: string) {
@@ -86,6 +88,10 @@ function toWorkspaceLabel(project?: Project | null) {
     .toUpperCase();
 }
 
+function isTemplateProject(project?: Project | null) {
+  return String(project?.status || '').trim().toLowerCase() === 'template';
+}
+
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
@@ -103,6 +109,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -130,7 +137,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       return bDate - aDate;
     });
     setAllProjects(sorted);
-    setRecentProjects(sorted.slice(0, 3));
+    setRecentProjects(sorted.filter((project) => !isTemplateProject(project)).slice(0, 3));
     setActiveProjectIndex(0);
     setIsSliderTransitionEnabled(true);
     setShowAllOtherProjects(false);
@@ -152,15 +159,45 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return () => document.removeEventListener('click', closeMenu);
   }, [openProjectMenuId]);
 
+  useEffect(() => {
+    const refreshFromLibrary = () => {
+      void refreshProjects?.();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshFromLibrary();
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        refreshFromLibrary();
+      }
+    }, 15000);
+
+    window.addEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
+    window.addEventListener('focus', refreshFromLibrary);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
+      window.removeEventListener('focus', refreshFromLibrary);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [refreshProjects]);
+
   const projectCount = recentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
   const featuredProject = recentProjects[displayProjectIndex] ?? null;
   const carouselProjects = projectCount > 1 ? [...recentProjects, recentProjects[0]] : recentProjects;
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
   const recentProjectIds = new Set(recentProjects.map((project) => project.id));
-  const otherProjects = allProjects.length > 3 && !showAllOtherProjects
-    ? allProjects.filter((project) => !recentProjectIds.has(project.id))
-    : allProjects;
+  const designProjects = allProjects.filter((project) => !isTemplateProject(project));
+  const otherProjects = designProjects.length > 3 && !showAllOtherProjects
+    ? designProjects.filter((project) => !recentProjectIds.has(project.id))
+    : designProjects;
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
@@ -287,6 +324,72 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return INDUSTRY_CONFIG[(foundKey || 'creative') as keyof typeof INDUSTRY_CONFIG].icon;
   };
 
+  const handleApplyTemplate = async (templateProjectId: string) => {
+    if (!selectedProject?.id) {
+      showAlert('Select a destination project in Your Designs first.');
+      return;
+    }
+
+    if (selectedProject.id === templateProjectId) {
+      showAlert('You are already on this project. Pick a different destination project.');
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      `Apply this template to "${selectedProject.title || 'Untitled Project'}"? This replaces its current draft, but a local backup will be kept for restore.`
+    );
+    if (!confirmed) return;
+
+    setApplyingTemplateId(templateProjectId);
+    try {
+      const existingDraftRes = await getDraft(selectedProject.id);
+      const existingDraftContent = existingDraftRes?.data?.content ?? existingDraftRes?.data ?? null;
+      if (existingDraftRes?.success && existingDraftContent && typeof window !== 'undefined') {
+        const backupKey = `craftjs_template_apply_backup_${selectedProject.id}`;
+        const serialized = typeof existingDraftContent === 'string'
+          ? existingDraftContent
+          : JSON.stringify(existingDraftContent);
+
+        try {
+          window.sessionStorage.setItem(backupKey, serialized);
+        } catch {
+          // Ignore storage write failures.
+        }
+
+        try {
+          window.localStorage.setItem(backupKey, serialized);
+        } catch {
+          // Ignore storage write failures.
+        }
+      }
+
+      const templateDraftRes = await getDraft(templateProjectId);
+      const templateContent = templateDraftRes?.data?.content;
+
+      if (!templateDraftRes.success || !templateContent) {
+        showAlert('Template has no saved draft content yet. Open it in the builder and save once, then try again.');
+        return;
+      }
+
+      const contentString = typeof templateContent === 'string'
+        ? templateContent
+        : JSON.stringify(templateContent);
+
+      const applyResult = await autoSavePage(contentString, selectedProject.id);
+      if (!applyResult.success) {
+        showAlert(applyResult.error || 'Failed to apply template to the selected project.');
+        return;
+      }
+
+      showAlert('Template applied. Opening your builder project...');
+      router.push(`/design?projectId=${selectedProject.id}`);
+    } catch {
+      showAlert('Failed to apply template. Please try again.');
+    } finally {
+      setApplyingTemplateId(null);
+    }
+  };
+
   return (
     <section className="dashboard-landing-light relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif]">
       <div className="relative z-10 mx-auto w-full max-w-none flex flex-col gap-10">
@@ -390,7 +493,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               displayProjectIndex={displayProjectIndex}
               carouselProjects={carouselProjects}
               otherProjects={otherProjects}
-              allProjectsCount={allProjects.length}
+              allProjectsCount={designProjects.length}
               showAllOtherProjects={showAllOtherProjects}
               openProjectMenuId={openProjectMenuId}
               isSliderTransitionEnabled={isSliderTransitionEnabled}
@@ -420,6 +523,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               theme={theme}
               industries={INDUSTRIES}
               getIndustryIcon={getIndustryIcon}
+              projects={allProjects}
+              selectedProject={selectedProject}
+              searchQuery={searchQuery}
+              applyingTemplateId={applyingTemplateId}
+              onApplyTemplate={handleApplyTemplate}
             />
           )}
         </AnimatePresence>
