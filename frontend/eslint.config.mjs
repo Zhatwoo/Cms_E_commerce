@@ -12,6 +12,18 @@ const eslintConfig = defineConfig([
       '@typescript-eslint/no-require-imports': 'warn',
       '@typescript-eslint/no-empty-object-type': 'warn',
       '@typescript-eslint/ban-ts-comment': 'warn',
+      // Treat leading-underscore identifiers as intentionally unused. This
+      // is the standard convention for placeholder params in stubs and
+      // for catch-block error vars that are not inspected.
+      '@typescript-eslint/no-unused-vars': [
+        'warn',
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          destructuredArrayIgnorePattern: '^_',
+        },
+      ],
       'react/no-unescaped-entities': 'warn',
       'react/no-children-prop': 'warn',
       'react-hooks/rules-of-hooks': 'warn',

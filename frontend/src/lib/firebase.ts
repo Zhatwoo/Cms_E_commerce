@@ -14,7 +14,7 @@ import {
   type Auth,
 } from 'firebase/auth';
 import { getDatabase, ref, onValue, type Database, type Unsubscribe } from 'firebase/database';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL, type FirebaseStorage } from 'firebase/storage';
+import { getStorage, type FirebaseStorage } from 'firebase/storage';
 import { getApiBase } from "./apiBase";
 
 const config = {
