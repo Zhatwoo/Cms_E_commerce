@@ -238,6 +238,7 @@ export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
 
@@ -272,6 +273,16 @@ export interface PageProps extends LayoutProps, PositionProps, AnimatableProps, 
   pageName?: string;
   /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
   pageSlug?: string;
+  /** Grid layout properties applied when display === "grid". */
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridGap?: number;
+  gridColumnGap?: number;
+  gridRowGap?: number;
+  gridAutoRows?: string;
+  gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
   children?: ReactNode;
 }
 

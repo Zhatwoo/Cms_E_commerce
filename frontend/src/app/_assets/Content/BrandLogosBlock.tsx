@@ -6,6 +6,7 @@ import { DesignSection } from "../../design/_components/rightPanel/settings/Desi
 import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
 
 export interface BrandLogosBlockProps {
+  nodeId?: string;
   heading?: string;
   brand1?: string;
   brand2?: string;

@@ -9,6 +9,7 @@ import { useDesignProject } from "../../design/_context/DesignProjectContext";
 import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 
 export interface ImageTextBlockProps {
+  nodeId?: string;
   tagline?: string;
   heading?: string;
   description?: string;

@@ -6,6 +6,7 @@ import { DesignSection } from "../../design/_components/rightPanel/settings/Desi
 import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs/ColorPicker";
 
 export interface NewsletterCTABlockProps {
+  nodeId?: string;
   heading?: string;
   subheading?: string;
   buttonLabel?: string;

@@ -11,6 +11,7 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type HeroLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface HeroBannerCTA_v2BlockProps {
+  nodeId?: string;
   layoutStyle?: HeroLayoutStyle;
   title?: string;
   subtitle?: string;

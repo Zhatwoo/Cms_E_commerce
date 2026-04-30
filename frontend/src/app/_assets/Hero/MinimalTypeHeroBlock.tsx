@@ -11,6 +11,7 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type MinimalTypeLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface MinimalTypeHeroBlockProps {
+  nodeId?: string;
   layoutStyle?: MinimalTypeLayoutStyle;
   title?: string;
   subtitle?: string;

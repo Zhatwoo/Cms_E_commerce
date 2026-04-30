@@ -7,6 +7,7 @@ import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
 
 export interface CTABannerBlockProps {
+  nodeId?: string;
   heading?: string;
   subheading?: string;
   primaryLabel?: string;

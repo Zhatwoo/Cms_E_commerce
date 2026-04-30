@@ -11,6 +11,7 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type HeroWithImageLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface HeroWithImageBlockProps {
+  nodeId?: string;
   layoutStyle?: HeroWithImageLayoutStyle;
   title?: string;
   subtitle?: string;

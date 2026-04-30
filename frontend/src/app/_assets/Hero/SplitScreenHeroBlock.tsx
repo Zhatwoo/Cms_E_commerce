@@ -11,6 +11,7 @@ import { addFileToMediaLibrary } from "../../design/_lib/mediaActions";
 export type SplitScreenLayoutStyle = "image-left-1" | "image-left-2" | "image-right" | "close-up";
 
 export interface SplitScreenHeroBlockProps {
+  nodeId?: string;
   layoutStyle?: SplitScreenLayoutStyle;
   title?: string;
   subtitle?: string;

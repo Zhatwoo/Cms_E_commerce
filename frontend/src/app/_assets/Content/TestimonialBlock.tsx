@@ -9,6 +9,7 @@ import { NumericInput } from "../../design/_components/rightPanel/settings/input
 export type TestimonialLayoutStyle = "centered" | "left-aligned" | "card-left" | "card-right";
 
 export interface TestimonialBlockProps {
+  nodeId?: string;
   layoutStyle?: TestimonialLayoutStyle;
   quote?: string;
   authorName?: string;

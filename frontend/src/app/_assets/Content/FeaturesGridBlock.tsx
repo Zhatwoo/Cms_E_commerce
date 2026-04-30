@@ -9,6 +9,7 @@ import { NumericInput } from "../../design/_components/rightPanel/settings/input
 export type FeaturesGridLayoutStyle = "three-col" | "two-col" | "single-col" | "horizontal";
 
 export interface FeaturesGridBlockProps {
+  nodeId?: string;
   layoutStyle?: FeaturesGridLayoutStyle;
   heading?: string;
   subheading?: string;
@@ -25,7 +26,7 @@ export interface FeaturesGridBlockProps {
   minHeight?: number;
 }
 
-const DEFAULTS: Required<FeaturesGridBlockProps> = {
+const DEFAULTS: Required<Omit<FeaturesGridBlockProps, "nodeId">> = {
   layoutStyle: "three-col",
   heading: "Why Choose Us",
   subheading: "Discover the features that make us stand out",

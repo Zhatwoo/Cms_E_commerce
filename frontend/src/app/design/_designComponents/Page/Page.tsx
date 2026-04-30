@@ -40,6 +40,13 @@ export const Page = ({
   editorVisibility = "auto",
   justifyItems = "stretch",
   alignContent = "flex-start",
+  gridTemplateColumns = "1fr 1fr",
+  gridTemplateRows = "auto",
+  gridGap = 0,
+  gridColumnGap,
+  gridRowGap,
+  gridAutoRows = "auto",
+  gridAutoFlow = "row",
 }: PageProps) => {
   const { id, connectors: { connect, drag }, actions: { setProp } } = useNode();
   const [editing, setEditing] = useState(false);

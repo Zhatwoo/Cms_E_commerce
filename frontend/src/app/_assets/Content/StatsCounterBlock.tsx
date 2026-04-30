@@ -7,6 +7,7 @@ import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
 
 export interface StatsCounterBlockProps {
+  nodeId?: string;
   stat1Value?: string;
   stat1Label?: string;
   stat2Value?: string;
@@ -22,7 +23,7 @@ export interface StatsCounterBlockProps {
   layoutStyle?: "row" | "two-by-two" | "stacked" | "compact";
 }
 
-const defaults: Required<StatsCounterBlockProps> = {
+const defaults: Required<Omit<StatsCounterBlockProps, "nodeId">> = {
   stat1Value: "10K+",
   stat1Label: "Products",
   stat2Value: "500+",
