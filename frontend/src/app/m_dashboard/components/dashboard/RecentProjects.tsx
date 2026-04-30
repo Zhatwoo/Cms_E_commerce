@@ -5,8 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from '../context/theme-context';
 import { useAlert } from '../context/alert-context';
 import { useProject } from '../context/project-context';
-import { createProject, updateProject, deleteProject, getStoredUser, type Project } from '@/lib/api';
-import { ensureProjectStorageFolder } from '@/lib/firebaseStorage';
+import { createProject, updateProject, deleteProject, type Project } from '@/lib/api';
 import { INDUSTRY_OPTIONS } from '@/lib/industryCatalog';
 import { DraftPreviewThumbnail } from '../projects/DraftPreviewThumbnail';
 
@@ -121,10 +120,6 @@ export function RecentProjects() {
         showAlert('Failed to create project. Please try again.');
         return;
       }
-
-      const user = getStoredUser();
-      const clientName = (user?.name || user?.username || 'client').trim() || 'client';
-      ensureProjectStorageFolder(clientName, res.project.title || 'website').catch(() => {});
 
       setCreateModalOpen(false);
       setCreateTitle('');
