@@ -265,7 +265,7 @@ export const Accordion = ({
 
   return (
     <div
-      ref={connect}
+      ref={(ref) => { if (ref) connect(ref); }}
       data-canvas-interactive="true"
       data-drop-block="true"
       data-drop-block-type="Accordion"
@@ -430,7 +430,6 @@ export const Accordion = ({
                     }}
                     style={{
                       width: "100%",
-                      textAlign: "left",
                       padding: "8px 10px",
                       borderRadius: 10,
                       border: `1px solid ${hexToRgba(borderColor, 0.5)}`,

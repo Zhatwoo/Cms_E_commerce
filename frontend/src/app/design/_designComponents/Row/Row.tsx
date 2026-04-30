@@ -138,7 +138,6 @@ export const Row = ({
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         position,
-        position,
         display: isFreeform ? "block" : effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,

@@ -2746,8 +2746,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     let clearTimer: number | null = null;
 
     const toElement = (target: EventTarget | null): Element | null => {
-      if (target instanceof Element) return target;
-      if (target instanceof Node) return target.parentElement;
+      if (target instanceof Element) return target as Element;
+      if (target instanceof Node) return (target as Node).parentElement;
       return null;
     };
 

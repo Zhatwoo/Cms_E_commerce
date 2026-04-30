@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
-import type { Node, NodeHelper } from "@craftjs/core";
+import type { Node, NodeHelpersType } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
 import type { PageProps } from "../../_types";
 
@@ -306,7 +306,7 @@ Page.craft = {
   props: PageDefaultProps,
   rules: {
     canDrag: () => true,
-    canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelper) => {
+    canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelpersType) => {
       // 1. SAFE ZONE ENFORCEMENT: Block insertion if mouse is outside the page (for fixed height)
       if (currentNode.data.props.height !== "auto") {
         try {

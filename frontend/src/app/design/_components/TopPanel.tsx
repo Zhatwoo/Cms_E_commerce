@@ -111,7 +111,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
 
         while (cursor && !seen.has(cursor)) {
           seen.add(cursor);
-          const node = nodes[cursor];
+          const node: { data?: { displayName?: string; parent?: string } } | undefined = nodes[cursor];
           if (!node) return null;
           if (node?.data?.displayName === "Page") return cursor;
           cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;

@@ -389,7 +389,7 @@ export function ProfileLoginBlock({
               backgroundColor: "#d1d5db",
               flexShrink: 0,
               WebkitUserDrag: "none",
-            }}
+            } as React.CSSProperties}
           />
         ) : (
           <div

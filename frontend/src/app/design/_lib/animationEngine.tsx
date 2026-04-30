@@ -1035,7 +1035,7 @@ export function AnimationWrapper({
 
   const isInView = useInView(outerRef, {
     // Pass the actual Element (not a ref object) so IntersectionObserver uses it as root.
-    root: inViewRoot ?? undefined,
+    root: (inViewRoot ?? undefined) as unknown as React.RefObject<Element | null> | undefined,
     once: config.trigger.once,
     amount: config.trigger.threshold,
   });

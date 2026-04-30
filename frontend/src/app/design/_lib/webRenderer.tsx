@@ -4061,7 +4061,6 @@ function RenderNode({
             padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
             margin: (!builderParityMode && !isNarrowPreview) ? "0 auto" : `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
             width: (!builderParityMode && !isNarrowPreview) ? "100%" : (normalizedWidth ?? (props.width as string) ?? "100%"),
-            alignSelf: "stretch",
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
             height: effectiveSectionHeight,
