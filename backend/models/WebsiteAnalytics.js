@@ -1,5 +1,6 @@
 const { db, admin } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
+const log = require('../utils/logger')('WebsiteAnalytics');
 const FieldValue = admin.firestore.FieldValue;
 
 const COLLECTION = 'website_analytics';
@@ -210,7 +211,7 @@ async function getAnalyticsBatch(domainIds) {
 
     return result;
   } catch (error) {
-    console.error('Error getting batch analytics:', error);
+    log.error('Error getting batch analytics:', error);
     const result = {};
     domainIds.forEach((id) => {
       result[id] = {

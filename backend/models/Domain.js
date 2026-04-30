@@ -1,5 +1,6 @@
 const { db, admin } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
+const log = require('../utils/logger')('Domain');
 const FieldValue = admin.firestore.FieldValue;
 
 const COLLECTION = 'domains';
@@ -346,7 +347,7 @@ async function setSubdomainLookup(subdomain, { userId, projectId, domainId, stat
         });
       }
     } catch (e) {
-      console.warn('setSubdomainLookup: failed to sync client domains path:', e.message);
+      log.warn('setSubdomainLookup: failed to sync client domains path:', e.message);
     }
   }
 }
@@ -414,7 +415,7 @@ async function findBySubdomain(subdomain) {
       }
     }
   } catch (e) {
-    console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
+    log.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
   }
 
   return null;
@@ -462,7 +463,7 @@ async function findByCustomDomain(domain) {
       };
     }
   } catch (e) {
-    console.warn('findByCustomDomain failed:', e.message);
+    log.warn('findByCustomDomain failed:', e.message);
   }
   return null;
 }
@@ -767,7 +768,7 @@ async function applyScheduledPublishes() {
       });
       await batch.commit();
     } catch (e) {
-      console.warn('applyScheduledPublishes failed for', item.subdomain, e.message);
+      log.warn('applyScheduledPublishes failed for', item.subdomain, e.message);
     }
   }
   return toApply.length;

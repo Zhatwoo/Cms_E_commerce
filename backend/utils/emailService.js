@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const log = require('./logger')('emailService');
 
 const gmailUser = (process.env.GMAIL_USER || '').trim();
 const gmailAppPassword = (process.env.GMAIL_APP_PASSWORD || '').trim();
@@ -17,9 +18,9 @@ if (gmailUser && gmailAppPassword) {
     },
     tls: { rejectUnauthorized: true },
   });
-  console.log('[emailService] ✅ Nodemailer (Gmail SMTP) ready. Emails FROM:', gmailUser);
+  log.info('[emailService] ✅ Nodemailer (Gmail SMTP) ready. Emails FROM:', gmailUser);
 } else {
-  console.warn('[emailService] ❌ No email config. Add to backend/.env: GMAIL_USER + GMAIL_APP_PASSWORD');
+  log.warn('[emailService] ❌ No email config. Add to backend/.env: GMAIL_USER + GMAIL_APP_PASSWORD');
 }
 
 /**
@@ -35,14 +36,14 @@ function getConfirmUrl(token) {
 async function sendVerificationEmail(to, token, name) {
   const recipient = typeof to === 'string' ? to.trim().toLowerCase() : '';
   if (!recipient) {
-    console.warn('[emailService] ⚠️ No recipient email provided.');
+    log.warn('[emailService] ⚠️ No recipient email provided.');
     return { sent: false, error: 'No recipient email', confirmUrl: getConfirmUrl(token) };
   }
 
   const confirmUrl = getConfirmUrl(token);
   const greeting = name ? `Hi ${String(name).trim()},` : 'Hi,';
 
-  console.log('[emailService] 📤 Sending confirmation to:', recipient);
+  log.info('[emailService] 📤 Sending confirmation to:', recipient);
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -72,7 +73,7 @@ async function sendVerificationEmail(to, token, name) {
   const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
 
   if (!transporter) {
-    console.log('[emailService] 📧 No SMTP config. Confirmation link (dev):', confirmUrl);
+    log.info('[emailService] 📧 No SMTP config. Confirmation link (dev):', confirmUrl);
     return { sent: false, error: 'Email not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env', confirmUrl };
   }
 
@@ -83,10 +84,10 @@ async function sendVerificationEmail(to, token, name) {
       subject,
       html,
     });
-    console.log('[emailService] ✅ Sent to', recipient, '| MessageId:', info.messageId || '');
+    log.info('[emailService] ✅ Sent to', recipient, '| MessageId:', info.messageId || '');
     return { sent: true, confirmUrl };
   } catch (err) {
-    console.error('[emailService] ❌ Send error:', err.message);
+    log.error('[emailService] ❌ Send error:', err.message);
     return { sent: false, error: err.message, confirmUrl };
   }
 }
@@ -104,14 +105,14 @@ function getResetPasswordUrl(token) {
 async function sendPasswordResetEmail(to, token, name) {
   const recipient = typeof to === 'string' ? to.trim().toLowerCase() : '';
   if (!recipient) {
-    console.warn('[emailService] ⚠️ No recipient email for password reset.');
+    log.warn('[emailService] ⚠️ No recipient email for password reset.');
     return { sent: false, error: 'No recipient email', resetUrl: token ? getResetPasswordUrl(token) : null };
   }
 
   const resetUrl = getResetPasswordUrl(token);
   const greeting = name ? `Hi ${String(name).trim()},` : 'Hi,';
 
-  console.log('[emailService] 📤 Sending password reset to:', recipient);
+  log.info('[emailService] 📤 Sending password reset to:', recipient);
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
@@ -141,7 +142,7 @@ async function sendPasswordResetEmail(to, token, name) {
   const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
 
   if (!transporter) {
-    console.log('[emailService] 📧 No SMTP config. Reset link (dev):', resetUrl);
+    log.info('[emailService] 📧 No SMTP config. Reset link (dev):', resetUrl);
     return { sent: false, error: 'Email not configured. Set GMAIL_USER and GMAIL_APP_PASSWORD in .env', resetUrl };
   }
 
@@ -152,10 +153,10 @@ async function sendPasswordResetEmail(to, token, name) {
       subject,
       html,
     });
-    console.log('[emailService] ✅ Password reset email sent to', recipient, '| MessageId:', info.messageId || '');
+    log.info('[emailService] ✅ Password reset email sent to', recipient, '| MessageId:', info.messageId || '');
     return { sent: true, resetUrl };
   } catch (err) {
-    console.error('[emailService] ❌ Password reset send error:', err.message);
+    log.error('[emailService] ❌ Password reset send error:', err.message);
     return { sent: false, error: err.message, resetUrl };
   }
 }
@@ -166,11 +167,11 @@ async function sendPasswordResetEmail(to, token, name) {
 async function sendCollaborationInviteEmail({ to, fromName, projectId, projectTitle, permission }) {
   const recipient = typeof to === 'string' ? to.trim().toLowerCase() : '';
   if (!recipient) {
-    console.warn('[emailService] ⚠️ No recipient email for collaboration invite.');
+    log.warn('[emailService] ⚠️ No recipient email for collaboration invite.');
     return { sent: false, error: 'No recipient email' };
   }
 
-  console.log('[emailService] 📤 Sending collaboration invite to:', recipient);
+  log.info('[emailService] 📤 Sending collaboration invite to:', recipient);
 
   const appUrl = frontendUrl;
   const inviteUrl = `${appUrl}/design?projectId=${projectId}`;
@@ -201,7 +202,7 @@ async function sendCollaborationInviteEmail({ to, fromName, projectId, projectTi
   const fromLabel = process.env.GMAIL_FROM_NAME || 'Mercato';
 
   if (!transporter) {
-    console.log('[emailService] 📧 No SMTP config. Invite link (dev):', inviteUrl);
+    log.info('[emailService] 📧 No SMTP config. Invite link (dev):', inviteUrl);
     return { sent: false, error: 'Email not configured.', inviteUrl };
   }
 
@@ -212,10 +213,10 @@ async function sendCollaborationInviteEmail({ to, fromName, projectId, projectTi
       subject,
       html,
     });
-    console.log('[emailService] ✅ Collaboration invite sent to', recipient, '| MessageId:', info.messageId || '');
+    log.info('[emailService] ✅ Collaboration invite sent to', recipient, '| MessageId:', info.messageId || '');
     return { sent: true };
   } catch (err) {
-    console.error('[emailService] ❌ Invite send error:', err.message);
+    log.error('[emailService] ❌ Invite send error:', err.message);
     return { sent: false, error: err.message };
   }
 }
@@ -245,7 +246,7 @@ async function sendAdminActionEmail({ to, name, subject, title, intro, reason })
   `;
 
   if (!transporter) {
-    console.log('[emailService] 📧 No SMTP config. Admin action email skipped for:', recipient);
+    log.info('[emailService] 📧 No SMTP config. Admin action email skipped for:', recipient);
     return { sent: false, error: 'Email not configured' };
   }
 
@@ -258,7 +259,7 @@ async function sendAdminActionEmail({ to, name, subject, title, intro, reason })
     });
     return { sent: true, messageId: info.messageId || '' };
   } catch (err) {
-    console.error('[emailService] ❌ Admin action send error:', err.message);
+    log.error('[emailService] ❌ Admin action send error:', err.message);
     return { sent: false, error: err.message };
   }
 }

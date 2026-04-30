@@ -1,10 +1,12 @@
+const log = require('../utils/logger')('stripeService');
+
 let stripeClient = null;
 
 function getStripeClient() {
   if (stripeClient) return stripeClient;
   const secretKey = String(process.env.STRIPE_SECRET_KEY || '').trim();
   if (!secretKey) return null;
-  console.log(`[Stripe] Initializing with key: ${secretKey.substring(0, 7)}... (Length: ${secretKey.length})`);
+  log.info(`Initializing with key prefix: ${secretKey.substring(0, 7)}...`);
   stripeClient = require('stripe')(secretKey);
   return stripeClient;
 }
@@ -47,7 +49,7 @@ async function createPaymentIntent({ amount, currency = 'php', orderId, subdomai
     });
     return paymentIntent;
   } catch (error) {
-    console.error('Stripe Payment Intent Error:', error);
+    log.error('Stripe Payment Intent Error:', error);
     throw error;
   }
 }
@@ -84,7 +86,7 @@ async function createSetupIntent({ userId }) {
     });
     return setupIntent;
   } catch (error) {
-    console.error('Stripe Setup Intent Error:', error);
+    log.error('Stripe Setup Intent Error:', error);
     throw error;
   }
 }

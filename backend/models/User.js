@@ -1,6 +1,7 @@
 // models/User.js — Firebase Auth + Firestore users collection
 const { auth, db } = require('../config/firebase');
 const { deleteRecursive } = require('../utils/firestoreHelper');
+const log = require('../utils/logger')('User');
 
 // USERS_COLLECTION moved to explicit strings to be 100% clear about the 'user' (singular) path.
 
@@ -95,11 +96,11 @@ class User {
   /** Public signup: create auth user + Firestore profile (role client) */
   /** Public signup: create auth user + Firestore profile (role client) */
   static async register({ name, email, password }) {
-    console.log('---------------------------------------------------------');
-    console.log(`🚀 [User.register] STRICT NESTED PATH ONLY for: ${email}`);
+    log.debug('---------------------------------------------------------');
+    log.debug(`🚀 [User.register] STRICT NESTED PATH ONLY for: ${email}`);
     try {
       // 1. Create Firebase Auth User
-      console.log('   Step 1: Creating Firebase Auth user...');
+      log.debug('   Step 1: Creating Firebase Auth user...');
       const userRecord = await auth.createUser({
         email: email.toLowerCase().trim(),
         password,
@@ -107,7 +108,7 @@ class User {
         emailVerified: false, // User must confirm email via link before they can login
       });
       const uid = userRecord.uid;
-      console.log(`   ✅ Step 1 Success: UID created -> ${uid}`);
+      log.debug(`   ✅ Step 1 Success: UID created -> ${uid}`);
 
       const now = new Date();
       const roleName = 'client';
@@ -131,34 +132,34 @@ class User {
 
       // 2. Save profile ONLY to: user/roles/client/{uid}
       const rolePath = `user/roles/${roleName}/${uid}`;
-      console.log(`   Step 2: Saving profile to STRICT path: ${rolePath}...`);
+      log.debug(`   Step 2: Saving profile to STRICT path: ${rolePath}...`);
       await db.doc(rolePath).set(profile);
-      console.log(`   ✅ Step 2 Success: Profile created.`);
+      log.debug(`   ✅ Step 2 Success: Profile created.`);
 
       // 3. Ensure root user/{uid} DOES NOT EXIST
-      console.log(`   Step 3: Ensuring root "user/${uid}" is empty...`);
+      log.debug(`   Step 3: Ensuring root "user/${uid}" is empty...`);
       await db.collection('user').doc(uid).delete();
-      console.log(`   ✅ Step 3 Success: Root shadow confirmed empty.`);
+      log.debug(`   ✅ Step 3 Success: Root shadow confirmed empty.`);
 
-      console.log(`✨ [User.register] FINISHED SUCCESSFULLY for UID: ${uid}`);
-      console.log('---------------------------------------------------------');
+      log.debug(`✨ [User.register] FINISHED SUCCESSFULLY for UID: ${uid}`);
+      log.debug('---------------------------------------------------------');
       return this.findById(uid);
     } catch (error) {
-      console.error('❌ [User.register] CRITICAL FAILURE:', error);
-      console.log('---------------------------------------------------------');
+      log.error('❌ [User.register] CRITICAL FAILURE:', error);
+      log.debug('---------------------------------------------------------');
       throw error;
     }
   }
 
   /** Admin create user with role */
   static async create({ name, email, password, role, status, phone, bio, avatar }) {
-    console.log('---------------------------------------------------------');
-    console.log(`🚀 [User.create] Admin creating user: ${email}`);
+    log.debug('---------------------------------------------------------');
+    log.debug(`🚀 [User.create] Admin creating user: ${email}`);
     try {
       const normalizedRole = (role && typeof role === 'string') ? role.toLowerCase().replace(/\s+/g, '_') : 'client';
 
       // 1. Create Auth User
-      console.log('   Step 1: Creating Auth user...');
+      log.debug('   Step 1: Creating Auth user...');
       const userRecord = await auth.createUser({
         email: email.toLowerCase().trim(),
         password,
@@ -166,7 +167,7 @@ class User {
         emailVerified: true,
       });
       const uid = userRecord.uid;
-      console.log(`   ✅ Step 1 Success: UID -> ${uid}`);
+      log.debug(`   ✅ Step 1 Success: UID -> ${uid}`);
 
       const now = new Date();
       const profile = {
@@ -190,21 +191,21 @@ class User {
       // 2. Save profile to user/roles/{role}/{uid}. Super Admin goes to user/roles/admin per requirement.
       const collectionRole = normalizedRole === 'super_admin' ? 'admin' : normalizedRole;
       const rolePath = `user/roles/${collectionRole}/${uid}`;
-      console.log(`   Step 2: Saving profile to STRICT path: ${rolePath}...`);
+      log.debug(`   Step 2: Saving profile to STRICT path: ${rolePath}...`);
       await db.doc(rolePath).set(profile);
-      console.log(`   ✅ Step 2 Success: Role document created in "${normalizedRole}".`);
+      log.debug(`   ✅ Step 2 Success: Role document created in "${normalizedRole}".`);
 
       // 3. STRICT ENFORCEMENT: Delete root document if it somehow exists
-      console.log(`   Step 3: Ensuring root path "user/${uid}" is empty...`);
+      log.debug(`   Step 3: Ensuring root path "user/${uid}" is empty...`);
       await db.collection('user').doc(uid).delete();
-      console.log(`   ✅ Step 3 Success: Root shadow cleaned.`);
+      log.debug(`   ✅ Step 3 Success: Root shadow cleaned.`);
 
-      console.log(`✨ [User.create] FINISHED SUCCESSFULLY for UID: ${uid}`);
-      console.log('---------------------------------------------------------');
+      log.debug(`✨ [User.create] FINISHED SUCCESSFULLY for UID: ${uid}`);
+      log.debug('---------------------------------------------------------');
       return this.findById(uid);
     } catch (error) {
-      console.error('❌ [User.create] CRITICAL FAILURE:', error);
-      console.log('---------------------------------------------------------');
+      log.error('❌ [User.create] CRITICAL FAILURE:', error);
+      log.debug('---------------------------------------------------------');
       throw error;
     }
   }
@@ -384,7 +385,7 @@ class User {
 
   static async delete(id) {
     if (!id) throw new Error('Missing id');
-    console.log(`🧹 [User.delete] Purging user: ${id}`);
+    log.debug(`🧹 [User.delete] Purging user: ${id}`);
 
     // 1. Find user to get their role (so we know where their data is)
     const user = await this.findById(id);
@@ -392,23 +393,23 @@ class User {
     // 2. Delete from Firebase Auth
     try {
       await auth.deleteUser(id);
-      console.log('   ✅ Auth account removed.');
+      log.debug('   ✅ Auth account removed.');
     } catch (e) {
-      if (e.code !== 'auth/user-not-found') console.error('   ⚠️ Auth deletion error:', e.message);
+      if (e.code !== 'auth/user-not-found') log.error('   ⚠️ Auth deletion error:', e.message);
     }
 
     // 3. Delete Firestore Data Recursively (super_admin stored under admin path)
     if (user) {
       const collectionRole = user.role === 'super_admin' ? 'admin' : user.role;
       const rolePath = `user/roles/${collectionRole}/${id}`;
-      console.log(`   Step: Purging Firestore recursively: ${rolePath}...`);
+      log.debug(`   Step: Purging Firestore recursively: ${rolePath}...`);
       await deleteRecursive(db.doc(rolePath));
-      console.log('   ✅ Firestore nested path purged.');
+      log.debug('   ✅ Firestore nested path purged.');
     }
 
     // 4. Deep strict delete from root too (just in case)
     await db.collection('user').doc(id).delete();
-    console.log(`✨ [User.delete] User ${id} completely removed.`);
+    log.debug(`✨ [User.delete] User ${id} completely removed.`);
   }
 
   static async getStats() {
@@ -527,7 +528,7 @@ class User {
         lastUpdated: new Date().toISOString()
       };
     } catch (error) {
-      console.error('Error in getActiveClientsStats:', error);
+      log.error('Error in getActiveClientsStats:', error);
       return { total: 0, active: 0, online: 0, byPlan: { free: 0, basic: 0, pro: 0 } };
     }
   }

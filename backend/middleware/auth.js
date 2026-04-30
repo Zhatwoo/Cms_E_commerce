@@ -1,6 +1,7 @@
 // middleware/auth.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const log = require('../utils/logger')('authMiddleware');
 
 // Protect routes - verify JWT token (id is Firebase Auth uid)
 // Token from HttpOnly cookie (preferred) or Authorization header
@@ -37,7 +38,7 @@ exports.protect = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const t = Date.now();
     const user = await User.get(decoded.id);
-    console.log('[READ] auth User.get', { id: decoded.id, ms: Date.now() - t });
+    log.debug('auth User.get', { id: decoded.id, ms: Date.now() - t });
     if (!user) {
       return res.status(401).json({ success: false, message: 'Not authorized, user not found' });
     }

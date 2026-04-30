@@ -3,6 +3,7 @@ const { Readable } = require('stream');
 const { getStorageBucket } = require('../config/firebase');
 const crypto = require('crypto');
 const path = require('path');
+const log = require('./logger')('storageHelpers');
 
 /** Fixed prefix: always "Clients/" to match frontend. Never "clients/". */
 const STORAGE_PREFIX = 'Clients/';
@@ -190,7 +191,7 @@ function slugPathSegment(value) {
 async function deleteProjectStorageFolder(clientName, websiteName) {
   const bucket = getStorageBucket();
   if (!bucket) {
-    console.warn('[storageHelpers] Firebase Storage bucket not configured (set FIREBASE_STORAGE_BUCKET in backend .env); project folder not deleted from Storage.');
+    log.warn('[storageHelpers] Firebase Storage bucket not configured (set FIREBASE_STORAGE_BUCKET in backend .env); project folder not deleted from Storage.');
     return;
   }
 
@@ -202,11 +203,11 @@ async function deleteProjectStorageFolder(clientName, websiteName) {
     const [websiteFiles] = await bucket.getFiles({ prefix, autoPaginate: true });
     if (websiteFiles && websiteFiles.length > 0) {
       await Promise.all(websiteFiles.map((file) => file.delete().catch((err) => {
-        console.warn('[storageHelpers] delete file failed:', file.name, err.message);
+        log.warn('[storageHelpers] delete file failed:', file.name, err.message);
       })));
     }
   } catch (err) {
-    console.warn('[storageHelpers] deleteProjectStorageFolder failed:', prefix, err.message);
+    log.warn('[storageHelpers] deleteProjectStorageFolder failed:', prefix, err.message);
   }
 }
 
@@ -282,7 +283,7 @@ async function deleteAvatarByUrlForUser(url, uid, { skipObjectPath = '' } = {}) 
   } catch (err) {
     const code = err && typeof err === 'object' ? err.code : undefined;
     if (code !== 404) {
-      console.warn('[storageHelpers] deleteAvatarByUrlForUser failed:', objectPath, err.message);
+      log.warn('[storageHelpers] deleteAvatarByUrlForUser failed:', objectPath, err.message);
     }
     return { deleted: 0, skipped: 1 };
   }
@@ -332,7 +333,7 @@ async function deleteStorageFilesByUrls(urls, { allowedPrefixes = [] } = {}) {
       if (code === 404) {
         skipped += 1;
       } else {
-        console.warn('[storageHelpers] deleteStorageFilesByUrls failed:', objectPath, err.message);
+        log.warn('[storageHelpers] deleteStorageFilesByUrls failed:', objectPath, err.message);
         skipped += 1;
       }
     }
@@ -369,7 +370,7 @@ async function getProjectStorageUsage({ clientName, websiteName, userId, subdoma
         });
       }
     } catch (err) {
-      console.warn('[storageHelpers] Firestore size calculation failed:', err.message);
+      log.warn('[storageHelpers] Firestore size calculation failed:', err.message);
     }
   }
 
@@ -511,7 +512,7 @@ async function getUserStorageUsage({ clientName, userId }) {
         totalBytes += sizes.reduce((acc, s) => acc + s, 0);
       }
     } catch (err) {
-      console.warn('[storageHelpers] getUserStorageUsage Firestore error for UID:', userId, err.message);
+      log.warn('[storageHelpers] getUserStorageUsage Firestore error for UID:', userId, err.message);
     }
   }
 
