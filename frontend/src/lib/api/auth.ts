@@ -265,15 +265,3 @@ export async function uploadAvatarApi(
   return handleResponse<{ success: boolean; message?: string; url?: string; user?: User }>(res);
 }
 
-/** Create user (admin only). Role: 'admin' | 'client' | 'super_admin'. */
-export async function createUser(params: {
-  name: string;
-  email: string;
-  password: string;
-  role: "admin" | "client" | "super_admin";
-}): Promise<{ success: boolean; message?: string; user?: User }> {
-  return apiFetch<{ success: boolean; message?: string; user?: User }>("/api/users", {
-    method: "POST",
-    body: JSON.stringify(params),
-  });
-}

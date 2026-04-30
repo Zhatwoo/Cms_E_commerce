@@ -59,16 +59,6 @@ export async function getProject(id: string): Promise<{ success: boolean; projec
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`);
 }
 
-export async function getProjectBySubdomain(subdomain: string): Promise<{ success: boolean; project?: Project }> {
-  const sub = encodeURIComponent(subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, "") || "");
-  try {
-    const data = await apiFetch<{ success: boolean; project?: Project }>(`/api/projects/by-subdomain?subdomain=${sub}`);
-    return data;
-  } catch {
-    return { success: false };
-  }
-}
-
 export async function updateProject(
   id: string,
   params: {

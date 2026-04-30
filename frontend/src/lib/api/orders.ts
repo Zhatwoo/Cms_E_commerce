@@ -34,18 +34,6 @@ export type ApiOrder = {
   updatedAt?: string;
 };
 
-export async function createOrder(params: {
-  items: ApiOrderItem[];
-  total?: number;
-  shippingAddress?: Record<string, unknown> | null;
-  projectId?: string;
-}): Promise<{ success: boolean; message?: string; data?: ApiOrder }> {
-  return apiFetch<{ success: boolean; message?: string; data?: ApiOrder }>("/api/orders", {
-    method: "POST",
-    body: JSON.stringify(params),
-  });
-}
-
 export async function listMyOrders(params?: {
   page?: number;
   limit?: number;
@@ -59,33 +47,6 @@ export async function listMyOrders(params?: {
   return apiFetch<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }>(
     qs ? `/api/orders/my?${qs}` : "/api/orders/my"
   );
-}
-
-export async function listAllOrders(params?: {
-  page?: number;
-  limit?: number;
-  status?: string;
-  userId?: string;
-}): Promise<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }> {
-  const query = new URLSearchParams();
-  if (params?.page) query.set("page", String(params.page));
-  if (params?.limit) query.set("limit", String(params.limit));
-  if (params?.status) query.set("status", params.status);
-  if (params?.userId) query.set("userId", params.userId);
-  const qs = query.toString();
-  return apiFetch<{ success: boolean; items: ApiOrder[]; total: number; page: number; totalPages: number }>(
-    qs ? `/api/orders?${qs}` : "/api/orders"
-  );
-}
-
-export async function updateOrderStatus(
-  id: string,
-  status: "Pending" | "Processing" | "Paid" | "Shipped" | "Delivered" | "Cancelled" | "Returned"
-): Promise<{ success: boolean; message?: string; data?: ApiOrder }> {
-  return apiFetch<{ success: boolean; message?: string; data?: ApiOrder }>(`/api/orders/${id}/status`, {
-    method: "PUT",
-    body: JSON.stringify({ status }),
-  });
 }
 
 /* ── Published (storefront) orders ──────────────────────────────── */
