@@ -16,13 +16,13 @@ const Row = ({ children, className = "" }: { children: React.ReactNode; classNam
   <div className={`flex items-center gap-2 mb-2 ${className}`}>{children}</div>
 );
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+  <span className="text-[11px] text-builder-text-muted w-24 shrink-0">{children}</span>
 );
 const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) => (
   <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
     <div
       onClick={() => onChange(!checked)}
-      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? "bg-[var(--builder-accent)] border-[var(--builder-accent)]" : "border-[var(--builder-border-mid)] bg-transparent"}`}
+      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? "bg-builder-accent border-(--builder-accent)" : "border-(--builder-border-mid) bg-transparent"}`}
     >
       {checked && (
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -30,7 +30,7 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (v: 
         </svg>
       )}
     </div>
-    <span className="text-[12px] text-[var(--builder-text)]">{label}</span>
+    <span className="text-[12px] text-builder-text">{label}</span>
   </label>
 );
 
@@ -51,8 +51,8 @@ const AlignButtons = ({
         onClick={() => onChange(a)}
         className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
           value === a
-            ? "bg-[var(--builder-accent)] text-white"
-            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+            ? "bg-builder-accent text-white"
+            : "bg-builder-surface-3 text-builder-text-muted hover:text-builder-text"
         }`}
       >
         {a[0].toUpperCase()}
@@ -82,36 +82,36 @@ export const ProductCardSettings = () => {
 
       {/* ── Product ── */}
       <DesignSection title="Product" defaultOpen>
-        <p className="text-[10px] text-[var(--builder-text-faint)] mb-2 uppercase tracking-wider font-semibold">Bind product</p>
+        <p className="text-[10px] text-builder-text-faint mb-2 uppercase tracking-wider font-semibold">Bind product</p>
 
         {/* Product picker */}
         <div className="relative mb-3">
           <select
             value={props.boundProductId ?? ""}
             onChange={(e) => set("boundProductId", e.target.value || undefined)}
-            className="w-full h-8 rounded-lg px-3 pr-8 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)] appearance-none cursor-pointer"
+            className="w-full h-8 rounded-lg px-3 pr-8 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent) appearance-none cursor-pointer"
           >
             <option value="">— No product —</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--builder-text-muted)] pointer-events-none" />
+          <ChevronDown size={12} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-builder-text-muted pointer-events-none" />
         </div>
 
         {/* Bound product preview */}
         {boundProduct && (
-          <div className="flex items-center gap-2.5 p-2 rounded-lg bg-[var(--builder-surface-2)] border border-[var(--builder-border)]">
+          <div className="flex items-center gap-2.5 p-2 rounded-lg bg-builder-surface-2 border border-(--builder-border)">
             {boundProduct.images?.[0] ? (
               <img src={boundProduct.images[0]} alt={boundProduct.name} className="w-10 h-10 rounded object-cover shrink-0" />
             ) : (
-              <div className="w-10 h-10 rounded bg-[var(--builder-surface-3)] flex items-center justify-center shrink-0">
-                <Package size={16} className="text-[var(--builder-text-faint)]" />
+              <div className="w-10 h-10 rounded bg-builder-surface-3 flex items-center justify-center shrink-0">
+                <Package size={16} className="text-builder-text-faint" />
               </div>
             )}
             <div className="min-w-0">
-              <p className="text-[12px] font-semibold text-[var(--builder-text)] truncate">{boundProduct.name}</p>
-              <p className="text-[11px] text-[var(--builder-text-muted)]">
+              <p className="text-[12px] font-semibold text-builder-text truncate">{boundProduct.name}</p>
+              <p className="text-[11px] text-builder-text-muted">
                 ₱{(boundProduct.finalPrice ?? boundProduct.price ?? 0).toLocaleString()}
                 {boundProduct.compareAtPrice && boundProduct.compareAtPrice > (boundProduct.finalPrice ?? boundProduct.price ?? 0) && (
                   <span className="ml-1 line-through opacity-60">₱{boundProduct.compareAtPrice.toLocaleString()}</span>
@@ -122,7 +122,7 @@ export const ProductCardSettings = () => {
         )}
 
         {products.length === 0 && (
-          <p className="text-[11px] text-[var(--builder-text-faint)] text-center py-2">
+          <p className="text-[11px] text-builder-text-faint text-center py-2">
             No products found in your store.
           </p>
         )}
@@ -142,7 +142,7 @@ export const ProductCardSettings = () => {
               <select
                 value={props.imageObjectFit ?? "cover"}
                 onChange={(e) => set("imageObjectFit", e.target.value as any)}
-                className="flex-1 h-7 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none"
+                className="flex-1 h-7 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none"
               >
                 <option value="cover">Cover</option>
                 <option value="contain">Contain</option>
@@ -170,7 +170,7 @@ export const ProductCardSettings = () => {
             <Row>
               <Label>Text</Label>
               <input
-                className="flex-1 h-7 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+                className="flex-1 h-7 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)"
                 value={props.ribbonText ?? "Sale"}
                 onChange={(e) => set("ribbonText", e.target.value)}
               />
@@ -193,11 +193,11 @@ export const ProductCardSettings = () => {
       <DesignSection title="Design" defaultOpen={false}>
 
         {/* Card */}
-        <p className="text-[10px] text-[var(--builder-text-faint)] mb-1.5 uppercase tracking-wider font-semibold">Card</p>
+        <p className="text-[10px] text-builder-text-faint mb-1.5 uppercase tracking-wider font-semibold">Card</p>
         <Row>
           <Label>Width</Label>
           <input
-            className="flex-1 h-7 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+            className="flex-1 h-7 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)"
             value={props.width ?? "280px"}
             onChange={(e) => set("width", e.target.value)}
           />
@@ -224,7 +224,7 @@ export const ProductCardSettings = () => {
         </Row>
 
         {/* Text */}
-        <p className="text-[10px] text-[var(--builder-text-faint)] mb-1.5 mt-3 uppercase tracking-wider font-semibold">Text</p>
+        <p className="text-[10px] text-builder-text-faint mb-1.5 mt-3 uppercase tracking-wider font-semibold">Text</p>
         <Row>
           <Label>Name size</Label>
           <NumericInput value={props.nameFontSize ?? 14} min={10} max={32} unit="px" onChange={(v) => set("nameFontSize", v)} />
@@ -238,7 +238,7 @@ export const ProductCardSettings = () => {
           <select
             value={props.nameFontWeight ?? "700"}
             onChange={(e) => set("nameFontWeight", e.target.value)}
-            className="flex-1 h-7 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none"
+            className="flex-1 h-7 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none"
           >
             {["400", "500", "600", "700", "800"].map((w) => (
               <option key={w} value={w}>{w}</option>
@@ -257,11 +257,11 @@ export const ProductCardSettings = () => {
         {/* Button */}
         {props.showAddToCart && (
           <>
-            <p className="text-[10px] text-[var(--builder-text-faint)] mb-1.5 mt-3 uppercase tracking-wider font-semibold">Button</p>
+            <p className="text-[10px] text-builder-text-faint mb-1.5 mt-3 uppercase tracking-wider font-semibold">Button</p>
             <Row>
               <Label>Label</Label>
               <input
-                className="flex-1 h-7 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+                className="flex-1 h-7 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)"
                 value={props.buttonLabel ?? "Add to Cart"}
                 onChange={(e) => set("buttonLabel", e.target.value)}
               />

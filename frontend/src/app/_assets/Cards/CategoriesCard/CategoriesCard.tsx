@@ -47,8 +47,8 @@ const LayoutThumb = ({
 }) => {
   const boxClassName = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
     active
-      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+      ? "border-(--builder-accent) bg-builder-accent/10"
+      : "border-(--builder-border) bg-builder-surface-2 hover:border-(--builder-border-mid)"
   }`;
 
   const cardBlock = (width: string, height: string, tone = "#cbd5e1") => (
@@ -278,7 +278,7 @@ const SpacingRow = ({ children }: { children: React.ReactNode }) => (
 );
 
 const SpacingLabel = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+  <span className="text-[11px] text-builder-text-muted w-24 shrink-0">{children}</span>
 );
 
 export function CategoriesCardCanvas() {
@@ -486,7 +486,7 @@ const Row = ({ children, className = "" }: { children: React.ReactNode; classNam
 );
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+  <span className="text-[11px] text-builder-text-muted w-24 shrink-0">{children}</span>
 );
 
 export const AlignButtons = ({
@@ -504,8 +504,8 @@ export const AlignButtons = ({
         onClick={() => onChange(a)}
         className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
           value === a
-            ? "bg-[var(--builder-accent)] text-white"
-            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+            ? "bg-builder-accent text-white"
+            : "bg-builder-surface-3 text-builder-text-muted hover:text-builder-text"
         }`}
       >
         {a[0].toUpperCase()}
@@ -629,27 +629,27 @@ const CategoriesCardSettings = () => {
           })}
         </div>
 
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">Spacing</p>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">Spacing</p>
         <SpacingRow>
           <SpacingLabel>Top</SpacingLabel>
-          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: { paddingTop?: number }) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: { paddingTop?: number }) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </SpacingRow>
         <SpacingRow>
           <SpacingLabel>Right</SpacingLabel>
-          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: { paddingRight?: number }) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: { paddingRight?: number }) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </SpacingRow>
         <SpacingRow>
           <SpacingLabel>Bottom</SpacingLabel>
-          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: { paddingBottom?: number }) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: { paddingBottom?: number }) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </SpacingRow>
         <SpacingRow>
           <SpacingLabel>Left</SpacingLabel>
-          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: { paddingLeft?: number }) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: { paddingLeft?: number }) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </SpacingRow>
       </DesignSection>
 
       <DesignSection title="Categories" defaultOpen>
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">
           Choose how categories are sourced
         </p>
 
@@ -670,8 +670,8 @@ const CategoriesCardSettings = () => {
                 }}
                 className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                   active
-                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10 text-[var(--builder-text)]"
-                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:border-[var(--builder-border-mid)]"
+                    ? "border-(--builder-accent) bg-builder-accent/10 text-builder-text"
+                    : "border-(--builder-border) bg-builder-surface-2 text-builder-text-muted hover:border-(--builder-border-mid)"
                 }`}
               >
                 {option.label}
@@ -682,7 +682,7 @@ const CategoriesCardSettings = () => {
 
         {categoryMode === "manual" ? (
           <div className="flex flex-col gap-2">
-            <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+            <p className="m-0 text-[11px] text-builder-text-muted">
               Add categories one by one. You can choose from detected categories or type a custom one.
             </p>
 
@@ -691,7 +691,7 @@ const CategoriesCardSettings = () => {
                 value={categoryToAdd}
                 onChange={(event) => setCategoryToAdd(event.target.value)}
                 title="Select category"
-                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none"
+                className="h-8 flex-1 rounded-lg border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text focus:border-(--builder-accent) focus:outline-none"
               >
                 <option value="">Select category</option>
                 {selectableCategories.map((category) => (
@@ -707,7 +707,7 @@ const CategoriesCardSettings = () => {
                   addSelectedCategory(categoryToAdd);
                   setCategoryToAdd("");
                 }}
-                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+                className="h-8 rounded-lg border border-(--builder-border) bg-builder-surface-2 px-3 text-xs font-semibold text-builder-text hover:border-(--builder-border-mid)"
               >
                 Add
               </button>
@@ -719,7 +719,7 @@ const CategoriesCardSettings = () => {
                 value={customCategory}
                 onChange={(event) => setCustomCategory(event.target.value)}
                 placeholder="Custom category"
-                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] placeholder:text-[var(--builder-text-faint)] focus:border-[var(--builder-accent)] focus:outline-none"
+                className="h-8 flex-1 rounded-lg border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text placeholder:text-builder-text-faint focus:border-(--builder-accent) focus:outline-none"
               />
               <button
                 type="button"
@@ -729,19 +729,19 @@ const CategoriesCardSettings = () => {
                   addSelectedCategory(value);
                   setCustomCategory("");
                 }}
-                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+                className="h-8 rounded-lg border border-(--builder-border) bg-builder-surface-2 px-3 text-xs font-semibold text-builder-text hover:border-(--builder-border-mid)"
               >
                 Add custom
               </button>
             </div>
 
-            <div className="mt-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2">
+            <div className="mt-1 rounded-lg border border-(--builder-border) bg-builder-surface-2 p-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[var(--builder-text)]">Selected categories</span>
+                <span className="text-[11px] font-semibold text-builder-text">Selected categories</span>
                 <button
                   type="button"
                   onClick={() => upsertSelectedCategories([])}
-                  className="text-[10px] font-semibold text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                  className="text-[10px] font-semibold text-builder-text-muted hover:text-builder-text"
                 >
                   Clear
                 </button>
@@ -752,13 +752,13 @@ const CategoriesCardSettings = () => {
                   {selectedCategories.map((category) => (
                     <span
                       key={category}
-                      className="inline-flex items-center gap-1 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
+                      className="inline-flex items-center gap-1 rounded-full border border-(--builder-border-mid) bg-builder-surface-3 px-2 py-0.5 text-[10px] text-builder-text"
                     >
                       {category}
                       <button
                         type="button"
                         onClick={() => removeSelectedCategory(category)}
-                        className="text-[10px] font-bold leading-none text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                        className="text-[10px] font-bold leading-none text-builder-text-muted hover:text-builder-text"
                         aria-label={`Remove ${category}`}
                       >
                         ×
@@ -767,12 +767,12 @@ const CategoriesCardSettings = () => {
                   ))}
                 </div>
               ) : (
-                <p className="m-0 text-[10px] text-[var(--builder-text-faint)]">No categories selected yet.</p>
+                <p className="m-0 text-[10px] text-builder-text-faint">No categories selected yet.</p>
               )}
             </div>
           </div>
         ) : (
-          <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">
+          <p className="m-0 text-[11px] text-builder-text-muted">
             Auto mode uses smart grouped subcategories from your project industry and products.
           </p>
         )}

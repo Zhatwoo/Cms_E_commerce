@@ -282,8 +282,8 @@ export const ColorPicker = ({ value, onChange, onMediaChange, label, className =
 
     return (
         <div ref={containerRef} className={`relative flex flex-col gap-1 ${className}`}>
-            {label && <label className="text-[10px] text-[var(--builder-text)] font-medium">{label}</label>}
-            <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] rounded-lg p-1 border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)] transition-colors">
+            {label && <label className="text-[10px] text-builder-text font-medium">{label}</label>}
+            <div className="flex items-center gap-2 bg-builder-surface-2 rounded-lg p-1 border border-(--builder-border) hover:border-(--builder-border-mid) transition-colors">
                 <button
                     ref={swatchRef}
                     onClick={toggle}
@@ -302,7 +302,7 @@ export const ColorPicker = ({ value, onChange, onMediaChange, label, className =
                 </div>
 
                 <div className="flex items-center gap-1 pr-1 border-l border-transparent pl-2">
-                    <span className="text-[10px] text-[var(--builder-text-faint)] font-bold">{Math.round(rgba.a * 100)}%</span>
+                    <span className="text-[10px] text-builder-text-faint font-bold">{Math.round(rgba.a * 100)}%</span>
                 </div>
             </div>
 
@@ -826,7 +826,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             ref={popoverRef}
             data-ui="color-picker"
             data-canvas-interactive="true"
-            className="fixed z-[9999] bg-[var(--builder-surface)] p-3 rounded-xl border border-transparent shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
+            className="fixed z-[9999] bg-builder-surface p-3 rounded-xl border border-transparent shadow-2xl flex flex-col gap-4 animate-in fade-in zoom-in duration-150"
             style={{
                 width: `${popoverWidth}px`,
                 maxHeight: '85vh',
@@ -848,15 +848,15 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             <div className="flex items-center relative gap-2 mb-1">
                 <div
                     onMouseDown={handleDragStart}
-                    className="flex-1 flex items-center justify-center py-1.5 cursor-grab active:cursor-grabbing rounded-lg hover:bg-[var(--builder-surface-2)] transition-colors"
+                    className="flex-1 flex items-center justify-center py-1.5 cursor-grab active:cursor-grabbing rounded-lg hover:bg-builder-surface-2 transition-colors"
                     title="Drag to move"
                 >
-                    <div className="h-1 w-12 rounded-full bg-[var(--builder-border-mid)]" />
+                    <div className="h-1 w-12 rounded-full bg-builder-border-mid" />
                 </div>
                 <button
                     type="button"
                     onClick={onClose}
-                    className="p-1.5 rounded-lg hover:bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors flex-shrink-0"
+                    className="p-1.5 rounded-lg hover:bg-builder-surface-2 text-builder-text-faint hover:text-builder-text transition-colors flex-shrink-0"
                     title="Close color picker"
                 >
                     <X size={14} />
@@ -864,7 +864,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             </div>
 
             {enableFillModes && (
-                <div className="flex items-center gap-2 pb-2 border-b border-[var(--builder-border)]">
+                <div className="flex items-center gap-2 pb-2 border-b border-(--builder-border)">
                     {[
                         { key: 'solid', icon: Square, title: 'Solid' },
                         { key: 'gradient', icon: Blend, title: 'Gradient' },
@@ -884,7 +884,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                 type="button"
                                 onClick={() => handlePaintModeSelect(item.key as PaintMode)}
                                 title={item.title}
-                                className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors ${active ? "bg-[var(--builder-surface-3)] border-[var(--builder-border-mid)] text-[var(--builder-text)]" : "bg-[var(--builder-surface-2)] border-[var(--builder-border)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
+                                className={`h-7 w-7 rounded-md border flex items-center justify-center transition-colors ${active ? "bg-builder-surface-3 border-(--builder-border-mid) text-builder-text" : "bg-builder-surface-2 border-(--builder-border) text-builder-text-faint hover:text-builder-text"}`}
                             >
                                 <Icon size={14} />
                             </button>
@@ -941,7 +941,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         <div className="flex flex-col items-center gap-2">
                             <button
                                 onClick={handleEyeDropper}
-                                className="p-1.5 rounded-lg bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] transition-colors group"
+                                className="p-1.5 rounded-lg bg-builder-surface-2 hover:bg-builder-surface-3 text-builder-text-muted transition-colors group"
                                 title="Pick color from screen"
                             >
                                 <Pipette size={14} className="group-active:scale-90 transition-transform" />
@@ -966,10 +966,10 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
                     <div className="flex flex-col gap-2">
                         <div className="flex gap-2">
-                            <div className="flex-1 flex bg-[var(--builder-surface-2)] rounded-lg border border-[var(--builder-border)] overflow-hidden text-[11px]">
+                            <div className="flex-1 flex bg-builder-surface-2 rounded-lg border border-(--builder-border) overflow-hidden text-[11px]">
                                 <button
                                     onClick={() => setMode(m => m === 'HEX' ? 'RGB' : m === 'RGB' ? 'HSL' : 'HEX')}
-                                    className="px-2 py-1.5 bg-[var(--builder-surface-3)] text-[var(--builder-text-faint)] flex items-center gap-1 border-r border-[var(--builder-border)] hover:text-[var(--builder-text)] transition-colors capitalize"
+                                    className="px-2 py-1.5 bg-builder-surface-3 text-builder-text-faint flex items-center gap-1 border-r border-(--builder-border) hover:text-builder-text transition-colors capitalize"
                                 >
                                     {mode.toLowerCase()} <ChevronDown size={10} />
                                 </button>
@@ -985,13 +985,13 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                                 onChange("#" + val + (alphaHex === "FF" ? "" : alphaHex));
                                             }
                                         }}
-                                        className="flex-1 bg-transparent px-2 py-1.5 text-[var(--builder-text)] focus:outline-none uppercase tracking-wider"
+                                        className="flex-1 bg-transparent px-2 py-1.5 text-builder-text focus:outline-none uppercase tracking-wider"
                                         spellCheck={false}
                                     />
                                 )}
 
                                 {mode === 'RGB' && (
-                                    <div className="flex-1 flex divide-x divide-[var(--builder-border)]">
+                                    <div className="flex-1 flex divide-x divide-(--builder-border)">
                                         {[rgba.r, rgba.g, rgba.b].map((v, i) => (
                                             <input
                                                 key={i}
@@ -1004,14 +1004,14 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                                         onChange(rgbaToHex(newRgba.r, newRgba.g, newRgba.b, newRgba.a));
                                                     }
                                                 }}
-                                                className="w-full bg-transparent px-1 py-1.5 text-[var(--builder-text)] focus:outline-none text-center"
+                                                className="w-full bg-transparent px-1 py-1.5 text-builder-text focus:outline-none text-center"
                                             />
                                         ))}
                                     </div>
                                 )}
 
                                 {mode === 'HSL' && (
-                                    <div className="flex-1 flex divide-x divide-[var(--builder-border)]">
+                                    <div className="flex-1 flex divide-x divide-(--builder-border)">
                                         {(() => {
                                             const hsl = rgbaToHsla(rgba.r, rgba.g, rgba.b, rgba.a);
                                             return [hsl.h, hsl.s, hsl.l].map((v, i) => (
@@ -1028,7 +1028,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                                             onChange(rgbaToHex(newRgb.r, newRgb.g, newRgb.b, rgba.a));
                                                         }
                                                     }}
-                                                    className="w-full bg-transparent px-1 py-1.5 text-[var(--builder-text)] focus:outline-none text-center"
+                                                    className="w-full bg-transparent px-1 py-1.5 text-builder-text focus:outline-none text-center"
                                                 />
                                             ));
                                         })()}
@@ -1036,7 +1036,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                 )}
                             </div>
 
-                            <div className="w-16 flex bg-[var(--builder-surface-2)] rounded-lg border border-[var(--builder-border)] overflow-hidden text-[11px]">
+                            <div className="w-16 flex bg-builder-surface-2 rounded-lg border border-(--builder-border) overflow-hidden text-[11px]">
                                 <input
                                     type="text"
                                     value={Math.round(hsva.a * 100)}
@@ -1044,9 +1044,9 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                         const v = parseInt(e.target.value, 10);
                                         if (!isNaN(v)) updateColor({ a: Math.max(0, Math.min(100, v)) / 100 });
                                     }}
-                                    className="w-full bg-transparent px-2 py-1.5 text-[var(--builder-text)] focus:outline-none text-center"
+                                    className="w-full bg-transparent px-2 py-1.5 text-builder-text focus:outline-none text-center"
                                 />
-                                <div className="pr-2 py-1.5 text-[var(--builder-text-faint)] flex items-center whitespace-nowrap">
+                                <div className="pr-2 py-1.5 text-builder-text-faint flex items-center whitespace-nowrap">
                                     %
                                 </div>
                             </div>
@@ -1060,7 +1060,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                     <div
                         ref={gradientTrackRef}
                         onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); handleGradientTrackClick(e); }}
-                        className="relative h-6 rounded-md border border-[var(--builder-border)] cursor-crosshair"
+                        className="relative h-6 rounded-md border border-(--builder-border) cursor-crosshair"
                         style={{ background: buildGradientCss(gradientType, gradientAngle, gradientStops) }}
                     >
                         {gradientStops.map((stop) => {
@@ -1094,7 +1094,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                 setGradientType(nextType);
                                 applyGradient(gradientStops, nextType, gradientAngle);
                             }}
-                            className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                            className="bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text"
                         >
                             <option value="linear">Linear</option>
                             <option value="radial">Radial</option>
@@ -1112,7 +1112,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             className="w-full accent-[#2f8cff]"
                         />
                     </div>
-                    <div className="w-full bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)] text-center">
+                    <div className="w-full bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text text-center">
                         Angle: {gradientAngle}deg
                     </div>
                     <div className="flex flex-col gap-2 w-full min-w-0">
@@ -1127,7 +1127,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                         const nextPosition = clamp(parseInt(e.target.value || "0", 10), 0, 100);
                                         updateGradientStop(stop.id, { position: nextPosition });
                                     }}
-                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-1.5 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-builder-surface-2 rounded-md px-1.5 py-1.5 text-xs text-builder-text"
                                 />
                                 <input
                                     type="text"
@@ -1137,7 +1137,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                         if (!normalized) return;
                                         updateGradientStop(stop.id, { color: normalized });
                                     }}
-                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text"
                                 />
                                 <input
                                     type="number"
@@ -1148,7 +1148,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                         const nextAlpha = clamp(parseInt(e.target.value || "0", 10), 0, 100);
                                         updateGradientStop(stop.id, { alpha: nextAlpha });
                                     }}
-                                    className="w-full min-w-0 bg-[var(--builder-surface-2)] rounded-md px-1.5 py-1.5 text-xs text-[var(--builder-text)]"
+                                    className="w-full min-w-0 bg-builder-surface-2 rounded-md px-1.5 py-1.5 text-xs text-builder-text"
                                 />
                                 <button
                                     type="button"
@@ -1162,7 +1162,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                             setSelectedStopId(next[0].id);
                                         }
                                     }}
-                                    className="h-6 w-6 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text-faint)] disabled:opacity-40"
+                                    className="h-6 w-6 rounded-md bg-builder-surface-2 text-builder-text-faint disabled:opacity-40"
                                     title="Remove stop"
                                 >
                                     -
@@ -1185,7 +1185,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             applyGradient(next);
                             setSelectedStopId(nextStop.id);
                         }}
-                        className="h-8 rounded-md bg-[var(--builder-surface-2)] text-[var(--builder-text)] text-xs"
+                        className="h-8 rounded-md bg-builder-surface-2 text-builder-text text-xs"
                     >
                         Add stop
                     </button>
@@ -1194,7 +1194,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
             {enableFillModes && paintMode === "pattern" && (
                 <div className="flex flex-col gap-3">
-                    <div className="h-[156px] rounded-md border border-[var(--builder-border)]" style={{ background: buildPatternCss(patternType, patternColor, patternCellSize), backgroundSize: patternType === 'grid' ? `${patternCellSize}px ${patternCellSize}px` : undefined }} />
+                    <div className="h-[156px] rounded-md border border-(--builder-border)" style={{ background: buildPatternCss(patternType, patternColor, patternCellSize), backgroundSize: patternType === 'grid' ? `${patternCellSize}px ${patternCellSize}px` : undefined }} />
                     <select
                         value={patternType}
                         onChange={(e) => {
@@ -1202,7 +1202,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             setPatternType(next);
                             applyPattern(next, patternColor, patternCellSize);
                         }}
-                        className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                        className="bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text"
                     >
                         <option value="grid">Grid</option>
                         <option value="dots">Dots</option>
@@ -1217,10 +1217,10 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                             setPatternColor(normalized);
                             applyPattern(patternType, normalized, patternCellSize);
                         }}
-                        className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                        className="bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text"
                     />
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[var(--builder-text-faint)]">Scale</span>
+                        <span className="text-[11px] text-builder-text-faint">Scale</span>
                         <input
                             type="range"
                             min={6}
@@ -1238,14 +1238,14 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             )}
 
             {(!enableFillModes || paintMode === "solid") && (
-            <div className="flex flex-col gap-2 pt-1 border-t border-[var(--builder-border)]">
+            <div className="flex flex-col gap-2 pt-1 border-t border-(--builder-border)">
                 <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-[var(--builder-text-faint)]">Custom Colors</span>
+                    <span className="text-[11px] text-builder-text-faint">Custom Colors</span>
                 </div>
 
                 <div className="max-h-28 overflow-y-auto pr-1">
                     {usedColors.length === 0 && (
-                        <div className="text-[11px] text-[var(--builder-text-faint)]/80">No custom colors yet.</div>
+                        <div className="text-[11px] text-builder-text-faint/80">No custom colors yet.</div>
                     )}
 
                     <div className="grid grid-cols-10 gap-1">
@@ -1257,7 +1257,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                                     onClick={() => {
                                         applySavedColor({ id: entry.id, hex: entry.hex, alpha: entry.alpha, visible: true });
                                     }}
-                                    className="relative h-6 w-6 rounded-md border border-[var(--builder-border)] transition-colors hover:border-[#2f8cff]"
+                                    className="relative h-6 w-6 rounded-md border border-(--builder-border) transition-colors hover:border-[#2f8cff]"
                                     style={{
                                         backgroundImage: entry.alpha < 100
                                             ? `linear-gradient(${rgbaCss(entry.hex, entry.alpha)}, ${rgbaCss(entry.hex, entry.alpha)}), ${CHECKER_BG}`
@@ -1279,7 +1279,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
             {enableFillModes && enableMediaFillModes && paintMode === "image" && (
                 <div className="flex flex-col gap-3">
                     <div 
-                        className="h-[156px] rounded-md border border-[var(--builder-border)]" 
+                        className="h-[156px] rounded-md border border-(--builder-border)" 
                         style={{ 
                             backgroundImage: imageUrl ? `url("${imageUrl}")` : CHECKER_BG, 
                             backgroundSize: imageUrl ? 'cover' : CHECKER_BG_SIZE, 
@@ -1293,7 +1293,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         onChange={(e) => setImageUrl(e.target.value)}
                         onBlur={(e) => applyImage(e.target.value)}
                         placeholder="https://example.com/image.jpg"
-                        className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                        className="bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text"
                     />
                     <input
                         ref={imageInputRef}
@@ -1350,7 +1350,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
 
             {enableFillModes && enableMediaFillModes && paintMode === "video" && (
                 <div className="flex flex-col gap-3">
-                    <div className="h-[156px] rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center text-[11px] text-[var(--builder-text-faint)] px-3 text-center">
+                    <div className="h-[156px] rounded-md border border-(--builder-border) bg-builder-surface-2 flex items-center justify-center text-[11px] text-builder-text-faint px-3 text-center">
                         Video fill stores the provided source as a cover URL.
                     </div>
                     <input
@@ -1359,7 +1359,7 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         onChange={(e) => setVideoUrl(e.target.value)}
                         onBlur={(e) => applyVideo(e.target.value)}
                         placeholder="https://example.com/video.mp4"
-                        className="bg-[var(--builder-surface-2)] rounded-md px-2 py-1.5 text-xs text-[var(--builder-text)]"
+                        className="bg-builder-surface-2 rounded-md px-2 py-1.5 text-xs text-builder-text"
                     />
                     <input
                         ref={videoInputRef}
@@ -1487,7 +1487,7 @@ const ColorTextValue = ({ value, onChange }: { value: string, onChange: (v: stri
             onPaste={handlePaste}
             onBlur={(e) => submit(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit(e.currentTarget.value)}
-            className="bg-transparent text-[11px] text-[var(--builder-text)] focus:outline-none uppercase tracking-widest px-1 w-full"
+            className="bg-transparent text-[11px] text-builder-text focus:outline-none uppercase tracking-widest px-1 w-full"
             placeholder="HEX"
             spellCheck={false}
         />

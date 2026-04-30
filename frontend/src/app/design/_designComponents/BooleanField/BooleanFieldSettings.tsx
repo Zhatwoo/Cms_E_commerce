@@ -131,11 +131,11 @@ export const BooleanFieldSettings = () => {
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Type</label>
+              <label className="text-[10px] text-builder-text">Type</label>
               <select
                 value={(controlType as BooleanFieldProps["controlType"]) ?? "checkbox"}
                 onChange={(e) => typedSetProp((props) => { props.controlType = e.target.value as any; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none appearance-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none appearance-none"
               >
                 <option value="checkbox">Checkbox</option>
                 <option value="radio">Radio</option>
@@ -143,20 +143,20 @@ export const BooleanFieldSettings = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Group Name</label>
+              <label className="text-[10px] text-builder-text">Group Name</label>
               <input
                 type="text"
                 value={name ?? ""}
                 onChange={(e) => typedSetProp((props) => { props.name = e.target.value; })}
                 placeholder="choice"
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
               />
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <div className="bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md p-2">
+              <div className="bg-builder-surface-2 border border-(--builder-border) rounded-md p-2">
                 <BooleanInput
                   label="Show Labels"
                   value={!!showLabels}
@@ -168,7 +168,7 @@ export const BooleanFieldSettings = () => {
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <div className="bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md p-2">
+              <div className="bg-builder-surface-2 border border-(--builder-border) rounded-md p-2">
                 <BooleanInput
                   label="Disabled"
                   value={!!disabled}
@@ -183,7 +183,7 @@ export const BooleanFieldSettings = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Gap</label>
+              <label className="text-[10px] text-builder-text">Gap</label>
               <NumericInput
                 value={gap ?? 10}
                 onChange={(val) => typedSetProp((props) => { props.gap = val; })}
@@ -192,7 +192,7 @@ export const BooleanFieldSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Item Gap</label>
+              <label className="text-[10px] text-builder-text">Item Gap</label>
               <NumericInput
                 value={itemGap ?? 10}
                 onChange={(val) => typedSetProp((props) => { props.itemGap = val; })}
@@ -203,7 +203,7 @@ export const BooleanFieldSettings = () => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <div className="hidden md:block text-[10px] text-[var(--builder-text)]" aria-hidden="true">
+            <div className="hidden md:block text-[10px] text-builder-text" aria-hidden="true">
               &nbsp;
             </div>
             <button
@@ -213,14 +213,14 @@ export const BooleanFieldSettings = () => {
                 next.push({ id: makeOptionId(), label: `Option ${next.length + 1}`, checked: false });
                 props.options = next;
               })}
-              className="w-full bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] py-2 transition-colors"
+              className="w-full bg-builder-surface-3 hover:bg-builder-surface-3 border border-(--builder-border) rounded-md text-xs text-builder-text py-2 transition-colors"
             >
               Add option
             </button>
           </div>
 
           <div className="flex flex-col gap-2">
-            <label className="text-[10px] text-[var(--builder-text)]">Options</label>
+            <label className="text-[10px] text-builder-text">Options</label>
             <div className="flex flex-col gap-2">
               {controlType === "checkbox" ? (
                 <MultiSelectInput
@@ -235,13 +235,13 @@ export const BooleanFieldSettings = () => {
                   placeholder="None selected"
                 />
               ) : (
-                <div className="text-[10px] text-[var(--builder-text-faint)]">
+                <div className="text-[10px] text-builder-text-faint">
                   Radio mode: only one option can be checked.
                 </div>
               )}
 
               {normalizedOptions.map((opt, idx) => (
-                <div key={opt.id} className="bg-[var(--builder-surface-2)]/30 border border-[var(--builder-border)] rounded-md p-2 flex flex-col gap-2">
+                <div key={opt.id} className="bg-builder-surface-2/30 border border-(--builder-border) rounded-md p-2 flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <input
                       type="text"
@@ -253,7 +253,7 @@ export const BooleanFieldSettings = () => {
                         props.options = next;
                       })}
                       placeholder={`Option ${idx + 1}`}
-                      className="flex-1 bg-black/20 border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+                      className="flex-1 bg-black/20 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
                     />
                     <button
                       type="button"
@@ -268,8 +268,8 @@ export const BooleanFieldSettings = () => {
                     </button>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-[var(--builder-text-faint)]">Checked</span>
-                    <div className="bg-black/20 border border-[var(--builder-border)] rounded-md px-2 py-1">
+                    <span className="text-[10px] text-builder-text-faint">Checked</span>
+                    <div className="bg-black/20 border border-(--builder-border) rounded-md px-2 py-1">
                       <BooleanInput
                         value={!!opt.checked}
                         onChange={(val) => typedSetProp((props) => {

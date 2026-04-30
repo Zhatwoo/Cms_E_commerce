@@ -73,7 +73,7 @@ export const PositionGroup = ({
     <div className="flex flex-col gap-4">
       {/* Position Mode */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
+        <label className="text-[12px] text-builder-text font-base">
           Position
         </label>
         <select
@@ -83,13 +83,13 @@ export const PositionGroup = ({
               props.position = e.target.value as PositionProps["position"];
             })
           }
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {POSITION_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
+              className="text-builder-text-muted bg-builder-surface"
             >
               {opt.label}
             </option>
@@ -100,7 +100,7 @@ export const PositionGroup = ({
       {/* Offset Controls — only when position is not static */}
       {showOffsets && (
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] text-[var(--builder-text)]">Offsets</label>
+          <label className="text-[10px] text-builder-text">Offsets</label>
           <div className="grid grid-cols-2 gap-2">
             {(
               [
@@ -112,9 +112,9 @@ export const PositionGroup = ({
             ).map((item) => (
               <div
                 key={item.key}
-                className="flex items-center gap-1 bg-[var(--builder-surface-2)] px-1.5 rounded-lg"
+                className="flex items-center gap-1 bg-builder-surface-2 px-1.5 rounded-lg"
               >
-                <span className="text-[10px] text-[var(--builder-text-muted)] text-center px-1.5">
+                <span className="text-[10px] text-builder-text-muted text-center px-1.5">
                   {item.label}
                 </span>
                 <input
@@ -126,7 +126,7 @@ export const PositionGroup = ({
                   onKeyDown={(e) => {
                     if (e.key === "Enter") e.currentTarget.blur();
                   }}
-                  className="w-full bg-transparent text-xs text-[var(--builder-text)] p-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
+                  className="w-full bg-transparent text-xs text-builder-text p-1.5 focus:outline-none placeholder:text-builder-text-faint"
                 />
               </div>
             ))}
@@ -136,7 +136,7 @@ export const PositionGroup = ({
 
       {/* Display Mode */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
+        <label className="text-[12px] text-builder-text font-base">
           Display
         </label>
         <select
@@ -146,13 +146,13 @@ export const PositionGroup = ({
               props.display = e.target.value as PositionProps["display"];
             })
           }
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {DISPLAY_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
+              className="text-builder-text-muted bg-builder-surface"
             >
               {opt.label}
             </option>
@@ -162,7 +162,7 @@ export const PositionGroup = ({
 
       {/* Align Self (for flex parents) */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
+        <label className="text-[12px] text-builder-text font-base">
           Align Self
         </label>
         <select
@@ -172,25 +172,25 @@ export const PositionGroup = ({
               props.alignSelf = e.target.value as PositionProps["alignSelf"];
             })
           }
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {ALIGN_SELF_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
+              className="text-builder-text-muted bg-builder-surface"
             >
               {opt.label}
             </option>
           ))}
         </select>
-        <p className="text-[10px] text-[var(--builder-text-muted)] leading-snug">
+        <p className="text-[10px] text-builder-text-muted leading-snug">
           Works when the parent display is Flex/Inline Flex.
         </p>
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
+        <label className="text-[12px] text-builder-text font-base">
           Canvas Visibility
         </label>
         <select
@@ -200,13 +200,13 @@ export const PositionGroup = ({
               props.editorVisibility = e.target.value as PositionProps["editorVisibility"];
             })
           }
-          className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+          className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
         >
           {EDITOR_VISIBILITY_OPTIONS.map((opt) => (
             <option
               key={opt.value}
               value={opt.value}
-              className="text-[var(--builder-text-muted)] bg-[var(--builder-surface)]"
+              className="text-builder-text-muted bg-builder-surface"
             >
               {opt.label}
             </option>
@@ -216,10 +216,10 @@ export const PositionGroup = ({
 
       {/* Z-Index */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">
+        <label className="text-[12px] text-builder-text font-base">
           Z-Index
         </label>
-        <div className="bg-[var(--builder-surface-2)] px-2.5 rounded-lg">
+        <div className="bg-builder-surface-2 px-2.5 rounded-lg">
           <NumericInput
             value={zIndex}
             onChange={(val) =>

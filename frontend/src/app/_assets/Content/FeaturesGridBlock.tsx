@@ -46,8 +46,8 @@ const DEFAULTS: Required<Omit<FeaturesGridBlockProps, "nodeId">> = {
 const LayoutThumb = ({ style, active, onClick, label }: { style: FeaturesGridLayoutStyle; active: boolean; onClick: () => void; label: string }) => {
   const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
     active
-      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+      ? "border-(--builder-accent) bg-builder-accent/10"
+      : "border-(--builder-border) bg-builder-surface-2 hover:border-(--builder-border-mid)"
   }`;
   const c = active ? "var(--builder-accent)" : "#94a3b8";
   const co = active ? 0.7 : 0.5;

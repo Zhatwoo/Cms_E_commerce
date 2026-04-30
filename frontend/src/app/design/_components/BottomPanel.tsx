@@ -150,10 +150,10 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 
   const statusTone =
     saveStatus === "saving"
-      ? "text-[var(--builder-status-saving)] border-yellow-400/30 bg-yellow-500/10"
+      ? "text-builder-status-saving border-yellow-400/30 bg-yellow-500/10"
       : saveStatus === "saved"
-        ? "text-[var(--builder-status-saved)] border-green-400/30 bg-green-500/10"
-        : "text-[var(--builder-status-error)] border-red-400/30 bg-red-500/10";
+        ? "text-builder-status-saved border-green-400/30 bg-green-500/10"
+        : "text-builder-status-error border-red-400/30 bg-red-500/10";
 
   const statusLabel =
     saveStatus === "saving"
@@ -201,7 +201,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
   return (
     <div data-panel="bottom-tools" className="absolute bottom-16 left-1/2 -translate-x-1/2 z-[9999] pointer-events-none flex flex-col items-center gap-2">
       <div
-        className="pointer-events-auto flex items-center rounded-2xl backdrop-blur-md border border-[var(--builder-border)] shadow-[0_10px_30px_rgba(0,0,0,0.35)] px-1.5 py-1.5 gap-1"
+        className="pointer-events-auto flex items-center rounded-2xl backdrop-blur-md border border-(--builder-border) shadow-[0_10px_30px_rgba(0,0,0,0.35)] px-1.5 py-1.5 gap-1"
         style={{ background: "color-mix(in srgb, var(--builder-surface) 90%, transparent)" }}
       >
         <div className="relative group/selection" ref={selectionMenuRef}>
@@ -210,8 +210,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               type="button"
               onClick={() => setShowSelectionMenu(!showSelectionMenu)}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "move" || activeTool === "hand"
-                ? "bg-blue-500/20 text-[var(--builder-active-text)] shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
+                ? "bg-blue-500/20 text-builder-active-text shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 border border-transparent"
                 }`}
             >
               <div className="flex items-center justify-center">
@@ -226,7 +226,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           </DesignTooltip>
 
           {showSelectionMenu && (
-            <div className="absolute bottom-full left-0 mb-2 bg-[var(--builder-surface-2)]/95 border border-[var(--builder-border)] rounded-xl shadow-2xl p-1 flex flex-col min-w-[140px] backdrop-blur-md z-[100]">
+            <div className="absolute bottom-full left-0 mb-2 bg-builder-surface-2/95 border border-(--builder-border) rounded-xl shadow-2xl p-1 flex flex-col min-w-[140px] backdrop-blur-md z-[100]">
               {SELECTION_TOOLS.map((tool) => (
                 <button
                   key={tool.type}
@@ -238,10 +238,10 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     setShowSelectionMenu(false);
                   }}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${activeTool === tool.type
-                    ? "bg-blue-500/10 text-[var(--builder-active-text)] font-bold"
+                    ? "bg-blue-500/10 text-builder-active-text font-bold"
                     : (permission === "viewer" && tool.type === "move")
-                      ? "text-[var(--builder-text-faint)] cursor-not-allowed"
-                      : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
+                      ? "text-builder-text-faint cursor-not-allowed"
+                      : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3"
                     }`}
                 >
                   <div className="flex items-center gap-2">
@@ -260,8 +260,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             onClick={() => onToolChange("text")}
             disabled={permission === "viewer"}
             className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "text"
-              ? "bg-blue-500/25 text-[var(--builder-active-text)]"
-              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)]"
+              ? "bg-blue-500/25 text-builder-active-text"
+              : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2"
               } ${permission === "viewer" ? "opacity-40 cursor-not-allowed" : ""}`}
           >
             <Type className="w-4 h-4" strokeWidth={1.8} />
@@ -282,8 +282,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               }}
               disabled={permission === "viewer"}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "shape"
-                ? "bg-blue-500/20 text-[var(--builder-active-text)] shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
+                ? "bg-blue-500/20 text-builder-active-text shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 border border-transparent"
                 } ${permission === "viewer" ? "opacity-40 cursor-not-allowed" : ""}`}
             >
               <Shapes className="w-4 h-4" strokeWidth={1.8} />
@@ -291,7 +291,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             </button>
           </DesignTooltip>
           {showShapesMenu && (
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-[var(--builder-surface-2)]/95 border border-[var(--builder-border)] rounded-xl shadow-xl p-1 flex flex-col min-w-[120px] backdrop-blur-md">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-builder-surface-2/95 border border-(--builder-border) rounded-xl shadow-xl p-1 flex flex-col min-w-[120px] backdrop-blur-md">
               {SHAPES.map((s) => (
                 <button
                   key={s.type}
@@ -302,8 +302,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     setShowShapesMenu(false);
                   }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${activeShape === s.type && activeTool === "shape"
-                    ? "bg-blue-500/20 text-[var(--builder-active-text)]"
-                    : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
+                    ? "bg-blue-500/20 text-builder-active-text"
+                    : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3"
                     }`}
                 >
                   {s.icon}
@@ -324,20 +324,20 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               }
             }}
             className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "comment"
-              ? "bg-amber-500/20 text-[var(--builder-accent)] shadow-[0_0_15px_rgba(245,158,11,0.1)] border border-amber-500/20"
-              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
+              ? "bg-amber-500/20 text-builder-accent shadow-[0_0_15px_rgba(245,158,11,0.1)] border border-amber-500/20"
+              : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 border border-transparent"
               }`}
           >
             <MessageSquare className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </DesignTooltip>
-        <div className="w-px h-5 bg-[var(--builder-border-mid)] rounded-full mx-0.5" aria-hidden />
+        <div className="w-px h-5 bg-builder-border-mid rounded-full mx-0.5" aria-hidden />
         <DesignTooltip content="Undo (Ctrl+Z)" position="top">
           <button
             type="button"
             onClick={handleUndo}
             disabled={!canUndo}
-            className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 disabled:opacity-40 disabled:pointer-events-none"
           >
             <Undo2 className="w-4 h-4" strokeWidth={1.8} />
           </button>
@@ -347,13 +347,13 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             type="button"
             onClick={handleRedo}
             disabled={!canRedo}
-            className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] disabled:opacity-40 disabled:pointer-events-none"
+            className="h-9 w-9 grid place-items-center rounded-lg transition-colors text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 disabled:opacity-40 disabled:pointer-events-none"
           >
             <Redo2 className="w-4 h-4" strokeWidth={1.8} />
           </button>
         </DesignTooltip>
 
-        <div className="w-px h-5 bg-[var(--builder-border-mid)] rounded-full mx-0.5" aria-hidden />
+        <div className="w-px h-5 bg-builder-border-mid rounded-full mx-0.5" aria-hidden />
 
         <div className="relative" ref={viewMenuRef}>
           <DesignTooltip content="Zoom & View Options" position="top">
@@ -361,8 +361,8 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               type="button"
               onClick={() => setShowViewMenu(!showViewMenu)}
               className={`flex items-center gap-1.5 px-3 h-9 rounded-lg transition-all ${showViewMenu || is100
-                ? "bg-blue-500/20 text-[var(--builder-active-text)] shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
-                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
+                ? "bg-blue-500/20 text-builder-active-text shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-2 border border-transparent"
                 }`}
             >
               <span>{Math.round(scale * 100)}%</span>
@@ -371,9 +371,9 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           </DesignTooltip>
 
           {showViewMenu && (
-            <div className="absolute bottom-full right-0 mb-2 bg-[var(--builder-surface-2)]/95 border border-[var(--builder-border)] rounded-xl shadow-2xl p-1 flex flex-col min-w-[180px] backdrop-blur-xl z-[100]">
-              <div className="px-3 py-1.5 border-b border-[var(--builder-border)] mb-1">
-                <span className="text-[10px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Zoom</span>
+            <div className="absolute bottom-full right-0 mb-2 bg-builder-surface-2/95 border border-(--builder-border) rounded-xl shadow-2xl p-1 flex flex-col min-w-[180px] backdrop-blur-xl z-[100]">
+              <div className="px-3 py-1.5 border-b border-(--builder-border) mb-1">
+                <span className="text-[10px] uppercase tracking-widest font-black text-builder-text-faint">Zoom</span>
               </div>
 
               {[0.5, 0.75, 1, 1.5, 2].map((zoom) => (
@@ -383,20 +383,20 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     onScaleChange?.(zoom);
                     setShowViewMenu(false);
                   }}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${Math.abs(scale - zoom) < 0.01 ? "bg-blue-500/20 text-[var(--builder-active-text)] font-bold" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"}`}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${Math.abs(scale - zoom) < 0.01 ? "bg-blue-500/20 text-builder-active-text font-bold" : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3"}`}
                 >
                   <span>{Math.round(zoom * 100)}%</span>
                 </button>
               ))}
 
-              <div className="h-px bg-[var(--builder-border)] my-1" />
+              <div className="h-px bg-builder-border my-1" />
 
               <button
                 onClick={() => {
                   onZoomFit?.();
                   setShowViewMenu(false);
                 }}
-                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors"
+                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <Maximize2 className="w-3.5 h-3.5 opacity-50" />
@@ -410,7 +410,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                   onRotateCanvas?.();
                   setShowViewMenu(false);
                 }}
-                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors"
+                className="flex items-center justify-between px-3 py-2 rounded-lg text-xs text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3 transition-colors"
               >
                 <div className="flex items-center gap-2">
                   <RotateCw className="w-3.5 h-3.5 opacity-50" />
@@ -426,7 +426,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 
       <div className="pointer-events-none flex items-center gap-2">
         {showHints && (
-          <span className="pointer-events-auto rounded-full border border-transparent px-3 py-1 text-[10px] text-[var(--builder-text-muted)] backdrop-blur-sm opacity-85"
+          <span className="pointer-events-auto rounded-full border border-transparent px-3 py-1 text-[10px] text-builder-text-muted backdrop-blur-sm opacity-85"
             style={{ background: "color-mix(in srgb, var(--builder-surface) 70%, transparent)" }}>
             G Move • H Hand • T Text • S Shapes • Hold Space
           </span>
@@ -437,7 +437,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           </span>
         )}
         {permission === "viewer" && (
-          <span className="pointer-events-auto rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] text-[var(--builder-status-error)] backdrop-blur-sm font-bold animate-pulse">
+          <span className="pointer-events-auto rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] text-builder-status-error backdrop-blur-sm font-bold animate-pulse">
             View-only Mode: Access Restricted
           </span>
         )}

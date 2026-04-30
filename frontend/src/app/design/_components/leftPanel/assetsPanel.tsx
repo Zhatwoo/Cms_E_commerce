@@ -482,7 +482,7 @@ export const AssetLivePreview = ({
 
   if (previewMode === "icon") {
     return (
-      <div className="h-16 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center text-[var(--builder-text-muted)] pointer-events-none group-hover:bg-[var(--builder-surface-3)] transition-colors">
+      <div className="h-16 w-full rounded-lg border border-dashed border-(--builder-border) bg-builder-surface-2 flex items-center justify-center text-builder-text-muted pointer-events-none group-hover:bg-builder-surface-3 transition-colors">
         <AssetPreviewErrorBoundary fallback={<span className="text-[10px] opacity-70">Preview unavailable</span>}>
           {item.preview ?? (
             <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
@@ -501,7 +501,7 @@ export const AssetLivePreview = ({
     }) : null;
 
     return (
-      <div className="h-20 w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-[var(--builder-surface-3)] transition-colors">
+      <div className="h-20 w-full rounded-lg border border-dashed border-(--builder-border) bg-builder-surface-2 flex items-center justify-center pointer-events-none overflow-hidden group-hover:bg-builder-surface-3 transition-colors">
         {shapePreviewElement}
       </div>
     );
@@ -510,7 +510,7 @@ export const AssetLivePreview = ({
   return (
     <div
       ref={previewRef}
-      className="w-full rounded-lg border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden pointer-events-none relative group-hover:bg-[var(--builder-surface-3)] transition-colors"
+      className="w-full rounded-lg border border-dashed border-(--builder-border) bg-builder-surface-2 overflow-hidden pointer-events-none relative group-hover:bg-builder-surface-3 transition-colors"
       style={{ height: previewHeight > 0 ? `${Math.min(previewHeight, maxHeight)}px` : "100px" }}
     >
       <div
@@ -521,7 +521,7 @@ export const AssetLivePreview = ({
           transform: `scale(${scale})`,
         }}
       >
-        <AssetPreviewErrorBoundary fallback={<div className="h-[100px] w-full flex items-center justify-center text-[10px] text-[var(--builder-text-faint)]">Preview unavailable</div>}>
+        <AssetPreviewErrorBoundary fallback={<div className="h-[100px] w-full flex items-center justify-center text-[10px] text-builder-text-faint">Preview unavailable</div>}>
           <Editor resolver={PREVIEW_RESOLVER} enabled={false}>
             <Frame>{item.element}</Frame>
           </Editor>
@@ -661,18 +661,18 @@ export const AssetsPanel = () => {
                   whileTap={{ scale: 0.985 }}
                   transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
                   style={{ willChange: "transform" }}
-                  className="group relative w-full bg-[var(--builder-surface-2)] rounded-xl border border-[var(--builder-border)] overflow-hidden hover:bg-[var(--builder-surface-3)] transition-all duration-300 hover:border-[var(--builder-border-mid)] shadow-sm h-16"
+                  className="group relative w-full bg-builder-surface-2 rounded-xl border border-(--builder-border) overflow-hidden hover:bg-builder-surface-3 transition-all duration-300 hover:border-(--builder-border-mid) shadow-sm h-16"
                 >
                   <div className="flex h-full items-center p-2.5 gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-[var(--builder-surface-3)] flex items-center justify-center text-[var(--builder-purple-light)] group-hover:text-[var(--builder-accent)] transition-colors border border-[var(--builder-border)] shadow-inner shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-builder-surface-3 flex items-center justify-center text-builder-purple-light group-hover:text-builder-accent transition-colors border border-(--builder-border) shadow-inner shrink-0">
                       {ASSET_ICONS[group.folder] || <Layout className="w-5 h-5" />}
                     </div>
                     <div className="flex-1 text-left">
-                      <div className="text-sm font-semibold text-[var(--builder-text)] group-hover:translate-x-1 transition-transform">
+                      <div className="text-sm font-semibold text-builder-text group-hover:translate-x-1 transition-transform">
                         {group.folder}
                       </div>
                     </div>
-                    <ChevronRight className="w-4 h-4 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-1" />
+                    <ChevronRight className="w-4 h-4 text-builder-text-faint group-hover:text-builder-accent transition-all group-hover:translate-x-1" />
                   </div>
                 </motion.button>
               </DesignTooltip>
@@ -686,17 +686,17 @@ export const AssetsPanel = () => {
             }`}
         >
           <div className="h-full overflow-y-auto">
-            <div className="flex items-center gap-2 px-1 pb-2 border-b border-[var(--builder-border)] mb-4 sticky top-0 bg-[var(--builder-surface)] z-10">
+            <div className="flex items-center gap-2 px-1 pb-2 border-b border-(--builder-border) mb-4 sticky top-0 bg-builder-surface z-10">
               <DesignTooltip content="Back to folders" position="right">
                 <button
                   type="button"
                   onClick={() => setPanelView("folders")}
-                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all"
+                  className="inline-flex items-center justify-center w-7 h-7 rounded-lg border border-(--builder-border) text-builder-text-muted hover:text-builder-accent hover:bg-builder-surface-2 transition-all"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
               </DesignTooltip>
-              <div className="text-xs font-bold text-[var(--builder-text)]">{activeGroup?.folder}</div>
+              <div className="text-xs font-bold text-builder-text">{activeGroup?.folder}</div>
             </div>
 
             {activeGroup ? (
@@ -757,26 +757,26 @@ export const AssetsPanel = () => {
                             key: assetKey,
                           });
                         }}
-                        className={`group bg-[var(--builder-surface-2)] p-3 rounded-xl hover:bg-[var(--builder-surface-3)] transition-all border cursor-move shadow-sm ${isSelected ? "border-[var(--builder-accent)] bg-[var(--builder-surface-3)]" : "border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]"
+                        className={`group bg-builder-surface-2 p-3 rounded-xl hover:bg-builder-surface-3 transition-all border cursor-move shadow-sm ${isSelected ? "border-(--builder-accent) bg-builder-surface-3" : "border-(--builder-border) hover:border-(--builder-border-mid)"
                           }`}
                       >
                         <div className="flex flex-col gap-2">
                           {!iconFolder && (
                             <div className="flex items-center justify-between gap-2 mb-1">
-                              <div className="text-sm text-[var(--builder-text)] font-medium leading-tight line-clamp-1">
+                              <div className="text-sm text-builder-text font-medium leading-tight line-clamp-1">
                                 {item?.label ?? ""}
                               </div>
                             </div>
                           )}
                           <div className="flex items-center justify-center">
                             {(item.label === "Product Card" || item.label === "Product Description Card" || item.label === "Product Slider") ? (
-                              <div className="w-full rounded-lg overflow-hidden border border-[var(--builder-border)] bg-[var(--builder-surface-3)]" style={{ height: 100 }}>
+                              <div className="w-full rounded-lg overflow-hidden border border-(--builder-border) bg-builder-surface-3" style={{ height: 100 }}>
                                 {item.label === "Product Card" ? (
                                   <div style={{ display: "flex", height: "100%", gap: 1 }}>
                                     {[1, 2, 3].map((i) => (
                                       <div key={i} style={{ flex: 1, background: "var(--builder-surface-2)", display: "flex", flexDirection: "column", borderRight: i < 3 ? "1px solid var(--builder-border)" : undefined }}>
                                         <div style={{ flex: 1, background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-builder-text-faint"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
                                         </div>
                                         <div style={{ padding: "4px 5px", display: "flex", flexDirection: "column", gap: 3 }}>
                                           <div style={{ height: 5, background: "var(--builder-border-mid)", borderRadius: 2, width: "80%" }} />
@@ -802,7 +802,7 @@ export const AssetsPanel = () => {
                                 ) : (
                                   <div style={{ display: "flex", height: "100%" }}>
                                     <div style={{ width: "40%", background: "var(--builder-border)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-[var(--builder-text-faint)]"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-builder-text-faint"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></svg>
                                     </div>
                                     <div style={{ flex: 1, padding: "10px 10px", display: "flex", flexDirection: "column", gap: 5, justifyContent: "center", background: "var(--builder-surface-2)" }}>
                                       <div style={{ height: 6, background: "var(--builder-border-mid)", borderRadius: 2, width: "85%" }} />
@@ -837,7 +837,7 @@ export const AssetsPanel = () => {
                         const subgroupKey = `${activeGroup.folder}:${groupName}`;
                         const isOpen = openSubgroups[subgroupKey] ?? false;
                         return (
-                          <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
+                          <div key={groupName} className="rounded-xl border border-(--builder-border) bg-builder-surface-2 overflow-hidden">
                             <motion.button
                               type="button"
                               onClick={() => {
@@ -850,18 +850,18 @@ export const AssetsPanel = () => {
                               whileTap={{ scale: 0.99 }}
                               transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
                               style={{ willChange: "transform" }}
-                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
+                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-builder-surface-3 transition-colors"
                             >
-                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-builder-text-faint">
                                 {groupName}
                               </span>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
-                                <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                                <span className="text-[10px] text-builder-text-faint">{items.length}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-builder-text-faint transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
                               </div>
                             </motion.button>
 
-                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
+                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-(--builder-border)`}>
                               <div className="grid grid-cols-4 gap-2">
                                 {items.map(({ item, idx }) => renderAssetCard(item, idx))}
                               </div>
@@ -883,7 +883,7 @@ export const AssetsPanel = () => {
                         const subgroupKey = `${activeGroup.folder}:${groupName}`;
                         const isOpen = openSubgroups[subgroupKey] ?? false;
                         return (
-                          <div key={groupName} className="rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-2)] overflow-hidden">
+                          <div key={groupName} className="rounded-xl border border-(--builder-border) bg-builder-surface-2 overflow-hidden">
                             <motion.button
                               type="button"
                               onClick={() => {
@@ -896,18 +896,18 @@ export const AssetsPanel = () => {
                               whileTap={{ scale: 0.99 }}
                               transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
                               style={{ willChange: "transform" }}
-                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-[var(--builder-surface-3)] transition-colors"
+                              className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-builder-surface-3 transition-colors"
                             >
-                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[var(--builder-text-faint)]">
+                              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-builder-text-faint">
                                 {groupName}
                               </span>
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] text-[var(--builder-text-faint)]">{items.length}</span>
-                                <ChevronDown className={`w-3.5 h-3.5 text-[var(--builder-text-faint)] transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
+                                <span className="text-[10px] text-builder-text-faint">{items.length}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-builder-text-faint transition-transform ${isOpen ? "rotate-180" : "rotate-0"}`} />
                               </div>
                             </motion.button>
 
-                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-[var(--builder-border)]`}>
+                            <div className={`${isOpen ? "block" : "hidden"} p-2 border-t border-(--builder-border)`}>
                               <div className={`grid gap-2 ${shapeSection ? "grid-cols-2" : "grid-cols-1"}`}>
                                 {items.map(({ item, idx }) => renderAssetCard(item, idx))}
                               </div>
@@ -928,7 +928,7 @@ export const AssetsPanel = () => {
                 );
               })()
             ) : (
-              <div className="rounded-sm border border-transparent bg-transparent p-4 text-center text-xs text-[var(--builder-text-faint)]">
+              <div className="rounded-sm border border-transparent bg-transparent p-4 text-center text-xs text-builder-text-faint">
                 Select a category.
               </div>
             )}

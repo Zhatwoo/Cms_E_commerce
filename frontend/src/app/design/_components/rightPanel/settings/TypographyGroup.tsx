@@ -39,9 +39,9 @@ const TEXT_TRANSFORM_OPTIONS = [
   { value: "lowercase", label: "aa" },
 ] as const;
 
-const labelCls = "text-[10px] text-[var(--builder-text-muted)]";
-const selectShellCls = "relative flex items-center rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] transition-colors hover:border-[var(--builder-border-mid)]";
-const iconButtonBaseCls = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--builder-border)] text-[var(--builder-text-muted)] transition-colors";
+const labelCls = "text-[10px] text-builder-text-muted";
+const selectShellCls = "relative flex items-center rounded-lg border border-(--builder-border) bg-builder-surface-2 transition-colors hover:border-(--builder-border-mid)";
+const iconButtonBaseCls = "inline-flex h-7 w-7 items-center justify-center rounded-lg border border-(--builder-border) text-builder-text-muted transition-colors";
 
 const isBoldWeight = (weight: string) => {
   const parsed = Number.parseInt(weight, 10);
@@ -120,16 +120,16 @@ const StyledDropdown = <T extends string>({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((current) => !current)}
-        className={`${selectShellCls} gap-2 px-2.5 py-1.5 text-xs text-[var(--builder-text)] ${buttonClassName} ${className}`.trim()}
+        className={`${selectShellCls} gap-2 px-2.5 py-1.5 text-xs text-builder-text ${buttonClassName} ${className}`.trim()}
       >
         <span className={`flex-1 truncate ${align === "right" ? "text-right" : "text-left"}`}>{selectedOption.label}</span>
-        <ChevronDown className={`h-3.5 w-3.5 text-[var(--builder-text-faint)] transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3.5 w-3.5 text-builder-text-faint transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && menuRect && createPortal(
         <div
           ref={menuRef}
-          className={`z-[99999] overflow-hidden rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface)] shadow-2xl ${menuClassName}`.trim()}
+          className={`z-[99999] overflow-hidden rounded-lg border border-(--builder-border) bg-builder-surface shadow-2xl ${menuClassName}`.trim()}
           style={{
             position: "fixed",
             top: menuRect.top,
@@ -149,8 +149,8 @@ const StyledDropdown = <T extends string>({
                 }}
                 className={`flex w-full items-center px-3 py-2 text-xs transition-colors ${
                   active
-                    ? "bg-[var(--builder-surface-2)] text-[var(--builder-text)]"
-                    : "text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-2)] hover:text-[var(--builder-text)]"
+                    ? "bg-builder-surface-2 text-builder-text"
+                    : "text-builder-text-muted hover:bg-builder-surface-2 hover:text-builder-text"
                 } ${align === "right" ? "justify-end text-right" : "justify-start text-left"}`}
               >
                 {option.label}
@@ -187,8 +187,8 @@ export const TypographyGroup = ({
     { val: "justify", icon: AlignJustify },
   ];
 
-  const activeBtnCls = "border-[var(--builder-accent)] bg-[var(--builder-accent)] text-black";
-  const inactiveBtnCls = "hover:border-[var(--builder-border-mid)] hover:text-[var(--builder-text)]";
+  const activeBtnCls = "border-(--builder-accent) bg-builder-accent text-black";
+  const inactiveBtnCls = "hover:border-(--builder-border-mid) hover:text-builder-text";
 
   // Always show alignment controls (fix for undefined variable)
   const showAlignmentControls = true;
@@ -237,7 +237,7 @@ export const TypographyGroup = ({
         </div>
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Size</label>
-          <div className="rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)]">
+          <div className="rounded-lg border border-(--builder-border) bg-builder-surface-2">
             <NumericInput value={fontSize} onChange={(val) => setProp((props) => { props.fontSize = val; })} unit="px" presets={[10, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 48, 64, 96]} />
           </div>
         </div>
@@ -264,7 +264,7 @@ export const TypographyGroup = ({
               className="flex-1"
             />
             {lineHeight !== "normal" && lineHeight !== 0 && (
-              <div className="flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)]">
+              <div className="flex-1 rounded-lg border border-(--builder-border) bg-builder-surface-2">
                 <NumericInput value={Number(lineHeight)} step={0.1} onChange={(val) => setProp((props) => { props.lineHeight = val; })} unit="x" presets={[1, 1.2, 1.5, 2, 2.5]} />
               </div>
             )}
@@ -272,14 +272,14 @@ export const TypographyGroup = ({
         </div>
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Spacing</label>
-          <div className="rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)]">
+          <div className="rounded-lg border border-(--builder-border) bg-builder-surface-2">
             <NumericInput value={Number(letterSpacing)} step={0.1} onChange={(val) => setProp((props) => { props.letterSpacing = val; })} unit="px" presets={[-1, 0, 1, 2, 4, 8]} />
           </div>
         </div>
       </div>
 
       {/* Alignment, transform, and style controls group */}
-      <div className="flex items-center justify-between rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-1">
+      <div className="flex items-center justify-between rounded-lg border border-(--builder-border) bg-builder-surface-2 p-1">
         <div className="flex gap-0.5">
           {showAlignmentControls
             ? alignmentOptions.map(({ val, icon: Icon }) => (
@@ -298,7 +298,7 @@ export const TypographyGroup = ({
         </div>
 
         {/* Divider for distinction */}
-        <div className="mx-1 h-5 w-px bg-[var(--builder-border-mid)]" />
+        <div className="mx-1 h-5 w-px bg-builder-border-mid" />
 
         {/* Style buttons: Bold, Italic, Underline, Strikethrough */}
         <div className="flex items-center gap-0.5">
@@ -363,7 +363,7 @@ export const TypographyGroup = ({
         </div>
 
         {/* Divider for distinction */}
-        <div className="mx-1 h-5 w-px bg-[var(--builder-border-mid)]" />
+        <div className="mx-1 h-5 w-px bg-builder-border-mid" />
 
         <StyledDropdown
           value={textTransform === "none" ? "capitalize" : textTransform}

@@ -62,12 +62,12 @@ export const GridLayoutGroup = ({
         key={`${h}-${v}`}
         onClick={() => handleAlignment(h, v)}
         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${active
-          ? "bg-[var(--builder-accent)] text-black scale-110"
-          : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-hover)]"
+          ? "bg-builder-accent text-black scale-110"
+          : "bg-builder-surface-3 text-builder-text-muted hover:bg-builder-surface-hover"
           }`}
         title={`Align: ${v}, Justify: ${h}`}
       >
-        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-[var(--builder-surface)]" : "bg-[var(--builder-text-faint)]"}`} />
+        <div className={`w-1.5 h-1.5 rounded-full ${active ? "bg-builder-surface" : "bg-builder-text-faint"}`} />
       </button>
     );
   };
@@ -76,12 +76,12 @@ export const GridLayoutGroup = ({
     <div className="flex flex-col gap-5">
       {/* Column Presets */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-[var(--builder-text)] font-medium">
+        <label className="text-[12px] text-builder-text font-medium">
           Grid Structure
         </label>
-        <div className="flex flex-col gap-3 bg-[var(--builder-surface-2)] p-3 rounded-xl border border-[var(--builder-border)]">
+        <div className="flex flex-col gap-3 bg-builder-surface-2 p-3 rounded-xl border border-(--builder-border)">
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Columns</span>
+            <span className="text-[10px] text-builder-text-muted uppercase tracking-wider">Columns</span>
             <div className="grid grid-cols-3 gap-1.5">
               {COLUMN_PRESETS.map((preset) => (
                 <button
@@ -92,8 +92,8 @@ export const GridLayoutGroup = ({
                     })
                   }
                   className={`text-[10px] px-2 py-1.5 rounded-lg transition-all ${gridTemplateColumns === preset.value
-                    ? "bg-[var(--builder-accent)] text-white font-medium"
-                    : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-hover)]"
+                    ? "bg-builder-accent text-white font-medium"
+                    : "bg-builder-surface-3 text-builder-text-muted hover:bg-builder-surface-hover"
                     }`}
                 >
                   {preset.label}
@@ -109,12 +109,12 @@ export const GridLayoutGroup = ({
                 })
               }
               placeholder="e.g. 1fr 2fr"
-              className="w-full bg-[var(--builder-surface-3)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
+              className="w-full bg-builder-surface-3 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none placeholder:text-builder-text-faint"
             />
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Rows</span>
+            <span className="text-[10px] text-builder-text-muted uppercase tracking-wider">Rows</span>
             <input
               type="text"
               value={gridTemplateRows}
@@ -124,7 +124,7 @@ export const GridLayoutGroup = ({
                 })
               }
               placeholder="e.g. auto 1fr"
-              className="w-full bg-[var(--builder-surface-3)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none placeholder:text-[var(--builder-text-faint)]"
+              className="w-full bg-builder-surface-3 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none placeholder:text-builder-text-faint"
             />
           </div>
         </div>
@@ -132,10 +132,10 @@ export const GridLayoutGroup = ({
 
       {/* Alignment & Distribution */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-[var(--builder-text)] font-medium">Alignment & Distribution</label>
+        <label className="text-[12px] text-builder-text font-medium">Alignment & Distribution</label>
         <div className="flex gap-4 items-start">
           {/* 3x3 Matrix for items */}
-          <div className="bg-[var(--builder-surface-2)] p-2 rounded-xl border border-[var(--builder-border)] inline-grid grid-cols-3 gap-2">
+          <div className="bg-builder-surface-2 p-2 rounded-xl border border-(--builder-border) inline-grid grid-cols-3 gap-2">
             {["start", "center", "end"].map(v =>
               ["start", "center", "end"].map(h =>
                 renderMatrixCell(h as any, v as any)
@@ -145,11 +145,11 @@ export const GridLayoutGroup = ({
 
           <div className="flex flex-col gap-3 flex-1">
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-[var(--builder-text-muted)]">Justify Content</span>
+              <span className="text-[10px] text-builder-text-muted">Justify Content</span>
               <select
                 value={justifyContent}
                 onChange={(e) => setProp(p => { p.justifyContent = e.target.value as any; })}
-                className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none border border-[var(--builder-border)]"
+                className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2 py-1.5 focus:outline-none appearance-none border border-(--builder-border)"
               >
                 <option value="start">Start</option>
                 <option value="center">Center</option>
@@ -160,11 +160,11 @@ export const GridLayoutGroup = ({
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="text-[10px] text-[var(--builder-text-muted)]">Align Content</span>
+              <span className="text-[10px] text-builder-text-muted">Align Content</span>
               <select
                 value={alignContent}
                 onChange={(e) => setProp(p => { p.alignContent = e.target.value as any; })}
-                className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none border border-[var(--builder-border)]"
+                className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2 py-1.5 focus:outline-none appearance-none border border-(--builder-border)"
               >
                 <option value="start">Start</option>
                 <option value="center">Center</option>
@@ -179,11 +179,11 @@ export const GridLayoutGroup = ({
       </div>
 
       {/* Advanced & Gap */}
-      <div className="flex flex-col gap-3 bg-[var(--builder-surface-2)] p-3 rounded-xl border border-[var(--builder-border)]">
+      <div className="flex flex-col gap-3 bg-builder-surface-2 p-3 rounded-xl border border-(--builder-border)">
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Gap (Col)</span>
-            <div className="bg-[var(--builder-surface-3)] px-2 rounded-lg h-[32px] flex items-center">
+            <span className="text-[10px] text-builder-text-muted uppercase tracking-wider">Gap (Col)</span>
+            <div className="bg-builder-surface-3 px-2 rounded-lg h-[32px] flex items-center">
               <NumericInput
                 value={effectiveColGap}
                 onChange={(val) => setProp(p => { p.gridColumnGap = val; })}
@@ -193,8 +193,8 @@ export const GridLayoutGroup = ({
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Gap (Row)</span>
-            <div className="bg-[var(--builder-surface-3)] px-2 rounded-lg h-[32px] flex items-center">
+            <span className="text-[10px] text-builder-text-muted uppercase tracking-wider">Gap (Row)</span>
+            <div className="bg-builder-surface-3 px-2 rounded-lg h-[32px] flex items-center">
               <NumericInput
                 value={effectiveRowGap}
                 onChange={(val) => setProp(p => { p.gridRowGap = val; })}
@@ -206,11 +206,11 @@ export const GridLayoutGroup = ({
         </div>
 
         <div className="flex flex-col gap-1">
-          <span className="text-[10px] text-[var(--builder-text-muted)] uppercase tracking-wider">Auto Flow</span>
+          <span className="text-[10px] text-builder-text-muted uppercase tracking-wider">Auto Flow</span>
           <select
             value={gridAutoFlow}
             onChange={(e) => setProp(p => { p.gridAutoFlow = e.target.value as any; })}
-            className="w-full bg-[var(--builder-surface-3)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-builder-surface-3 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             {AUTO_FLOW_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>

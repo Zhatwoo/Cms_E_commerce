@@ -41,8 +41,8 @@ const defaults: Required<Omit<StatsCounterBlockProps, "nodeId">> = {
 
 const LayoutThumb = ({ style, active, onClick, label }: { style: string; active: boolean; onClick: () => void; label: string }) => {
   const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
-    active ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+    active ? "border-(--builder-accent) bg-builder-accent/10"
+      : "border-(--builder-border) bg-builder-surface-2 hover:border-(--builder-border-mid)"
   }`;
 
   let inner: React.ReactNode = null;

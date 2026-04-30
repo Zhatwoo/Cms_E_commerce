@@ -139,8 +139,8 @@ export const LayoutLayerGroup = ({
         <div className="flex flex-col gap-5">
             {/* Layout Mode Toggle */}
             <div className="flex flex-col gap-2">
-                <label className="text-[12px] text-[var(--builder-text)] font-base">Layout Mode</label>
-                <div className="flex items-center gap-1 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5">
+                <label className="text-[12px] text-builder-text font-base">Layout Mode</label>
+                <div className="flex items-center gap-1 bg-builder-surface-2 rounded-[10px] border border-(--builder-border) p-0.5">
                     <button
                         type="button"
                         onClick={() => {
@@ -154,8 +154,8 @@ export const LayoutLayerGroup = ({
                             }
                         }}
                         className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform
-                            ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)] shadow-sm"
-                            : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                            ? "bg-builder-surface-3 text-builder-text shadow-sm"
+                            : "text-builder-text-muted hover:text-builder-text"
                             }`}
                         title="Freeform (Figma canvas-like)"
                     >
@@ -176,8 +176,8 @@ export const LayoutLayerGroup = ({
                             }
                         }}
                         className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${!isFreeform
-                            ? "bg-[var(--builder-accent)] text-black font-medium"
-                            : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                            ? "bg-builder-accent text-black font-medium"
+                            : "text-builder-text-muted hover:text-builder-text"
                             }`}
                         title="Auto Layout (Flex/Grid)"
                     >
@@ -203,10 +203,10 @@ export const LayoutLayerGroup = ({
 
       {nodeId && hasChildren ? (
         <div className="flex flex-col gap-1">
-          <label className="text-[12px] text-[var(--builder-text)] font-base">Children Position</label>
-          <div className="bg-[var(--builder-surface-2)] px-2 rounded-lg border border-[var(--builder-border)]">
+          <label className="text-[12px] text-builder-text font-base">Children Position</label>
+          <div className="bg-builder-surface-2 px-2 rounded-lg border border-(--builder-border)">
             <select
-              className="w-full text-xs bg-[var(--builder-surface-2)] text-[var(--builder-text)] py-1.5 px-1.5 focus:outline-none appearance-none"
+              className="w-full text-xs bg-builder-surface-2 text-builder-text py-1.5 px-1.5 focus:outline-none appearance-none"
               value={childMode}
               onChange={(e) => setChildrenPositionMode(e.target.value as ChildPositionMode)}
               title="Controls whether children participate in layout flow (needed for alignment/distribution)"
@@ -219,17 +219,17 @@ export const LayoutLayerGroup = ({
           </div>
 
           {childMode !== "flow" ? (
-            <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed">
+            <div className="text-[11px] text-builder-text-muted leading-relaxed">
               Alignment/Distribution only works when children are in{" "}
-              <span className="text-[var(--builder-text)]">Flow (Relative)</span>.
+              <span className="text-builder-text">Flow (Relative)</span>.
             </div>
           ) : null}
         </div>
       ) : null}
 
       {isFreeform ? (
-        <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed italic bg-[var(--builder-surface-2)] p-3 rounded-lg border border-[var(--builder-border)]">
-          Auto Layout is disabled in <span className="text-[var(--builder-text)] font-medium">Freeform</span> mode. Elements can be placed anywhere using absolute coordinates.
+        <div className="text-[11px] text-builder-text-muted leading-relaxed italic bg-builder-surface-2 p-3 rounded-lg border border-(--builder-border)">
+          Auto Layout is disabled in <span className="text-builder-text font-medium">Freeform</span> mode. Elements can be placed anywhere using absolute coordinates.
         </div>
       ) : (
         <>
@@ -237,7 +237,7 @@ export const LayoutLayerGroup = ({
             <button
               type="button"
               onClick={() => setChildrenPositionMode("flow")}
-              className="w-full bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-hover)] border border-[var(--builder-border)] rounded-lg py-2 text-xs text-[var(--builder-text)] transition-colors"
+              className="w-full bg-builder-surface-2 hover:bg-builder-surface-hover border border-(--builder-border) rounded-lg py-2 text-xs text-builder-text transition-colors"
             >
               Set children to Flow (Relative) to enable alignment
             </button>
@@ -264,10 +264,10 @@ export const LayoutLayerGroup = ({
               setProp={setProp as any}
             />
           ) : (
-            <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed">
-              Set <span className="text-[var(--builder-text)]">Display</span> to{" "}
-              <span className="text-[var(--builder-text)]">Flex</span> or{" "}
-              <span className="text-[var(--builder-text)]">Grid</span> to enable alignment and
+            <div className="text-[11px] text-builder-text-muted leading-relaxed">
+              Set <span className="text-builder-text">Display</span> to{" "}
+              <span className="text-builder-text">Flex</span> or{" "}
+              <span className="text-builder-text">Grid</span> to enable alignment and
               distribution.
             </div>
           )}

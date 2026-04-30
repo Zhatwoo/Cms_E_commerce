@@ -156,11 +156,11 @@ export const IconSettings = () => {
       <DesignSection title="Icon">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Type</label>
+            <label className="text-[10px] text-builder-text">Type</label>
             <select
               value={iconType}
               onChange={(e) => typedSetProp((props) => { props.iconType = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none appearance-none"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none appearance-none"
             >
               {ICON_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -170,7 +170,7 @@ export const IconSettings = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Size</label>
+              <label className="text-[10px] text-builder-text">Size</label>
               <NumericInput
                 value={size}
                 onChange={(val) => typedSetProp((props) => { props.size = val; })}
@@ -180,7 +180,7 @@ export const IconSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Color</label>
+              <label className="text-[10px] text-builder-text">Color</label>
               <ColorPicker
                 value={color || "#ffffff"}
                 onChange={(val) => typedSetProp((props) => { props.color = val; })}
@@ -190,13 +190,13 @@ export const IconSettings = () => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Link URL</label>
+            <label className="text-[10px] text-builder-text">Link URL</label>
             <input
               type="text"
               value={link}
               onChange={(e) => typedSetProp((props) => { props.link = e.target.value; })}
               placeholder="https://..."
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
             />
           </div>
         </div>

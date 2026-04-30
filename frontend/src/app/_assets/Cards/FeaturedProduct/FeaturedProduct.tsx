@@ -53,7 +53,7 @@ const Row = ({ children, className = "" }: { children: React.ReactNode; classNam
 );
 
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">{children}</span>
+  <span className="text-[11px] text-builder-text-muted w-24 shrink-0">{children}</span>
 );
 
 const AlignButtons = ({
@@ -71,8 +71,8 @@ const AlignButtons = ({
         onClick={() => onChange(a)}
         className={`px-2 py-1 rounded text-[10px] font-semibold uppercase transition-colors ${
           value === a
-            ? "bg-[var(--builder-accent)] text-white"
-            : "bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+            ? "bg-builder-accent text-white"
+            : "bg-builder-surface-3 text-builder-text-muted hover:text-builder-text"
         }`}
       >
         {a[0].toUpperCase()}
@@ -85,7 +85,7 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (val
   <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
     <div
       onClick={() => onChange(!checked)}
-      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? "bg-[var(--builder-accent)] border-[var(--builder-accent)]" : "border-[var(--builder-border-mid)] bg-transparent"}`}
+      className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${checked ? "bg-builder-accent border-(--builder-accent)" : "border-(--builder-border-mid) bg-transparent"}`}
     >
       {checked && (
         <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
@@ -93,7 +93,7 @@ const Toggle = ({ checked, onChange, label }: { checked: boolean; onChange: (val
         </svg>
       )}
     </div>
-    <span className="text-[12px] text-[var(--builder-text)]">{label}</span>
+    <span className="text-[12px] text-builder-text">{label}</span>
   </label>
 );
 
@@ -557,7 +557,7 @@ export const FeaturedProductSettings = () => {
   return (
     <div className="flex flex-col gap-0">
       <DesignSection title="Products" defaultOpen>
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">
           Choose how featured items are sourced
         </p>
 
@@ -578,8 +578,8 @@ export const FeaturedProductSettings = () => {
                 }}
                 className={`rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
                   active
-                    ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10 text-[var(--builder-text)]"
-                    : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:border-[var(--builder-border-mid)]"
+                    ? "border-(--builder-accent) bg-builder-accent/10 text-builder-text"
+                    : "border-(--builder-border) bg-builder-surface-2 text-builder-text-muted hover:border-(--builder-border-mid)"
                 }`}
               >
                 {option.label}
@@ -590,14 +590,14 @@ export const FeaturedProductSettings = () => {
 
         {productSourceMode === "manual" ? (
           <div className="flex flex-col gap-2">
-            <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">Add products in order. The first items are shown as featured cards.</p>
+            <p className="m-0 text-[11px] text-builder-text-muted">Add products in order. The first items are shown as featured cards.</p>
 
             <div className="flex gap-2">
               <select
                 value={productToAdd}
                 onChange={(event) => setProductToAdd(event.target.value)}
                 title="Select product"
-                className="h-8 flex-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none"
+                className="h-8 flex-1 rounded-lg border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text focus:border-(--builder-accent) focus:outline-none"
               >
                 <option value="">Select product</option>
                 {selectableProducts.map((product) => (
@@ -611,19 +611,19 @@ export const FeaturedProductSettings = () => {
                   addProduct(productToAdd);
                   setProductToAdd("");
                 }}
-                className="h-8 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 text-xs font-semibold text-[var(--builder-text)] hover:border-[var(--builder-border-mid)]"
+                className="h-8 rounded-lg border border-(--builder-border) bg-builder-surface-2 px-3 text-xs font-semibold text-builder-text hover:border-(--builder-border-mid)"
               >
                 Add
               </button>
             </div>
 
-            <div className="mt-1 rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2">
+            <div className="mt-1 rounded-lg border border-(--builder-border) bg-builder-surface-2 p-2">
               <div className="mb-2 flex items-center justify-between">
-                <span className="text-[11px] font-semibold text-[var(--builder-text)]">Selected products</span>
+                <span className="text-[11px] font-semibold text-builder-text">Selected products</span>
                 <button
                   type="button"
                   onClick={() => upsertSelectedIds([])}
-                  className="text-[10px] font-semibold text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                  className="text-[10px] font-semibold text-builder-text-muted hover:text-builder-text"
                 >
                   Clear
                 </button>
@@ -634,13 +634,13 @@ export const FeaturedProductSettings = () => {
                   {selectedEntries.map((entry) => (
                     <span
                       key={entry.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-[var(--builder-border-mid)] bg-[var(--builder-surface-3)] px-2 py-0.5 text-[10px] text-[var(--builder-text)]"
+                      className="inline-flex items-center gap-1 rounded-full border border-(--builder-border-mid) bg-builder-surface-3 px-2 py-0.5 text-[10px] text-builder-text"
                     >
                       {entry.label}
                       <button
                         type="button"
                         onClick={() => removeProduct(entry.id)}
-                        className="text-[10px] font-bold leading-none text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                        className="text-[10px] font-bold leading-none text-builder-text-muted hover:text-builder-text"
                         aria-label={`Remove ${entry.label}`}
                       >
                         ×
@@ -649,12 +649,12 @@ export const FeaturedProductSettings = () => {
                   ))}
                 </div>
               ) : (
-                <p className="m-0 text-[10px] text-[var(--builder-text-faint)]">No products selected yet.</p>
+                <p className="m-0 text-[10px] text-builder-text-faint">No products selected yet.</p>
               )}
             </div>
           </div>
         ) : (
-          <p className="m-0 text-[11px] text-[var(--builder-text-muted)]">Auto mode shows the first active products from this project.</p>
+          <p className="m-0 text-[11px] text-builder-text-muted">Auto mode shows the first active products from this project.</p>
         )}
       </DesignSection>
 
@@ -668,7 +668,7 @@ export const FeaturedProductSettings = () => {
           <AlignButtons value={cardsAlign || "left"} onChange={(v) => setProp((p: FeaturedProductProps) => { p.cardsAlign = v; })} />
         </Row>
         <div className="flex items-center gap-2 mb-2">
-          <span className="text-[11px] text-[var(--builder-text-muted)] w-24 shrink-0">Cards shown</span>
+          <span className="text-[11px] text-builder-text-muted w-24 shrink-0">Cards shown</span>
           <input
             type="number"
             min={1}
@@ -681,31 +681,31 @@ export const FeaturedProductSettings = () => {
                 props.maxItems = safe;
               });
             }}
-            className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+            className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)"
           />
         </div>
 
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">Spacing</p>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">Spacing</p>
         <Row>
           <Label>Top</Label>
-          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingTop} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingTop = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </Row>
         <Row>
           <Label>Right</Label>
-          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingRight} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingRight = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </Row>
         <Row>
           <Label>Bottom</Label>
-          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingBottom} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingBottom = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </Row>
         <Row>
           <Label>Left</Label>
-          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]" />
+          <input type="number" min={0} max={200} value={paddingLeft} onChange={(event) => setProp((props: FeaturedProductProps) => { props.paddingLeft = Number.parseInt(event.target.value || "0", 10) || 0; })} className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)" />
         </Row>
       </DesignSection>
 
       <DesignSection title="What's Displayed" defaultOpen>
-        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text-faint)]">
+        <p className="mb-3 text-[10px] font-semibold uppercase tracking-wider text-builder-text-faint">
           Configure the featured product card content
         </p>
 
@@ -733,7 +733,7 @@ export const FeaturedProductSettings = () => {
                     props.descriptionLines = safe;
                   });
                 }}
-                className="h-7 w-20 rounded px-2 text-xs bg-[var(--builder-surface-3)] border border-[var(--builder-border)] text-[var(--builder-text)] focus:outline-none focus:border-[var(--builder-accent)]"
+                className="h-7 w-20 rounded px-2 text-xs bg-builder-surface-3 border border-(--builder-border) text-builder-text focus:outline-none focus:border-(--builder-accent)"
               />
             </Row>
           </div>

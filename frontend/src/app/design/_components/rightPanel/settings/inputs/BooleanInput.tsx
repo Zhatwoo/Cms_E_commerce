@@ -29,14 +29,14 @@ export const BooleanInput = ({
       {layout === "spread" ? (
         <>
           {label ? (
-            <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
+            <span className="text-[10px] text-builder-text font-medium">{label}</span>
           ) : null}
           <input
             type={variant}
             checked={value}
             disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
-            className="h-4 w-4 accent-[var(--builder-accent)]"
+            className="h-4 w-4 accent-builder-accent"
           />
         </>
       ) : (
@@ -46,10 +46,10 @@ export const BooleanInput = ({
             checked={value}
             disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
-            className="h-4 w-4 accent-[var(--builder-accent)]"
+            className="h-4 w-4 accent-builder-accent"
           />
           {label ? (
-            <span className="text-[10px] text-[var(--builder-text)] font-medium">{label}</span>
+            <span className="text-[10px] text-builder-text font-medium">{label}</span>
           ) : null}
         </>
       )}

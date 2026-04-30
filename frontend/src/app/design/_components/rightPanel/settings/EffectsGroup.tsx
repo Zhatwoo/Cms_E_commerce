@@ -23,9 +23,9 @@ interface ParsedShadow {
   isApproximate: boolean;
 }
 
-const labelCls = "text-[12px] text-[var(--builder-text)] font-base";
-const selectCls = "w-full rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2.5 py-1.5 text-xs text-[var(--builder-text)] focus:outline-none";
-const inputShellCls = "rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)]";
+const labelCls = "text-[12px] text-builder-text font-base";
+const selectCls = "w-full rounded-md border border-(--builder-border) bg-builder-surface-2 px-2.5 py-1.5 text-xs text-builder-text focus:outline-none";
+const inputShellCls = "rounded-md border border-(--builder-border) bg-builder-surface-2";
 
 const DEFAULT_SHADOW_CONFIG: ShadowConfig = {
   type: "drop-shadow",
@@ -286,7 +286,7 @@ export const EffectsGroup = ({
             </div>
 
             {parsedShadow.isApproximate && (
-              <p className="text-[10px] text-[var(--builder-text-muted)]">
+              <p className="text-[10px] text-builder-text-muted">
                 Editing this shadow will convert older multi-layer presets into a single Figma-style shadow.
               </p>
             )}

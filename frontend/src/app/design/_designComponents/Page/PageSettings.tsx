@@ -95,18 +95,18 @@ export const PageSettings = () => {
       <DesignSection title="Page">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Page name</label>
+            <label className="text-[10px] text-builder-text">Page name</label>
             <input
               type="text"
               value={pageName ?? ""}
               onChange={(e) => handlePageNameChange(e.target.value)}
               placeholder="Page Name"
-              className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none"
+              className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">URL slug</label>
+            <label className="text-[10px] text-builder-text">URL slug</label>
             <input
               type="text"
               value={pageSlug ?? "page"}
@@ -117,13 +117,13 @@ export const PageSettings = () => {
                 });
               }}
               placeholder="page"
-              className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none"
+              className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none"
             />
-            <span className="text-[10px] text-[var(--builder-text-faint)]">Used as path: /{pageSlug ?? "page"}</span>
+            <span className="text-[10px] text-builder-text-faint">Used as path: /{pageSlug ?? "page"}</span>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Page size</label>
+            <label className="text-[10px] text-builder-text">Page size</label>
             <div className="grid grid-cols-2 gap-2">
               {PAGE_SIZE_PRESETS.map((preset) => {
                 const isActive = currentWidth === preset.width && currentHeight === preset.height;
@@ -133,12 +133,12 @@ export const PageSettings = () => {
                     type="button"
                     onClick={() => applyPreset(preset)}
                     className={`rounded-lg border px-2.5 py-2 text-left transition-colors ${isActive
-                      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10 text-[var(--builder-text)]"
-                      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:border-[var(--builder-border-mid)] hover:text-[var(--builder-text)]"
+                      ? "border-(--builder-accent) bg-builder-accent/10 text-builder-text"
+                      : "border-(--builder-border) bg-builder-surface-2 text-builder-text-muted hover:border-(--builder-border-mid) hover:text-builder-text"
                     }`}
                   >
                     <div className="text-xs font-semibold">{preset.label}</div>
-                    <div className="text-[10px] text-[var(--builder-text-faint)]">
+                    <div className="text-[10px] text-builder-text-faint">
                       {preset.width} × {preset.height}
                     </div>
                   </button>
@@ -149,8 +149,8 @@ export const PageSettings = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1 min-w-0">
-              <label className="text-[10px] text-[var(--builder-text)]">Width</label>
-              <div className="flex items-center px-2.5 bg-[var(--builder-surface-2)] rounded-lg overflow-hidden">
+              <label className="text-[10px] text-builder-text">Width</label>
+              <div className="flex items-center px-2.5 bg-builder-surface-2 rounded-lg overflow-hidden">
                 <input
                   type="text"
                   value={String(width ?? "").replace("px", "") || "1920"}
@@ -163,14 +163,14 @@ export const PageSettings = () => {
                     }
                   }}
                   onFocus={(e) => e.target.select()}
-                  className="w-full min-w-0 bg-transparent text-xs text-[var(--builder-text)] p-2 focus:outline-none"
+                  className="w-full min-w-0 bg-transparent text-xs text-builder-text p-2 focus:outline-none"
                 />
-                <span className="text-[10px] text-[var(--builder-text-faint)] pr-2 select-none shrink-0">px</span>
+                <span className="text-[10px] text-builder-text-faint pr-2 select-none shrink-0">px</span>
               </div>
             </div>
 
             <div className="flex flex-col gap-1 min-w-0">
-              <label className="text-[10px] text-[var(--builder-text)]">Height</label>
+              <label className="text-[10px] text-builder-text">Height</label>
               <div className="flex items-center gap-1.5">
                 <select
                   value={height === "auto" ? "auto" : "fixed"}
@@ -185,17 +185,17 @@ export const PageSettings = () => {
                       });
                     }
                   }}
-                  className="shrink-0 w-14 bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2 py-1.5 focus:outline-none appearance-none"
+                  className="shrink-0 w-14 bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2 py-1.5 focus:outline-none appearance-none"
                 >
                   <option value="auto">Auto</option>
                   <option value="fixed">Fixed</option>
                 </select>
                 {height === "auto" ? (
-                  <div className="flex-1 flex items-center px-2.5 py-1.5 bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text-muted)] min-h-[34px]">
+                  <div className="flex-1 flex items-center px-2.5 py-1.5 bg-builder-surface-2 rounded-lg text-xs text-builder-text-muted min-h-[34px]">
                     Auto
                   </div>
                 ) : (
-                  <div className="flex-1 flex items-center px-2.5 bg-[var(--builder-surface-2)] rounded-lg overflow-hidden min-w-0">
+                  <div className="flex-1 flex items-center px-2.5 bg-builder-surface-2 rounded-lg overflow-hidden min-w-0">
                     <input
                       type="text"
                       value={String(height ?? "").replace("px", "") || "1200"}
@@ -208,9 +208,9 @@ export const PageSettings = () => {
                         }
                       }}
                       onFocus={(e) => e.target.select()}
-                      className="w-full min-w-0 bg-transparent text-xs text-[var(--builder-text)] p-2 focus:outline-none"
+                      className="w-full min-w-0 bg-transparent text-xs text-builder-text p-2 focus:outline-none"
                     />
-                    <span className="text-[10px] text-[var(--builder-text-faint)] pr-2 select-none shrink-0">px</span>
+                    <span className="text-[10px] text-builder-text-faint pr-2 select-none shrink-0">px</span>
                   </div>
                 )}
               </div>

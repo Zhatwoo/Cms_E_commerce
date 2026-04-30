@@ -8,7 +8,7 @@ type ProductBindingGroupProps = {
 };
 
 const selectClassName =
-  "w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]";
+  "w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)";
 
 export function ProductBindingGroup({ productId, onChange }: ProductBindingGroupProps) {
   const { projectId, projectSubdomain, loading: projectLoading } = useDesignProject();
@@ -60,7 +60,7 @@ export function ProductBindingGroup({ productId, onChange }: ProductBindingGroup
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-[var(--builder-text)]">Product</label>
+        <label className="text-[10px] text-builder-text">Product</label>
         <select
           value={productId ?? ""}
           onChange={(e) => onChange(e.target.value || undefined)}
@@ -88,13 +88,13 @@ export function ProductBindingGroup({ productId, onChange }: ProductBindingGroup
         </select>
       </div>
 
-      <p className="text-[10px] leading-4 text-[var(--builder-text-muted)]">
+      <p className="text-[10px] leading-4 text-builder-text-muted">
         Choose one active store product for this card. Leave it on auto to keep the existing repeating gallery behavior.
       </p>
 
       {selectedProduct ? (
-        <div className="rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-3 py-2 text-[10px] text-[var(--builder-text-muted)]">
-          Bound to <span className="text-[var(--builder-text)]">{selectedProduct.name}</span>
+        <div className="rounded-md border border-(--builder-border) bg-builder-surface-2 px-3 py-2 text-[10px] text-builder-text-muted">
+          Bound to <span className="text-builder-text">{selectedProduct.name}</span>
         </div>
       ) : null}
 
@@ -105,7 +105,7 @@ export function ProductBindingGroup({ productId, onChange }: ProductBindingGroup
       ) : null}
 
       {projectLoading ? (
-        <p className="text-[10px] text-[var(--builder-text-muted)]">Loading project details...</p>
+        <p className="text-[10px] text-builder-text-muted">Loading project details...</p>
       ) : null}
 
       {!projectLoading && !projectSubdomain ? (
@@ -115,11 +115,11 @@ export function ProductBindingGroup({ productId, onChange }: ProductBindingGroup
       ) : null}
 
       {projectSubdomain && loadingProducts ? (
-        <p className="text-[10px] text-[var(--builder-text-muted)]">Loading active products...</p>
+        <p className="text-[10px] text-builder-text-muted">Loading active products...</p>
       ) : null}
 
       {projectSubdomain && !loadingProducts && !error && products.length === 0 ? (
-        <p className="text-[10px] text-[var(--builder-text-muted)]">
+        <p className="text-[10px] text-builder-text-muted">
           No active products were found for this storefront yet.
         </p>
       ) : null}

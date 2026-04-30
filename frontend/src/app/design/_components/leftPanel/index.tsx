@@ -595,7 +595,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             {/* Project dropdown trigger */}
             <div className="relative" ref={menuRef}>
               {isEditingTitle ? (
-                <div className="flex items-center gap-2 bg-[var(--builder-surface-3)] rounded-lg px-2 py-1 -ml-2 ring-1 ring-blue-500/50">
+                <div className="flex items-center gap-2 bg-builder-surface-3 rounded-lg px-2 py-1 -ml-2 ring-1 ring-blue-500/50">
                   <input
                     ref={titleInputRef}
                     type="text"
@@ -611,7 +611,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 <button
                   onClick={() => setMenuOpen(!menuOpen)}
                   onDoubleClick={handleTitleDoubleClick}
-                  className="flex items-center gap-2 hover:bg-[var(--builder-surface-2)] rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
+                  className="flex items-center gap-2 hover:bg-builder-surface-2 rounded-lg px-2 py-1 -ml-2 transition-colors cursor-pointer"
                 >
                   <h3 className="text-builder-text font-bold text-lg truncate max-w-[200px]" title={websiteName ?? "Project Title"}>
                     {websiteName ?? "Project Title"}
@@ -630,7 +630,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       {/* Save */}
                       <button
                         onClick={handleSave}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text hover:bg-builder-surface-3 transition-colors cursor-pointer"
                       >
                         <Save className="w-4 h-4 text-builder-text-muted" />
                         Save project
@@ -640,7 +640,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       {/* Export JSON */}
                       <button
                         onClick={handleExportJson}
-                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+                        className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-builder-text hover:bg-builder-surface-3 transition-colors cursor-pointer"
                       >
                         <FileDown className="w-4 h-4 text-builder-text-muted" />
                         Export JSON
@@ -689,7 +689,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 <button
                   type="button"
                   onClick={onToggle}
-                  className="p-1 rounded-lg hover:bg-[var(--builder-surface-2)] text-builder-text-muted transition-colors cursor-pointer"
+                  className="p-1 rounded-lg hover:bg-builder-surface-2 text-builder-text-muted transition-colors cursor-pointer"
                   aria-label="Close left panel"
                   title="Close panel"
                 >
@@ -706,15 +706,15 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-1.5 px-2 gap-1 min-h-0 border-b border-[var(--builder-border)]">
+        <div className="flex text-[10px] font-bold uppercase tracking-widest items-stretch justify-center py-1.5 px-2 gap-1 min-h-0 border-b border-(--builder-border)">
           <div className="flex-1 min-w-0">
             <DesignTooltip content="Layers — view and organize canvas elements" position="bottom">
               <button
                 type="button"
                 onClick={() => setActivePanel("files")}
                 className={`w-full flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "files"
-                  ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-                  : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+                  ? "text-builder-accent bg-builder-accent/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                  : "text-builder-text-muted hover:text-builder-text"}`}
               >
                 <FileStack className="w-4 h-4 shrink-0" />
                 <span>Files</span>
@@ -728,8 +728,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   type="button"
                   onClick={() => setActivePanel("components")}
                   className={`w-full flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "components"
-                    ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-                    : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+                    ? "text-builder-accent bg-builder-accent/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                    : "text-builder-text-muted hover:text-builder-text"}`}
                 >
                   <Component className="w-4 h-4 shrink-0" />
                   <span>Components</span>
@@ -743,8 +743,8 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 type="button"
                 onClick={() => setActivePanel("media")}
                 className={`w-full flex flex-col items-center justify-center gap-1 rounded-lg py-2 px-1 transition-all duration-200 cursor-pointer ${activePanel === "media"
-                  ? "text-[var(--builder-accent)] bg-[var(--builder-accent)]/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
-                  : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}
+                  ? "text-builder-accent bg-builder-accent/10 shadow-[0_0_8px_var(--builder-accent-glow)]"
+                  : "text-builder-text-muted hover:text-builder-text"}`}
               >
                 <ImageIcon className="w-4 h-4 shrink-0" />
                 <span>Media</span>
@@ -779,22 +779,22 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
             onDrop={handleMediaDrop}
           >
             {isMediaDropActive && (
-              <div className="absolute inset-2 z-30 border-2 border-dashed border-[var(--builder-purple)] bg-[var(--builder-purple)]/10 rounded-xl pointer-events-none flex items-center justify-center">
-                <div className="px-4 py-3 rounded-lg bg-[var(--builder-surface)]/80 border border-[var(--builder-border)] text-center">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-[var(--builder-text)]">Drop to import media</div>
-                  <div className="text-[9px] mt-1 text-[var(--builder-text-faint)]">Works with local files and image links dragged from websites</div>
+              <div className="absolute inset-2 z-30 border-2 border-dashed border-(--builder-purple) bg-builder-purple/10 rounded-xl pointer-events-none flex items-center justify-center">
+                <div className="px-4 py-3 rounded-lg bg-builder-surface/80 border border-(--builder-border) text-center">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-builder-text">Drop to import media</div>
+                  <div className="text-[9px] mt-1 text-builder-text-faint">Works with local files and image links dragged from websites</div>
                 </div>
               </div>
             )}
             {/* Search Bar - Integrated with Brand Theme */}
             <div className="relative group shrink-0 mt-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-[var(--builder-text-faint)] group-focus-within:text-[var(--builder-text)] transition-colors" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-builder-text-faint group-focus-within:text-builder-text transition-colors" />
               <input
                 type="text"
                 placeholder="SEARCH MEDIA..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-lg py-2.5 pl-9 pr-4 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--builder-text)] placeholder:text-[var(--builder-text-faint)] focus:outline-none focus:bg-[var(--builder-surface-3)] focus:border-[var(--builder-border-mid)] transition-all"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-lg py-2.5 pl-9 pr-4 text-[10px] font-bold uppercase tracking-[0.2em] text-builder-text placeholder:text-builder-text-faint focus:outline-none focus:bg-builder-surface-3 focus:border-(--builder-border-mid) transition-all"
               />
             </div>
 
@@ -813,7 +813,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                   type="button"
                   onClick={() => mediaInputRef.current?.click()}
                   disabled={uploading}
-                  className="flex-1 bg-[var(--builder-purple)] hover:bg-[var(--builder-purple-light)] text-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
+                  className="flex-1 bg-builder-purple hover:bg-builder-purple-light text-white text-[10px] font-black uppercase tracking-widest py-3 px-4 rounded-lg transition-all flex items-center justify-center gap-2"
                 >
                   {uploading ? (
                     <div className="w-3.5 h-3.5 border-2 border-transparent border-t-white rounded-full animate-spin" />
@@ -825,19 +825,19 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
               </DesignTooltip>
             </div>
 
-            <div className="text-[9px] uppercase tracking-[0.18em] text-[var(--builder-text-faint)] -mt-2">
+            <div className="text-[9px] uppercase tracking-[0.18em] text-builder-text-faint -mt-2">
               Tip: Drag image files or image links from other websites into this panel.
             </div>
 
             {/* Selection & Toolbar (Minimalist Style) */}
-            <div className="flex items-center justify-between py-2 border-b border-[var(--builder-border)] shrink-0">
+            <div className="flex items-center justify-between py-2 border-b border-(--builder-border) shrink-0">
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => {
                     if (selectedItems.size === mediaItems.length) setSelectedItems(new Set());
                     else setSelectedItems(new Set(mediaItems.map(i => i.id)));
                   }}
-                  className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedItems.size > 0 ? "bg-[var(--builder-purple)] border-[var(--builder-purple)]" : "border-[var(--builder-border-mid)] hover:border-[var(--builder-purple)]"
+                  className={`w-4 h-4 rounded border transition-all flex items-center justify-center ${selectedItems.size > 0 ? "bg-builder-purple border-(--builder-purple)" : "border-(--builder-border-mid) hover:border-(--builder-purple)"
                     }`}
                   title="Select all"
                 >
@@ -866,13 +866,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 <div className="relative">
                   <button
                     onClick={() => setFilterMenuOpen(!filterMenuOpen)}
-                    className="p-2 text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors"
+                    className="p-2 text-builder-text-faint hover:text-builder-text transition-colors"
                   >
                     <ListFilter className="w-4 h-4" />
                   </button>
                   {filterMenuOpen && (
                     <div className="absolute right-0 top-full mt-2 w-40 bg-builder-surface-2 border border-builder-border rounded-xl shadow-2xl py-2 z-50 animate-slideDownItem">
-                      <div className="px-4 py-1.5 text-[9px] font-black text-[var(--builder-text-faint)] uppercase tracking-widest">Media type</div>
+                      <div className="px-4 py-1.5 text-[9px] font-black text-builder-text-faint uppercase tracking-widest">Media type</div>
                       {[
                         { id: "all", label: "All" },
                         { id: "videos", label: "Video" },
@@ -882,10 +882,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                         <button
                           key={cat.id}
                           onClick={() => { setActiveMediaCategory(cat.id as any); setFilterMenuOpen(false); }}
-                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] flex items-center justify-between transition-colors"
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3 flex items-center justify-between transition-colors"
                         >
                           {cat.label}
-                          {activeMediaCategory === cat.id && <Check className="w-3 h-3 text-[var(--builder-accent)]" />}
+                          {activeMediaCategory === cat.id && <Check className="w-3 h-3 text-builder-accent" />}
                         </button>
                       ))}
                     </div>
@@ -896,7 +896,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 <div className="relative">
                   <button
                     onClick={() => setSortMenuOpen(!sortMenuOpen)}
-                    className="p-2 text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] transition-colors"
+                    className="p-2 text-builder-text-faint hover:text-builder-text transition-colors"
                   >
                     <ArrowUpDown className="w-4 h-4" />
                   </button>
@@ -909,13 +909,13 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                         <button
                           key={opt.id}
                           onClick={() => { setSortBy(opt.id as any); setSortMenuOpen(false); }}
-                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] flex items-center justify-between transition-colors"
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3 flex items-center justify-between transition-colors"
                         >
                           {opt.label}
-                          {sortBy === opt.id && <Check className="w-3 h-3 text-[var(--builder-accent)]" />}
+                          {sortBy === opt.id && <Check className="w-3 h-3 text-builder-accent" />}
                         </button>
                       ))}
-                      <div className="my-1 border-t border-[var(--builder-border)]" />
+                      <div className="my-1 border-t border-(--builder-border)" />
                       {[
                         { id: "asc", label: "Ascending" },
                         { id: "desc", label: "Descending" },
@@ -923,10 +923,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                         <button
                           key={opt.id}
                           onClick={() => { setSortOrder(opt.id as any); setSortMenuOpen(false); }}
-                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] flex items-center justify-between transition-colors"
+                          className="w-full px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3 flex items-center justify-between transition-colors"
                         >
                           {opt.label}
-                          {sortOrder === opt.id && <Check className="w-3 h-3 text-[var(--builder-accent)]" />}
+                          {sortOrder === opt.id && <Check className="w-3 h-3 text-builder-accent" />}
                         </button>
                       ))}
                     </div>
@@ -956,10 +956,10 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                 })
                 .length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center py-20 opacity-40 text-center gap-4">
-                  <div className="w-12 h-12 rounded-full bg-[var(--builder-surface-2)] flex items-center justify-center">
-                    <ImageIcon className="w-6 h-6 text-[var(--builder-text-faint)]" />
+                  <div className="w-12 h-12 rounded-full bg-builder-surface-2 flex items-center justify-center">
+                    <ImageIcon className="w-6 h-6 text-builder-text-faint" />
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[var(--builder-text-faint)]">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-builder-text-faint">
                     {searchQuery ? "No matching media" : "No media found"}
                   </span>
                 </div>
@@ -986,7 +986,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       return (
                         <div
                           key={item.id}
-                          className={`group relative aspect-[4/3] rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-[var(--builder-purple)] ring-1 ring-[var(--builder-purple)]" : "border-[var(--builder-border)] bg-builder-surface-2"
+                          className={`group relative aspect-[4/3] rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-(--builder-purple) ring-1 ring-(--builder-purple)" : "border-(--builder-border) bg-builder-surface-2"
                             }`}
                           draggable
                           onDragStart={(e) => {
@@ -1041,34 +1041,34 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                               </div>
                             </div>
                           ) : item.mimeType.startsWith("audio/") ? (
-                            <div className="w-full h-full flex items-center justify-center bg-[var(--builder-surface-3)]">
+                            <div className="w-full h-full flex items-center justify-center bg-builder-surface-3">
                               <Music className="w-5 h-5 text-builder-text-muted" />
                             </div>
                           ) : item.mimeType.startsWith("image/") ? (
-                            <img src={item.url} alt={item.name} className="w-full h-full object-contain bg-[var(--builder-surface-3)] p-1 transition-transform duration-500 group-hover:scale-105" />
+                            <img src={item.url} alt={item.name} className="w-full h-full object-contain bg-builder-surface-3 p-1 transition-transform duration-500 group-hover:scale-105" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <FileStack className="w-5 h-5 text-[var(--builder-text-faint)]" />
+                              <FileStack className="w-5 h-5 text-builder-text-faint" />
                             </div>
                           )}
 
                           {/* Selection Checkbox */}
                           <div className={`absolute top-2 left-2 transition-all duration-300 ${selectedItems.has(item.id) ? "opacity-100" : "opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100"}`}>
-                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-[var(--builder-purple)] border-[var(--builder-purple)]" : "border-white bg-[var(--builder-surface-3)]"
+                            <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center shadow-lg ${selectedItems.has(item.id) ? "bg-builder-purple border-(--builder-purple)" : "border-white bg-builder-surface-3"
                               }`}>
                               {selectedItems.has(item.id) && <Check className="w-2.5 h-2.5 text-white" />}
                             </div>
                           </div>
 
                           {/* Hover Overlay */}
-                          <div className="absolute inset-0 bg-[var(--builder-surface)]/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <div className="absolute inset-0 bg-builder-surface/60 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 addMediaToCanvas(item);
                               }}
-                              className="p-2.5 rounded-full bg-[var(--builder-purple)] text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
+                              className="p-2.5 rounded-full bg-builder-purple text-white hover:scale-110 active:scale-95 transition-all shadow-xl"
                               title="Add to canvas"
                             >
                               <Plus className="w-4 h-4" />
@@ -1087,7 +1087,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                           </div>
 
                           {/* Info Tag */}
-                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-[var(--builder-surface)]/80 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-[var(--builder-text-faint)]">
+                          <div className="absolute bottom-1 right-1 px-1.5 py-0.5 bg-builder-surface/80 backdrop-blur-md rounded text-[8px] font-black uppercase tracking-tighter text-builder-text-faint">
                             {Math.round(item.size / 1024)}KB
                           </div>
                         </div>
@@ -1102,7 +1102,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
 
             {/* Read-only status */}
             {permission === "viewer" && (
-              <div className="text-[9px] text-[var(--builder-text-faint)] text-center uppercase tracking-[0.3em] py-2 border-t border-[var(--builder-border)]">
+              <div className="text-[9px] text-builder-text-faint text-center uppercase tracking-[0.3em] py-2 border-t border-(--builder-border)">
                 Viewing mode only
               </div>
             )}

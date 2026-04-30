@@ -293,23 +293,23 @@ export const AccordionSettings = () => {
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Canvas Preview</label>
-              <div className="grid grid-cols-2 gap-1 bg-[var(--builder-surface-2)] p-1 rounded-lg border border-[var(--builder-border)]">
-                <button type="button" title="Preview all accordion items expanded" onClick={() => setProp((props: AccordionProps) => { props.editorPreviewMode = "expand-all"; })} className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "expand-all" ? "bg-[var(--builder-accent)] text-black" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}>
+              <label className="text-[10px] text-builder-text">Canvas Preview</label>
+              <div className="grid grid-cols-2 gap-1 bg-builder-surface-2 p-1 rounded-lg border border-(--builder-border)">
+                <button type="button" title="Preview all accordion items expanded" onClick={() => setProp((props: AccordionProps) => { props.editorPreviewMode = "expand-all"; })} className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "expand-all" ? "bg-builder-accent text-black" : "text-builder-text-muted hover:text-builder-text"}`}>
                   Expand
                 </button>
-                  <button type="button" title="Preview all accordion items collapsed" onClick={() => setProp((props: AccordionProps) => { props.editorPreviewMode = "collapse-all"; })} className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "collapse-all" ? "bg-[var(--builder-accent)] text-black" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"}`}>
+                  <button type="button" title="Preview all accordion items collapsed" onClick={() => setProp((props: AccordionProps) => { props.editorPreviewMode = "collapse-all"; })} className={`text-[10px] py-1.5 rounded transition-colors ${editorPreviewMode === "collapse-all" ? "bg-builder-accent text-black" : "text-builder-text-muted hover:text-builder-text"}`}>
                   Collapse
                 </button>
               </div>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Style Preset</label>
+              <label className="text-[10px] text-builder-text">Style Preset</label>
               <select
                 title="Accordion style preset"
                 value={stylePreset ?? "wix"}
                 onChange={(event) => setProp((props: AccordionProps) => { props.stylePreset = event.target.value as "classic" | "wix"; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
               >
                 <option value="wix">Wix</option>
                 <option value="classic">Classic</option>
@@ -318,9 +318,9 @@ export const AccordionSettings = () => {
           </div>
 
           {safeItems.map((item, itemIndex) => (
-            <div key={itemIndex} className="flex flex-col gap-3 bg-[var(--builder-surface-2)] rounded-xl p-3 border border-[var(--builder-border)]">
+            <div key={itemIndex} className="flex flex-col gap-3 bg-builder-surface-2 rounded-xl p-3 border border-(--builder-border)">
               <div className="flex items-center justify-between gap-2">
-                <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">Dropdown {itemIndex + 1}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-builder-text-faint">Dropdown {itemIndex + 1}</span>
                 {safeItems.length > 1 && (
                   <button type="button" title={`Remove dropdown ${itemIndex + 1}`} onClick={() => removeItem(itemIndex)} className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors">
                     <Trash2 className="w-3 h-3" />
@@ -329,21 +329,21 @@ export const AccordionSettings = () => {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-[10px] text-[var(--builder-text)]">Header text</label>
+                <label className="text-[10px] text-builder-text">Header text</label>
                 <input
                   type="text"
                   title="Dropdown header text"
                   placeholder="Dropdown header"
                   value={item.header}
                   onChange={(event) => updateHeader(itemIndex, event.target.value)}
-                  className="w-full bg-[var(--builder-surface-1)] border border-[var(--builder-border)] rounded-lg text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+                  className="w-full bg-(--builder-surface-1) border border-(--builder-border) rounded-lg text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
                 />
               </div>
 
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-[var(--builder-text)] font-medium">Options</span>
-                  <button type="button" title={`Add option to dropdown ${itemIndex + 1}`} onClick={() => addOption(itemIndex)} className="inline-flex items-center gap-1 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-1)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors">
+                  <span className="text-[10px] text-builder-text font-medium">Options</span>
+                  <button type="button" title={`Add option to dropdown ${itemIndex + 1}`} onClick={() => addOption(itemIndex)} className="inline-flex items-center gap-1 rounded-md border border-(--builder-border) bg-(--builder-surface-1) px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-builder-text hover:bg-builder-surface-3 transition-colors">
                     <Plus className="w-3 h-3" />
                     Option
                   </button>
@@ -351,9 +351,9 @@ export const AccordionSettings = () => {
 
                 <div className="flex flex-col gap-2">
                   {item.options.map((option, optionIndex) => (
-                    <div key={`${itemIndex}-${optionIndex}`} className="rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-1)] p-2 flex flex-col gap-2">
+                    <div key={`${itemIndex}-${optionIndex}`} className="rounded-lg border border-(--builder-border) bg-(--builder-surface-1) p-2 flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
-                        <label className="text-[10px] text-[var(--builder-text)]">Option {optionIndex + 1}</label>
+                        <label className="text-[10px] text-builder-text">Option {optionIndex + 1}</label>
                         {item.options.length > 1 && (
                           <button type="button" onClick={() => removeOption(itemIndex, optionIndex)} className="text-[10px] text-red-300 hover:text-red-200">
                             Remove
@@ -367,25 +367,25 @@ export const AccordionSettings = () => {
                           placeholder="Option label"
                         value={option.label}
                         onChange={(event) => updateOption(itemIndex, optionIndex, event.target.value)}
-                        className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-[var(--builder-accent)]"
+                        className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-(--builder-accent)"
                       />
 
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-[var(--builder-border)]/60">
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">Interactions</span>
-                        <button type="button" title={`Add interaction to option ${optionIndex + 1}`} onClick={() => addOptionInteraction(itemIndex, optionIndex)} className="inline-flex items-center gap-1 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-1)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-(--builder-border)/60">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-builder-text-faint">Interactions</span>
+                        <button type="button" title={`Add interaction to option ${optionIndex + 1}`} onClick={() => addOptionInteraction(itemIndex, optionIndex)} className="inline-flex items-center gap-1 rounded-md border border-(--builder-border) bg-(--builder-surface-1) px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-builder-text hover:bg-builder-surface-3 transition-colors">
                           <Link2 className="w-3 h-3" />
                           Add
                         </button>
                       </div>
 
                       {(option.interactions ?? []).length === 0 ? (
-                        <p className="text-[10px] text-[var(--builder-text-faint)]">No interaction yet. Add one to make this option clickable.</p>
+                        <p className="text-[10px] text-builder-text-faint">No interaction yet. Add one to make this option clickable.</p>
                       ) : (
                         <div className="flex flex-col gap-2">
                           {(option.interactions ?? []).map((interaction, interactionIndex) => (
-                            <div key={interactionIndex} className="rounded-lg border border-[var(--builder-border)] bg-[var(--builder-surface-1)] p-2 flex flex-col gap-2">
+                            <div key={interactionIndex} className="rounded-lg border border-(--builder-border) bg-(--builder-surface-1) p-2 flex flex-col gap-2">
                               <div className="flex items-center justify-between">
-                                <span className="text-[9px] uppercase tracking-widest text-[var(--builder-text-faint)]">Action {interactionIndex + 1}</span>
+                                <span className="text-[9px] uppercase tracking-widest text-builder-text-faint">Action {interactionIndex + 1}</span>
                                 <button type="button" title={`Remove interaction ${interactionIndex + 1}`} onClick={() => removeOptionInteraction(itemIndex, optionIndex, interactionIndex)} className="text-[10px] text-red-300 hover:text-red-200">
                                   Remove
                                 </button>
@@ -393,12 +393,12 @@ export const AccordionSettings = () => {
 
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] text-[var(--builder-text)]">Trigger</label>
+                                  <label className="text-[10px] text-builder-text">Trigger</label>
                                   <select
                                     title="Interaction trigger"
                                     value={interaction.trigger}
                                     onChange={(event) => updateOptionInteraction(itemIndex, optionIndex, interactionIndex, "trigger", event.target.value)}
-                                    className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                                    className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
                                   >
                                     {TRIGGER_OPTIONS.map((triggerOption) => (
                                       <option key={triggerOption.value} value={triggerOption.value}>{triggerOption.label}</option>
@@ -406,12 +406,12 @@ export const AccordionSettings = () => {
                                   </select>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] text-[var(--builder-text)]">Action</label>
+                                  <label className="text-[10px] text-builder-text">Action</label>
                                   <select
                                     title="Interaction action"
                                     value={interaction.action}
                                     onChange={(event) => updateOptionInteraction(itemIndex, optionIndex, interactionIndex, "action", event.target.value)}
-                                    className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                                    className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
                                   >
                                     {ACTION_OPTIONS.map((actionOption) => (
                                       <option key={actionOption.value} value={actionOption.value}>{actionOption.label}</option>
@@ -421,20 +421,20 @@ export const AccordionSettings = () => {
                               </div>
 
                               <div className="flex flex-col gap-1">
-                                <label className="text-[10px] text-[var(--builder-text)]">Destination</label>
+                                <label className="text-[10px] text-builder-text">Destination</label>
                                 <input
                                   type="text"
                                   title="Interaction destination"
                                   placeholder="page slug, #section, or https://..."
                                   value={interaction.destination ?? ""}
                                   onChange={(event) => updateOptionInteraction(itemIndex, optionIndex, interactionIndex, "destination", event.target.value)}
-                                  className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-[var(--builder-accent)]"
+                                  className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-(--builder-accent)"
                                 />
                               </div>
 
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] text-[var(--builder-text)]">Duration</label>
+                                  <label className="text-[10px] text-builder-text">Duration</label>
                                     <NumericInput
                                     value={interaction.duration ?? 300}
                                     min={0}
@@ -444,12 +444,12 @@ export const AccordionSettings = () => {
                                   />
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                  <label className="text-[10px] text-[var(--builder-text)]">Transition</label>
+                                  <label className="text-[10px] text-builder-text">Transition</label>
                                   <select
                                     title="Interaction transition"
                                     value={interaction.transition ?? "dissolve"}
                                     onChange={(event) => updateOptionInteraction(itemIndex, optionIndex, interactionIndex, "transition", event.target.value)}
-                                    className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                                    className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
                                   >
                                     {TRANSITION_OPTIONS.map((transitionOption) => (
                                       <option key={transitionOption.value} value={transitionOption.value}>{transitionOption.label}</option>
@@ -469,34 +469,34 @@ export const AccordionSettings = () => {
           ))}
 
           {safeItems.length < 10 && (
-            <button type="button" onClick={addItem} className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-[var(--builder-border)] text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:border-[var(--builder-border-mid)] transition-colors">
+            <button type="button" onClick={addItem} className="flex items-center justify-center gap-2 w-full py-2 rounded-lg border border-dashed border-(--builder-border) text-[10px] font-bold uppercase tracking-widest text-builder-text-muted hover:text-builder-text hover:border-(--builder-border-mid) transition-colors">
               <Plus className="w-3 h-3" />
               Add Dropdown
             </button>
           )}
 
           <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-[var(--builder-text)]">Allow Multiple Open</span>
-              <button type="button" title="Toggle multiple open dropdowns" onClick={() => setProp((props: AccordionProps) => { props.allowMultiple = !props.allowMultiple; })} className={`relative w-9 h-5 rounded-full transition-colors ${allowMultiple ? "bg-blue-500" : "bg-[var(--builder-surface-3)]"}`}>
+            <span className="text-[10px] text-builder-text">Allow Multiple Open</span>
+              <button type="button" title="Toggle multiple open dropdowns" onClick={() => setProp((props: AccordionProps) => { props.allowMultiple = !props.allowMultiple; })} className={`relative w-9 h-5 rounded-full transition-colors ${allowMultiple ? "bg-blue-500" : "bg-builder-surface-3"}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allowMultiple ? "translate-x-[18px]" : "translate-x-0.5"}`} />
             </button>
           </div>
 
           <div className="flex items-center justify-between mt-1">
-            <span className="text-[10px] text-[var(--builder-text)]">Allow Collapse All</span>
-              <button type="button" title="Toggle whether all dropdowns can be closed" onClick={() => setProp((props: AccordionProps) => { props.allowCollapseAll = !props.allowCollapseAll; })} className={`relative w-9 h-5 rounded-full transition-colors ${allowCollapseAll !== false ? "bg-blue-500" : "bg-[var(--builder-surface-3)]"}`}>
+            <span className="text-[10px] text-builder-text">Allow Collapse All</span>
+              <button type="button" title="Toggle whether all dropdowns can be closed" onClick={() => setProp((props: AccordionProps) => { props.allowCollapseAll = !props.allowCollapseAll; })} className={`relative w-9 h-5 rounded-full transition-colors ${allowCollapseAll !== false ? "bg-blue-500" : "bg-builder-surface-3"}`}>
               <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${allowCollapseAll !== false ? "translate-x-[18px]" : "translate-x-0.5"}`} />
             </button>
           </div>
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Default Open Index</label>
+              <label className="text-[10px] text-builder-text">Default Open Index</label>
               <NumericInput value={defaultOpenIndex ?? -1} min={-1} max={Math.max(0, safeItems.length - 1)} onChange={(value) => setProp((props: AccordionProps) => { props.defaultOpenIndex = value; })} />
-              <p className="text-[9px] text-[var(--builder-text-faint)]">Use -1 to start with all dropdowns closed.</p>
+              <p className="text-[9px] text-builder-text-faint">Use -1 to start with all dropdowns closed.</p>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Animation (ms)</label>
+              <label className="text-[10px] text-builder-text">Animation (ms)</label>
               <NumericInput value={animationDurationMs ?? 280} min={80} max={1200} unit="ms" onChange={(value) => setProp((props: AccordionProps) => { props.animationDurationMs = value; })} />
             </div>
           </div>
@@ -524,25 +524,25 @@ export const AccordionSettings = () => {
         <div className="flex flex-col gap-2 mb-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Height</label>
+              <label className="text-[10px] text-builder-text">Height</label>
               <input
                 type="text"
                 title="Accordion height"
                 placeholder="auto or 240px"
                 value={height ?? ""}
                 onChange={(event) => setProp((props: AccordionProps) => { props.height = event.target.value || undefined; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Max Width</label>
+              <label className="text-[10px] text-builder-text">Max Width</label>
               <input
                 type="text"
                 title="Accordion max width"
                 placeholder="100% or 420px"
                 value={maxWidth ?? "100%"}
                 onChange={(event) => setProp((props: AccordionProps) => { props.maxWidth = event.target.value || "100%"; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
               />
             </div>
           </div>
@@ -563,16 +563,16 @@ export const AccordionSettings = () => {
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Font Size</label>
+              <label className="text-[10px] text-builder-text">Font Size</label>
               <NumericInput value={headerFontSize ?? 14} min={10} max={64} onChange={(value) => setProp((props: AccordionProps) => { props.headerFontSize = value; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Font Weight</label>
+              <label className="text-[10px] text-builder-text">Font Weight</label>
               <select
                 title="Header font weight"
                 value={headerFontWeight ?? "600"}
                 onChange={(event) => setProp((props: AccordionProps) => { props.headerFontWeight = event.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
               >
                 <option value="300">Light</option>
                 <option value="400">Regular</option>
@@ -585,12 +585,12 @@ export const AccordionSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Text Align</label>
+              <label className="text-[10px] text-builder-text">Text Align</label>
               <select
                 title="Header text alignment"
                 value={headerTextAlign ?? "left"}
                 onChange={(event) => setProp((props: AccordionProps) => { props.headerTextAlign = event.target.value as any; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
               >
                 <option value="left">Left</option>
                 <option value="center">Center</option>
@@ -598,7 +598,7 @@ export const AccordionSettings = () => {
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Header Color</label>
+              <label className="text-[10px] text-builder-text">Header Color</label>
               <ColorPicker value={headerTextColor ?? "#10213f"} onChange={(value) => setProp((props: AccordionProps) => { props.headerTextColor = value; })} className="w-full" />
             </div>
           </div>
@@ -609,19 +609,19 @@ export const AccordionSettings = () => {
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Icon Position</label>
+              <label className="text-[10px] text-builder-text">Icon Position</label>
               <select
                 title="Dropdown icon side"
                 value={iconPosition ?? "right"}
                 onChange={(event) => setProp((props: AccordionProps) => { props.iconPosition = event.target.value as "left" | "right"; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
               >
                 <option value="left">Left</option>
                 <option value="right">Right</option>
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Header Gap</label>
+              <label className="text-[10px] text-builder-text">Header Gap</label>
               <NumericInput
                 value={headerGap ?? 12}
                 min={0}
@@ -633,7 +633,7 @@ export const AccordionSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Padding X</label>
+              <label className="text-[10px] text-builder-text">Padding X</label>
               <NumericInput
                 value={headerPaddingX ?? 12}
                 min={0}
@@ -642,7 +642,7 @@ export const AccordionSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Padding Y</label>
+              <label className="text-[10px] text-builder-text">Padding Y</label>
               <NumericInput
                 value={headerPaddingY ?? 10}
                 min={0}
@@ -654,7 +654,7 @@ export const AccordionSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Text Offset X</label>
+              <label className="text-[10px] text-builder-text">Text Offset X</label>
               <NumericInput
                 value={textOffsetX ?? 0}
                 min={-200}
@@ -663,7 +663,7 @@ export const AccordionSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Text Offset Y</label>
+              <label className="text-[10px] text-builder-text">Text Offset Y</label>
               <NumericInput
                 value={textOffsetY ?? 0}
                 min={-200}
@@ -675,7 +675,7 @@ export const AccordionSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Icon Offset X</label>
+              <label className="text-[10px] text-builder-text">Icon Offset X</label>
               <NumericInput
                 value={iconOffsetX ?? 0}
                 min={-200}
@@ -684,7 +684,7 @@ export const AccordionSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Icon Offset Y</label>
+              <label className="text-[10px] text-builder-text">Icon Offset Y</label>
               <NumericInput
                 value={iconOffsetY ?? 0}
                 min={-200}
@@ -699,35 +699,35 @@ export const AccordionSettings = () => {
       <DesignSection title="Appearance" defaultOpen={false}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Container Background</label>
+            <label className="text-[10px] text-builder-text">Container Background</label>
             <ColorPicker value={backgroundColor ?? "transparent"} onChange={(value) => setProp((props: AccordionProps) => { props.backgroundColor = value; })} className="w-full" />
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Border Color</label>
+            <label className="text-[10px] text-builder-text">Border Color</label>
             <ColorPicker value={borderColor ?? "#d4dfef"} onChange={(value) => setProp((props: AccordionProps) => { props.borderColor = value; })} className="w-full" />
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Border Radius</label>
+              <label className="text-[10px] text-builder-text">Border Radius</label>
               <NumericInput value={borderRadius ?? 10} min={0} max={64} onChange={(value) => setProp((props: AccordionProps) => { props.borderRadius = value; })} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
+              <label className="text-[10px] text-builder-text">Border Width</label>
               <NumericInput value={borderWidth ?? 1} min={0} max={12} onChange={(value) => setProp((props: AccordionProps) => { props.borderWidth = value; })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Icon Color</label>
+              <label className="text-[10px] text-builder-text">Icon Color</label>
               <ColorPicker value={iconColor ?? "#4a89ff"} onChange={(value) => setProp((props: AccordionProps) => { props.iconColor = value; })} className="w-full" />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Option Text</label>
+              <label className="text-[10px] text-builder-text">Option Text</label>
               <ColorPicker value={contentTextColor ?? "#334155"} onChange={(value) => setProp((props: AccordionProps) => { props.contentTextColor = value; })} className="w-full" />
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Option Font Size</label>
+            <label className="text-[10px] text-builder-text">Option Font Size</label>
             <NumericInput value={contentFontSize ?? 13} min={10} max={32} onChange={(value) => setProp((props: AccordionProps) => { props.contentFontSize = value; })} />
           </div>
         </div>
