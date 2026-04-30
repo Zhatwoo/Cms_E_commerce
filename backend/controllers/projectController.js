@@ -8,6 +8,7 @@ const { getLimits } = require('../utils/subscriptionLimits');
 const { getTrashRetentionDays } = require('../utils/trashConfig');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const Notification = require('../models/Notification');
+const log = require('../utils/logger')('projectController');
 
 async function resolveOwnerForAdminProject(projectId) {
   try {
@@ -15,7 +16,7 @@ async function resolveOwnerForAdminProject(projectId) {
     const projectDoc = projectSnap.docs.find((doc) => doc.id === projectId);
     return projectDoc?.ref.parent?.parent?.id || null;
   } catch (error) {
-    console.warn('[projectController] resolveOwnerForAdminProject failed:', error.message);
+    log.warn('resolveOwnerForAdminProject failed:', error.message);
     return null;
   }
 }
@@ -28,14 +29,14 @@ exports.list = async (req, res) => {
     const userId = req.user.id;
     const userEmail = req.user.email;
     const t0 = Date.now();
-    console.log('[READ] projects.list start', { userId });
+    log.debug('projects.list start', { userId });
     const owned = await Project.list(userId);
-    console.log('[READ] projects.list owned', { count: owned?.length || 0, ms: Date.now() - t0 });
+    log.debug('projects.list owned', { count: owned?.length || 0, ms: Date.now() - t0 });
 
     const t1 = Date.now();
     const shared = await Project.listShared(userId, userEmail);
-    console.log('[READ] projects.listShared', { count: shared?.length || 0, ms: Date.now() - t1 });
-    console.log('[READ] projects.list total', { owned: owned?.length, shared: shared?.length, totalMs: Date.now() - t0 });
+    log.debug('projects.listShared', { count: shared?.length || 0, ms: Date.now() - t1 });
+    log.debug('projects.list total', { owned: owned?.length, shared: shared?.length, totalMs: Date.now() - t0 });
 
     // Merge and sort by updatedAt desc
     const projects = [...owned, ...shared].sort((a, b) => {
@@ -131,7 +132,7 @@ exports.create = async (req, res) => {
       project,
     });
   } catch (error) {
-    console.error('[projectController.create]', error);
+    log.error('[projectController.create]', error);
     res.status(500).json({
       success: false,
       message: error.message || 'Server error',
@@ -273,7 +274,7 @@ exports.update = async (req, res) => {
         io.emit('notification:added', notif);
       }
     } catch (e) {
-      console.warn('Project update notification failed:', e.message);
+      log.warn('Project update notification failed:', e.message);
     }
     res.status(200).json({
       success: true,
@@ -390,7 +391,7 @@ exports.delete = async (req, res) => {
         io.emit('notification:added', notif);
       }
     } catch (e) {
-      console.warn('Project delete notification failed:', e.message);
+      log.warn('Project delete notification failed:', e.message);
     }
 
     res.status(200).json({
@@ -493,7 +494,7 @@ exports.uploadMedia = async (req, res) => {
       try {
         fs.unlinkSync(tempPath);
       } catch (unlinkErr) {
-        console.warn('[uploadMedia] Failed to remove temp file:', unlinkErr?.message);
+        log.warn('[uploadMedia] Failed to remove temp file:', unlinkErr?.message);
       }
     }
   }
@@ -534,7 +535,7 @@ exports.permanentDelete = async (req, res) => {
         io.emit('notification:added', notif);
       }
     } catch (e) {
-      console.warn('Project permanent-delete notification failed:', e.message);
+      log.warn('Project permanent-delete notification failed:', e.message);
     }
 
     res.status(200).json({

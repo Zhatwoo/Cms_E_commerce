@@ -8,6 +8,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const Audit = require('../models/Audit');
 const stripeService = require('../services/stripeService');
+const log = require('../utils/logger')('authController');
 
 const COOKIE_NAME = 'mercato_token';
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -77,7 +78,7 @@ async function firebaseSignIn(email, password) {
       }),
     });
   } catch (err) {
-    if (process.env.NODE_ENV !== 'production') console.error('Login fetch error:', err.message);
+    log.error('Login fetch error:', err.message);
     return { error: new Error('NETWORK_ERROR'), rawError: { message: err.message } };
   }
 
@@ -99,7 +100,7 @@ async function firebaseSignIn(email, password) {
 // @route   POST /api/auth/register
 // @access  Public
 exports.register = async (req, res) => {
-  console.log('📬 [authController.register] Incoming request body:', { email: req.body?.email, name: req.body?.name });
+  log.debug('register: incoming', { email: req.body?.email, name: req.body?.name });
   try {
     const { name, email, password } = req.body;
 
@@ -136,7 +137,7 @@ exports.register = async (req, res) => {
     const { sent, confirmUrl } = await sendVerificationEmail(normEmail, verificationToken, name.trim() || normEmail.split('@')[0]);
 
     if (confirmUrl) {
-      console.log('📬 [register] Confirmation link (copy if email not received):', confirmUrl);
+      log.debug('register: confirm link (email may have failed):', confirmUrl);
     }
 
     const payload = {
@@ -152,7 +153,7 @@ exports.register = async (req, res) => {
     res.status(201).json(payload);
   } catch (error) {
     const msg = error.message || 'Server error';
-    if (process.env.NODE_ENV !== 'production') console.error('Register error:', msg, error);
+    log.error('Register error:', msg, error);
     if (error.code === 'auth/email-already-exists' || msg.toLowerCase().includes('already')) {
       return res.status(400).json({ success: false, message: 'User with this email already exists' });
     }
@@ -196,7 +197,7 @@ exports.resendVerification = async (req, res) => {
     });
   } catch (error) {
     const msg = error.message || 'Server error';
-    if (process.env.NODE_ENV !== 'production') console.error('Resend verification error:', msg, error);
+    log.error('Resend verification error:', msg, error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -247,7 +248,7 @@ exports.registerAdmin = async (req, res) => {
     });
   } catch (error) {
     const msg = error.message || 'Server error';
-    if (process.env.NODE_ENV !== 'production') console.error('Register admin error:', msg, error);
+    log.error('Register admin error:', msg, error);
     if (error.code === 'auth/email-already-exists' || msg.toLowerCase().includes('already')) {
       return res.status(400).json({ success: false, message: 'User with this email already exists' });
     }
@@ -275,7 +276,7 @@ exports.login = async (req, res) => {
         const decoded = await auth.verifyIdToken(idToken.trim());
         uid = decoded.uid;
       } catch (err) {
-        if (process.env.NODE_ENV !== 'production') console.error('Login idToken verify error:', err.message);
+        log.error('Login idToken verify error:', err.message);
         return res.status(401).json({ success: false, message: 'Invalid or expired token. Try logging in again.' });
       }
     }
@@ -321,7 +322,7 @@ exports.login = async (req, res) => {
     try {
       firebaseAuthUser = await auth.getUser(uid);
     } catch (err) {
-      if (process.env.NODE_ENV !== 'production') console.error('Login getUser error:', err.message);
+      log.error('Login getUser error:', err.message);
     }
 
     const providerIds = Array.isArray(firebaseAuthUser?.providerData)
@@ -388,7 +389,7 @@ exports.login = async (req, res) => {
       user: userToResponse(user)
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') console.error('Login error:', error.message);
+    log.error('Login error:', error.message);
     res.status(401).json({ success: false, message: 'Invalid credentials' });
   }
 };
@@ -434,7 +435,7 @@ exports.verifyEmail = async (req, res) => {
     try {
       firebaseUser = await auth.getUser(user.id);
     } catch (e) {
-      console.warn('verifyEmail: could not fetch updated firebase user:', e.message);
+      log.warn('verifyEmail: could not fetch updated firebase user:', e.message);
     }
 
     // Auto-login: create session token
@@ -449,7 +450,7 @@ exports.verifyEmail = async (req, res) => {
     });
   } catch (error) {
     const msg = error.message || 'Server error';
-    if (process.env.NODE_ENV !== 'production') console.error('Verify email error:', msg, error);
+    log.error('Verify email error:', msg, error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -463,7 +464,7 @@ exports.getFirebaseCustomToken = async (req, res) => {
     const customToken = await auth.createCustomToken(uid);
     res.status(200).json({ success: true, customToken });
   } catch (error) {
-    console.error('getFirebaseCustomToken error:', error);
+    log.error('getFirebaseCustomToken error:', error);
     res.status(500).json({ success: false, message: 'Failed to create Firebase token', error: error.message });
   }
 };
@@ -487,7 +488,7 @@ exports.getMe = async (req, res) => {
         user.emailVerified = true;
       }
     } catch (e) {
-      console.warn('getMe: could not fetch firebase user:', e.message);
+      log.warn('getMe: could not fetch firebase user:', e.message);
     }
     res.status(200).json({
       success: true,
@@ -603,7 +604,7 @@ exports.uploadAvatar = async (req, res) => {
       user: userToResponse(updatedUser)
     });
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') console.error('uploadAvatar error:', error.message);
+    log.error('uploadAvatar error:', error.message);
     res.status(500).json({
       success: false,
       message: error.message || 'Upload failed'
@@ -658,9 +659,7 @@ exports.forgotPassword = async (req, res) => {
       try {
         const authUser = await auth.getUserByEmail(normEmail);
         user = { id: authUser.uid, email: authUser.email, displayName: authUser.displayName || '' };
-        if (process.env.NODE_ENV !== 'production') {
-          console.log('[forgotPassword] User found via Firebase Auth (not Firestore):', normEmail);
-        }
+        log.debug('forgotPassword: user found via Firebase Auth (not Firestore):', normEmail);
       } catch (_) {
         // No user found in Firebase Auth either
       }
@@ -678,12 +677,10 @@ exports.forgotPassword = async (req, res) => {
         user.displayName || user.email?.split('@')[0] || ''
       );
 
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[forgotPassword] Email sent:', sent, '| To:', user.email, sendError ? `| Error: ${sendError}` : '');
-        if (!sent) console.log('[forgotPassword] Reset link (copy if email failed):', resetUrl);
-      }
-    } else if (process.env.NODE_ENV !== 'production') {
-      console.log('[forgotPassword] No user found for email:', normEmail);
+      log.debug('forgotPassword: email sent', { sent, to: user.email, sendError });
+      if (!sent) log.debug('forgotPassword: reset link (email failed):', resetUrl);
+    } else {
+      log.debug('forgotPassword: no user found for email:', normEmail);
     }
 
     const payload = {
@@ -737,7 +734,7 @@ exports.createStripeSetupIntent = async (req, res) => {
       clientSecret: setupIntent.client_secret
     });
   } catch (error) {
-    console.error('Setup Intent Error:', error);
+    log.error('Setup Intent Error:', error);
     res.status(500).json({ 
       success: false, 
       message: error.message || 'Failed to create setup intent' 
