@@ -138,9 +138,6 @@ export default function SettingsPage() {
             const response = await updateProfile({ paymentMethods: updatedMethods });
             if (response && response.success && response.user) {
                 setPaymentMethods(response.user.paymentMethods || []);
-                // Success feedback na premium ang dating
-                console.log('✅ PayPal linked manually:', email);
-                // Optional: Pwede ring mag-reload o gumamit ng custom success toast kung mayroon
             } else {
                 alert('Hindi ma-save ang PayPal email. Pakisubukan muli.');
             }
@@ -153,7 +150,6 @@ export default function SettingsPage() {
     };
 
     const handleLinkUnionBank = async () => {
-        console.log('UnionBank link clicked');
         if (isLinking) return;
         setIsLinking(true);
         try {
@@ -172,34 +168,27 @@ export default function SettingsPage() {
     };
 
     const handleRemoveCard = async (id: string) => {
-        console.log('🗑️ handleRemoveCard triggered for id:', id);
         if (!window.confirm('Sigurado ka bang nais mong tanggalin ang payment method na ito?')) {
-            console.log('❌ Removal cancelled by user');
             return;
         }
-        
+
         setRemovingCardId(id);
-        console.log('🔄 Current paymentMethods:', paymentMethods);
-        
+
         try {
             const updatedMethods = paymentMethods.filter(card => card.id !== id);
-            console.log('✅ Filtered methods:', updatedMethods);
-            
             // Optimistically update local state
             setPaymentMethods(updatedMethods);
-            
+
             const response = await updateProfile({ paymentMethods: updatedMethods });
-            console.log('📡 updateProfile response:', response);
-            
+
             if (!response.success) {
                 // If failed, revert to original methods
-                console.error('❌ Failed to update profile on backend');
+                console.error('Failed to update profile on backend');
                 setPaymentMethods(paymentMethods);
                 alert('Hindi matanggal ang card. Pakisubukan muli.');
             }
         } catch (error) {
-            console.error('❌ Failed to remove card error:', error);
-            // Revert state if possible or reload
+            console.error('Failed to remove card:', error);
             alert('Nagkaroon ng problema. Pakisubukan muli.');
         } finally {
             setRemovingCardId(null);

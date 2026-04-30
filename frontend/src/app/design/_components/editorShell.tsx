@@ -2826,11 +2826,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const confirmed = await showConfirm("Are you sure you want to delete your progress? This cannot be undone.");
     if (!confirmed) return;
 
-    console.log('🗑️ Deleting draft...');
     const result = await deleteDraft(projectId);
 
     if (result.success) {
-      console.log('✅ Draft deleted');
       safeSessionRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {
