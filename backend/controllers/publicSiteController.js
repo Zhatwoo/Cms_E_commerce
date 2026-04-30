@@ -2,6 +2,7 @@
 const Domain = require('../models/Domain');
 const Product = require('../models/Product');
 const WebsiteAnalytics = require('../models/WebsiteAnalytics');
+const log = require('../utils/logger')('publicSiteController');
 
 function buildAnalyticsKeys(domain, canonicalSubdomain) {
   return Array.from(new Set([
@@ -58,10 +59,10 @@ exports.getBySubdomain = async (req, res) => {
         String(analyticsDomainId || '').trim(),
       ]);
 
-      console.log(`[Analytics] Server-side track for subdomain "${canonicalSubdomain || domain.subdomain || 'unknown'}" using keys: ${Array.from(keys).join(', ')}`);
+      log.debug(`Server-side track for subdomain "${canonicalSubdomain || domain.subdomain || 'unknown'}" using keys: ${Array.from(keys).join(', ')}`);
 
       Promise.all(Array.from(keys).map((key) => WebsiteAnalytics.trackView(key, viewData)))
-        .catch((err) => console.error('getBySubdomain trackView error:', err.message));
+        .catch((err) => log.error('getBySubdomain trackView error:', err.message));
     }
 
     // Serve the published snapshot exactly as authored during publish.
@@ -81,7 +82,7 @@ exports.getBySubdomain = async (req, res) => {
       owner: domain.owner || null,
     });
   } catch (error) {
-    console.error('getBySubdomain error:', error);
+    log.error('getBySubdomain error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
@@ -109,7 +110,7 @@ exports.getProducts = async (req, res) => {
       : await Product.findPublicBySubdomain(subdomain, { limit: 100 });
     res.status(200).json({ success: true, data: published });
   } catch (error) {
-    console.error('getProducts error:', error);
+    log.error('getProducts error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };

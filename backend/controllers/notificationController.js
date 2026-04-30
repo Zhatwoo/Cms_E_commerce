@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const log = require('../utils/logger')('notificationController');
 
 const IMPORTANT_NOTIFICATION_TITLES = new Set([
   'website published',
@@ -51,7 +52,7 @@ exports.addNotification = async (req, res) => {
 
     const io = req.app.get('io');
     if (io) {
-        console.log('[Notification] Broadcasting new event to all admins');
+        log.debug('Broadcasting new event to all admins');
         io.emit('notification:added', notification);
     }
 

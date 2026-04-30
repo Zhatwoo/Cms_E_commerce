@@ -1,6 +1,7 @@
 const { db } = require('../config/firebase');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const { v4: uuidv4 } = require('uuid');
+const log = require('../utils/logger')('commentController');
 
 function getCommentsRef(ownerId, projectId) {
     return db.collection('user').doc('roles')
@@ -50,7 +51,7 @@ exports.add = async (req, res) => {
         const docRef = await getCommentsRef(ctx.resolved.ownerId, ctx.projectId).add(commentData);
         res.status(201).json({ success: true, comment: { id: docRef.id, ...commentData } });
     } catch (err) {
-        console.error('[Comments] Add failed:', err);
+        log.error('[Comments] Add failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -77,7 +78,7 @@ exports.list = async (req, res) => {
 
         res.status(200).json({ success: true, comments });
     } catch (err) {
-        console.error('[Comments] List failed:', err);
+        log.error('[Comments] List failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -97,7 +98,7 @@ exports.update = async (req, res) => {
         await ref.update({ content, updatedAt: new Date().toISOString() });
         res.status(200).json({ success: true });
     } catch (err) {
-        console.error('[Comments] Update failed:', err);
+        log.error('[Comments] Update failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -117,7 +118,7 @@ exports.move = async (req, res) => {
         await ref.update({ x: parseFloat(x) || 0, y: parseFloat(y) || 0, updatedAt: new Date().toISOString() });
         res.status(200).json({ success: true });
     } catch (err) {
-        console.error('[Comments] Move failed:', err);
+        log.error('[Comments] Move failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -137,7 +138,7 @@ exports.resolve = async (req, res) => {
         await ref.update({ resolved: !!resolvedStatus, updatedAt: new Date().toISOString() });
         res.status(200).json({ success: true });
     } catch (err) {
-        console.error('[Comments] Resolve failed:', err);
+        log.error('[Comments] Resolve failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -161,7 +162,7 @@ exports.remove = async (req, res) => {
         await ref.delete();
         res.status(200).json({ success: true });
     } catch (err) {
-        console.error('[Comments] Delete failed:', err);
+        log.error('[Comments] Delete failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -204,7 +205,7 @@ exports.addReply = async (req, res) => {
 
         res.status(201).json({ success: true, reply });
     } catch (err) {
-        console.error('[Comments] Add reply failed:', err);
+        log.error('[Comments] Add reply failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -226,7 +227,7 @@ exports.deleteReply = async (req, res) => {
 
         res.status(200).json({ success: true });
     } catch (err) {
-        console.error('[Comments] Delete reply failed:', err);
+        log.error('[Comments] Delete reply failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -267,7 +268,7 @@ exports.addReaction = async (req, res) => {
 
         res.status(201).json({ success: true, reaction });
     } catch (err) {
-        console.error('[Comments] Add reaction failed:', err);
+        log.error('[Comments] Add reaction failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
@@ -291,7 +292,7 @@ exports.removeReaction = async (req, res) => {
 
         res.status(200).json({ success: true, userId: ctx.userId });
     } catch (err) {
-        console.error('[Comments] Remove reaction failed:', err);
+        log.error('[Comments] Remove reaction failed:', err);
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };

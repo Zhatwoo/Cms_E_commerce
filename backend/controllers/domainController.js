@@ -9,6 +9,7 @@ const { getLimits } = require('../utils/subscriptionLimits');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const { sendAdminActionEmail } = require('../utils/emailService');
 const Notification = require('../models/Notification');
+const log = require('../utils/logger')('domainController');
 
 const BASE_DOMAIN = process.env.BASE_DOMAIN || process.env.NEXT_PUBLIC_BASE_DOMAIN || 'cms.com';
 
@@ -357,7 +358,7 @@ exports.adminWebsiteAction = async (req, res) => {
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
-      console.warn('Admin action notification failed:', e.message);
+      log.warn('Admin action notification failed:', e.message);
     }
 
     return res.status(200).json({
@@ -492,7 +493,7 @@ exports.publish = async (req, res) => {
         const draft = await Page.getPageData(userId, String(projectId).trim(), userId);
         if (draft && draft.content) publishedContent = draft.content;
       } catch (e) {
-        console.warn('publish: could not read draft for snapshot:', e.message);
+        log.warn('publish: could not read draft for snapshot:', e.message);
       }
     }
 
@@ -527,7 +528,7 @@ exports.publish = async (req, res) => {
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
-      console.warn('Publish notification failed:', e.message);
+      log.warn('Publish notification failed:', e.message);
     }
 
     const rtdb = getRealtimeDb();
@@ -536,7 +537,7 @@ exports.publish = async (req, res) => {
         const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
         await rtdbRef.update({ subdomain });
       } catch (e) {
-        console.warn('publish: Realtime DB sync failed:', e.message);
+        log.warn('publish: Realtime DB sync failed:', e.message);
       }
     }
 
@@ -581,7 +582,7 @@ exports.unpublish = async (req, res) => {
         const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${trimmedProjectId}`);
         await rtdbRef.update({ status: 'draft' });
       } catch (e) {
-        console.warn('unpublish: Realtime DB sync failed:', e.message);
+        log.warn('unpublish: Realtime DB sync failed:', e.message);
       }
     }
     res.status(200).json({ success: true, message: 'Site taken offline', data });
@@ -632,7 +633,7 @@ exports.updateSubdomain = async (req, res) => {
         const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${projectId}`);
         await rtdbRef.update({ subdomain: normalized });
       } catch (e) {
-        console.warn('updateSubdomain: Realtime DB sync failed:', e.message);
+        log.warn('updateSubdomain: Realtime DB sync failed:', e.message);
       }
     }
     res.status(200).json({ success: true, message: 'Subdomain updated', data });
@@ -707,7 +708,7 @@ exports.adminUpdateClientSubdomain = async (req, res) => {
         const rtdbRef = rtdb.ref(`user/roles/client/${ownerId}/projects/${targetProjectId}`);
         await rtdbRef.update({ subdomain: normalized });
       } catch (e) {
-        console.warn('adminUpdateClientSubdomain: Realtime DB sync failed:', e.message);
+        log.warn('adminUpdateClientSubdomain: Realtime DB sync failed:', e.message);
       }
     }
 
@@ -753,7 +754,7 @@ exports.schedulePublish = async (req, res) => {
         const draft = await Page.getPageData(ownerId, String(projectId).trim(), ownerId);
         if (draft && draft.content) scheduledContent = draft.content;
       } catch (e) {
-        console.warn('schedulePublish: could not read draft:', e.message);
+        log.warn('schedulePublish: could not read draft:', e.message);
       }
     }
 

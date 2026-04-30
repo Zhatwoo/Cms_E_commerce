@@ -2,6 +2,7 @@
 const paymongoService = require('../services/paymongoService');
 const stripeService = require('../services/stripeService');
 const StorefrontOrder = require('../models/StorefrontOrder');
+const log = require('../utils/logger')('webhookController');
 
 /**
  * Xendit webhook handler.
@@ -41,7 +42,7 @@ exports.xenditWebhook = async (req, res) => {
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('[webhook] xendit error:', error.message);
+    log.error('[webhook] xendit error:', error.message);
     res.status(500).json({ success: false, message: 'Webhook error' });
   }
 };
@@ -117,7 +118,7 @@ exports.paymongoWebhook = async (req, res) => {
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('[webhook] paymongo error:', error.message);
+    log.error('[webhook] paymongo error:', error.message);
     res.status(500).json({ success: false, message: 'Webhook error' });
   }
 };
@@ -138,7 +139,7 @@ exports.stripeWebhook = async (req, res) => {
     try {
       event = stripeService.constructEvent(rawBody, signature);
     } catch (err) {
-      console.error(`[webhook] stripe signature verification failed:`, err.message);
+      log.error(`[webhook] stripe signature verification failed:`, err.message);
       if (err.statusCode === 503) {
         return res.status(503).json({ success: false, message: err.message });
       }
@@ -152,7 +153,7 @@ exports.stripeWebhook = async (req, res) => {
         const { order_id: PIOrderId, subdomain: PISubdomain } = paymentIntent.metadata;
         if (PIOrderId && PISubdomain) {
           await StorefrontOrder.updateStatusBySubdomainAndId(PISubdomain, PIOrderId, 'Paid');
-          console.log(`[webhook] stripe payment_intent.succeeded: ${PIOrderId} (${PISubdomain})`);
+          log.info(`[webhook] stripe payment_intent.succeeded: ${PIOrderId} (${PISubdomain})`);
         }
         break;
       case 'checkout.session.completed':
@@ -160,16 +161,16 @@ exports.stripeWebhook = async (req, res) => {
         const { order_id: SOrderId, subdomain: SSubdomain } = session.metadata;
         if (SOrderId && SSubdomain) {
           await StorefrontOrder.updateStatusBySubdomainAndId(SSubdomain, SOrderId, 'Paid');
-          console.log(`[webhook] stripe checkout.session.completed: ${SOrderId} (${SSubdomain})`);
+          log.info(`[webhook] stripe checkout.session.completed: ${SOrderId} (${SSubdomain})`);
         }
         break;
       default:
-        console.log(`[webhook] stripe unhandled event type: ${event.type}`);
+        log.info(`[webhook] stripe unhandled event type: ${event.type}`);
     }
 
     res.status(200).json({ received: true });
   } catch (error) {
-    console.error('[webhook] stripe error:', error.message);
+    log.error('[webhook] stripe error:', error.message);
     res.status(500).json({ success: false, message: 'Webhook error' });
   }
 };
