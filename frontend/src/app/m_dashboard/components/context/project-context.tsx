@@ -25,9 +25,9 @@ const ProjectContext = createContext<ProjectContextType>({
   loading: true,
   selectedProjectId: null,
   selectedProject: null,
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+   
   setSelectedProjectId: () => {},
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
+   
   refreshProjects: async () => {},
 });
 

@@ -961,10 +961,10 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
         d.moveLastX = d.lastX;
         d.moveLastY = d.lastY;
 
-        let nextLeft = d.moveMode === "offset"
+        const nextLeft = d.moveMode === "offset"
           ? parsePxOrAuto(p.left) + stepDx
           : parsePxOrAuto(p.marginLeft) + stepDx;
-        let nextTop = d.moveMode === "offset"
+        const nextTop = d.moveMode === "offset"
           ? parsePxOrAuto(p.top) + stepDy
           : parsePxOrAuto(p.marginTop) + stepDy;
 

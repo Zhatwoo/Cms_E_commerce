@@ -86,7 +86,7 @@ export async function removeFilesFromMediaLibrary(projectId: string, itemIds: st
     
     if (!raw) return;
     
-    let items: MediaLibraryItem[] = JSON.parse(raw);
+    const items: MediaLibraryItem[] = JSON.parse(raw);
     if (!Array.isArray(items)) return;
 
     // 1. Identify URLs to delete from project storage

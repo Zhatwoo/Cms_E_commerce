@@ -79,7 +79,7 @@ export const CanvasPasteHandler = () => {
           };
 
           const pageId = resolvePage(hitNodeId);
-          let parentId = pageId || "ROOT";
+          const parentId = pageId || "ROOT";
           let imageLeft = 40;
           let imageTop = 40;
 

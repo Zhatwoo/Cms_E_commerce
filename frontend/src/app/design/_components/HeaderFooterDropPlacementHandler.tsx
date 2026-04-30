@@ -120,7 +120,7 @@ export function HeaderFooterDropPlacementHandler() {
           const initialParentId = nodes[nodeId]?.data?.parent;
           if (!initialParentId) return;
 
-          let targetParentId = initialParentId;
+          const targetParentId = initialParentId;
 
           const currentState = query.getState();
           const currentNodes = (currentState?.nodes ?? {}) as Record<string, NodeShape>;
@@ -172,7 +172,7 @@ export function HeaderFooterDropPlacementHandler() {
         const initialParentId = nodes[nodeId]?.data?.parent;
         if (!initialParentId) return;
 
-        let targetParentId = initialParentId;
+        const targetParentId = initialParentId;
 
         const currentState = query.getState();
         const currentNodes = (currentState?.nodes ?? {}) as Record<string, NodeShape>;

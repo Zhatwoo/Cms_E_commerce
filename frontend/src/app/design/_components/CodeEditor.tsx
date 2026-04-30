@@ -336,7 +336,7 @@ export const CodeEditor = ({ mode, projectId, className = "", files: propFiles, 
   const handleApplyInstanceProps = () => {
     if (!selectedId || activeFileId !== "instance-props") return;
     try {
-      let jsxOnly = extractJSXFromSource(tailwindContent);
+      const jsxOnly = extractJSXFromSource(tailwindContent);
       const parser = new DOMParser();
       const doc = parser.parseFromString(jsxOnly, "text/html");
       const elements = doc.querySelectorAll("[data-node-id]");

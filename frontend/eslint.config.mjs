@@ -43,6 +43,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored third-party globe library — not our code, not lintable.
+    // Source: https://github.com/vasturiano/three-globe (bundled fork).
+    // Was contributing ~2,255 warnings (no-unused-expressions, any, etc).
+    "src/app/landing/components/github-globe-main/**",
   ]),
 ]);
 

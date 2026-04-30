@@ -104,7 +104,7 @@ function PublicSiteContent() {
           setLoading(false);
           return;
         }
-        let clean = parseContentToCleanDoc(content);
+        const clean = parseContentToCleanDoc(content);
         if (!clean) {
           setError('Invalid content');
           setLoading(false);

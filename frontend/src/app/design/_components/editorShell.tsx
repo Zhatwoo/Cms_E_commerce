@@ -1473,7 +1473,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         // Ensure unique, sequential names
         const usedNames = new Set<string>();
         const pageTabs = (parsed.pages as Array<{ id: string; name?: string }>).map((p, idx) => {
-          let base = 'Page ';
+          const base = 'Page ';
           let num = idx + 1;
           let name = p.name && !usedNames.has(p.name) ? p.name : `${base}${num}`;
           // If name is duplicate, find next available
@@ -1955,8 +1955,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
       container.querySelector<HTMLElement>('[data-page-node="true"]');
 
-    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
-    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+    const worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+    const worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
 
     if (pageEl) {
       const contRect = container.getBoundingClientRect();

@@ -133,7 +133,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
         return null;
       };
 
-      let targetId = findPageAncestor(state?.events?.selected?.size > 0 ? Array.from(state.events.selected)[0] : null)
+      const targetId = findPageAncestor(state?.events?.selected?.size > 0 ? Array.from(state.events.selected)[0] : null)
         ?? Object.keys(nodes).find(id => nodes[id].data.displayName === 'Page');
 
       if (!targetId) return;
