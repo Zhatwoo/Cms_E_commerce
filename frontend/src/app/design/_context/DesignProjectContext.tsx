@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useLayoutEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { getProject, getStoredUser, setActiveProjectId, updateProject } from "@/lib/api";
 import { ensureFirebaseAuthForStorage } from "@/lib/firebase";
 
@@ -114,8 +114,13 @@ export function DesignProjectProvider({
     return () => { cancelled = true; };
   }, [projectId]);
 
+  const value = useMemo(
+    () => ({ projectId, pageId: pageId || null, projectIndustry, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle }),
+    [projectId, pageId, projectIndustry, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle]
+  );
+
   return (
-    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, projectIndustry, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle }}>
+    <DesignProjectContext.Provider value={value}>
       {children}
     </DesignProjectContext.Provider>
   );
