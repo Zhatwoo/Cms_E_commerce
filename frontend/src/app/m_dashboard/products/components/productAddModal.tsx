@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
+import { ModalShell } from '@/components/ModalShell';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
 import { SaveProductButton } from './button';
@@ -62,7 +62,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
   const [thumbOver, setThumbOver] = useState<number | null>(null);
   const [removedVariantRows, setRemovedVariantRows] = useState<string[]>([]);
   const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -152,10 +151,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [showSubcategoryDropdown]);
-
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -663,8 +658,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
     }
   };
 
-  if (!portalTarget) return null;
-
   const isLight = theme === 'light';
   const shellBackground = isLight
     ? 'linear-gradient(135deg, #F9F7FF 0%, #F1ECFF 55%, #ECE6FF 100%)'
@@ -797,33 +790,25 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
     ? `In Stock - ${displayStock} ${displayStock === 1 ? 'unit' : 'units'}`
     : 'Out of Stock';
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen ? (
-        <motion.div
-          key="modal-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-[5000] backdrop-blur-[12px]"
-          style={{
-            backgroundColor: isLight ? 'rgba(18,5,51,0.26)' : 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-          }}
-          onClick={requestClose}
-        >
-          <div className="absolute inset-0 flex items-center justify-center p-6">
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={requestClose}
+      usePortal
+      className="fixed inset-0 z-[5000] flex items-center justify-center p-6 backdrop-blur-[12px]"
+      style={{
+        backgroundColor: isLight ? 'rgba(18,5,51,0.26)' : 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
             <motion.div
-              onClick={e => e.stopPropagation()}
               onWheelCapture={handleNumberInputWheel}
               onKeyDownCapture={handleNumberKeyDownCapture}
               onInputCapture={handleNumberInputCapture}
               onPasteCapture={handleNumberPasteCapture}
               initial={{ opacity: 0, scale: 0.93, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.93, y: 24 }}
               transition={{ type: 'spring', damping: 26, stiffness: 280 }}
               className="product-modal-shell relative flex overflow-hidden w-full"
               style={{
@@ -1775,11 +1760,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 }
               `}</style>
             </motion.div>
-          </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-    ,
-    portalTarget
+    </ModalShell>
   );
 }
