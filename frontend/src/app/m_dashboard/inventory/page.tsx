@@ -39,6 +39,7 @@ import ProductAddModal from '../products/components/productAddModal';
 import { AddProductButton } from '../products/components/button';
 import { ImportExportButtons, handleExportData, parseCsvToRows } from './components/import_export';
 import { InventoryTable } from './components/inventoryTable';
+import { useInventory } from './hooks/useInventory';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -351,9 +352,6 @@ export default function InventoryPage() {
   const [activeContentTab, setActiveContentTab] = useState<InventoryContentTab>('inventory');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [items, setItems] = useState<InventoryRow[]>([]);
-  const [summary, setSummary] = useState<InventorySummary | null>(null);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [allMovements, setAllMovements] = useState<InventoryMovement[]>([]);
   const [showAllMovementsModal, setShowAllMovementsModal] = useState(false);
   const [loadingAllMovements, setLoadingAllMovements] = useState(false);
@@ -363,8 +361,6 @@ export default function InventoryPage() {
   const [selectedMovementIds, setSelectedMovementIds] = useState<string[]>([]);
   const [bulkDeleteMode, setBulkDeleteMode] = useState<'selected' | 'all' | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<{ mode: 'selected' | 'all'; count: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [stockModal, setStockModal] = useState<StockAdjustmentModalState>({
     open: false, product: null, movementType: 'IN', quantity: '1',
@@ -410,6 +406,24 @@ export default function InventoryPage() {
 
     return typeof limit === 'number' ? merged.slice(0, limit) : merged;
   }, [movementTimestamp]);
+
+  const {
+    items,
+    setItems,
+    summary,
+    setSummary,
+    movements,
+    setMovements,
+    loading,
+    error,
+    reload: loadData,
+  } = useInventory<InventoryRow>({
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+    search,
+    recentMovementsLimit: RECENT_MOVEMENTS_LIMIT,
+    mergeMovements: mergeServerAndLocalStatusMovements,
+  });
 
   const sanitizeNumberInput = (input: HTMLInputElement) => {
     if (input.type !== 'number') return;
@@ -577,36 +591,6 @@ export default function InventoryPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubdomain, showAlert, showImportPopup]);
-
-  const loadData = useCallback(async () => {
-    if (projectLoading) {
-      setLoading(true);
-      return;
-    }
-    setLoading(true); setError(null);
-    if (!selectedSubdomain) {
-      setItems([]);
-      setSummary(null);
-      setMovements([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      const [invRes, summaryRes, movementRes] = await Promise.all([
-        listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
-        getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
-        listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
-      ]);
-      setItems(Array.isArray(invRes.items) ? (invRes.items as InventoryRow[]) : []);
-      setSummary(summaryRes.data || null);
-      const serverMovements = Array.isArray(movementRes.items) ? movementRes.items : [];
-      setMovements(mergeServerAndLocalStatusMovements(serverMovements, RECENT_MOVEMENTS_LIMIT));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load inventory');
-    } finally { setLoading(false); }
-  }, [projectLoading, search, selectedSubdomain, mergeServerAndLocalStatusMovements]);
-
-  useEffect(() => { void loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
     if (projectLoading) {
