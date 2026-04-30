@@ -8,6 +8,7 @@
 
 import type { BuilderDocument, CleanNode, CodeFile, ComponentType, PageNode } from "../_types/schema";
 import { DEFAULT_ANIMATION } from "../_types/animation";
+import { fonts } from "@/lib/theme";
 import { DEFAULT_PROTOTYPE } from "../_types/prototype";
 
 // ─── Craft.js Raw Types ─────────────────────────────────────────────────────
@@ -232,7 +233,7 @@ const COMPONENT_DEFAULTS: Record<string, Record<string, unknown>> = {
     width: "fit-content",
     height: "fit-content",
     fontSize: 16,
-    fontFamily: "Outfit",
+    fontFamily: fonts.uiRaw,
     fontWeight: "400",
     fontStyle: "normal",
     lineHeight: 1.5,

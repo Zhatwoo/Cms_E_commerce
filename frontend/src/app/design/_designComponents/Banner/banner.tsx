@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import { BannerSettings } from "./bannerSettings";
 import type { ContainerProps, TypographyProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 export interface BannerProps extends ContainerProps, TypographyProps {
 	text?: string;
@@ -218,7 +219,7 @@ export const Banner = ({
 
 export const BannerDefaultProps: Partial<BannerProps> = {
 	text: "FLASH SALE: Up to 70% off - Use code SAVE70",
-	fontFamily: "Outfit",
+	fontFamily: fonts.uiRaw,
 	fontWeight: "700",
 	fontStyle: "normal",
 	fontSize: 13,

@@ -13,6 +13,7 @@ import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
 import { smartGroupCategories } from "@/lib/smartCategories";
 import { getIndustryCategories } from "@/lib/industryCatalog";
+import { fonts } from "@/lib/theme";
 import { FeaturesGridBlock } from "@/app/_assets/Content/FeaturesGridBlock";
 import { TestimonialBlock } from "@/app/_assets/Content/TestimonialBlock";
 import { StatsCounterBlock } from "@/app/_assets/Content/StatsCounterBlock";
@@ -1117,7 +1118,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Text: {
     text: "Edit me!",
     fontSize: 16,
-    fontFamily: "Outfit",
+    fontFamily: fonts.uiRaw,
     fontWeight: "400",
     lineHeight: 1.5,
     letterSpacing: 0,
@@ -1170,7 +1171,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     variant: "primary",
     fontSize: 14,
     fontWeight: "500",
-    fontFamily: "Outfit",
+    fontFamily: fonts.uiRaw,
     borderRadius: 8,
     width: "auto",
     height: "auto",

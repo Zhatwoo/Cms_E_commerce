@@ -3,6 +3,7 @@ import { useNode, useEditor } from "@craftjs/core";
 import { TextSettings } from "./TextSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { TextProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 const NEW_TEXT_PLACEHOLDER = "Type something...";
 
@@ -425,7 +426,7 @@ export const Text = ({
 export const TextDefaultProps: Partial<TextProps & { width?: string; height?: string }> = {
   text: "",
   fontSize: 16,
-  fontFamily: "Outfit",
+  fontFamily: fonts.uiRaw,
   fontWeight: "400",
   fontStyle: "normal",
   lineHeight: 1.5,

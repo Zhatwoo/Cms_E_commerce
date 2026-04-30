@@ -3,6 +3,7 @@ import { useNode } from "@craftjs/core";
 import type { Node } from "@craftjs/core";
 import { ButtonSettings } from "./ButtonSettings";
 import type { ButtonProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 const VARIANT_STYLES: Record<NonNullable<ButtonProps["variant"]>, {
   bg: string;
@@ -168,7 +169,7 @@ export const ButtonDefaultProps: Partial<ButtonProps> = {
   variant: "primary",
   fontSize: 14,
   fontWeight: "500",
-  fontFamily: "Outfit",
+  fontFamily: fonts.uiRaw,
   borderRadius: 8,
   width: "auto",
   height: "auto",
