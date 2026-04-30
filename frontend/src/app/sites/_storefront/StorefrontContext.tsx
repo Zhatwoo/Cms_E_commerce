@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const CART_KEY_PREFIX = 'storefront_cart_';
 
@@ -114,26 +114,36 @@ export function StorefrontProvider({
     );
   }, []);
 
-  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
+  const cartCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
+  const openCart = useCallback(() => setCartOpen(true), []);
+  const closeCart = useCallback(() => setCartOpen(false), []);
 
-  const value: StorefrontContextValue = {
-    subdomain,
-    siteTitle,
-    setSiteTitle,
-    cart,
-    lastAddedAt,
-    addToCart,
-    removeFromCart,
-    removeManyFromCart,
-    updateQuantity,
-    cartCount,
-    openCart: () => setCartOpen(true),
-    closeCart: () => setCartOpen(false),
-    cartOpen,
-    showAddToCartSuccess,
-    setShowAddToCartSuccess,
-    lastAddedProduct,
-  };
+  const value = useMemo<StorefrontContextValue>(
+    () => ({
+      subdomain,
+      siteTitle,
+      setSiteTitle,
+      cart,
+      lastAddedAt,
+      addToCart,
+      removeFromCart,
+      removeManyFromCart,
+      updateQuantity,
+      cartCount,
+      openCart,
+      closeCart,
+      cartOpen,
+      showAddToCartSuccess,
+      setShowAddToCartSuccess,
+      lastAddedProduct,
+    }),
+    [
+      subdomain, siteTitle, cart, lastAddedAt,
+      addToCart, removeFromCart, removeManyFromCart, updateQuantity,
+      cartCount, openCart, closeCart, cartOpen,
+      showAddToCartSuccess, lastAddedProduct,
+    ]
+  );
 
   return (
     <StorefrontContext.Provider value={value}>
