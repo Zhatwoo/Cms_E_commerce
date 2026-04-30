@@ -1,7 +1,8 @@
 "use client";
 
-import { AnimatePresence, motion } from 'framer-motion';
-import { Globe, Layout, X, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { X } from 'lucide-react';
+import { ModalShell } from '@/components/ModalShell';
 
 /// A high-end, editorial modal for editing project configuration.
 /// 
@@ -53,27 +54,23 @@ export function EditProjectModal({
   const isDark = theme === 'dark';
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-[8px]"
-          style={{ 
-            backgroundColor: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(15, 23, 42, 0.25)' 
-          }}
-          onClick={() => !saving && onCancel()}
-        >
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onCancel}
+      disabled={saving}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-[8px]"
+      style={{
+        backgroundColor: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(15, 23, 42, 0.25)',
+      }}
+    >
           <motion.div
             initial={{ opacity: 0, scale: 0.98, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 15 }}
             transition={{ type: 'spring', damping: 25, stiffness: 400 }}
             className={`w-full max-w-[480px] rounded-[32px] overflow-hidden border transition-all duration-300
-              ${isDark ? 'bg-[#15093E] border-[#272261] shadow-[0_30px_90px_rgba(0,0,0,0.6)]' 
+              ${isDark ? 'bg-[#15093E] border-[#272261] shadow-[0_30px_90px_rgba(0,0,0,0.6)]'
                        : 'bg-[#F9FAFB] border-slate-200 shadow-[0_20px_50px_rgba(0,0,0,0.08)]'}`}
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Header: Lowered Contrast for Eye Comfort */}
             <div className={`px-8 pt-8 pb-6 flex items-start justify-between border-b 
@@ -181,8 +178,6 @@ export function EditProjectModal({
               </div>
             </div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </ModalShell>
   );
 }

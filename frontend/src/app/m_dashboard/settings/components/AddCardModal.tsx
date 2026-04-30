@@ -10,6 +10,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { X, CreditCard, Lock, AlertCircle } from 'lucide-react';
 import { getStripePublicKey, createStripeSetupIntent, updateProfile } from '@/lib/api';
+import { ModalShell } from '@/components/ModalShell';
 
 // Stripe Card Element options
 const CARD_ELEMENT_OPTIONS = {
@@ -201,10 +202,8 @@ export function AddCardModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <ModalShell isOpen={isOpen} onClose={onClose}>
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden mt-[-10%] sm:mt-0">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between mb-8">
@@ -256,6 +255,6 @@ export function AddCardModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 }
