@@ -36,7 +36,7 @@ import {
   type VariantPriceMap,
   type FormData,
   MAX_VARIANTS,
-} from './productAddModal';
+} from '../lib/productFormUtils';
 
 /**
  * ProductEditModal Component
