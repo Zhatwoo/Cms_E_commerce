@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { useCanvasTool } from "./CanvasToolContext";
+import { useSnapGuides } from "./CanvasToolContext";
 
 export const SnapMarkers = () => {
-    const { snapGuides } = useCanvasTool();
+    const { snapGuides } = useSnapGuides();
 
     if (!snapGuides || snapGuides.length === 0) return null;
 

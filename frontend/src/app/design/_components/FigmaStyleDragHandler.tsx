@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
-import { useCanvasTool } from "./CanvasToolContext";
+import { useCanvasTool, useSnapGuides } from "./CanvasToolContext";
 import { getSnapGuides, getBoundingRect, Rect, SnapGuide } from "./snapUtils";
 import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
@@ -426,7 +426,8 @@ export const FigmaStyleDragHandler = () => {
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const { activeTool, setSnapGuides } = useCanvasTool();
+  const { activeTool } = useCanvasTool();
+  const { setSnapGuides } = useSnapGuides();
   const setSnapGuidesRef = useRef(setSnapGuides);
   useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
 

@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import { useEditor } from "@craftjs/core";
-import { useCanvasTool } from "./CanvasToolContext";
+import { useSnapGuides } from "./CanvasToolContext";
 import { getSnapGuides, Rect } from "./snapUtils";
 import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
@@ -359,7 +359,7 @@ export const ResizeOverlay = ({ nodeId, dom, disableResize = false, disableRotat
   const [dragType, setDragType] = useState<"move" | "resize" | "rotate" | null>(null);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [guides, setGuides] = useState<GuideState>(null);
-  const { setSnapGuides } = useCanvasTool();
+  const { setSnapGuides } = useSnapGuides();
   const setSnapGuidesRef = useRef(setSnapGuides);
   useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
   const [rotateAngle, setRotateAngle] = useState<number | null>(null);
