@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { login, register as apiRegister, resendVerificationEmail, setStoredUser } from '@/lib/api';
+import { ModalShell } from '@/components/ModalShell';
 
 type AuthMode = 'login' | 'register' | 'check-email';
 
@@ -171,19 +172,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
   const strength = getPasswordStrength(regPassword);
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
-          />
-
-          {/* Modal */}
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+    >
           <motion.div
             initial={{
               opacity: 0,
@@ -195,17 +188,12 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
               scale: 1,
               y: 0,
             }}
-            exit={{
-              opacity: 0,
-              scale: 0.95,
-              y: 20,
-            }}
             transition={{
               type: 'spring',
               stiffness: 300,
               damping: 30,
             }}
-            className="fixed z-[110] w-full max-w-md left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+            className="w-full max-w-md"
           >
             <div className={`relative overflow-hidden rounded-3xl border p-8 ${
               isDarkMode 
@@ -535,8 +523,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
               </div>
             </div>
           </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+    </ModalShell>
   );
 }

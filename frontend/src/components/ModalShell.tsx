@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 type ModalShellProps = {
   isOpen: boolean;
@@ -13,6 +14,8 @@ type ModalShellProps = {
   className?: string;
   /** Inline styles for the backdrop wrapper. Use when CSS cannot express the styling through Tailwind alone (e.g. custom `backdrop-filter` values). */
   style?: React.CSSProperties;
+  /** Render through a portal anchored at document.body. Needed when the modal must escape its parent's stacking context (e.g. a transformed/overflow-hidden ancestor). */
+  usePortal?: boolean;
   children: React.ReactNode;
 };
 
@@ -37,6 +40,7 @@ export function ModalShell({
   closeOnEscape = true,
   className,
   style,
+  usePortal = false,
   children,
 }: ModalShellProps) {
   useEffect(() => {
@@ -50,7 +54,7 @@ export function ModalShell({
 
   if (!isOpen) return null;
 
-  return (
+  const node = (
     <div
       className={className ?? DEFAULT_BACKDROP}
       style={style}
@@ -63,4 +67,10 @@ export function ModalShell({
       </div>
     </div>
   );
+
+  if (usePortal) {
+    if (typeof document === "undefined") return null;
+    return createPortal(node, document.body);
+  }
+  return node;
 }

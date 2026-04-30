@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import type { CartItem } from './StorefrontContext';
+import { ModalShell } from '@/components/ModalShell';
 
 type PaymentMethod = 'card' | 'gcash' | 'maya' | 'stripe' | 'paypal';
 
@@ -89,8 +90,6 @@ export function CheckoutModal({
     [items]
   );
 
-  if (!open) return null;
-
   const handleSubmit = async () => {
     if (
       !fullName.trim() ||
@@ -121,23 +120,21 @@ export function CheckoutModal({
     );
   };
 
+  const requestExit = () => setShowExitConfirm(true);
+
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-60 bg-black/50 backdrop-blur-sm"
-        onClick={() => setShowExitConfirm(true)}
-        aria-hidden
-      />
-
-      {/* Modal */}
-      <div
-        className="fixed inset-0 z-70 flex items-center justify-center p-2 sm:p-4"
-        role="dialog"
-        aria-modal
-        aria-label="Checkout"
+      <ModalShell
+        isOpen={open}
+        onClose={requestExit}
+        className="fixed inset-0 z-70 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm"
       >
-        <div className="flex w-[min(98vw,1100px)] max-h-[94vh] flex-col rounded-2xl bg-white shadow-2xl border border-zinc-200 overflow-hidden">
+        <div
+          className="flex w-[min(98vw,1100px)] max-h-[94vh] flex-col rounded-2xl bg-white shadow-2xl border border-zinc-200 overflow-hidden"
+          role="dialog"
+          aria-modal
+          aria-label="Checkout"
+        >
 
           {/* Header */}
           <div className="relative flex items-center justify-center border-b border-zinc-200 px-6 py-5">
@@ -147,7 +144,7 @@ export function CheckoutModal({
             </div>
             <button
               type="button"
-              onClick={() => setShowExitConfirm(true)}
+              onClick={requestExit}
               className="absolute right-5 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
               aria-label="Close checkout"
             >
@@ -283,7 +280,7 @@ export function CheckoutModal({
           <div className="flex items-center justify-between gap-3 border-t border-zinc-200 bg-white px-6 py-4">
             <button
               type="button"
-              onClick={() => setShowExitConfirm(true)}
+              onClick={requestExit}
               className="text-sm font-medium text-zinc-500 hover:text-zinc-700 transition-colors"
             >
               Cancel
@@ -298,39 +295,36 @@ export function CheckoutModal({
             </button>
           </div>
         </div>
-      </div>
+      </ModalShell>
 
       {/* Exit Confirmation */}
-      {showExitConfirm && (
-        <div className="fixed inset-0 z-90 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/40"
-            aria-hidden
-            onClick={() => setShowExitConfirm(false)}
-          />
-          <div className="relative w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
-            <p className="text-sm font-medium text-zinc-900">
-              You&apos;re just one step away from completing your order. Would you like to continue?
-            </p>
-            <div className="mt-5 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowExitConfirm(false)}
-                className="h-10 rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-              >
-                Yes, continue
-              </button>
-              <button
-                type="button"
-                onClick={() => { setShowExitConfirm(false); onClose(); }}
-                className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
-              >
-                No, leave
-              </button>
-            </div>
+      <ModalShell
+        isOpen={showExitConfirm}
+        onClose={() => setShowExitConfirm(false)}
+        className="fixed inset-0 z-90 flex items-center justify-center p-4 bg-black/40"
+      >
+        <div className="relative w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl">
+          <p className="text-sm font-medium text-zinc-900">
+            You&apos;re just one step away from completing your order. Would you like to continue?
+          </p>
+          <div className="mt-5 flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowExitConfirm(false)}
+              className="h-10 rounded-lg border border-zinc-300 px-4 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
+            >
+              Yes, continue
+            </button>
+            <button
+              type="button"
+              onClick={() => { setShowExitConfirm(false); onClose(); }}
+              className="h-10 rounded-lg bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-700 transition-colors"
+            >
+              No, leave
+            </button>
           </div>
         </div>
-      )}
+      </ModalShell>
     </>
   );
 }
