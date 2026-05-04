@@ -178,29 +178,26 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return () => document.removeEventListener('click', closeMenu);
   }, [openProjectMenuId]);
 
+  // Refresh project list on focus / visibility so changes from another tab
+  // surface here. The previous 15s setInterval ran a full project re-fetch
+  // every 15s on top of focus/visibility events, which contributed to the
+  // perceived lag — focus events alone cover the realistic stale-data
+  // window for a dashboard tab the user just came back to.
   useEffect(() => {
     const refreshFromLibrary = () => {
       void refreshProjects?.();
     };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         refreshFromLibrary();
       }
     };
 
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        refreshFromLibrary();
-      }
-    }, 15000);
-
     window.addEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
     window.addEventListener('focus', refreshFromLibrary);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
       window.removeEventListener('focus', refreshFromLibrary);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
