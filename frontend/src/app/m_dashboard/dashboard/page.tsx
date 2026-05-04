@@ -21,6 +21,7 @@ import { ModalShell } from '@/components/ui/ModalShell';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
+import { EmptyState } from '@/app/m_dashboard/components/ui/emptyState';
 
 const INDUSTRIES = [
   { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
@@ -97,7 +98,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
+  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects, setSelectedProjectId } = useProject();
   const { theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
   // Persist activeTab in the URL so a remount (route refresh, parent re-render)
@@ -513,7 +514,17 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
-          {activeTab === 'designs' ? (
+          {activeTab === 'designs' && normalizedSearch && designProjects.length === 0 && designProjectsAll.length > 0 ? (
+            <EmptyState
+              key="designs-no-search-match"
+              tone={theme as 'light' | 'dark'}
+              size="compact"
+              badgeText="No matches"
+              title={`No designs match "${searchQuery.trim()}"`}
+              description="Try a different keyword, or clear the search to see all your projects."
+              secondaryAction={{ label: 'Clear search', onClick: () => setSearchQuery('') }}
+            />
+          ) : activeTab === 'designs' ? (
             <YourDesignsTabContent
               theme={theme}
               userName={userName}
@@ -558,6 +569,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               searchQuery={searchQuery}
               applyingTemplateId={applyingTemplateId}
               onApplyTemplate={handleApplyTemplate}
+              onOpenPrebuiltTemplate={(folder, label) => {
+                const target = selectedProject?.id;
+                const query = new URLSearchParams();
+                if (target) query.set('projectId', target);
+                query.set('template', `${folder}:${label}`);
+                router.push(`/design?${query.toString()}`);
+              }}
+              onSelectTargetProject={(projectId) => {
+                setSelectedProjectId(projectId);
+              }}
             />
           )}
         </AnimatePresence>

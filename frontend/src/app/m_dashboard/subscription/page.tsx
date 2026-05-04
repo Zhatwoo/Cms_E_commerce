@@ -1,12 +1,13 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { getStoredUser } from '@/lib/api';
 import { SUBSCRIPTION_LIMITS, type SubscriptionPlan } from '@/lib/subscriptionLimits';
 import { Check } from 'lucide-react';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -514,25 +515,22 @@ export default function SubscriptionPage() {
       </motion.section>
 
       {/* ── CONFIRM MODAL ──────────────────────────────────────────────────── */}
-      <AnimatePresence>
+      <ModalShell
+        isOpen={!!confirmTarget}
+        onClose={() => setConfirmTarget(null)}
+        usePortal
+        className="fixed inset-0 z-9999 flex items-center justify-center p-4"
+        style={{
+          backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)',
+          backdropFilter: 'blur(6px)',
+        }}
+      >
         {confirmTarget && (() => {
           const target = getPlan(confirmTarget);
           const action = actionFor(confirmTarget, currentPlan);
           const isDowngrade = action === 'downgrade';
 
           return (
-            <motion.div
-              key="modal-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-              style={{
-                backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)',
-                backdropFilter: 'blur(6px)',
-              }}
-              onClick={() => setConfirmTarget(null)}
-            >
               <motion.div
                 key="modal-card"
                 initial={{ opacity: 0, scale: 0.92, y: 16 }}
@@ -547,7 +545,6 @@ export default function SubscriptionPage() {
                     ? '0 30px 80px rgba(147,51,234,0.3)'
                     : '8px 10px 40px rgba(20,20,50,0.12)',
                 }}
-                onClick={(e) => e.stopPropagation()}
               >
                 <p
                   className="text-[11px] font-bold uppercase tracking-widest mb-1"
@@ -596,10 +593,9 @@ export default function SubscriptionPage() {
                   </button>
                 </div>
               </motion.div>
-            </motion.div>
           );
         })()}
-      </AnimatePresence>
+      </ModalShell>
     </div>
   );
 }
