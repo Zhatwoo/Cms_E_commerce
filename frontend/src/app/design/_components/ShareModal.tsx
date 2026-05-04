@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDesignProject } from "../_context/DesignProjectContext";
 import { apiFetch } from "@/lib/api";
-import { ModalShell } from "@/components/ModalShell";
+import { ModalShell } from '@/components/ui/ModalShell';
 import {
     X,
     Copy,

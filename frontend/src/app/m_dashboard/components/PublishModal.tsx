@@ -6,7 +6,7 @@ import { useTheme } from './context/theme-context';
 import { publishProject, schedulePublish } from '@/lib/api';
 import { getDraft } from '@/app/design/_lib/pageApi';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
-import { ModalShell } from '@/components/ModalShell';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 

@@ -10,7 +10,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { X, CreditCard, Lock, AlertCircle } from 'lucide-react';
 import { getStripePublicKey, createStripeSetupIntent, updateProfile } from '@/lib/api';
-import { ModalShell } from '@/components/ModalShell';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 // Stripe Card Element options
 const CARD_ELEMENT_OPTIONS = {

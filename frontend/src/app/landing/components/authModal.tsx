@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff } from 'lucide-react';
 import { login, register as apiRegister, resendVerificationEmail, setStoredUser } from '@/lib/api';
-import { ModalShell } from '@/components/ModalShell';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 type AuthMode = 'login' | 'register' | 'check-email';
 

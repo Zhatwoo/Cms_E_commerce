@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
-import { ModalShell } from '@/components/ModalShell';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 /// A high-end, editorial modal for editing project configuration.
 /// 

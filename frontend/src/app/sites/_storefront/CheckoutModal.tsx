@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import type { CartItem } from './StorefrontContext';
-import { ModalShell } from '@/components/ModalShell';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 type PaymentMethod = 'card' | 'gcash' | 'maya' | 'stripe' | 'paypal';
 

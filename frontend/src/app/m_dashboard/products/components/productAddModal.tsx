@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ModalShell } from '@/components/ModalShell';
+import { ModalShell } from '@/components/ui/ModalShell';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
 import { SaveProductButton } from './button';
