@@ -382,9 +382,13 @@ export default function DomainsPage() {
           <div className="flex-1 min-w-0 space-y-3">
 
             {filtered.length === 0 ? (
-              <p className="text-xs py-8 text-center" style={{ color: colors.text.muted }}>
-                {searchQuery.trim() ? 'No sites match your search.' : 'No sites yet.'}
-              </p>
+              <EmptyState
+                tone={theme as 'light' | 'dark'}
+                size="compact"
+                badgeText={searchQuery.trim() ? 'No matches' : 'Domains'}
+                title={searchQuery.trim() ? 'No sites match your search' : 'No sites yet'}
+                description={searchQuery.trim() ? 'Try a different keyword or clear the search to see all your sites.' : 'Publish a project from the Web Builder to see it here.'}
+              />
             ) : viewMode === 'grid' ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filtered.map(({ project, subdomain }) => (

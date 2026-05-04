@@ -944,22 +944,23 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-
           {filteredProducts.length > 0 ? (
-            <ProductListView
-              products={paginatedProducts}
-              viewMode={viewMode}
-              colors={colors}
-              theme={theme}
-              openMenuProductId={openMenuProductId}
-              onView={handleView}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
-              onCloseMenu={() => setOpenMenuProductId(null)}
-              onSaveProduct={handleSaveProduct}
-            />
+            <>
+              <ProductListView
+                products={paginatedProducts}
+                viewMode={viewMode}
+                colors={colors}
+                theme={theme}
+                openMenuProductId={openMenuProductId}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
+                onCloseMenu={() => setOpenMenuProductId(null)}
+                onSaveProduct={handleSaveProduct}
+              />
+              <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </>
           ) : (
             <EmptyStates
               variant="no-results"

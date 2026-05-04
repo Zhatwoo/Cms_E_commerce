@@ -323,18 +323,6 @@ export default function OrdersPage() {
           />
         </div>
 
-        {/* Pagination */}
-        {/* <Pagination
-          theme={theme as 'light' | 'dark'}
-          colors={colors}
-          paginationItems={paginationItems}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(value) => setPage(value)}
-          onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-          onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-        /> */}
-
         {/* View toggle */}
         <div className="w-full md:w-auto md:flex-none md:ml-auto">
           <ViewModeToggle
@@ -735,6 +723,21 @@ export default function OrdersPage() {
             );
           })}
         </section>
+      )}
+
+      {!loading && !error && pagedOrders.length > 0 && totalPages > 1 && (
+        <div className="relative z-10 mt-6">
+          <Pagination
+            theme={theme as 'light' | 'dark'}
+            colors={colors}
+            paginationItems={paginationItems}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(value) => setPage(value)}
+            onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+            onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
+        </div>
       )}
     </div>
   );

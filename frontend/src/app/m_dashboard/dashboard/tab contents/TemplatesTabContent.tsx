@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import type { Project } from '@/lib/api';
 import { listTemplateProjectEntries, type TemplateProjectRegistryEntry } from '@/lib/templateProjectRegistry';
 import { GROUPED_TEMPLATES } from '@/app/_templates';
+import { ModalShell } from '@/components/ui/ModalShell';
 import { DraftPreviewThumbnail } from '../../components/projects/DraftPreviewThumbnail';
 
 type DashboardTheme = 'light' | 'dark';
@@ -406,17 +407,18 @@ export function TemplatesTabContent({
         )}
       </section>
 
-      {previewTemplate && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 p-4 md:p-8"
-          onClick={() => setPreviewTemplate(null)}
-        >
+      <ModalShell
+        isOpen={!!previewTemplate}
+        onClose={() => setPreviewTemplate(null)}
+        usePortal
+        className="fixed inset-0 z-9999 bg-black/70 backdrop-blur-sm p-4 md:p-8"
+      >
+        {previewTemplate && (
           <div
             className={`mx-auto h-full max-h-215 w-full max-w-6xl overflow-hidden rounded-2xl border ${theme === 'dark'
               ? 'border-[#2A256D] bg-[#121046]'
               : 'border-[#E7D8FF] bg-white'
             }`}
-            onClick={(event) => event.stopPropagation()}
           >
             <div className={`flex items-center justify-between border-b px-4 py-3 ${theme === 'dark' ? 'border-[#2A256D]' : 'border-[#EEE4FF]'}`}>
               <div>
@@ -466,8 +468,8 @@ export function TemplatesTabContent({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
     </motion.div>
   );
 }

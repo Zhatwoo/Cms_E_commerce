@@ -162,7 +162,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
   };
 
   const itemActiveStyle = {
-    backgroundColor: 'transparent',
+    backgroundColor: theme === 'dark' ? 'rgba(167, 139, 250, 0.18)' : 'rgba(20, 3, 74, 0.10)',
     color: sidebarPrimaryText,
   };
 
@@ -339,11 +339,12 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -12 }}
                       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                      className="relative z-10 ml-3 text-sm font-medium whitespace-nowrap"
-                      style={{ 
-                        fontFamily: 'var(--font-outfit), sans-serif', 
+                      className="relative z-10 ml-3 text-sm whitespace-nowrap"
+                      style={{
+                        fontFamily: 'var(--font-outfit), sans-serif',
                         color: sidebarPrimaryText,
-                        opacity: isActive ? 1 : 0.6
+                        opacity: isActive ? 1 : 0.6,
+                        fontWeight: isActive ? 700 : 500,
                       }}
                     >
                       {item.label}
@@ -351,10 +352,10 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                 )}
               </AnimatePresence>
 
-              {/* Active indicator when collapsed or expanded */}
+              {/* Active indicator: stays visible whether the sidebar is collapsed or expanded */}
               {isActive && (
                 <div
-                  className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-300 ${!isHovered ? 'opacity-100' : 'opacity-0'}`}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full transition-all duration-300"
                   style={{ backgroundColor: theme === 'light' ? '#14034A' : accentYellow }}
                 />
               )}

@@ -203,7 +203,7 @@ export function AddCardModal({
   }, [isOpen]);
 
   return (
-    <ModalShell isOpen={isOpen} onClose={onClose}>
+    <ModalShell isOpen={isOpen} onClose={onClose} usePortal>
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden mt-[-10%] sm:mt-0">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between mb-8">

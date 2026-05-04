@@ -144,7 +144,7 @@ export function DomainCard({
       )}
       
       {published && (
-        <div className="relative group/tooltip">
+        <div className="relative group/tooltip hover:z-9999">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onUnpublish(project.id, e); }}
@@ -153,11 +153,9 @@ export function DomainCard({
           >
             <ArrowDownToLine size={14} className="rotate-180" />
           </button>
-          
-          {/* TOOLTIP FIX: Added z-50 and ensured parent doesn't clip */}
-          <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-[#12193A] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-all pointer-events-none whitespace-nowrap z-[100] shadow-2xl border border-white/10">
+
+          <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-[#12193A] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-all pointer-events-none whitespace-nowrap z-9999 shadow-2xl border border-white/10">
             <span className="text-[9px] font-black uppercase tracking-widest text-white">Take Down Site</span>
-            {/* Top Arrow */}
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-[#12193A]" />
           </div>
         </div>

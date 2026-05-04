@@ -17,6 +17,7 @@ import { useAlert } from '../components/context/alert-context';
 import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
+import { ModalShell } from '@/components/ui/ModalShell';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
@@ -533,15 +534,20 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </AnimatePresence>
       </div>
 
-      {renamingProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
-          if (actioningProjectId === renamingProject.id) return;
+      <ModalShell
+        isOpen={!!renamingProject}
+        onClose={() => {
+          if (renamingProject && actioningProjectId === renamingProject.id) return;
           setRenamingProject(null);
           setRenameTitle('');
-        }}>
+        }}
+        usePortal
+        disabled={!!(renamingProject && actioningProjectId === renamingProject.id)}
+        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      >
+        {renamingProject && (
           <div
             className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
-            onClick={(e) => e.stopPropagation()}
           >
             <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Rename project</h3>
             <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
@@ -591,8 +597,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
 
       <style jsx>{`
         .template-pan-img,
