@@ -3,6 +3,7 @@ import { useNode, useEditor } from "@craftjs/core";
 import { TextSettings } from "./TextSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { TextProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 const NEW_TEXT_PLACEHOLDER = "Type something...";
 
@@ -82,6 +83,7 @@ export const Text = ({
   flipVertical = false,
   customClassName = "",
   textDecoration = "none",
+  isFreeform,
 }: TextProps & { width?: string; height?: string }) => {
   const { id, connectors: { connect, drag }, actions, parentId } = useNode((node) => ({
     parentId: node.data.parent,
@@ -269,7 +271,7 @@ export const Text = ({
     overflowWrap: "break-word",
     wordBreak: "normal",
     hyphens: "manual",
-    display: isEditing ? "flex" : display,
+    display: isEditing ? "flex" : (isFreeform ? "block" : display),
     alignItems: isEditing ? "flex-start" : undefined,
     justifyContent: isEditing ? "flex-start" : undefined,
     flexDirection: isEditing ? "column" : undefined,
@@ -424,7 +426,7 @@ export const Text = ({
 export const TextDefaultProps: Partial<TextProps & { width?: string; height?: string }> = {
   text: "",
   fontSize: 16,
-  fontFamily: "Outfit",
+  fontFamily: fonts.uiRaw,
   fontWeight: "400",
   fontStyle: "normal",
   lineHeight: 1.5,
@@ -455,6 +457,8 @@ export const TextDefaultProps: Partial<TextProps & { width?: string; height?: st
   boxShadow: "none",
   textDecoration: "none",
   previewEditable: false,
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Text.craft = {

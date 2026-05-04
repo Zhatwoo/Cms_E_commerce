@@ -3,22 +3,24 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import type { SpacerProps, SetProp } from "../../_types/components";
 
 export const SpacerSettings = () => {
     const {
+        id,
         width, height,
         paddingLeft, paddingRight, paddingTop, paddingBottom,
         marginLeft, marginRight, marginTop, marginBottom,
         rotation, flipHorizontal, flipVertical,
-        position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+        position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
         radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
         opacity, boxShadow,
         actions: { setProp }
     } = useNode(node => ({
+        id: node.id,
         width: node.data.props.width ?? "100%",
         height: node.data.props.height ?? "20px",
         paddingLeft: node.data.props.paddingLeft ?? 0,
@@ -40,6 +42,7 @@ export const SpacerSettings = () => {
         right: node.data.props.right,
         bottom: node.data.props.bottom,
         left: node.data.props.left,
+        isFreeform: node.data.props.isFreeform,
         editorVisibility: node.data.props.editorVisibility,
         radiusTopLeft: node.data.props.radiusTopLeft ?? 0,
         radiusTopRight: node.data.props.radiusTopRight ?? 0,
@@ -63,9 +66,11 @@ export const SpacerSettings = () => {
             </DesignSection>
 
             <DesignSection title="Layout & Layer" defaultOpen={false}>
-                <PositionGroup
+                <LayoutLayerGroup
+                    nodeId={id}
                     position={position}
                     display={display}
+                    isFreeform={isFreeform}
                     alignSelf={alignSelf}
                     zIndex={zIndex}
                     top={top}

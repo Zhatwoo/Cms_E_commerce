@@ -65,11 +65,11 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
   const descriptionClass = isDarkMode ? 'text-white/50' : 'text-[#616170]';
 
   const cardBase = isDarkMode
-    ? 'border border-[#2a2075]/80 bg-gradient-to-b from-[#13106a]/90 to-[#0d0a55]/90 shadow-[0_20px_60px_rgba(5,2,38,0.65)]'
+    ? 'border border-[#2a2075]/80 bg-linear-to-b from-[#13106a]/90 to-[#0d0a55]/90 shadow-[0_20px_60px_rgba(5,2,38,0.65)]'
     : 'border border-[#c1c1cd] bg-white shadow-[0_16px_40px_rgba(20,20,50,0.06)]';
 
   const featuredCard = isDarkMode
-    ? 'border-2 border-[#6b3fd4]/70 bg-gradient-to-b from-[#16126e]/95 to-[#0e0b58]/95 shadow-[0_24px_70px_rgba(5,2,38,0.7),0_0_0_1px_rgba(107,63,212,0.25)]'
+    ? 'border-2 border-[#6b3fd4]/70 bg-linear-to-b from-[#16126e]/95 to-[#0e0b58]/95 shadow-[0_24px_70px_rgba(5,2,38,0.7),0_0_0_1px_rgba(107,63,212,0.25)]'
     : 'border border-[#4ade80] bg-white shadow-[0_24px_60px_rgba(74,222,128,0.12)]';
 
   const tagClass = isDarkMode
@@ -82,7 +82,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
       : color;
 
   const gridCellClass = isDarkMode
-    ? 'bg-gradient-to-br from-[#182070] to-[#111660] border border-[#252c85]/50'
+    ? 'bg-linear-to-br from-[#182070] to-[#111660] border border-[#252c85]/50'
     : 'bg-[#f8f8fb] border border-[#c1c1cd]';
 
   const dotRow = isDarkMode
@@ -116,8 +116,8 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
             The commerce platform
             <br />
             <span className={isDarkMode
-              ? 'bg-gradient-to-r from-[#a78bfa] via-[#d946ef] to-[#ffcc00] bg-clip-text text-transparent'
-              : 'bg-gradient-to-r from-[#7c3aed] via-[#a855f7] to-[#8b3dff] bg-clip-text text-transparent'
+              ? 'bg-linear-to-r from-[#a78bfa] via-[#d946ef] to-[#ffcc00] bg-clip-text text-transparent'
+              : 'bg-linear-to-r from-[#7c3aed] via-[#a855f7] to-[#8b3dff] bg-clip-text text-transparent'
             }>
               behind everything we build
             </span>
@@ -200,7 +200,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
               {/* Progress bar */}
               <div className={`mt-4 h-1.5 w-full overflow-hidden rounded-full ${isDarkMode ? 'bg-[#1b1f6e]/60' : 'bg-[#eef0f8]'}`}>
                 <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-[#7c3aed] to-[#d946ef]"
+                  className="h-full rounded-full bg-linear-to-r from-[#7c3aed] to-[#d946ef]"
                   initial={{ width: 0 }}
                   whileInView={{ width: '72%' }}
                   viewport={{ once: false }}
@@ -229,7 +229,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
 
               <p className={`text-xl font-bold leading-snug sm:text-2xl ${isDarkMode ? 'text-white' : 'text-[#120533]'}`}>
                 What will you{' '}
-                <span className={isDarkMode ? "bg-gradient-to-r from-[#9d3fff] to-[#d946ef] bg-clip-text text-transparent" : "text-[#f97316]"}>
+                <span className={isDarkMode ? "bg-linear-to-r from-[#9d3fff] to-[#d946ef] bg-clip-text text-transparent" : "text-[#f97316]"}>
                   build
                 </span>{' '}
                 today?
@@ -244,7 +244,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
                 onClick={() => onAuthClick?.('register')}
                 suppressHydrationWarning
                 className={`mt-5 inline-block rounded-full px-6 py-2.5 text-sm font-bold text-white transition-all hover:scale-[1.03] active:scale-[0.97] ${isDarkMode
-                    ? 'bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_4px_20px_rgba(139,61,255,0.5)] hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]'
+                    ? 'bg-linear-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_4px_20px_rgba(139,61,255,0.5)] hover:shadow-[0_6px_28px_rgba(139,61,255,0.65)]'
                     : 'bg-[#f43f5e] shadow-[0_4px_20px_rgba(244,63,94,0.4)] hover:shadow-[0_6px_28px_rgba(244,63,94,0.5)]'
                   }`}
               >
@@ -279,7 +279,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
               </div>
 
               {/* Bottom accent line */}
-              <div className="mt-5 h-px w-full bg-gradient-to-r from-transparent via-[#7c3aed]/40 to-transparent" />
+              <div className="mt-5 h-px w-full bg-linear-to-r from-transparent via-[#7c3aed]/40 to-transparent" />
               <p className={`mt-3 text-center text-[10px] font-medium ${descriptionClass}`}>
                 ✦ Trusted by 2,400+ creative teams
               </p>
@@ -312,7 +312,7 @@ export function CommercePlatform({ isDarkMode = false, onAuthClick }: { isDarkMo
                     transition={{ duration: 0.45, delay: 0.1 + i * 0.07, ease: [0.22, 1, 0.36, 1] }}
                   >
                     {/* Shimmer highlight */}
-                    <div className={`absolute inset-0 bg-gradient-to-br ${i % 3 === 0
+                    <div className={`absolute inset-0 bg-linear-to-br ${i % 3 === 0
                         ? 'from-[#7c3aed]/15 to-transparent'
                         : i % 3 === 1
                           ? 'from-[#d946ef]/10 to-transparent'

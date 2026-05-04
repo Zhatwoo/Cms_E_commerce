@@ -4,11 +4,9 @@ import React, { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createProject,
-  getStoredUser,
   listProjects,
   type Project,
 } from "@/lib/api";
-import { ensureProjectStorageFolder } from "@/lib/firebaseStorage";
 import { INDUSTRY_OPTIONS } from "@/lib/industryCatalog";
 import { getLimits } from "@/lib/subscriptionLimits";
 import { useTheme } from "@/app/m_dashboard/components/context/theme-context";
@@ -68,7 +66,6 @@ export function CreateProjectForm({
 
       try {
         setCreating(true);
-        const user = getStoredUser();
 
         const response = await createProject({
           title: trimmedTitle,
@@ -84,8 +81,6 @@ export function CreateProjectForm({
 
         onCreated?.(response.project);
 
-        const clientName = (user?.name || user?.username || "client").trim() || "client";
-        ensureProjectStorageFolder(clientName, response.project.title || "website").catch(() => {});
         router.push(`/design?projectId=${response.project.id}`);
       } catch (submitError) {
         const message = submitError instanceof Error ? submitError.message : "";

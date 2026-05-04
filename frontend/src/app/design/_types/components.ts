@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { AnimationConfig } from "./animation";
 import type { PrototypeConfig } from "./prototype";
+import type { Interaction } from "./prototype";
 
 /**
  * Shared type definitions for web builder components.
@@ -43,12 +44,31 @@ export interface ProductBindingProps {
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
+/**
+ * Shared alignItems values. Includes both the flex keywords
+ * (flex-start/flex-end) and the grid keywords (start/end) so a
+ * type can extend both LayoutProps and GridProps without conflict.
+ */
+export type SharedAlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "start" | "end";
+
+/**
+ * Shared justifyContent values. Mirrors the grid superset so the
+ * same identifier is valid in flex and grid contexts.
+ */
+export type SharedJustifyContent =
+  | "flex-start"
+  | "center"
+  | "flex-end"
+  | "space-between"
+  | "space-around"
+  | "space-evenly";
+
 /** Layout / Auto-layout properties → AutoLayoutGroup */
 export interface LayoutProps {
   flexDirection?: "row" | "column";
   flexWrap?: "nowrap" | "wrap";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
-  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
+  alignItems?: SharedAlignItems;
+  justifyContent?: SharedJustifyContent;
   gap?: number;
 }
 
@@ -59,11 +79,19 @@ export interface SpacingProps {
   paddingRight?: number;
   paddingBottom?: number;
   paddingLeft?: number;
+  pt?: number;
+  pr?: number;
+  pb?: number;
+  pl?: number;
   margin?: number | string;
   marginTop?: number;
   marginRight?: number;
   marginBottom?: number;
   marginLeft?: number;
+  mt?: number;
+  mr?: number;
+  mb?: number;
+  ml?: number;
 }
 
 /** Dimension properties → SizePositionGroup */
@@ -110,6 +138,10 @@ export interface GridProps {
   gridRowGap?: number;
   gridAutoRows?: string;
   gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignItems?: SharedAlignItems;
+  justifyContent?: SharedJustifyContent;
+  alignContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
 }
 
 /** Layer visibility and lock — shared by all design components for panel toggles */
@@ -225,6 +257,7 @@ export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
 
@@ -245,7 +278,7 @@ export interface ButtonProps extends SpacingProps, EffectsProps, TransformProps,
 }
 
 /** Page component props — top-level page wrapper with dimensions and background. */
-export interface PageProps extends AnimatableProps, InteractableProps {
+export interface PageProps extends LayoutProps, PositionProps, AnimatableProps, InteractableProps, AppearanceProps {
   width?: string;
   height?: string;
   background?: string;
@@ -259,6 +292,16 @@ export interface PageProps extends AnimatableProps, InteractableProps {
   pageName?: string;
   /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
   pageSlug?: string;
+  /** Grid layout properties applied when display === "grid". */
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridGap?: number;
+  gridColumnGap?: number;
+  gridRowGap?: number;
+  gridAutoRows?: string;
+  gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
   children?: ReactNode;
 }
 
@@ -373,11 +416,17 @@ export interface BooleanFieldProps extends EffectsProps, SizeProps, SpacingProps
   customClassName?: string;
 }
 
+export interface AccordionOption {
+  label: string;
+  interactions?: Interaction[];
+}
+
 export interface AccordionItem {
-  title: string;
-  content: string;
-  mediaType?: "none" | "image" | "video";
-  mediaUrl?: string;
+  header: string;
+  options: AccordionOption[];
+  /** Legacy fallback fields preserved for existing documents. */
+  title?: string;
+  content?: string;
 }
 
 export interface AccordionProps extends PositionProps, TypographyProps, TransformProps, EffectsProps {
@@ -390,6 +439,8 @@ export interface AccordionProps extends PositionProps, TypographyProps, Transfor
   animationDurationMs?: number;
   // Container
   width?: string;
+  height?: string;
+  maxWidth?: string;
   minHeight?: number | string;
   marginTop?: number;
   marginRight?: number;
@@ -424,4 +475,12 @@ export interface AccordionProps extends PositionProps, TypographyProps, Transfor
   borderWidth?: number;
   // Icon
   iconColor?: string;
+  iconPosition?: "left" | "right";
+  headerGap?: number;
+  headerPaddingX?: number;
+  headerPaddingY?: number;
+  textOffsetX?: number;
+  textOffsetY?: number;
+  iconOffsetX?: number;
+  iconOffsetY?: number;
 }

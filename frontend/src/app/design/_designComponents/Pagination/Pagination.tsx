@@ -65,9 +65,9 @@ export const Pagination = ({
     flipHorizontal = false,
     flipVertical = false,
     textDecoration = "none",
+    isFreeform,
 }: PaginationProps) => {
-    const { connectors: { connect, drag } } = useNode();
-    const id = useNode((node) => node.id);
+    const { id, connectors: { connect, drag } } = useNode();
 
     const totalPages = Math.ceil(totalItems / itemsPerPage);
 
@@ -91,8 +91,9 @@ export const Pagination = ({
     const rbl = radiusBottomLeft ?? br;
     const fluidFontSize = `clamp(${Math.max(10, Math.round(fontSize * 0.8))}px, ${(fontSize / 16 * 2.1).toFixed(2)}cqw, ${fontSize}px)`;
 
-    const effectiveDisplay =
-        editorVisibility === "hide"
+    const effectiveDisplay = isFreeform
+        ? "block"
+        : editorVisibility === "hide"
             ? "none"
             : editorVisibility === "show" && display === "none"
                 ? "inline-flex"

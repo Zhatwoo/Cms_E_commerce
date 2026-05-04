@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -10,6 +10,7 @@ import type { PaginationProps, SetProp } from "../../_types/components";
 
 export const PaginationSettings = () => {
   const {
+    id,
     totalItems,
     itemsPerPage,
     currentPage,
@@ -48,6 +49,7 @@ export const PaginationSettings = () => {
     cursor,
     position,
     display,
+    isFreeform,
     alignSelf,
     zIndex,
     top,
@@ -57,6 +59,7 @@ export const PaginationSettings = () => {
     editorVisibility,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     totalItems: node.data.props.totalItems ?? 50,
     itemsPerPage: node.data.props.itemsPerPage ?? 10,
     currentPage: node.data.props.currentPage ?? 1,
@@ -95,6 +98,7 @@ export const PaginationSettings = () => {
     cursor: node.data.props.cursor ?? "default",
     position: node.data.props.position ?? "relative",
     display: node.data.props.display ?? "inline-flex",
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf ?? "auto",
     zIndex: node.data.props.zIndex ?? 0,
     top: node.data.props.top ?? "auto",
@@ -111,11 +115,11 @@ export const PaginationSettings = () => {
       <DesignSection title="Pagination" defaultOpen={true}>
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Type</label>
+            <label className="text-[10px] text-builder-text font-medium">Type</label>
             <select
               value={type}
               onChange={(e) => typedSetProp((p) => { p.type = e.target.value as any; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             >
               <option value="numbers">Numbers</option>
               <option value="simple">Simple (Back/Next)</option>
@@ -125,69 +129,71 @@ export const PaginationSettings = () => {
 
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)] font-medium">Total Items</label>
+              <label className="text-[10px] text-builder-text font-medium">Total Items</label>
               <input
                 type="number"
                 value={totalItems}
                 onChange={(e) => typedSetProp((p) => { p.totalItems = Number(e.target.value); })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)] font-medium">Per Page</label>
+              <label className="text-[10px] text-builder-text font-medium">Per Page</label>
               <input
                 type="number"
                 value={itemsPerPage}
                 onChange={(e) => typedSetProp((p) => { p.itemsPerPage = Number(e.target.value); })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Current Page</label>
+            <label className="text-[10px] text-builder-text font-medium">Current Page</label>
             <input
               type="number"
               value={currentPage}
               onChange={(e) => typedSetProp((p) => { p.currentPage = Number(e.target.value); })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Active Page Color</label>
+            <label className="text-[10px] text-builder-text font-medium">Active Page Color</label>
             <div className="flex gap-2 items-center">
               <input
                 type="color"
                 value={activeColor}
                 onChange={(e) => typedSetProp((p) => { p.activeColor = e.target.value; })}
-                className="w-8 h-8 rounded-lg border border-[var(--builder-border)] bg-transparent cursor-pointer overflow-hidden p-0"
+                className="w-8 h-8 rounded-lg border border-(--builder-border) bg-transparent cursor-pointer overflow-hidden p-0"
               />
               <input
                 type="text"
                 value={activeColor}
                 onChange={(e) => typedSetProp((p) => { p.activeColor = e.target.value; })}
-                className="flex-1 bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-[11px] text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="flex-1 bg-builder-surface-2 border border-(--builder-border) rounded-md text-[11px] text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)] font-medium">Spacing (Gap)</label>
+            <label className="text-[10px] text-builder-text font-medium">Spacing (Gap)</label>
             <input
               type="number"
               value={gap}
               onChange={(e) => typedSetProp((p) => { p.gap = Number(e.target.value); })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
             />
           </div>
         </div>
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -234,21 +240,21 @@ export const PaginationSettings = () => {
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)] font-medium">Prev Label</label>
+              <label className="text-[10px] text-builder-text font-medium">Prev Label</label>
               <input
                 type="text"
                 value={prevText}
                 onChange={(e) => typedSetProp((p) => { p.prevText = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)] font-medium">Next Label</label>
+              <label className="text-[10px] text-builder-text font-medium">Next Label</label>
               <input
                 type="text"
                 value={nextText}
                 onChange={(e) => typedSetProp((p) => { p.nextText = e.target.value; })}
-                className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
+                className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none focus:border-brand-blue/50 transition-colors"
               />
             </div>
           </div>
@@ -258,7 +264,7 @@ export const PaginationSettings = () => {
             color={color}
             textAlign={textAlign}
             textDecoration={textDecoration}
-            setProp={typedSetProp}
+            setProp={typedSetProp as any}
           />
         </div>
       </DesignSection>
@@ -275,4 +281,3 @@ export const PaginationSettings = () => {
     </div>
   );
 };
-

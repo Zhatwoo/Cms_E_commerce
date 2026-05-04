@@ -9,9 +9,9 @@ const PAGE_GAP_Y = 220;
 const PAGE_COLUMNS = 3;
 const VIEWPORT_BASE_MIN_WIDTH = 240000;
 const VIEWPORT_BASE_MIN_HEIGHT = 240000;
-const VIEWPORT_EDGE_PADDING = 100000;
-const PAGE_GRID_ORIGIN_X = VIEWPORT_EDGE_PADDING;
-const PAGE_GRID_ORIGIN_Y = VIEWPORT_EDGE_PADDING;
+const VIEWPORT_EDGE_PADDING = 30000;
+const PAGE_GRID_ORIGIN_X = 30000;
+const PAGE_GRID_ORIGIN_Y = 30000;
 // Extra space for mobile previews beside each page
 const MOBILE_PREVIEW_SAFE_WIDTH = 520;
 
@@ -62,7 +62,8 @@ export const Viewport = ({ children }: { children?: React.ReactNode }) => {
 
     pageIds.forEach((pageId, index) => {
       const pageNode = nodes[pageId];
-      if (!pageNode || pageNode.data?.displayName !== "Page") return;
+      const dname = pageNode?.data?.displayName;
+      if (!pageNode || (dname !== "Page" && dname?.toLowerCase() !== "page")) return;
 
       const props = (pageNode.data?.props ?? {}) as Record<string, unknown>;
       const hasCanvasX = typeof props.canvasX === "number";
@@ -147,7 +148,12 @@ Viewport.craft = {
   displayName: "Viewport",
   rules: {
     canMoveIn: (incomingNodes: Node[]) => {
-      return incomingNodes.every((node) => node?.data?.displayName === "Page");
+      return incomingNodes.every((node) => {
+        const dname = node?.data?.displayName;
+        if (!dname) return false;
+        const lowered = dname.toLowerCase();
+        return lowered === "page" || lowered.includes("page");
+      });
     },
   },
 };

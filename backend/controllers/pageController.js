@@ -2,11 +2,38 @@
 const Page = require('../models/Page');
 const { db } = require('../config/firebase');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const log = require('../utils/logger')('pageController');
 
 const COLLAB_COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
   '#DDA0DD', '#98D8C8', '#F7DC6F', '#BB8FCE', '#85C1E9',
 ];
+
+/**
+ * Template library projects are intentionally shareable across accounts.
+ * When normal ownership/collaboration checks fail, allow read-only access
+ * for projects explicitly marked as status=template.
+ */
+async function resolveTemplateLibraryAccess(projectId) {
+  try {
+    const projectSnap = await db.collectionGroup('projects').get();
+    const templateDoc = projectSnap.docs.find((doc) => {
+      if (doc.id !== projectId) return false;
+      const data = doc.data() || {};
+      const status = String(data.status || '').trim().toLowerCase();
+      return status === 'template';
+    });
+
+    if (!templateDoc) return null;
+    const ownerId = templateDoc.ref.parent?.parent?.id;
+    if (!ownerId) return null;
+
+    return { ownerId, permission: 'viewer', isTemplateLibrary: true };
+  } catch (err) {
+    log.warn('[PageController] resolveTemplateLibraryAccess failed:', err.message);
+    return null;
+  }
+}
 
 /**
  * Auto-registers a public-link user as a collaborator if not already present.
@@ -55,9 +82,9 @@ async function ensurePublicCollaborator(ownerId, projectId, userId, userEmail, r
       joinedViaLink: true,
       createdAt: new Date().toISOString(),
     });
-    console.log(`[PageController] Auto-registered public user ${userId} (${userEmail}) as ${role} in project ${projectId}`);
+    log.debug(`[PageController] Auto-registered public user ${userId} (${userEmail}) as ${role} in project ${projectId}`);
   } catch (err) {
-    console.warn('[PageController] ensurePublicCollaborator failed:', err.message);
+    log.warn('[PageController] ensurePublicCollaborator failed:', err.message);
   }
 }
 
@@ -228,6 +255,29 @@ exports.autoSave = async (req, res) => {
 
     const resolved = await resolveProjectOwner(userId, projectId, userEmail);
     if (!resolved) {
+      // Template library projects are intentionally shareable across accounts.
+      // If the requested project is a template, allow read-only draft access.
+      try {
+        const projectSnap = await db.collectionGroup('projects').get();
+        const templateDoc = projectSnap.docs.find((doc) => {
+          if (doc.id !== projectId) return false;
+          const data = doc.data() || {};
+          const status = String(data.status || '').trim().toLowerCase();
+          return status === 'template';
+        });
+
+        if (templateDoc) {
+          const ownerId = templateDoc.ref.parent?.parent?.id;
+          if (ownerId) {
+            resolved = { ownerId, permission: 'viewer', isTemplateLibrary: true };
+          }
+        }
+      } catch (err) {
+        log.warn('[pageController.getDraft] template library fallback failed:', err.message);
+      }
+    }
+
+    if (!resolved) {
       return res.status(403).json({
         success: false,
         message: 'You do not have access to this project'
@@ -243,14 +293,64 @@ exports.autoSave = async (req, res) => {
 
     const { ownerId } = resolved;
 
-    // Guard: prevent overwriting real content with empty canvas
+    // Guard: prevent overwriting real content with empty/starter canvas payloads
+    const isEffectivelyEmptyContent = (value) => {
+      if (!value || typeof value !== 'object') return true;
+
+      // Craft.js shape: { ROOT, ...nodes }
+      if (value.ROOT && typeof value.ROOT === 'object') {
+        const rootNodes = Array.isArray(value.ROOT.nodes) ? value.ROOT.nodes : [];
+        if (rootNodes.length === 0) return true;
+
+        const hasMeaningfulPageChild = rootNodes.some((pageId) => {
+          const page = value[pageId];
+          if (!page || typeof page !== 'object') return false;
+          const pageChildren = Array.isArray(page.nodes) ? page.nodes : [];
+          if (pageChildren.length === 0) return false;
+          if (pageChildren.length > 1) return true;
+
+          const onlyChild = value[pageChildren[0]];
+          if (!onlyChild || typeof onlyChild !== 'object') return false;
+          const onlyChildChildren = Array.isArray(onlyChild.nodes) ? onlyChild.nodes : [];
+          if (onlyChildChildren.length > 0) return true;
+
+          const childName = String(
+            onlyChild.displayName ||
+            (onlyChild.type && (onlyChild.type.resolvedName || onlyChild.type)) ||
+            ''
+          ).trim().toLowerCase();
+
+          return childName && !['container', 'section', 'page', 'viewport'].includes(childName);
+        });
+
+        return !hasMeaningfulPageChild;
+      }
+
+      // Clean document shape: { version, pages, nodes }
+      if (value.nodes && typeof value.nodes === 'object') {
+        const nodeEntries = Object.entries(value.nodes);
+        if (nodeEntries.length === 0) return true;
+
+        const meaningfulNodeExists = nodeEntries.some(([, node]) => {
+          if (!node || typeof node !== 'object') return false;
+          const typeName = String(node.type || '').trim().toLowerCase();
+          const children = Array.isArray(node.children) ? node.children : [];
+          if (children.length > 0) return true;
+          return typeName && !['container', 'section', 'page', 'viewport'].includes(typeName);
+        });
+
+        return !meaningfulNodeExists;
+      }
+
+      return false;
+    };
+
     let parsedContent;
     try {
       parsedContent = typeof content === 'string' ? JSON.parse(content) : content;
     } catch { parsedContent = null; }
 
-    const incomingNodes = parsedContent?.nodes ? Object.keys(parsedContent.nodes) : [];
-    const isIncomingEmpty = parsedContent && incomingNodes.length === 0;
+    const isIncomingEmpty = isEffectivelyEmptyContent(parsedContent);
 
     if (isIncomingEmpty) {
       const existing = await Page.getPageData(ownerId, projectId, ownerId);
@@ -260,8 +360,7 @@ exports.autoSave = async (req, res) => {
           existingParsed = typeof existing.content === 'string'
             ? JSON.parse(existing.content) : existing.content;
         } catch { existingParsed = null; }
-        const existingNodes = existingParsed?.nodes ? Object.keys(existingParsed.nodes) : [];
-        if (existingNodes.length > 0) {
+        if (!isEffectivelyEmptyContent(existingParsed)) {
           return res.status(200).json({
             success: true,
             message: 'Skipped: not overwriting existing content with empty canvas',
@@ -279,7 +378,7 @@ exports.autoSave = async (req, res) => {
       data: updated
     });
   } catch (error) {
-    console.error('❌ Auto-save controller error:', error);
+    log.error('❌ Auto-save controller error:', error);
     res.status(500).json({
       success: false,
       message: 'Auto-save failed',
@@ -308,6 +407,10 @@ exports.getDraft = async (req, res) => {
 
     let resolved = await resolveProjectOwner(userId, projectId, userEmail);
 
+    if (!resolved) {
+      resolved = await resolveTemplateLibraryAccess(projectId);
+    }
+
     // Admin moderation views may request previews for projects they do not directly own/collaborate on.
     // In that case, resolve owner directly by querying all projects and finding a match.
     if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
@@ -325,7 +428,7 @@ exports.getDraft = async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn('[pageController.getDraft] admin project lookup failed:', err.message);
+        log.warn('[pageController.getDraft] admin project lookup failed:', err.message);
       }
     }
 
@@ -359,7 +462,80 @@ exports.getDraft = async (req, res) => {
       data: draft
     });
   } catch (error) {
-    console.error('❌ Get draft error:', error);
+    log.error('❌ Get draft error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message
+    });
+  }
+};
+
+// @desc    Get all pages for a project (used for templates)
+// @route   GET /api/pages/draft/all
+// @access  Private
+exports.getAllDrafts = async (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  try {
+    const userId = req.user.id;
+    const userRole = String(req.user.role || '').toLowerCase();
+    const userEmail = (req.user.email || '').toLowerCase();
+    const { projectId } = req.query;
+
+    if (!projectId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Project ID is required'
+      });
+    }
+
+    let resolved = await resolveProjectOwner(userId, projectId, userEmail);
+
+    if (!resolved) {
+      resolved = await resolveTemplateLibraryAccess(projectId);
+    }
+
+    // Admin moderation views may request previews for projects they do not directly own/collaborate on.
+    if (!resolved && (userRole === 'admin' || userRole === 'super_admin')) {
+      try {
+        const projectSnap = await db
+          .collectionGroup('projects')
+          .limit(100)
+          .get();
+
+        const projectDoc = projectSnap.docs.find((doc) => doc.id === projectId);
+        if (projectDoc) {
+          const ownerId = projectDoc.ref.parent?.parent?.id;
+          if (ownerId) {
+            resolved = { ownerId, permission: 'admin' };
+          }
+        }
+      } catch (err) {
+        log.warn('[pageController.getAllDrafts] admin project lookup failed:', err.message);
+      }
+    }
+
+    if (!resolved) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have access to this project'
+      });
+    }
+
+    // Auto-register public-link users as collaborators
+    if (resolved.isPublic) {
+      await ensurePublicCollaborator(resolved.ownerId, projectId, userId, userEmail, resolved.permission);
+    }
+
+    const { ownerId } = resolved;
+    const allPages = await Page.getAllPageData(ownerId, projectId);
+
+    res.status(200).json({
+      success: true,
+      data: allPages
+    });
+  } catch (error) {
+    log.error('❌ Get all drafts error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -407,7 +583,7 @@ exports.deleteDraft = async (req, res) => {
       message: 'Draft deleted'
     });
   } catch (error) {
-    console.error('❌ Delete draft error:', error);
+    log.error('❌ Delete draft error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

@@ -16,6 +16,19 @@ export interface CircleResizableProps {
   opacity?: number;
   overflow?: string;
   cursor?: string;
+  backgroundImage?: string;
+  backgroundSize?: string;
+  backgroundPosition?: string;
+  backgroundRepeat?: string;
+  backgroundOverlay?: string;
+  rotation?: number;
+  position?: React.CSSProperties["position"];
+  display?: React.CSSProperties["display"];
+  zIndex?: number;
+  top?: number | string;
+  right?: number | string;
+  bottom?: number | string;
+  left?: number | string;
   children?: React.ReactNode;
   isPreview?: boolean;
 }

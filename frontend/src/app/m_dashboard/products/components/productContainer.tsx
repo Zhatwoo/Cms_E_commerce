@@ -4,7 +4,6 @@ import { motion } from 'framer-motion';
 import { type Product, type ProductVariant } from '@/app/m_dashboard/lib/productsData';
 import { PopMenuButton } from '@/app/m_dashboard/components/buttons/PopMenuButton';
 import { StatusBadge } from './statusBadge';
-import ProductEditModal from './productEditModal';
 
 type ThemeColors = {
   [key: string]: any;
@@ -146,7 +145,6 @@ export function ProductCard({
   onSaveProduct?: (productData: Partial<Product> & Record<string, unknown>) => Promise<boolean>;
 }) {
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => getInitialVariantSelection(product));
-  const [showEditModal, setShowEditModal] = useState(false);
   const selectedVariantImage = getSelectedVariantImage(product, selectedOptions);
   const firstGalleryImage = Array.isArray(product.images)
     ? product.images.map((img) => normalizeImageSource(img)).find((img) => isImageSource(img)) || ''
@@ -229,7 +227,7 @@ export function ProductCard({
             label: 'Edit',
             onSelect: () => {
               onCloseMenu();
-              setShowEditModal(true);
+              onEdit(product);
             },
           },
           {
@@ -321,22 +319,6 @@ export function ProductCard({
     </div>
   </div>
 </motion.div>
-
-    <ProductEditModal
-      isOpen={showEditModal}
-      onClose={() => setShowEditModal(false)}
-      onSave={async (productData) => {
-        if (onSaveProduct) {
-          const success = await onSaveProduct(productData);
-          if (success) {
-            setShowEditModal(false);
-          }
-          return success;
-        }
-        return false;
-      }}
-      editingProduct={product}
-    />
     </>
   );
 }

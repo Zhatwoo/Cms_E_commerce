@@ -3,7 +3,7 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
@@ -14,6 +14,7 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const TabsSettings = () => {
   const {
+    id,
     tabs,
     activeTabId,
     tabHeaderBackgroundColor,
@@ -28,13 +29,14 @@ export const TabsSettings = () => {
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, isFreeform, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
     fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration,
-    node, // <-- add this
+    node,
     actions: { setProp }
   } = useNode(node => ({
-    node, // <-- and this
+    id: node.id,
+    node,
     tabs: node.data.props.tabs || [],
     activeTabId: node.data.props.activeTabId,
     tabHeaderBackgroundColor: node.data.props.tabHeaderBackgroundColor,
@@ -69,6 +71,7 @@ export const TabsSettings = () => {
     strokePlacement: node.data.props.strokePlacement,
     position: node.data.props.position,
     display: node.data.props.display,
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
@@ -121,15 +124,6 @@ export const TabsSettings = () => {
     });
   };
 
-  const handleContentChange = (id: string, newContent: React.ReactNode | string) => {
-    typedSetProp(props => {
-      const idx = props.tabs.findIndex(t => t.id === id);
-      if (idx !== -1) {
-        props.tabs[idx].content = typeof newContent === 'string' ? newContent : String(newContent);
-      }
-    });
-  };
-
   return (
     <div className="flex flex-col pb-4">
       {/* Tab Configuration Section */}
@@ -137,14 +131,14 @@ export const TabsSettings = () => {
         <div className="flex flex-col gap-4 py-2">
           
           <div className="flex flex-col gap-2">
-            <span className="text-[12px] text-[var(--builder-text)] font-base uppercase tracking-wider opacity-60">Manage Tabs</span>
+            <span className="text-[12px] text-builder-text font-base uppercase tracking-wider opacity-60">Manage Tabs</span>
             
             <div className="flex flex-col gap-2">
               {tabs.map((tab: TabItem) => (
-                <div key={tab.id} className="flex flex-col bg-[var(--builder-surface-2)]/30 rounded-lg overflow-hidden border border-[var(--builder-border)]">
+                <div key={tab.id} className="flex flex-col bg-builder-surface-2/30 rounded-lg overflow-hidden border border-(--builder-border)">
                   <div 
                     className={`flex flex-row items-center gap-2 p-2 cursor-pointer transition-colors ${
-                      activeTabId === tab.id ? 'bg-[var(--builder-surface-2)]' : 'hover:bg-[var(--builder-surface-2)]'
+                      activeTabId === tab.id ? 'bg-builder-surface-2' : 'hover:bg-builder-surface-2'
                     }`}
                     onClick={() => typedSetProp(p => { p.activeTabId = tab.id; })}
                   >
@@ -153,12 +147,12 @@ export const TabsSettings = () => {
                       value={tab.title}
                       onChange={(e) => handleTitleChange(tab.id, e.target.value)}
                       onClick={(e) => e.stopPropagation()}
-                      className={`flex-1 text-xs bg-transparent border-none outline-none text-[var(--builder-text)] font-medium placeholder:text-[var(--builder-text-faint)]`}
+                      className={`flex-1 text-xs bg-transparent border-none outline-none text-builder-text font-medium placeholder:text-builder-text-faint`}
                       placeholder="Tab Title"
                     />
                     
                     {/* Expand/Collapse Toggle Indicator */}
-                    <div className="text-[var(--builder-text-faint)]">
+                    <div className="text-builder-text-faint">
                       {activeTabId === tab.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </div>
 
@@ -166,15 +160,15 @@ export const TabsSettings = () => {
                     <button
                       onClick={(e) => { e.stopPropagation(); handleRemoveTab(tab.id); }}
                       disabled={tabs.length <= 1}
-                      className="p-1.5 text-[var(--builder-text-faint)] hover:text-red-400 rounded transition-colors disabled:opacity-30 disabled:hover:text-[var(--builder-text-faint)]"
+                      className="p-1.5 text-builder-text-faint hover:text-red-400 rounded transition-colors disabled:opacity-30 disabled:hover:text-builder-text-faint"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
 
                   {activeTabId === tab.id && (
-                    <div className="p-3 bg-[var(--builder-surface-2)] border-t border-[var(--builder-border)] flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <span className="text-[10px] font-bold text-[var(--builder-text-faint)] uppercase tracking-wider italic opacity-70">
+                    <div className="p-3 bg-builder-surface-2 border-t border-(--builder-border) flex flex-col gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <span className="text-[10px] font-bold text-builder-text-faint uppercase tracking-wider italic opacity-70">
                         Drag components into the tab content on the canvas
                       </span>
                     </div>
@@ -185,23 +179,23 @@ export const TabsSettings = () => {
             
             <button
               onClick={handleAddTab}
-              className="mt-1 w-full py-2 bg-transparent text-[var(--builder-text)] text-xs font-medium rounded-lg border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)] hover:bg-[var(--builder-surface-2)] transition-all flex items-center justify-center gap-2 group"
+              className="mt-1 w-full py-2 bg-transparent text-builder-text text-xs font-medium rounded-lg border border-(--builder-border) hover:border-(--builder-border-mid) hover:bg-builder-surface-2 transition-all flex items-center justify-center gap-2 group"
             >
               <Plus size={14} className="group-hover:scale-110 transition-transform" />
               Add Tab
             </button>
           </div>
 
-          <div className="h-px bg-[var(--builder-border)] w-full" />
+          <div className="h-px bg-builder-border w-full" />
 
           {/* Tab Alignment Section */}
           <div className="flex flex-col gap-2">
-            <span className="text-[12px] text-[var(--builder-text)] font-base uppercase tracking-wider opacity-60">Tab Alignment</span>
-            <div className="flex flex-row p-1 bg-[var(--builder-surface-2)]/30 rounded-lg border border-[var(--builder-border)]">
+            <span className="text-[12px] text-builder-text font-base uppercase tracking-wider opacity-60">Tab Alignment</span>
+            <div className="flex flex-row p-1 bg-builder-surface-2/30 rounded-lg border border-(--builder-border)">
               <button
                 onClick={() => typedSetProp(p => { p.tabAlignment = "left"; })}
                 className={`flex-1 py-1.5 text-[10px] font-bold uppercase transition-all rounded ${
-                  (tabAlignment === "left" || !tabAlignment) ? 'bg-[var(--builder-accent)] text-black shadow-sm' : 'text-[var(--builder-text-faint)] hover:text-[var(--builder-text-muted)]'
+                  (tabAlignment === "left" || !tabAlignment) ? 'bg-builder-accent text-black shadow-sm' : 'text-builder-text-faint hover:text-builder-text-muted'
                 }`}
               >
                 Left
@@ -209,7 +203,7 @@ export const TabsSettings = () => {
               <button
                 onClick={() => typedSetProp(p => { p.tabAlignment = "center"; })}
                 className={`flex-1 py-1.5 text-[10px] font-bold uppercase transition-all rounded ${
-                  tabAlignment === "center" ? 'bg-[var(--builder-accent)] text-black shadow-sm' : 'text-[var(--builder-text-faint)] hover:text-[var(--builder-text-muted)]'
+                  tabAlignment === "center" ? 'bg-builder-accent text-black shadow-sm' : 'text-builder-text-faint hover:text-builder-text-muted'
                 }`}
               >
                 Center
@@ -217,7 +211,7 @@ export const TabsSettings = () => {
               <button
                 onClick={() => typedSetProp(p => { p.tabAlignment = "right"; })}
                 className={`flex-1 py-1.5 text-[10px] font-bold uppercase transition-all rounded ${
-                  tabAlignment === "right" ? 'bg-[var(--builder-accent)] text-black shadow-sm' : 'text-[var(--builder-text-faint)] hover:text-[var(--builder-text-muted)]'
+                  tabAlignment === "right" ? 'bg-builder-accent text-black shadow-sm' : 'text-builder-text-faint hover:text-builder-text-muted'
                 }`}
               >
                 Right
@@ -225,13 +219,13 @@ export const TabsSettings = () => {
             </div>
           </div>
 
-          <div className="h-px bg-[var(--builder-border)] w-full" />
+          <div className="h-px bg-builder-border w-full" />
 
           <div className="flex flex-col gap-4">
-            <span className="text-[12px] text-[var(--builder-text)] font-base uppercase tracking-wider opacity-60">Tab Colors</span>
+            <span className="text-[12px] text-builder-text font-base uppercase tracking-wider opacity-60">Tab Colors</span>
             
             <div className="flex flex-col gap-1">
-              <label className="text-[12px] text-[var(--builder-text)] font-base">Inactive Tab Background</label>
+              <label className="text-[12px] text-builder-text font-base">Inactive Tab Background</label>
               <ColorPicker
                 value={tabHeaderBackgroundColor || "transparent"}
                 onChange={(val) => typedSetProp(p => { p.tabHeaderBackgroundColor = val; })}
@@ -239,7 +233,7 @@ export const TabsSettings = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[12px] text-[var(--builder-text)] font-base">Inactive Tab Text</label>
+              <label className="text-[12px] text-builder-text font-base">Inactive Tab Text</label>
               <ColorPicker
                 value={tabHeaderTextColor || "#000000"}
                 onChange={(val) => typedSetProp(p => { p.tabHeaderTextColor = val; })}
@@ -247,7 +241,7 @@ export const TabsSettings = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[12px] text-[var(--builder-text)] font-base">Active Tab Background</label>
+              <label className="text-[12px] text-builder-text font-base">Active Tab Background</label>
               <ColorPicker
                 value={activeTabBackgroundColor || "#ffffff"}
                 onChange={(val) => typedSetProp(p => { p.activeTabBackgroundColor = val; })}
@@ -255,7 +249,7 @@ export const TabsSettings = () => {
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-[12px] text-[var(--builder-text)] font-base">Active Tab Text</label>
+              <label className="text-[12px] text-builder-text font-base">Active Tab Text</label>
               <ColorPicker
                 value={activeTabTextColor || "#000000"}
                 onChange={(val) => typedSetProp(p => { p.activeTabTextColor = val; p.color = val; })}
@@ -267,9 +261,11 @@ export const TabsSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -277,7 +273,7 @@ export const TabsSettings = () => {
           bottom={bottom}
           left={left}
           editorVisibility={editorVisibility}
-          setProp={typedSetProp}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
@@ -319,15 +315,15 @@ export const TabsSettings = () => {
 
       <DesignSection title="Typography" defaultOpen={false}>
         <TypographyGroup
-          fontSize={node.data.props.fontSize}
-          fontWeight={node.data.props.fontWeight}
-          fontFamily={node.data.props.fontFamily}
-          fontStyle={node.data.props.fontStyle}
-          lineHeight={node.data.props.lineHeight}
-          letterSpacing={node.data.props.letterSpacing}
-          textAlign={node.data.props.textAlign}
-          textTransform={node.data.props.textTransform}
-          textDecoration={node.data.props.textDecoration}
+          fontSize={fontSize}
+          fontWeight={fontWeight}
+          fontFamily={fontFamily}
+          fontStyle={fontStyle}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          textDecoration={textDecoration}
           color={activeTabTextColor || "#000000"}
           setProp={(cb) => setProp((props: any) => {
             const fake: TypographyProps = {

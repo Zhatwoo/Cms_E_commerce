@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const { getAll, getOne, create, update, delete: deleteTemplate } = require('../controllers/templateController');
-const { protect, admin } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 router.get('/', getAll);
 router.get('/:id', getOne);

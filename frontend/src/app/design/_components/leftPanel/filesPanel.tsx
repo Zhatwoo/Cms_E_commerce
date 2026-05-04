@@ -20,7 +20,7 @@ import {
   Ungroup,
   Pencil,
 } from "lucide-react";
-import { duplicateNodes, selectedToIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard, deleteNodesPreservingCanvasScroll } from "../../_lib/canvasActions";
+import { duplicateNodes, selectedToIds, selectedToLeafIds, groupSelection, ungroupSelection, copySelection, pasteClipboard, getClipboard, deleteNodesPreservingCanvasScroll } from "../../_lib/canvasActions";
 import { slugFromName } from "../../_lib/slug";
 import { Container } from "../../_designComponents/Container/Container";
 import { useCanvasTool } from "../CanvasToolContext";
@@ -333,20 +333,20 @@ export const FilesPanel = () => {
   );
 
   const handleGroup = useCallback(() => {
-    const ids = selectedToIds(selected);
+    const ids = selectedToLeafIds(selected, nodes);
     if (ids.length >= 2) {
       groupSelection(actions as any, query as any, ids, Container, Element);
     }
     setContextMenu(null);
-  }, [actions, query, selected]);
+  }, [actions, query, selected, nodes]);
 
   const handleUngroup = useCallback(() => {
-    const ids = selectedToIds(selected);
+    const ids = selectedToLeafIds(selected, nodes);
     if (ids.length === 1) {
       ungroupSelection(actions as any, query as any, ids);
     }
     setContextMenu(null);
-  }, [actions, query, selected]);
+  }, [actions, query, selected, nodes]);
 
   const isProtected = (nodeId: string): boolean => {
     if (nodeId === "ROOT") return true;
@@ -746,11 +746,12 @@ export const FilesPanel = () => {
             // State update in transition
             startTransition(() => {
               if (isMulti) {
-                const selArr = selected instanceof Set ? Array.from(selected) : Array.isArray(selected) ? selected : [];
-                const next = new Set(selArr);
+                const leafSel = selectedToLeafIds(selected, nodes);
+                const next = new Set(leafSel);
                 if (next.has(nodeId)) next.delete(nodeId);
                 else next.add(nodeId);
-                actions.selectNode(next.size === 0 ? undefined : Array.from(next));
+                const nextIds = Array.from(next);
+                actions.selectNode(nextIds.length === 0 ? undefined : nextIds);
               } else {
                 actions.selectNode(nodeId);
               }
@@ -805,7 +806,7 @@ export const FilesPanel = () => {
           onContextMenu={openContextMenu}
           className={`
             group flex items-center gap-1 py-2 px-1 rounded-lg transition-colors relative
-            ${isSel ? "bg-[var(--builder-accent)]/15 text-[var(--builder-text)]" : "text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-2)] hover:text-[var(--builder-text)]"}
+            ${isSel ? "bg-builder-accent/15 text-builder-text" : "text-builder-text-muted hover:bg-builder-surface-2 hover:text-builder-text"}
             ${permission === "viewer" ? "cursor-default" : "cursor-pointer"}
           `}
           style={{ paddingLeft: `${depth * 10 + 5}px` }}
@@ -814,7 +815,7 @@ export const FilesPanel = () => {
           <div
             data-layer-expand
             className={`
-              p-1 rounded-md hover:bg-[var(--builder-surface-2)] cursor-pointer shrink-0
+              p-1 rounded-md hover:bg-builder-surface-2 cursor-pointer shrink-0
               ${!hasChildren ? "opacity-0 pointer-events-none" : "opacity-100"}
             `}
             onClick={(e) => { e.stopPropagation(); toggleExpanded(nodeId); }}
@@ -853,7 +854,7 @@ export const FilesPanel = () => {
               }}
               onClick={(e) => e.stopPropagation()}
               onDoubleClick={(e) => e.stopPropagation()}
-              className="flex-1 min-w-0 text-sm font-medium bg-[var(--builder-surface-2)] border border-[var(--builder-accent)] rounded px-1.5 py-0.5 text-[var(--builder-text)] focus:outline-none"
+              className="flex-1 min-w-0 text-sm font-medium bg-builder-surface-2 border border-(--builder-accent) rounded px-1.5 py-0.5 text-builder-text focus:outline-none"
             />
           ) : (
             <span
@@ -882,7 +883,7 @@ export const FilesPanel = () => {
                     actions.setProp(nodeId, (p: Record<string, unknown>) => { p.visibility = next; });
                   } catch { /* skip */ }
                 }}
-                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
+                className={`p-1 rounded transition-colors ${visibility === "hidden" ? "text-builder-text-muted" : "text-builder-text-faint hover:text-builder-text"}`}
               >
                 {visibility === "hidden" ? <EyeOff size={14} /> : <Eye size={14} />}
               </button>
@@ -896,7 +897,7 @@ export const FilesPanel = () => {
                     actions.setProp(nodeId, (p: Record<string, unknown>) => { p.locked = next; });
                   } catch { /* skip */ }
                 }}
-                className={`p-1 rounded transition-colors ${locked ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
+                className={`p-1 rounded transition-colors ${locked ? "text-builder-text-muted" : "text-builder-text-faint hover:text-builder-text"}`}
               >
                 {locked ? <Lock size={14} /> : <LockOpen size={14} />}
               </button>
@@ -954,7 +955,7 @@ export const FilesPanel = () => {
     const contextIndex = nodeNameIndexMap.indexById[contextMenu.nodeId] ?? 1;
     const contextTotal = nodeNameIndexMap.totalByName[contextBaseName] ?? 1;
     const nodeName = contextTotal > 1 ? `${contextBaseName} ${contextIndex}` : contextBaseName;
-    const selectedIds = selectedToIds(selected);
+    const selectedIds = selectedToLeafIds(selected, nodes);
 
     const UNGROUPABLE_TYPES = new Set([
       "Container", "Section", "Row", "Column", "Banner", "Frame",
@@ -971,16 +972,16 @@ export const FilesPanel = () => {
     return ReactDOM.createPortal(
       <div
         data-context-menu
-        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-lg shadow-2xl px-2.5 py-1 text-sm"
+        className="fixed z-[10050] min-w-[160px] max-h-[calc(100vh-16px)] overflow-y-auto bg-builder-surface-2 border border-(--builder-border) rounded-lg shadow-2xl px-2.5 py-1 text-sm"
         style={menuStyle}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-[var(--builder-text-faint)] font-semibold border-b border-[var(--builder-border)]">
+        <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-builder-text-faint font-semibold border-b border-(--builder-border)">
           {nodeName}
         </div>
         <button
           onClick={() => handleSelect(contextMenu.nodeId)}
-          className="flex items-center gap-2 w-full px-3 py-1.5 text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+          className="flex items-center gap-2 w-full px-3 py-1.5 text-builder-text hover:bg-builder-surface-3 transition-colors cursor-pointer"
         >
           <MousePointer2 className="w-3.5 h-3.5" />
           Select
@@ -988,22 +989,22 @@ export const FilesPanel = () => {
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleCopy(contextMenu.nodeId)}
           disabled={nodeProtected}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected ? "text-builder-text-faint cursor-not-allowed" : "text-builder-text hover:bg-builder-surface-3 cursor-pointer"}`}
         >
           <Copy className="w-3.5 h-3.5" />
           Copy
-          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘C</span>
+          <span className="ml-auto text-builder-text-faint text-xs">⌘C</span>
         </button>
         <button
           onClick={() => permission !== "viewer" && handlePaste(contextMenu.nodeId)}
           disabled={!getClipboard() || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!getClipboard() || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!getClipboard() || permission === "viewer" ? "text-builder-text-faint cursor-not-allowed" : "text-builder-text hover:bg-builder-surface-3 cursor-pointer"}`}
         >
           <ClipboardPaste className="w-3.5 h-3.5" />
           Paste
-          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘V</span>
+          <span className="ml-auto text-builder-text-faint text-xs">⌘V</span>
         </button>
-        <div className="border-t border-[var(--builder-border)] my-0.5" />
+        <div className="border-t border-(--builder-border) my-0.5" />
         {contextIsPage && permission !== "viewer" && (
           <button
             onClick={() => {
@@ -1011,7 +1012,7 @@ export const FilesPanel = () => {
               const currentName = (typeof pName === "string" && pName.trim()) ? pName.trim() : nodeName;
               handleStartRename(contextMenu.nodeId, currentName);
             }}
-            className="flex items-center gap-2 w-full px-3 py-1.5 text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+            className="flex items-center gap-2 w-full px-3 py-1.5 text-builder-text hover:bg-builder-surface-3 transition-colors cursor-pointer"
           >
             <Pencil className="w-3.5 h-3.5" />
             Rename
@@ -1020,37 +1021,37 @@ export const FilesPanel = () => {
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDuplicate(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-builder-text-faint cursor-not-allowed" : "text-builder-text hover:bg-builder-surface-3 cursor-pointer"
             }`}
         >
           <Copy className="w-3.5 h-3.5" />
           Duplicate
-          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘D</span>
+          <span className="ml-auto text-builder-text-faint text-xs">⌘D</span>
         </button>
-        <div className="border-t border-[var(--builder-border)] my-0.5" />
+        <div className="border-t border-(--builder-border) my-0.5" />
         <button
           onClick={() => canGroupSel && permission !== "viewer" && handleGroup()}
           disabled={!canGroupSel || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroupSel || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canGroupSel || permission === "viewer" ? "text-builder-text-faint cursor-not-allowed" : "text-builder-text hover:bg-builder-surface-3 cursor-pointer"}`}
         >
           <Group className="w-3.5 h-3.5" />
           Group
-          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⌘G</span>
+          <span className="ml-auto text-builder-text-faint text-xs">⌘G</span>
         </button>
         <button
           onClick={() => canUngroupSel && permission !== "viewer" && handleUngroup()}
           disabled={!canUngroupSel || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroupSel || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] cursor-pointer"}`}
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${!canUngroupSel || permission === "viewer" ? "text-builder-text-faint cursor-not-allowed" : "text-builder-text hover:bg-builder-surface-3 cursor-pointer"}`}
         >
           <Ungroup className="w-3.5 h-3.5" />
           Ungroup
-          <span className="ml-auto text-[var(--builder-text-faint)] text-xs">⇧⌘G</span>
+          <span className="ml-auto text-builder-text-faint text-xs">⇧⌘G</span>
         </button>
-        <div className="border-t border-[var(--builder-border)] my-0.5" />
+        <div className="border-t border-(--builder-border) my-0.5" />
         <button
           onClick={() => !nodeProtected && permission !== "viewer" && handleDelete(contextMenu.nodeId)}
           disabled={nodeProtected || permission === "viewer"}
-          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-[var(--builder-text-faint)] cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
+          className={`flex items-center gap-2 w-full px-3 py-1.5 transition-colors ${nodeProtected || permission === "viewer" ? "text-builder-text-faint cursor-not-allowed" : "text-red-400 hover:bg-red-500/10 cursor-pointer"
             }`}
         >
           <Trash2 className="w-3.5 h-3.5" />

@@ -115,10 +115,10 @@ export const SizePositionGroup = ({
     return (
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-[10px] text-[var(--builder-text-muted)]">{label}</label>
+          <label className="text-[10px] text-builder-text-muted">{label}</label>
           <button
             onClick={() => setExpanded(!expanded)}
-            className={`p-0.5 rounded ${expanded ? "bg-[var(--builder-accent)] text-black" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text-muted)]"}`}
+            className={`p-0.5 rounded ${expanded ? "bg-builder-accent text-black" : "text-builder-text-faint hover:text-builder-text-muted"}`}
           >
             <Scan size={12} className={expanded ? "rotate-90" : "rotate-0"} />
           </button>
@@ -126,42 +126,42 @@ export const SizePositionGroup = ({
 
         {expanded ? (
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={top}
                 onChange={(val) => onChange("top", val)}
-                icon={<div className="w-3 h-1 border-t-2 border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-3 h-1 border-t-2 border-(--builder-border-mid) mr-2" />}
                 presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={right}
                 onChange={(val) => onChange("right", val)}
-                icon={<div className="w-1 h-3 border-r-2 border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-1 h-3 border-r-2 border-(--builder-border-mid) mr-2" />}
                 presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={bottom}
                 onChange={(val) => onChange("bottom", val)}
-                icon={<div className="w-3 h-1 border-b-2 border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-3 h-1 border-b-2 border-(--builder-border-mid) mr-2" />}
                 presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={left}
                 onChange={(val) => onChange("left", val)}
-                icon={<div className="w-1 h-3 border-l-2 border-[var(--builder-border-mid)] mr-2" />}
+                icon={<div className="w-1 h-3 border-l-2 border-(--builder-border-mid) mr-2" />}
                 presets={[0, 4, 8, 12, 16, 24, 32, 48, 64]}
               />
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] px-3 rounded-lg border border-[var(--builder-border)]">
-            <Maximize2 size={12} className="text-[var(--builder-text-faint)]" />
+          <div className="flex items-center gap-2 bg-builder-surface-2 px-3 rounded-lg border border-(--builder-border)">
+            <Maximize2 size={12} className="text-builder-text-faint" />
             <NumericInput
               value={top}
               onChange={handleAll}
@@ -216,7 +216,7 @@ export const SizePositionGroup = ({
 
     return (
       <div className="flex flex-col gap-1">
-        <label className="text-[10px] text-[var(--builder-text-muted)] capitalize">{dim}</label>
+        <label className="text-[10px] text-builder-text-muted capitalize">{dim}</label>
         <div className="flex items-center gap-1">
           <SizePxInput
             propNumStr={propNumStr}
@@ -224,11 +224,11 @@ export const SizePositionGroup = ({
             setLast={setLast}
             onPxChange={onPxChange}
           />
-          <div className="flex rounded-lg border border-[var(--builder-border)] overflow-hidden">
+          <div className="flex rounded-lg border border-(--builder-border) overflow-hidden">
             <button
               type="button"
               onClick={() => handleSizeChange(dim, "hug")}
-              className={`p-1.5 ${mode === "hug" ? "bg-[var(--builder-accent)] text-black" : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text-muted)]"}`}
+              className={`p-1.5 ${mode === "hug" ? "bg-builder-accent text-black" : "bg-builder-surface-2 text-builder-text-muted hover:text-builder-text-muted"}`}
               title="Hug contents"
             >
               <Shrink size={14} />
@@ -236,7 +236,7 @@ export const SizePositionGroup = ({
             <button
               type="button"
               onClick={() => handleSizeChange(dim, "fixed")}
-              className={`p-1.5 ${mode === "fixed" ? "bg-[var(--builder-accent)] text-black" : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text-muted)]"}`}
+              className={`p-1.5 ${mode === "fixed" ? "bg-builder-accent text-black" : "bg-builder-surface-2 text-builder-text-muted hover:text-builder-text-muted"}`}
               title="Fixed"
             >
               <Square size={14} />
@@ -244,7 +244,7 @@ export const SizePositionGroup = ({
             <button
               type="button"
               onClick={() => handleSizeChange(dim, "fill")}
-              className={`p-1.5 ${mode === "fill" ? "bg-[var(--builder-accent)] text-black" : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text-muted)]"}`}
+              className={`p-1.5 ${mode === "fill" ? "bg-builder-accent text-black" : "bg-builder-surface-2 text-builder-text-muted hover:text-builder-text-muted"}`}
               title="Fill"
             >
               <Maximize2 size={14} />
@@ -273,7 +273,7 @@ export const SizePositionGroup = ({
             <button
               type="button"
               onClick={() => setAspectLocked((a) => !a)}
-              className={`p-2 rounded-lg border self-center ${aspectLocked ? "bg-[var(--builder-accent)] text-black border-[var(--builder-accent)]" : "bg-[var(--builder-surface-2)] border-[var(--builder-border)] text-[var(--builder-text-muted)] hover:text-[var(--builder-text-muted)]"}`}
+              className={`p-2 rounded-lg border self-center ${aspectLocked ? "bg-builder-accent text-black border-(--builder-accent)" : "bg-builder-surface-2 border-(--builder-border) text-builder-text-muted hover:text-builder-text-muted"}`}
               title={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
             >
               {aspectLocked ? <Lock size={16} /> : <LockOpen size={16} />}
@@ -282,7 +282,7 @@ export const SizePositionGroup = ({
         </div>
       </div>
 
-      {(!hidePadding || !hideMargin) && <div className="w-full h-px bg-[var(--builder-border)] my-1"></div>}
+      {(!hidePadding || !hideMargin) && <div className="w-full h-px bg-builder-border my-1"></div>}
 
       {/* Padding */}
       {!hidePadding && (
@@ -363,7 +363,7 @@ function SizePxInput({
   };
 
   return (
-    <div className="flex flex-1 items-center bg-[var(--builder-surface-2)] rounded-lg px-1.5 border border-[var(--builder-border)]">
+    <div className="flex flex-1 items-center bg-builder-surface-2 rounded-lg px-1.5 border border-(--builder-border)">
       <input
         type="text"
         value={displayVal}
@@ -411,10 +411,10 @@ function SizePxInput({
           setLast(`${next}px`);
           setLocalStr(String(next));
         }}
-        className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${disabled ? "text-[var(--builder-text-muted)]" : "text-[var(--builder-text-muted)]"}`}
+        className={`w-full bg-transparent text-xs p-1.5 focus:outline-none ${disabled ? "text-builder-text-muted" : "text-builder-text-muted"}`}
       />
       <span
-        className={`text-[10px] text-[var(--builder-text-faint)] pr-1 ${!disabled ? "cursor-ew-resize select-none" : ""}`}
+        className={`text-[10px] text-builder-text-faint pr-1 ${!disabled ? "cursor-ew-resize select-none" : ""}`}
         onPointerDown={!disabled ? handleScrubStart : undefined}
       >
         px

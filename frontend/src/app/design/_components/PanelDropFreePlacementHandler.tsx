@@ -18,7 +18,11 @@ const DROP_TARGET_CANVAS_TYPES = new Set(["Page", "Viewport", "Section", "Contai
 const BLOCKED_DROP_TYPES = new Set(["Accordion"]);
 
 function isPanelSource(target: EventTarget | null): boolean {
-  const el = target as HTMLElement | null;
+  const el = target instanceof Element
+    ? target
+    : target instanceof Node
+      ? target.parentElement
+      : null;
   if (!el) return false;
   const source = el.closest("[data-drag-source='asset'], [data-drag-source='component'], [data-drag-source='imported']") as HTMLElement | null;
   if (!source) return false;

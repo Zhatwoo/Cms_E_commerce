@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
-import { useCanvasTool } from "./CanvasToolContext";
+import { useCanvasTool, useSnapGuides } from "./CanvasToolContext";
 import { getSnapGuides, getBoundingRect, Rect, SnapGuide } from "./snapUtils";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 const DRAGGING_ATTR = "data-dragging";
 
@@ -153,6 +154,23 @@ function selectedToIds(raw: unknown): string[] {
   return [];
 }
 
+function findNodeIdFromPoint(clientX: number, clientY: number): string | null {
+  try {
+    const elements = document.elementsFromPoint(clientX, clientY) as HTMLElement[];
+    for (const el of elements) {
+      if (!el) continue;
+      // Skip any panel/overlay UI so we can pick the real node underneath.
+      if (el.closest?.("[data-panel]")) continue;
+      const nodeEl = el.closest?.("[data-node-id]") as HTMLElement | null;
+      const id = nodeEl?.getAttribute?.("data-node-id") ?? null;
+      if (id) return id;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 function setDraggingStyle(doms: HTMLElement[], on: boolean) {
   for (const dom of doms) {
     if (on) {
@@ -256,8 +274,8 @@ function findPageTargetAt(
     if (!id || exclude.has(id)) continue;
     if (String(nodes[id]?.data?.displayName ?? "") === "Page") return id;
   }
-  const fallback = Object.keys(nodes).find((id) => String(nodes[id]?.data?.displayName ?? "") === "Page");
-  return fallback ?? null;
+  // No fallback to prevent accidental drops outside the "Safe Zone"
+  return null;
 }
 
 function isPointerInsideCanvas(clientX: number, clientY: number): boolean {
@@ -408,7 +426,8 @@ export const FigmaStyleDragHandler = () => {
   const draggedDomsRef = useRef<HTMLElement[]>([]);
   const dropTargetHighlightRef = useRef<HTMLElement | null>(null);
   const insertIndicatorRef = useRef<HTMLElement | null>(null);
-  const { activeTool, setSnapGuides } = useCanvasTool();
+  const { activeTool } = useCanvasTool();
+  const { setSnapGuides } = useSnapGuides();
   const setSnapGuidesRef = useRef(setSnapGuides);
   useEffect(() => { setSnapGuidesRef.current = setSnapGuides; }, [setSnapGuides]);
 
@@ -817,8 +836,9 @@ export const FigmaStyleDragHandler = () => {
 
       if (target.closest("INPUT") || target.closest("TEXTAREA") || target.closest("SELECT") || target.closest("[contenteditable=true]")) return;
       if (target.closest("[data-canvas-interactive='true']")) return;
+      if (target.closest("[data-ui='color-picker']")) return;
       if (document.body.dataset.spacePan === "true") return;
-      if (target.closest("[data-panel='resize-overlay']")) return;
+      if (document.body.dataset.colorPickerDragging === "true") return;
       if (target.closest("[data-panel]") && !target.closest("[data-panel='resize-overlay']")) return;
       if (target.closest("[data-resize-handle]")) return;
 
@@ -826,9 +846,14 @@ export const FigmaStyleDragHandler = () => {
       const nodesMap = state.nodes as Record<string, { data?: { props?: { locked?: boolean } } }>;
       const exists = (id: string) => !!id && id !== "ROOT" && !!nodesMap[id];
 
-      const selectedIdsAtMouseDown = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]);
-      let nodeIdFromTarget = findDeepestNodeId(target);
-      if (!nodeIdFromTarget && target.closest("[data-panel='resize-overlay']") && selectedIdsAtMouseDown.length > 0) {
+      const selectedIdsAtMouseDown = filterLeafSelectionIds(
+        selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && !!state.nodes[id]),
+        state.nodes
+      );
+      const onResizeOverlay = Boolean(target.closest("[data-panel='resize-overlay']"));
+      let nodeIdFromTarget = onResizeOverlay ? findNodeIdFromPoint(e.clientX, e.clientY) : findDeepestNodeId(target);
+      if (!nodeIdFromTarget) nodeIdFromTarget = findNodeIdFromPoint(e.clientX, e.clientY);
+      if (!nodeIdFromTarget && selectedIdsAtMouseDown.length > 0) {
         nodeIdFromTarget = selectedIdsAtMouseDown[0] ?? null;
       }
 
@@ -980,10 +1005,16 @@ export const FigmaStyleDragHandler = () => {
         }
 
         const state = queryRef.current.getState();
-        let ids = selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]);
+        let ids = filterLeafSelectionIds(
+          selectedToIds(state.events.selected).filter((id) => id && id !== "ROOT" && state.nodes[id]),
+          state.nodes
+        );
 
         if (d.preferMultiDrag && d.clickedWasInSelection && d.selectionSnapshotIds.length > 1) {
-          const snapshotValid = d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]);
+          const snapshotValid = filterLeafSelectionIds(
+            d.selectionSnapshotIds.filter((id) => id && id !== "ROOT" && state.nodes[id]),
+            state.nodes
+          );
           if (snapshotValid.length > 1) {
             ids = snapshotValid;
             try {
@@ -996,14 +1027,12 @@ export const FigmaStyleDragHandler = () => {
 
         // If we clicked on a specific node and it's not in the selection, use the clicked node
         // This prevents dragging parent containers when clicking on child elements.
-        // Exception: if a single parent (group) is selected, keep dragging the group when
-        // clicking on its descendants (Figma-like behavior).
         if (d.fallbackNodeId && state.nodes[d.fallbackNodeId]) {
           const clickedNodeId = d.fallbackNodeId;
           const clickedNodeInSelection = ids.includes(clickedNodeId);
 
           // If clicked node is not in selection, prioritize the clicked node
-          // This ensures we drag the actual clicked element, not a parent container
+          // This ensures we drag the actual clicked element, not a parent container.
           if (!clickedNodeInSelection && ids.length > 0) {
             // Check if clicked node is a descendant of any selected node
             const isDescendant = ids.some((selectedId) => {
@@ -1017,11 +1046,8 @@ export const FigmaStyleDragHandler = () => {
               return false;
             });
 
-            // If clicked node is a descendant, keep group drag when only one item is selected.
             if (isDescendant) {
-              if (ids.length > 1) {
-                ids = [clickedNodeId];
-              }
+              ids = [clickedNodeId];
             }
           } else if (ids.length === 0) {
             // No selection, use clicked node
@@ -1252,11 +1278,7 @@ export const FigmaStyleDragHandler = () => {
           handledSectionReorder = true;
         }
 
-        if (!handledSectionReorder && (
-          dropTargetId &&
-          dropTargetId !== currentParentId &&
-          ids.every((id) => canAcceptNode(nodes, dropTargetId, id))
-        )) {
+        if (!handledSectionReorder && dropTargetId && ids.every((id) => canAcceptNode(nodes, dropTargetId, id))) {
           try {
             const insertIndex = d.currentInsertIndex ?? computeInsertIndex(dropTargetId, d.lastX, d.lastY, nodes, ids, queryRef.current.node);
             const dropTargetDom = getNodeContentHost(queryRef.current.node(dropTargetId).get()?.dom ?? null);
@@ -1282,6 +1304,26 @@ export const FigmaStyleDragHandler = () => {
                 const nextTop = Math.round((entry.startRect.top + dyScreen - dropTargetRect.top) / dropScaleY);
                 placementById.set(entry.id, { left: nextLeft, top: nextTop });
               });
+
+              // SAFE ZONE ENFORCEMENT for fixed-height pages
+              const dropTargetNode = nodes[dropTargetId];
+              const dropTargetDisplayName = String(dropTargetNode?.data?.displayName ?? "");
+              const dropTargetProps = (dropTargetNode?.data?.props ?? {}) as Record<string, unknown>;
+              const isFixedPage = dropTargetDisplayName === "Page" && dropTargetProps.height !== "auto";
+
+              if (isFixedPage) {
+                const pageHeight = parsePxOrAuto(dropTargetProps.height);
+                const pageWidth = parsePxOrAuto(dropTargetProps.width);
+                const isOutOfBounds = ids.some(id => {
+                  const placement = placementById.get(id);
+                  if (!placement) return false;
+                  // Block if the drop coordinate (top-left) is outside the page area
+                  return placement.top < -5 || placement.top > pageHeight + 5 || placement.left < -5 || placement.left > pageWidth + 5;
+                });
+                if (isOutOfBounds) {
+                  throw new Error("Out of safe zone");
+                }
+              }
             }
 
             ids.forEach((nodeId, i) => {
@@ -1343,7 +1385,7 @@ export const FigmaStyleDragHandler = () => {
               left: d.initialSelectionRect.left + dx * d.zoom,
               top: d.initialSelectionRect.top + dy * d.zoom,
               right: d.initialSelectionRect.right + dx * d.zoom,
-              bottom: d.initialSelectionRect.bottom + dx * d.zoom,
+              bottom: d.initialSelectionRect.bottom + dy * d.zoom,
               centerX: d.initialSelectionRect.centerX + dx * d.zoom,
               centerY: d.initialSelectionRect.centerY + dy * d.zoom,
             };

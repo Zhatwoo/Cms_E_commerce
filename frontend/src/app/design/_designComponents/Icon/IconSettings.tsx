@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
@@ -27,47 +27,95 @@ const ICON_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "Cart", value: "cart" },
   { label: "Shopping Bag", value: "shoppingBag" },
   { label: "Shopping Basket", value: "shoppingBasket" },
-  { label: "User", value: "user" },
+  { label: "Package", value: "package" },
+  { label: "Truck", value: "truck" },
+  { label: "Credit Card", value: "creditCard" },
+  { label: "Tag", value: "tag" },
+  { label: "Store", value: "store" },
+  { label: "Receipt", value: "receipt" },
+  { label: "Wallet", value: "wallet" },
+  { label: "Coupon", value: "coupon" },
+  { label: "Barcode", value: "barcode" },
+  { label: "Shield Check", value: "shieldCheck" },
+  { label: "Gift", value: "gift" },
+  { label: "QR Code", value: "qrCode" },
+  { label: "Banknote", value: "banknote" },
+  { label: "Box Open", value: "boxOpen" },
+  { label: "Package Check", value: "packageCheck" },
+  { label: "Scan", value: "scan" },
+  { label: "Inventory", value: "inventory" },
+  { label: "Warehouse", value: "warehouse" },
+  { label: "Return", value: "return" },
+  { label: "Refund", value: "refund" },
+  { label: "Loyalty", value: "loyalty" },
+  { label: "Verified", value: "verified" },
+  { label: "Bolt Deal", value: "boltDeal" },
+  { label: "Timer", value: "timer" },
+  { label: "Percent Off", value: "percentOff" },
+  { label: "Target Deal", value: "targetDeal" },
+  { label: "Headset", value: "headset" },
+  { label: "Chat Support", value: "chatSupport" },
+  { label: "Help Circle", value: "helpCircle" },
+  { label: "Phone Call", value: "phoneCall" },
+  { label: "Mail Support", value: "mailSupport" },
+  { label: "Debit Card", value: "debitCard" },
+  { label: "Bank Transfer", value: "bankTransfer" },
+  { label: "POS Terminal", value: "posTerminal" },
+  { label: "Invoice", value: "invoice" },
+  { label: "Cash On Delivery", value: "cashOnDelivery" },
+  { label: "Delivery Bike", value: "deliveryBike" },
+  { label: "Tracking", value: "tracking" },
+  { label: "Return Box", value: "returnBox" },
+  { label: "Warehouse Shelf", value: "warehouseShelf" },
+  { label: "Pickup Point", value: "pickupPoint" },
+  { label: "Filter", value: "filterCommerce" },
+  { label: "Sort", value: "sortCommerce" },
+  { label: "Compare", value: "compare" },
+  { label: "Wishlist", value: "wishlist" },
+  { label: "Recently Viewed", value: "recentlyViewed" },
+  { label: "Money Back", value: "moneyBack" },
+  { label: "Verified Seller", value: "verifiedSeller" },
+  { label: "Best Price", value: "bestPrice" },
+  { label: "Authentic Product", value: "authenticProduct" },
+  { label: "Bundle Offer", value: "bundleOffer" },
+  { label: "YouTube", value: "youtube" },
+  { label: "TikTok", value: "tiktok" },
+  { label: "LinkedIn", value: "linkedin" },
+  { label: "Pinterest", value: "pinterest" },
+  { label: "Snapchat", value: "snapchat" },
+  { label: "Reddit", value: "reddit" },
+  { label: "Telegram", value: "telegram" },
+  { label: "Discord", value: "discord" },
+  { label: "WhatsApp", value: "whatsapp" },
+  { label: "Twitch", value: "twitch" },
+  { label: "GitHub", value: "github" },
+  { label: "Dribbble", value: "dribbble" },
+  { label: "Behance", value: "behance" },
+  { label: "Medium", value: "medium" },
+  { label: "Threads", value: "threads" },
+  { label: "Line", value: "line" },
+  { label: "WeChat", value: "wechat" },
+  { label: "Viber", value: "viber" },
+  { label: "Signal", value: "signal" },
+  { label: "Messenger", value: "messenger" },
+  { label: "X", value: "twitter" },
   { label: "Facebook", value: "facebook" },
   { label: "Google", value: "google" },
   { label: "Instagram", value: "instagram" },
-  { label: "Twitter", value: "twitter" },
 ];
 
 export const IconSettings = () => {
   const {
-    iconType,
-    size,
-    color,
-    link,
-    width,
-    height,
-    paddingLeft,
-    paddingRight,
-    paddingTop,
-    paddingBottom,
-    marginLeft,
-    marginRight,
-    marginTop,
-    marginBottom,
-    rotation,
-    flipHorizontal,
-    flipVertical,
-    position,
-    display,
-    alignSelf,
-    zIndex,
-    top,
-    right,
-    bottom,
-    left,
-    editorVisibility,
-    opacity,
-    boxShadow,
-    overflow,
-    cursor,
+    id, iconType, size, color, link,
+    width, height,
+    paddingLeft, paddingRight, paddingTop, paddingBottom,
+    marginLeft, marginRight, marginTop, marginBottom,
+    rotation, flipHorizontal, flipVertical,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
+    opacity, boxShadow, overflow, cursor,
     actions: { setProp },
   } = useNode((node) => ({
+    id: node.id,
     iconType: node.data.props.iconType ?? "home",
     size: node.data.props.size ?? 24,
     color: node.data.props.color ?? "currentColor",
@@ -93,6 +141,7 @@ export const IconSettings = () => {
     right: node.data.props.right ?? "auto",
     bottom: node.data.props.bottom ?? "auto",
     left: node.data.props.left ?? "auto",
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility ?? "auto",
     opacity: node.data.props.opacity ?? 1,
     boxShadow: node.data.props.boxShadow ?? "none",
@@ -107,11 +156,11 @@ export const IconSettings = () => {
       <DesignSection title="Icon">
         <div className="flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Type</label>
+            <label className="text-[10px] text-builder-text">Type</label>
             <select
               value={iconType}
               onChange={(e) => typedSetProp((props) => { props.iconType = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none appearance-none"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none appearance-none"
             >
               {ICON_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -121,7 +170,7 @@ export const IconSettings = () => {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Size</label>
+              <label className="text-[10px] text-builder-text">Size</label>
               <NumericInput
                 value={size}
                 onChange={(val) => typedSetProp((props) => { props.size = val; })}
@@ -131,7 +180,7 @@ export const IconSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Color</label>
+              <label className="text-[10px] text-builder-text">Color</label>
               <ColorPicker
                 value={color || "#ffffff"}
                 onChange={(val) => typedSetProp((props) => { props.color = val; })}
@@ -141,13 +190,13 @@ export const IconSettings = () => {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Link URL</label>
+            <label className="text-[10px] text-builder-text">Link URL</label>
             <input
               type="text"
               value={link}
               onChange={(e) => typedSetProp((props) => { props.link = e.target.value; })}
               placeholder="https://..."
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
             />
           </div>
         </div>
@@ -163,9 +212,11 @@ export const IconSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -205,4 +256,3 @@ export const IconSettings = () => {
     </div>
   );
 };
-

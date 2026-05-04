@@ -69,7 +69,7 @@ export default function SupportTicketPage() {
             const res = await getConversations();
             if (res.success) {
                 // Filter only conversations with admins
-                const adminConvs = (res.data || []).filter(c => 
+                const adminConvs = (res.data || []).filter((c: Conversation) =>
                     c.otherUserRole === 'admin' || c.otherUserRole === 'super_admin'
                 );
                 setConversations(adminConvs);

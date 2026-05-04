@@ -5,7 +5,7 @@ para isahang tawag lang and di maabuso yung token
 
 
 'use client';
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getMe, setStoredUser, type User } from '@/lib/api';
 
 type AuthContextType = {
@@ -26,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchUser = async () => {
+    const fetchUser = useCallback(async () => {
         try {
             const res = await getMe();
             if (res.success && res.user) {
@@ -36,13 +36,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setUser(null);
                 setStoredUser(null);
             }
-        } catch (error) {
+        } catch {
             setUser(null);
             setStoredUser(null);
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useEffect(() => {
         fetchUser();
@@ -59,8 +59,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => clearInterval(heartbeat);
     }, [user]);
 
+    const value = useMemo(
+        () => ({ user, loading, refreshUser: fetchUser, setUser }),
+        [user, loading, fetchUser]
+    );
+
     return (
-        <AuthContext.Provider value={{ user, loading, refreshUser: fetchUser, setUser }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );

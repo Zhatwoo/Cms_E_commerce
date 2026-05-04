@@ -10,6 +10,7 @@ import {
 } from '@stripe/react-stripe-js';
 import { X, CreditCard, Lock, AlertCircle } from 'lucide-react';
 import { getStripePublicKey, createStripeSetupIntent, updateProfile } from '@/lib/api';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 // Stripe Card Element options
 const CARD_ELEMENT_OPTIONS = {
@@ -127,7 +128,7 @@ function CardForm({
         <button
           type="submit"
           disabled={!stripe || processing}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-linear-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
         >
           {processing ? (
             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -201,10 +202,8 @@ export function AddCardModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+    <ModalShell isOpen={isOpen} onClose={onClose}>
       <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden mt-[-10%] sm:mt-0">
         <div className="p-6 sm:p-8">
           <div className="flex items-center justify-between mb-8">
@@ -256,6 +255,6 @@ export function AddCardModal({
           )}
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 }

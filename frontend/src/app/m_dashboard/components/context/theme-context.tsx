@@ -3,7 +3,7 @@ Etong theme-context.tsx naman na to eh yung sa theme ng application.
 */
 
 'use client';
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from 'react';
 
 const THEME_STORAGE_KEY = 'm_dashboard_theme';
 
@@ -191,8 +191,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       });
   }, [theme]);
 
+  const value = useMemo(
+    () => ({ theme, toggleTheme, colors: THEMES[theme] }),
+    [theme, toggleTheme]
+  );
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, colors: THEMES[theme] }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

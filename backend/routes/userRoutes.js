@@ -13,7 +13,8 @@ const {
   getUserStats,
   getAdmins
 } = require('../controllers/userController');
-const { protect, admin } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 // All routes require authentication and admin role
 router.use(protect);

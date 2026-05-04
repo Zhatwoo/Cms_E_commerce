@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useTheme } from './context/theme-context';
 import { publishProject, schedulePublish } from '@/lib/api';
 import { getDraft } from '@/app/design/_lib/pageApi';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
+import { ModalShell } from '@/components/ui/ModalShell';
 
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
@@ -96,17 +97,7 @@ export function PublishModal({
         setPublishing(false);
         return;
       }
-      let contentToPublish: string | null = content;
-      try {
-        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-        if (parsed && typeof parsed === 'object' && parsed.nodes) {
-          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
-          const migrated = migratePublishedContent(parsed);
-          contentToPublish = JSON.stringify(migrated);
-        }
-      } catch {
-        // keep original content
-      }
+      const contentToPublish: string | null = content;
       const res = await publishProject(projectId, normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
@@ -156,17 +147,7 @@ export function PublishModal({
         setScheduling(false);
         return;
       }
-      let contentToPublish: string | null = content;
-      try {
-        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-        if (parsed && typeof parsed === 'object' && parsed.nodes) {
-          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
-          const migrated = migratePublishedContent(parsed);
-          contentToPublish = JSON.stringify(migrated);
-        }
-      } catch {
-        // keep original content
-      }
+      const contentToPublish: string | null = content;
       const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
@@ -181,22 +162,20 @@ export function PublishModal({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <AnimatePresence>
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-        style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-        onClick={() => !publishing && !scheduling && onClose()}
-      >
+    <ModalShell
+      isOpen={open}
+      onClose={onClose}
+      disabled={publishing || scheduling}
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+    >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
           className="rounded-2xl border p-6 w-full max-w-md shadow-xl"
           style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-          onClick={(e) => e.stopPropagation()}
         >
           <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>
             Publish to live domain
@@ -329,7 +308,6 @@ export function PublishModal({
             )}
           </div>
         </motion.div>
-      </div>
-    </AnimatePresence>
+    </ModalShell>
   );
 }

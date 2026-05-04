@@ -28,53 +28,8 @@ import { getStoredUser, getProjectStorage } from "@/lib/api";
 import { DesignTooltip } from "./DesignTooltip";
 import { HardDrive } from "lucide-react";
 
-export type DevicePreset = {
-  name: string;
-  width: number;
-  height: number;
-  icon: React.ReactNode;
-};
-
-const MOBILE_PRESET: DevicePreset = {
-  name: "Phone",
-  width: 375,
-  height: 667,
-  icon: <Smartphone className="w-4 h-4" />,
-};
-
-const LAPTOP_PRESET: DevicePreset = {
-  name: "Laptop",
-  width: 1440,
-  height: 900,
-  icon: <Laptop className="w-4 h-4" />,
-};
-
-const DEVICE_PRESETS: DevicePreset[] = [
-  MOBILE_PRESET,
-  {
-    name: "Tablet Portrait",
-    width: 768,
-    height: 1024,
-    icon: <Tablet className="w-4 h-4" />,
-  },
-  {
-    name: "Tablet Landscape",
-    width: 1024,
-    height: 768,
-    icon: <Tablet className="w-4 h-4 rotate-90" />,
-  },
-  LAPTOP_PRESET,
-  {
-    name: "Desktop",
-    width: 1920,
-    height: 1080,
-    icon: <Monitor className="w-4 h-4" />,
-  },
-];
-
 interface TopPanelProps {
   activePageId?: string | null;
-  onDevicePresetSelect?: (preset: DevicePreset) => void;
   showDualView?: boolean;
   onDualViewToggle?: () => void;
   projectId?: string;
@@ -89,9 +44,23 @@ interface TopPanelProps {
   onThemeToggle?: (e?: React.MouseEvent) => void;
 }
 
+type PageSizePreset = {
+  label: string;
+  width: number;
+  height: number;
+  icon: React.ReactNode;
+};
+
+const PAGE_SIZE_PRESETS: PageSizePreset[] = [
+  { label: "Large Desktop", width: 1920, height: 900, icon: <Maximize2 className="w-4 h-4" /> },
+  { label: "Desktop", width: 1440, height: 900, icon: <Monitor className="w-4 h-4" /> },
+  { label: "Laptop", width: 1366, height: 768, icon: <Laptop className="w-4 h-4" /> },
+  { label: "Tablet", width: 834, height: 1112, icon: <Tablet className="w-4 h-4" /> },
+  { label: "Mobile", width: 390, height: 844, icon: <Smartphone className="w-4 h-4" /> },
+];
+
 export const TopPanel: React.FC<TopPanelProps> = ({
   activePageId,
-  onDevicePresetSelect,
   showDualView = false,
   onDualViewToggle,
   projectId,
@@ -106,9 +75,8 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   onThemeToggle,
 }) => {
   const { actions, query } = useEditor();
-  const [showSizeDropdown, setShowSizeDropdown] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<DevicePreset | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showPageSizeMenu, setShowPageSizeMenu] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{
     displayName: string;
     email: string;
@@ -117,11 +85,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     isSelf?: boolean;
   } | null>(null);
 
-  const sizeDropdownRef = useRef<HTMLDivElement>(null);
   const userModalRef = useRef<HTMLDivElement>(null);
   const collabListRef = useRef<HTMLDivElement>(null);
+  const pageSizeMenuRef = useRef<HTMLDivElement>(null);
   const [showCollabList, setShowCollabList] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{ bytes: number; readable: string } | null>(null);
+  const [storageFetchDisabled, setStorageFetchDisabled] = useState(false);
   const STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
 
   // Get collaboration state
@@ -130,20 +99,105 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   let selfUser: { name?: string; username?: string; email?: string } | null = null;
   try { selfUser = getStoredUser(); } catch { }
   const selfInitial = (selfUser?.name || selfUser?.username || selfUser?.email || "?").charAt(0).toUpperCase();
+  const resolveTargetPageId = useCallback((): string | null => {
+    try {
+      const state = query.getState();
+      const nodes = (state?.nodes ?? {}) as Record<string, { data?: { displayName?: string; parent?: string } }>;
 
-  // Sync selected preset with current canvas dimensions
-  useEffect(() => {
-    const matchingPreset = DEVICE_PRESETS.find(
-      (p) => p.width === canvasWidth && p.height === canvasHeight
-    );
-    if (matchingPreset) {
-      setSelectedPreset(matchingPreset);
+      const findPageAncestor = (nodeId: string | null | undefined): string | null => {
+        if (!nodeId) return null;
+        let cursor: string | null = nodeId;
+        const seen = new Set<string>();
+
+        while (cursor && !seen.has(cursor)) {
+          seen.add(cursor);
+          const node: { data?: { displayName?: string; parent?: string } } | undefined = nodes[cursor];
+          if (!node) return null;
+          if (node?.data?.displayName === "Page") return cursor;
+          cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;
+        }
+
+        return null;
+      };
+
+      const selectedIds = selectedToIds(state?.events?.selected);
+      for (const id of selectedIds) {
+        const pageId = findPageAncestor(id);
+        if (pageId) return pageId;
+      }
+
+      const activePage = findPageAncestor(activePageId ?? null);
+      if (activePage) return activePage;
+
+      const firstPageEntry = Object.entries(nodes).find(([, node]) => node?.data?.displayName === "Page");
+      return firstPageEntry ? firstPageEntry[0] : null;
+    } catch {
+      return null;
     }
-  }, [canvasWidth, canvasHeight]);
+  }, [activePageId, query]);
+
+  const activePageSize = useEditor((state) => {
+    const parseSize = (value: unknown) => {
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string") {
+        const parsed = Number.parseFloat(value.replace(/px$/i, ""));
+        return Number.isFinite(parsed) ? parsed : null;
+      }
+      return null;
+    };
+
+    const nodes = state.nodes ?? {};
+
+    const findPageAncestorFromState = (nodeId: string | null | undefined): string | null => {
+      if (!nodeId) return null;
+      let cursor: string | null = nodeId;
+      const seen = new Set<string>();
+
+      while (cursor && !seen.has(cursor)) {
+        seen.add(cursor);
+        const node = nodes[cursor] as { data?: { displayName?: string; parent?: string } } | undefined;
+        if (!node) return null;
+        if (node?.data?.displayName === "Page") return cursor;
+        cursor = typeof node?.data?.parent === "string" ? node.data.parent : null;
+      }
+
+      return null;
+    };
+
+    let targetPageId: string | null = null;
+
+    const selectedIds = selectedToIds(state?.events?.selected);
+    for (const id of selectedIds) {
+      const pageId = findPageAncestorFromState(id);
+      if (pageId) {
+        targetPageId = pageId;
+        break;
+      }
+    }
+
+    if (!targetPageId) {
+      targetPageId = findPageAncestorFromState(activePageId ?? null);
+    }
+
+    if (!targetPageId) {
+      const firstPageEntry = Object.entries(nodes).find(([, node]: any) => node?.data?.displayName === "Page");
+      targetPageId = firstPageEntry ? firstPageEntry[0] : null;
+    }
+
+    if (!targetPageId) {
+      return { width: null as number | null, height: null as number | null };
+    }
+
+    const node = nodes[targetPageId] as { data?: { props?: Record<string, unknown> } } | undefined;
+    return {
+      width: parseSize(node?.data?.props?.width),
+      height: parseSize(node?.data?.props?.height),
+    };
+  });
 
   // Fetch storage usage (requires auth; skip logging when not authorized)
   const fetchStorageUsage = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId || storageFetchDisabled) return;
     try {
       const data = await getProjectStorage(projectId);
       if (data.success) {
@@ -151,15 +205,30 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
+      const normalized = msg.toLowerCase();
       if (
-        msg.includes("Not authorized") ||
-        msg.includes("no token") ||
-        msg.includes("Backend is unreachable")
+        normalized.includes("not authorized") ||
+        normalized.includes("no token") ||
+        normalized.includes("backend is unreachable")
       ) {
+        return;
+      }
+      if (normalized.includes("project not found") || normalized.includes("not found")) {
+        setStorageUsage(null);
+        setStorageFetchDisabled(true);
+        return;
+      }
+      if (normalized.includes("internal server error") || normalized.includes("server error")) {
+        setStorageUsage(null);
+        setStorageFetchDisabled(true);
         return;
       }
       console.error("Failed to fetch storage usage:", error);
     }
+  }, [projectId, storageFetchDisabled]);
+
+  useEffect(() => {
+    setStorageFetchDisabled(false);
   }, [projectId]);
 
   useEffect(() => {
@@ -173,12 +242,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        sizeDropdownRef.current &&
-        !sizeDropdownRef.current.contains(event.target as Node)
-      ) {
-        setShowSizeDropdown(false);
-      }
-      if (
         userModalRef.current &&
         !userModalRef.current.contains(event.target as Node)
       ) {
@@ -190,11 +253,36 @@ export const TopPanel: React.FC<TopPanelProps> = ({
       ) {
         setShowCollabList(false);
       }
+      if (
+        pageSizeMenuRef.current &&
+        !pageSizeMenuRef.current.contains(event.target as Node)
+      ) {
+        setShowPageSizeMenu(false);
+      }
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const applyPageSizePreset = (preset: PageSizePreset) => {
+    const targetPageId = resolveTargetPageId();
+    if (!targetPageId) {
+      console.warn("Page size preset skipped: no target page found");
+      setShowPageSizeMenu(false);
+      return;
+    }
+
+    try {
+      actions.setProp(targetPageId, (props: Record<string, unknown>) => {
+        props.width = `${preset.width}px`;
+        props.height = `${preset.height}px`;
+      });
+    } catch (error) {
+      console.error("Failed to apply page size preset:", error);
+    }
+    setShowPageSizeMenu(false);
+  };
 
 
   const handleRotateCanvas = () => {
@@ -257,54 +345,6 @@ export const TopPanel: React.FC<TopPanelProps> = ({
     }
   };
 
-  const handlePresetSelect = useCallback((preset: DevicePreset) => {
-    if (projectPermission === "viewer") return;
-    setSelectedPreset(preset);
-
-    // Update all Page nodes with the new width
-    try {
-      const state = query.getState();
-      const nodes = state.nodes ?? {};
-      const rootNode = nodes["ROOT"];
-
-      if (rootNode && Array.isArray(rootNode.data.nodes)) {
-        // Find Viewport node first (ROOT -> Viewport -> Pages)
-        const viewportId = rootNode.data.nodes[0];
-        const viewportNode = nodes[viewportId];
-
-        if (viewportNode && viewportNode.data.displayName === "Viewport") {
-          // Get Page nodes from Viewport
-          const pageIds = viewportNode.data.nodes ?? [];
-          pageIds.forEach((pageId: string) => {
-            const pageNode = nodes[pageId];
-            if (pageNode?.data?.displayName === "Page") {
-              actions.setProp(pageId, (props: Record<string, unknown>) => {
-                props.width = `${preset.width}px`;
-                // Only update width when changing device; preserve page height so content doesn't reset
-              });
-            }
-          });
-        } else {
-          // Fallback: try direct children of ROOT
-          rootNode.data.nodes.forEach((pageId: string) => {
-            const pageNode = nodes[pageId];
-            if (pageNode?.data?.displayName === "Page") {
-              actions.setProp(pageId, (props: Record<string, unknown>) => {
-                props.width = `${preset.width}px`;
-                // Only update width when changing device; preserve page height
-              });
-            }
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Failed to update Page nodes:", error);
-    }
-
-    // Call the parent handler to update canvas state
-    onDevicePresetSelect?.(preset);
-  }, [actions, query, onDevicePresetSelect]);
-
   const zoomPercentage = 100;
   const toolbarTextSmoothingStyle: React.CSSProperties = {
     WebkitFontSmoothing: "antialiased",
@@ -336,12 +376,12 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             <div className="flex flex-col gap-1 min-w-[140px] ml-2 group/storage cursor-help">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-1.5 overflow-hidden">
-                  <HardDrive className="w-3 h-3 text-[var(--builder-text-faint)] group-hover/storage:text-emerald-400 transition-colors shrink-0" />
-                  <span className="text-[10px] font-bold text-[var(--builder-text-faint)] group-hover/storage:text-[var(--builder-text-muted)] transition-colors truncate uppercase tracking-wider">Project Storage</span>
+                  <HardDrive className="w-3 h-3 text-builder-text-faint group-hover/storage:text-emerald-400 transition-colors shrink-0" />
+                  <span className="text-[10px] font-bold text-builder-text-faint group-hover/storage:text-builder-text-muted transition-colors truncate uppercase tracking-wider">Project Storage</span>
                 </div>
-                <span className="text-[9px] font-black text-[var(--builder-text-faint)] group-hover/storage:text-[var(--builder-text-muted)] transition-colors tabular-nums shrink-0">{storageUsage.readable} / 1 GB</span>
+                <span className="text-[9px] font-black text-builder-text-faint group-hover/storage:text-builder-text-muted transition-colors tabular-nums shrink-0">{storageUsage.readable} / 1 GB</span>
               </div>
-              <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden border border-[var(--builder-border)] relative">
+              <div className="h-1.5 w-full bg-builder-surface-3 rounded-full overflow-hidden border border-(--builder-border) relative">
                 <div
                   className="h-full transition-all duration-1000 ease-out rounded-full"
                   style={{
@@ -367,7 +407,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             {selectedUser && (
               <div
                 ref={userModalRef}
-                className="absolute top-full left-0 mt-3 w-64 bg-[var(--builder-surface-2)] backdrop-blur-xl border border-[var(--builder-border)] rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                className="absolute top-full left-0 mt-3 w-64 bg-builder-surface-2 backdrop-blur-xl border border-(--builder-border) rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
               >
                 <div
                   className="h-1.5 w-full"
@@ -382,15 +422,15 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                       {selectedUser.displayName.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[var(--builder-text)] truncate">
+                      <p className="text-sm font-bold text-builder-text truncate">
                         {selectedUser.displayName}
                         {selectedUser.isSelf && <span className="ml-1.5 text-[10px] text-blue-400 font-black uppercase tracking-widest">(You)</span>}
                       </p>
-                      <p className="text-[11px] text-[var(--builder-text-muted)] truncate">{selectedUser.email}</p>
+                      <p className="text-[11px] text-builder-text-muted truncate">{selectedUser.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--builder-surface-3)] border border-[var(--builder-border)]">
-                    <span className="text-[10px] text-[var(--builder-text-faint)] font-bold uppercase tracking-widest">Role</span>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-builder-surface-3 border border-(--builder-border)">
+                    <span className="text-[10px] text-builder-text-faint font-bold uppercase tracking-widest">Role</span>
                     <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">{selectedUser.role}</span>
                   </div>
                 </div>
@@ -406,7 +446,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 color: myColor,
                 isSelf: true
               })}
-              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-[var(--builder-surface)] cursor-pointer z-10 hover:scale-105 active:scale-95 transition-all"
+              className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-(--builder-surface) cursor-pointer z-10 hover:scale-105 active:scale-95 transition-all"
               style={{ background: myColor }}
             >
               {selfInitial}
@@ -422,7 +462,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                   role: collab.role,
                   color: collab.color
                 })}
-                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-[var(--builder-surface)] -ml-2 cursor-pointer hover:scale-105 active:scale-95 transition-all"
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-(--builder-surface) -ml-2 cursor-pointer hover:scale-105 active:scale-95 transition-all"
                 style={{ background: collab.color, zIndex: 9 - i }}
               >
                 {(collab.displayName || "?").charAt(0).toUpperCase()}
@@ -430,7 +470,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             ))}
             {collaborators.length > 3 && (
               <div
-                className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-[var(--builder-text-muted)] ring-2 ring-[var(--builder-surface)] -ml-2 bg-[var(--builder-surface-3)] cursor-default"
+                className="relative w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-builder-text-muted ring-2 ring-(--builder-surface) -ml-2 bg-builder-surface-3 cursor-default"
                 title={`${collaborators.length - 3} more collaborators`}
               >
                 +{collaborators.length - 3}
@@ -444,23 +484,23 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                 setShowCollabList(!showCollabList);
                 setSelectedUser(null);
               }}
-              className="ml-2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-[var(--builder-surface-2)] transition-colors"
+              className="ml-2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-builder-surface-2 transition-colors"
             >
-              <ChevronDown className={`w-4 h-4 text-[var(--builder-text-muted)] transition-transform duration-200 ${showCollabList ? "rotate-180" : ""}`} />
+              <ChevronDown className={`w-4 h-4 text-builder-text-muted transition-transform duration-200 ${showCollabList ? "rotate-180" : ""}`} />
             </button>
 
             {showCollabList && (
               <div
                 ref={collabListRef}
-                className="absolute top-full left-0 mt-3 w-72 bg-[var(--builder-surface-2)] backdrop-blur-xl border border-[var(--builder-border)] rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
+                className="absolute top-full left-0 mt-3 w-72 bg-builder-surface-2 backdrop-blur-xl border border-(--builder-border) rounded-2xl shadow-2xl z-[1000] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200"
               >
-                <div className="px-4 py-3 border-b border-[var(--builder-border)] flex items-center justify-between bg-[var(--builder-surface-3)]">
-                  <span className="text-[11px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Collaborators</span>
+                <div className="px-4 py-3 border-b border-(--builder-border) flex items-center justify-between bg-builder-surface-3">
+                  <span className="text-[11px] uppercase tracking-widest font-black text-builder-text-faint">Collaborators</span>
                   <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">{collaborators.length + 1} Active</span>
                 </div>
                 <div className="max-h-[300px] overflow-y-auto p-2 flex flex-col gap-1">
                   {/* Self */}
-                  <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+                  <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-builder-surface-3 transition-colors cursor-pointer"
                     onClick={() => {
                       setSelectedUser({
                         displayName: selfUser?.name || selfUser?.username || "You",
@@ -476,18 +516,18 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                       {selfInitial}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[var(--builder-text)] truncate">
+                      <p className="text-sm font-bold text-builder-text truncate">
                         {selfUser?.name || selfUser?.username || "You"}
                         <span className="ml-1.5 text-[10px] text-blue-400 font-black uppercase tracking-widest">(You)</span>
                       </p>
-                      <p className="text-[11px] text-[var(--builder-text-faint)] truncate">{selfUser?.email}</p>
+                      <p className="text-[11px] text-builder-text-faint truncate">{selfUser?.email}</p>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">{projectPermission}</span>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-builder-text-faint">{projectPermission}</span>
                   </div>
 
                   {/* Others */}
                   {collaborators.map(collab => (
-                    <div key={collab.socketId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-[var(--builder-surface-3)] transition-colors cursor-pointer"
+                    <div key={collab.socketId} className="flex items-center gap-3 p-2 rounded-xl hover:bg-builder-surface-3 transition-colors cursor-pointer"
                       onClick={() => {
                         setSelectedUser({
                           displayName: collab.displayName,
@@ -502,10 +542,10 @@ export const TopPanel: React.FC<TopPanelProps> = ({
                         {(collab.displayName || "?").charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-[var(--builder-text)] truncate">{collab.displayName}</p>
-                        <p className="text-[11px] text-[var(--builder-text-faint)] truncate">{collab.email}</p>
+                        <p className="text-sm font-bold text-builder-text truncate">{collab.displayName}</p>
+                        <p className="text-[11px] text-builder-text-faint truncate">{collab.email}</p>
                       </div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--builder-text-faint)]">{collab.role}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-builder-text-faint">{collab.role}</span>
                     </div>
                   ))}
                 </div>
@@ -514,7 +554,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </div>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
+          <div className="w-px h-6 bg-builder-border-mid" />
 
           {/* Share Button */}
           <button
@@ -533,13 +573,13 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </button>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
+          <div className="w-px h-6 bg-builder-border-mid" />
 
           {/* Theme Toggle */}
           <DesignTooltip content={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"} position="bottom">
             <button
               onClick={(e) => onThemeToggle?.(e)}
-              className="p-2 rounded-lg transition-all border border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)] text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] active:scale-95"
+              className="p-2 rounded-lg transition-all border border-(--builder-border) bg-builder-surface-2 hover:bg-builder-surface-3 text-builder-text-muted hover:text-builder-accent active:scale-95"
               aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
             >
               {isDarkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -547,7 +587,7 @@ export const TopPanel: React.FC<TopPanelProps> = ({
           </DesignTooltip>
 
           {/* Divider */}
-          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
+          <div className="w-px h-6 bg-builder-border-mid" />
 
           {/* Device Preview Toggle Button */}
           <DesignTooltip content={showDualView ? "Hide Device Preview" : "Show Device Preview"} position="bottom">
@@ -563,64 +603,14 @@ export const TopPanel: React.FC<TopPanelProps> = ({
             </button>
           </DesignTooltip>
 
-          {/* Device Preset Dropdown (Breakpoint) */}
-          <div className="relative" ref={sizeDropdownRef}>
-            <DesignTooltip content="Breakpoints" position="bottom">
-              <button
-                onClick={() => setShowSizeDropdown((prev) => !prev)}
-                className={`flex items-center gap-2 p-2 rounded-lg transition-colors border ${showSizeDropdown
-                    ? "bg-blue-500/20 border-blue-500/50 text-blue-400"
-                    : "bg-builder-surface-2 hover:bg-builder-surface-3 border-builder-border text-builder-text"
-                  }`}
-              >
-                <MonitorSmartphone className="w-4 h-4" />
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showSizeDropdown ? "rotate-180" : "opacity-50"}`} />
-              </button>
-            </DesignTooltip>
-
-            <div
-              className={`absolute top-full right-0 mt-2 w-48 bg-[var(--builder-surface)]/95 backdrop-blur-xl border border-[var(--builder-border)] rounded-xl shadow-2xl py-1 z-[100] transition-all duration-200 ${showSizeDropdown
-                  ? "opacity-100 translate-y-0 pointer-events-auto"
-                  : "opacity-0 translate-y-2 pointer-events-none"
-                }`}
-            >
-              <div className="px-3 py-2 border-b border-[var(--builder-border)] bg-[var(--builder-surface-3)]">
-                <span className="text-[10px] uppercase tracking-widest font-black text-[var(--builder-text-faint)]">Breakpoints</span>
-              </div>
-              {DEVICE_PRESETS.map((preset, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    handlePresetSelect(preset);
-                    setShowSizeDropdown(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs transition-colors hover:bg-[var(--builder-surface-2)] ${selectedPreset?.name === preset.name
-                    ? "text-blue-400 font-bold bg-blue-500/10"
-                    : "text-[var(--builder-text-muted)]"
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="opacity-60">{preset.icon}</span>
-                    <span>{preset.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 opacity-40 tabular-nums text-[10px]">
-                    <span>{preset.width}</span>
-                    <span className="text-[8px]">×</span>
-                    <span>{preset.height}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Divider */}
-          <div className="w-px h-6 bg-[var(--builder-border-mid)]" />
+          <div className="w-px h-6 bg-builder-border-mid" />
 
           {/* Preview Button */}
           <DesignTooltip content="Preview" position="bottom">
             <button
               onClick={onPreview}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-[var(--builder-surface-2)] active:scale-95 text-[var(--builder-text-muted)] group/preview"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg transition-all hover:bg-builder-surface-2 active:scale-95 text-builder-text-muted group/preview"
             >
               <Play className="w-3.5 h-3.5 fill-current transition-transform group-hover/preview:scale-110" />
             </button>

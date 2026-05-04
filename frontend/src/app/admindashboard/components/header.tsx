@@ -492,7 +492,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             router.push('/admindashboard/notifications');
                         }}
                     >
-                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br transition-all hover:scale-105 active:scale-95 ${activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
+                        <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-linear-to-br transition-all hover:scale-105 active:scale-95 ${activeToast.type === 'error' ? 'from-rose-500 to-red-600' :
                             activeToast.type === 'warning' ? 'from-orange-400 to-amber-500' :
                                 'from-[#B13BFF] to-[#8B5CF6]'
                             }`}>
@@ -518,8 +518,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 )}
             </AnimatePresence>
 
-            <div className="flex w-full items-center justify-between gap-4">
-                <div className="flex flex-1 items-center gap-3">
+            <div className="admin-dashboard-panel flex w-full items-center justify-between gap-4 rounded-[28px] px-4 py-3 sm:px-5 lg:px-6">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     {onMenuClick && (
                         <motion.button
                             whileTap={{ scale: 0.94 }}
@@ -533,7 +533,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         </motion.button>
                     )}
 
-                    <div ref={searchContainerRef} className="relative w-full max-w-[23rem] sm:max-w-[24rem]">
+                    <div ref={searchContainerRef} className="relative w-full max-w-[24rem] sm:max-w-[28rem]">
                         <div className="relative">
                             <input
                                 type="text"
@@ -590,9 +590,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-
-
+                <div className="flex shrink-0 items-center gap-3">
                     <div ref={notificationsRef} className="relative">
                         <motion.button
                             whileTap={{ scale: 0.94 }}
@@ -701,7 +699,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                         onError={() => setCurrentUser((prev) => (prev ? { ...prev, avatar: '' } : prev))}
                                     />
                                 ) : (
-                                    <span className="inline-flex h-full w-full items-center justify-center bg-gradient-to-br from-[#B13BFF] to-[#8B5CF6] text-sm font-bold text-white">
+                                    <span className="inline-flex h-full w-full items-center justify-center bg-linear-to-br from-[#B13BFF] to-[#8B5CF6] text-sm font-bold text-white">
                                         {initials}
                                     </span>
                                 )}

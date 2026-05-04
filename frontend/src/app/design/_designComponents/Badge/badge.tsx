@@ -3,6 +3,7 @@ import { useEditor, useNode } from "@craftjs/core";
 import { BadgeSettings } from "./badgeSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { ContainerProps, TypographyProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 export interface BadgeProps extends ContainerProps, TypographyProps {
 	text?: string;
@@ -64,6 +65,7 @@ export const Badge = ({
 	customClassName = "",
 	textDecoration = "none",
 	editorVisibility = "auto",
+	isFreeform,
 	children,
 }: BadgeProps) => {
 	const {
@@ -132,8 +134,9 @@ export const Badge = ({
 	const resolvedText = typeof text === "string" ? text : "Badge";
 	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
 	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
-	const effectiveDisplay =
-		editorVisibility === "hide"
+	const effectiveDisplay = isFreeform
+		? "block"
+		: editorVisibility === "hide"
 			? "none"
 			: editorVisibility === "show" && display === "none"
 				? "flex"
@@ -360,7 +363,7 @@ export const Badge = ({
 
 export const BadgeDefaultProps: Partial<BadgeProps> = {
 	text: "Badge",
-	fontFamily: "Outfit",
+	fontFamily: fonts.uiRaw,
 	fontWeight: "600",
 	fontStyle: "normal",
 	fontSize: 14,
@@ -390,6 +393,9 @@ export const BadgeDefaultProps: Partial<BadgeProps> = {
 	opacity: 1,
 	overflow: "hidden",
 	rotation: 0,
+	alignSelf: "auto",
+	isFreeform: false,
+	position: "relative",
 };
 
 Badge.craft = {

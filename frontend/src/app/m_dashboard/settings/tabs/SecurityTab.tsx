@@ -105,7 +105,7 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
         onClick={onSave}
         className="relative group flex items-center gap-3 px-10 py-4 rounded-full overflow-hidden transition-all active:scale-95 shadow-lg shadow-violet-500/20"
         >
-        <div className="absolute inset-0 bg-gradient-to-r from-[#9333ea] to-[#ec4899] group-hover:opacity-90 transition-opacity" />
+        <div className="absolute inset-0 bg-linear-to-r from-[#9333ea] to-[#ec4899] group-hover:opacity-90 transition-opacity" />
         <div className="relative z-10 flex items-center gap-3">
             {saveSuccess ? <Check className="w-4 h-4 text-white" /> : <Save className="w-4 h-4 text-white" />}
             <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">

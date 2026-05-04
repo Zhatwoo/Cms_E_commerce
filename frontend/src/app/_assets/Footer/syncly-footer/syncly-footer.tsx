@@ -161,13 +161,13 @@ export const SynclyFooter: TemplateEntry = {
           Element as any,
           {
             is: Row as any,
-            width: "58%",
+            width: "40%",
             gap: 40,
             canvas: true,
             alignItems: "flex-start",
             justifyContent: "flex-end",
             height: "auto",
-            flexWrap: "wrap",
+            flexWrap: "nowrap",
           },
           React.createElement(
             Element as any,

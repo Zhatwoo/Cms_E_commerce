@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useEditor, useNode } from "@craftjs/core";
 import { BannerSettings } from "./bannerSettings";
 import type { ContainerProps, TypographyProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 export interface BannerProps extends ContainerProps, TypographyProps {
 	text?: string;
@@ -66,6 +67,7 @@ export const Banner = ({
 	customClassName = "",
 	textDecoration = "none",
 	editorVisibility = "auto",
+	isFreeform,
 	children,
 	}: BannerProps) => {
 	const {
@@ -126,8 +128,9 @@ export const Banner = ({
 	const resolvedText = typeof text === "string" ? text : "FLASH SALE: Up to 70% off - Use code SAVE70";
 	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
 	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
-	const effectiveDisplay =
-		editorVisibility === "hide"
+	const effectiveDisplay = isFreeform
+		? "block"
+		: editorVisibility === "hide"
 			? "none"
 			: editorVisibility === "show" && display === "none"
 				? "flex"
@@ -216,7 +219,7 @@ export const Banner = ({
 
 export const BannerDefaultProps: Partial<BannerProps> = {
 	text: "FLASH SALE: Up to 70% off - Use code SAVE70",
-	fontFamily: "Outfit",
+	fontFamily: fonts.uiRaw,
 	fontWeight: "700",
 	fontStyle: "normal",
 	fontSize: 13,

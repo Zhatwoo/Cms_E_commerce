@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useEditor, Element } from "@craftjs/core";
 import {
-  selectedToIds,
+  selectedToLeafIds,
   duplicateNodes,
   copySelection,
   pasteClipboard,
@@ -115,7 +115,7 @@ function resolvePasteTarget(state: {
   nodes: Record<string, any>;
   events?: { selected?: unknown };
 }) {
-  const selectedIds = selectedToIds(state.events?.selected);
+  const selectedIds = selectedToLeafIds(state.events?.selected, state.nodes);
   let parentId: string | undefined;
   let atIndex: number | undefined;
 
@@ -237,7 +237,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && key === "d") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length > 0) duplicateNodes(actions as any, query as any, ids);
         return;
       }
@@ -246,7 +246,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && key === "c") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         copySelection(query as any, ids);
         return;
       }
@@ -255,7 +255,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && key === "x") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         cutSelection(actions as any, query as any, ids);
         return;
       }
@@ -266,7 +266,7 @@ export const KeyboardShortcuts = () => {
         if (clip && clip.nodeIds.length > 0) {
           e.preventDefault();
           const state = query.getState();
-          const selectedIds = selectedToIds(state.events.selected);
+          const selectedIds = selectedToLeafIds(state.events.selected, state.nodes);
           const hintId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : undefined;
           pasteClipboard(actions as any, query as any, hintId ? { parentId: hintId } : undefined);
         }
@@ -300,7 +300,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && e.shiftKey && key === "r") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         const clip = getClipboard();
         if (ids.length === 1 && clip && clip.nodeIds.length > 0) {
           pasteToReplaceSelection(actions as any, query as any, ids);
@@ -312,7 +312,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && !e.shiftKey && key === "g") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length >= 2) {
           groupSelection(actions as any, query as any, ids, Container, Element);
         }
@@ -323,7 +323,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && e.shiftKey && key === "g") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 1) {
           ungroupSelection(actions as any, query as any, ids);
         }
@@ -334,7 +334,7 @@ export const KeyboardShortcuts = () => {
       if (!ctrl && !e.shiftKey && e.key === "]") {
         e.preventDefault();
         let state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0 || !actions.move) return;
         const parentId = state.nodes[ids[0]]?.data?.parent as string | undefined;
         if (!parentId || !state.nodes[parentId]) return;
@@ -364,7 +364,7 @@ export const KeyboardShortcuts = () => {
       if (!ctrl && !e.shiftKey && e.key === "[") {
         e.preventDefault();
         let state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0 || !actions.move) return;
         const parentId = state.nodes[ids[0]]?.data?.parent as string | undefined;
         if (!parentId || !state.nodes[parentId]) return;
@@ -394,7 +394,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && e.shiftKey && key === "h") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0) return;
         const firstProps = state.nodes[ids[0]]?.data?.props as
           | Record<string, unknown>
@@ -416,7 +416,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && e.shiftKey && key === "l") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0) return;
         const firstProps = state.nodes[ids[0]]?.data?.props as
           | Record<string, unknown>
@@ -438,7 +438,7 @@ export const KeyboardShortcuts = () => {
       if (!ctrl && e.shiftKey && key === "h") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0) return;
         ids.forEach((id) => {
           try {
@@ -456,7 +456,7 @@ export const KeyboardShortcuts = () => {
       if (!ctrl && e.shiftKey && key === "v") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0) return;
         ids.forEach((id) => {
           try {
@@ -473,14 +473,14 @@ export const KeyboardShortcuts = () => {
       // ── Select inside: Enter ──
       if (!ctrl && !e.shiftKey && e.key === "Enter") {
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length !== 1) return;
         const node = state.nodes[ids[0]];
         const children = (node?.data?.nodes as string[]) ?? [];
-        if (children.length > 0) {
-          e.preventDefault();
-          actions.selectNode(children[0]);
-        }
+          if (children.length > 0) {
+            e.preventDefault();
+            actions.selectNode(children[0]);
+          }
         return;
       }
 
@@ -488,7 +488,7 @@ export const KeyboardShortcuts = () => {
       if (ctrl && e.key === "Enter") {
         e.preventDefault();
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length !== 1) return;
         const parentId = state.nodes[ids[0]]?.data?.parent as string | undefined;
         if (parentId && parentId !== "ROOT" && state.nodes[parentId]) {
@@ -500,7 +500,7 @@ export const KeyboardShortcuts = () => {
       // ── Arrow nudge ──
       if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
         const state = query.getState();
-        const ids = selectedToIds(state.events.selected);
+        const ids = selectedToLeafIds(state.events.selected, state.nodes);
         if (ids.length === 0) return;
         const step = e.shiftKey ? BIG_NUDGE_PX : NUDGE_PX;
         const dx =
@@ -571,7 +571,7 @@ export const KeyboardShortcuts = () => {
         e.preventDefault();
 
         const state = query.getState();
-        const idsToDelete = selectedToIds(state.events.selected);
+        const idsToDelete = selectedToLeafIds(state.events.selected, state.nodes);
         if (idsToDelete.length === 0) return;
 
         try {

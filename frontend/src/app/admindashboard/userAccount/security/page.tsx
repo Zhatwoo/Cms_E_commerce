@@ -123,18 +123,18 @@ export default function SecurityPage() {
 						initial={{ opacity: 0, y: 14 }}
 						animate={{ opacity: 1, y: 0 }}
 						transition={{ duration: 0.45 }}
-						className="admin-dashboard-panel space-y-8 rounded-[32px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-8 shadow-[0_10px_26px_rgba(123,78,192,0.15)]"
+						className="admin-dashboard-panel space-y-8 rounded-[32px] border border-[rgba(177,59,255,0.16)] bg-white p-10 shadow-[0_14px_32px_rgba(123,78,192,0.10)]"
 					>
 						<div className="flex items-center justify-between">
 							<div>
-								<h2 className="text-2xl font-bold text-[#471396]">Account Protection</h2>
-								<p className="text-sm text-[#8A86A4]">Secure access and manage your credentials.</p>
+								<h2 className="text-3xl font-bold tracking-tight text-[#471396]">Account Protection</h2>
+								<p className="mt-2 text-sm font-medium text-[#8A86A4]">Secure access and manage your credentials.</p>
 							</div>
 							<Shield className="text-[#471396] opacity-10" size={48} />
 						</div>
 
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-							<div className="admin-dashboard-inset-panel flex flex-col justify-between rounded-[28px] border border-[rgba(166,61,255,0.12)] bg-white/60 p-8 shadow-sm transition-all hover:bg-white/80">
+							<div className="admin-dashboard-inset-panel flex flex-col justify-between rounded-[28px] border border-[rgba(166,61,255,0.14)] bg-white p-8 shadow-sm transition-all hover:shadow-md">
 								<div className="space-y-6">
 									<div className="flex items-center gap-4">
 										<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F4FF] text-[#4a1a8a] shadow-inner transition-transform group-hover:scale-110">
@@ -169,7 +169,7 @@ export default function SecurityPage() {
 								)}
 							</div>
 
-							<div className="admin-dashboard-inset-panel group flex flex-col justify-between rounded-[32px] border border-[rgba(166,61,255,0.12)] bg-white/60 p-8 shadow-sm transition-all duration-300 hover:bg-white hover:shadow-xl hover:shadow-[#4a1a8a]/5 hover:-translate-y-1">
+							<div className="admin-dashboard-inset-panel group flex flex-col justify-between rounded-[32px] border border-[rgba(166,61,255,0.14)] bg-white p-8 shadow-sm transition-all duration-300 hover:shadow-xl hover:shadow-[#4a1a8a]/5 hover:-translate-y-1">
 								<div className="space-y-6">
 									<div className="flex items-center gap-4">
 										<div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F5F4FF] text-[#4a1a8a] shadow-inner transition-transform group-hover:scale-110">
@@ -196,7 +196,7 @@ export default function SecurityPage() {
 							</div>
 						</div>
 
-						<div className="admin-dashboard-inset-panel rounded-[28px] border border-[rgba(166,61,255,0.12)] bg-white/40 p-6 transition-all hover:bg-white/60">
+						<div className="admin-dashboard-inset-panel rounded-[28px] border border-[rgba(166,61,255,0.14)] bg-white p-6 transition-all hover:shadow-md">
 							<div className="flex items-center gap-4">
 								<div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-500 shadow-sm">
 									<Shield size={20} strokeWidth={2.5} />

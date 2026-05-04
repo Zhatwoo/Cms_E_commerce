@@ -22,6 +22,7 @@ import { formatToPHTimeShort } from '@/lib/dateUtils';
 import { getWebsiteStatusMeta } from '@/lib/utils/adminStatus';
 import { INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
 import { useAdminLoading } from '../components/LoadingProvider';
+import { AdminPageHero } from '../components/AdminPageHero';
 import {
   BookOpen,
   Car,
@@ -306,8 +307,8 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
     <motion.article
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.32, ease: [0.23, 1, 0.32, 1] }}
       className="group relative overflow-hidden rounded-[28px] flex flex-col min-h-[340px]"
       style={{ 
         border: '1.5px solid rgba(166,61,255,0.12)', 
@@ -318,20 +319,20 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
       {/* Thumbnail Area with Hover Actions */}
       <div className="relative h-44 overflow-hidden" style={{ background: '#f5f4ff' }}>
         {w.thumbnail ? (
-          <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
+          <img src={w.thumbnail} alt={w.domainName} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy" />
         ) : (
           <MemoizedWebsitePreviewThumbnail 
             domainName={w.domainName}
             borderColor="transparent" 
             bgColor="rgba(240,235,255,0.5)" 
-            className="h-full w-full transition-transform duration-700 group-hover:scale-105" 
+            className="h-full w-full transition-transform duration-500 group-hover:scale-105" 
           />
         )}
         
         {/* Overlay Actions */}
         <div className="absolute inset-0 bg-[#4a1a8a]/40 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px] flex items-center justify-center gap-3">
           <motion.a
-            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.06, y: -1 }} whileTap={{ scale: 0.96 }}
             href={viewUrl} target="_blank" rel="noopener noreferrer"
             className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#4a1a8a] shadow-xl"
             title="View Site"
@@ -339,7 +340,7 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
             <Eye className="h-5 w-5" />
           </motion.a>
           <motion.button
-            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.06, y: -1 }} whileTap={{ scale: 0.96 }}
             onClick={() => openWebsiteActionModal(w)}
             className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#FF4343] shadow-xl"
             title="Suspend / Take Down"
@@ -347,7 +348,7 @@ const WebsiteCard = React.memo(({ w, viewUrl, industry, workingWebsiteKey, openW
             <ShieldAlert className="h-5 w-5" />
           </motion.button>
           <motion.button
-            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.06, y: -1 }} whileTap={{ scale: 0.96 }}
             className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#7b1de8] shadow-xl"
             title="Edit Settings"
           >
@@ -445,8 +446,8 @@ const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingPro
     <motion.article
       initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ y: -5 }}
-      transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.32, ease: [0.23, 1, 0.32, 1] }}
       className={`relative overflow-hidden rounded-[28px] flex flex-col group transition-all duration-300 ${isFlagged ? 'border-[#FF4343]/30' : 'border-[rgba(166,61,255,0.12)]'}`}
       style={{ 
         borderWidth: '1.5px',
@@ -458,7 +459,7 @@ const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingPro
       <div className="relative h-56 overflow-hidden flex items-center justify-center" style={{ background: isFlagged ? '#fff5f5' : '#f5f4ff' }}>
         <Image src={(Array.isArray(p.images) && p.images[0]) ? p.images[0] : PRODUCT_CARD_IMAGE}
           alt={p.name || 'Product'} fill sizes="320px"
-          className="object-contain p-4 transition-transform duration-700 group-hover:scale-110"
+          className="object-contain p-4 transition-transform duration-500 group-hover:scale-110"
           unoptimized={Array.isArray(p.images) && !!p.images[0]} />
         
         {/* Status & Flag Badges */}
@@ -482,7 +483,7 @@ const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingPro
         {/* Hover Actions Overlay */}
         <div className="absolute inset-0 bg-[#4a1a8a]/40 opacity-0 group-hover:opacity-100 transition-all duration-300 backdrop-blur-[2px] flex items-center justify-center gap-3">
           <motion.button
-            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.06, y: -1 }} whileTap={{ scale: 0.96 }}
             onClick={() => setSelectedProduct(p)}
             className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#4a1a8a] shadow-xl"
             title="View Details"
@@ -490,7 +491,7 @@ const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingPro
             <Eye className="h-5 w-5" />
           </motion.button>
           <motion.button
-            whileHover={{ scale: 1.1, y: -2 }} whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.06, y: -1 }} whileTap={{ scale: 0.96 }}
             onClick={() => openDeleteProductModal(p)}
             className="h-10 w-10 rounded-full bg-white flex items-center justify-center text-[#FF4343] shadow-xl"
             title="Delete / Take Down"
@@ -530,7 +531,7 @@ const ProductCard = React.memo(({ p, isSuspicious, suspiciousReasons, workingPro
         {/* Footer Meta */}
         <div className="mt-auto flex items-center justify-between pt-3 border-t border-[rgba(166,61,255,0.06)]">
           <div className="flex items-center gap-2">
-            <div className={`h-2 w-2 rounded-full ${status === 'published' ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <div className={`h-2 w-2 rounded-full ${status === 'published' ? 'bg-[#00C438]' : 'bg-[#B2AEBF]'}`} />
             <span className="text-[9px] font-black uppercase tracking-widest opacity-60" style={{ color: '#4a1a8a' }}>{status}</span>
           </div>
           {p.createdAt && (
@@ -1176,23 +1177,18 @@ function MonitoringPageContent() {
           <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
 
           <main className="flex-1 overflow-y-auto">
-            <div className="p-6 lg:p-8">
+            <div className="p-4 sm:p-6 lg:p-8">
 
-              {/* Page header */}
-              <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-6">
-                <h1 className="text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>
-                  Website Card &amp; Product Monitoring
-                </h1>
-                <p className="mt-1 text-sm font-medium" style={{ color: '#a78bfa' }}>
-                  Track performance and status for all active digital entities.
-                </p>
-              </motion.div>
+              <AdminPageHero
+                title="Website & Product Monitoring"
+                subtitle="Track performance and status for all active digital entities."
+              />
 
               {/* Toolbar */}
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.06 }}
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.32, delay: 0.06 }}
                 className="mb-6 flex flex-wrap items-center gap-3">
 
-                <div className="relative w-full max-w-[280px]">
+                <div className="relative w-full max-w-full sm:max-w-[280px]">
                   <input type="text" placeholder="Search name or domain…" value={search}
                     onChange={(e) => setSearch(e.target.value)} suppressHydrationWarning
                     className="h-11 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
@@ -1232,7 +1228,7 @@ function MonitoringPageContent() {
                 </div>
 
                 <motion.button 
-                  whileTap={{ scale: 0.94 }}
+                  whileTap={{ scale: 0.96 }}
                   type="button" onClick={() => router.push('/admindashboard/moderationCompliance')}
                   suppressHydrationWarning
                   className="relative h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95"
@@ -1252,7 +1248,7 @@ function MonitoringPageContent() {
                 {/* Sort */}
                 <div className="relative">
                   <motion.button 
-                    whileTap={{ scale: 0.94 }}
+                    whileTap={{ scale: 0.96 }}
                     type="button" onClick={() => setSortMenuOpen(!sortMenuOpen)}
                     className="h-11 w-11 rounded-full flex items-center justify-center transition hover:brightness-95 shadow-sm"
                     style={{ background: 'rgba(255,255,255,0.9)', border: '1.5px solid rgba(166,61,255,0.18)', color: '#8b1fe8' }}>
@@ -1285,20 +1281,20 @@ function MonitoringPageContent() {
                 </div>
 
                 {/* Tab switcher */}
-                 <div className="ml-auto flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
+                 <div className="relative flex w-full gap-1 rounded-xl p-1 sm:ml-auto sm:w-auto" style={{ border: '1px solid rgba(166,61,255,0.18)', background: 'rgba(255,255,255,0.7)' }}>
                    {(['websites', 'products'] as const).map((t) => (
                      <motion.button 
                        key={t}
-                       whileTap={{ scale: 0.94 }}
+                       whileTap={{ scale: 0.96 }}
                        onClick={() => handleTabChange(t)} suppressHydrationWarning
-                       className={`relative px-6 py-2 text-sm font-semibold rounded-lg transition-colors duration-200 capitalize ${
+                       className={`relative flex-1 rounded-lg px-4 py-2 text-xs font-semibold capitalize transition-colors duration-300 sm:flex-none sm:px-6 sm:text-sm ${
                          activeTab === t ? 'text-[#1a1035]' : 'text-[#7a6aa0] hover:text-[#1a1035]'
                        }`}>
                        {activeTab === t && (
                          <motion.div
                            layoutId="monitoringTabBackground"
                            className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
-                           transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                           transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                          />
                        )}
                        <span className="relative z-10">{t}</span>
@@ -1309,9 +1305,9 @@ function MonitoringPageContent() {
 
               {/* Websites tab */}
               {activeTab === 'websites' && (
-                <motion.div key="websites-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
-                  className="grid grid-cols-1 xl:grid-cols-[480px_minmax(0,1fr)] gap-4 items-start">
-                  {renderAnalyticsColumn()}
+                <motion.div key="websites-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.32 }}
+                  className="grid grid-cols-1 gap-4 items-start">
+                  <div className="hidden" aria-hidden="true">{renderAnalyticsColumn()}</div>
                   <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
                     {loading ? (
                       <p className="text-sm" style={{ color: '#a090c8' }}>Loading websites…</p>
@@ -1338,9 +1334,9 @@ function MonitoringPageContent() {
 
               {/* Products tab */}
               {activeTab === 'products' && (
-                <motion.div key="products-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
-                  className="grid grid-cols-1 xl:grid-cols-[480px_minmax(0,1fr)] gap-4 items-start">
-                  {renderAnalyticsColumn()}
+                <motion.div key="products-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.32 }}
+                  className="grid grid-cols-1 gap-4 items-start">
+                  <div className="hidden" aria-hidden="true">{renderAnalyticsColumn()}</div>
                   <div className="max-h-[calc(100vh-260px)] overflow-y-auto pr-1">
                     {loading ? (
                       <p className="text-sm" style={{ color: '#a090c8' }}>Loading products…</p>
@@ -1370,14 +1366,14 @@ function MonitoringPageContent() {
                 {selectedProduct && (
                   <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={overlayStyle} onClick={() => setSelectedProduct(null)}>
                     <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.2 }}
+                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.28 }}
                       className="w-full max-w-2xl rounded-[24px] p-6 pointer-events-auto"
                       style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}
                       onClick={(e) => e.stopPropagation()}>
                       <div className="mb-5 flex items-center justify-between">
                         <h3 className="text-xl font-bold" style={{ color: '#4a1a8a' }}>Product Details</h3>
                         <motion.button 
-                          whileTap={{ scale: 0.94 }}
+                          whileTap={{ scale: 0.96 }}
                           type="button" onClick={() => setSelectedProduct(null)}
                           className="rounded-xl px-3 py-1.5 text-sm font-medium transition hover:brightness-95 flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
@@ -1407,7 +1403,7 @@ function MonitoringPageContent() {
                       </div>
                       <div className="mt-5 flex justify-end">
                         <motion.button 
-                          whileTap={{ scale: 0.94 }}
+                          whileTap={{ scale: 0.96 }}
                           type="button" onClick={() => openDeleteProductModal(selectedProduct)}
                           className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 flex items-center justify-center"
                           style={{ background: '#ef4444' }}>
@@ -1424,7 +1420,7 @@ function MonitoringPageContent() {
                 {websiteActionModal.open && websiteActionModal.target && (
                   <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={overlayStyle}>
                     <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.2 }}
+                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.28 }}
                       className="w-full max-w-xl rounded-[24px] p-6"
                       style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}>
                       <h3 className="text-xl font-bold mb-1" style={{ color: '#4a1a8a' }}>Moderate Website</h3>
@@ -1439,7 +1435,7 @@ function MonitoringPageContent() {
                         ].map(({ action, label }) => (
                           <motion.button 
                             key={action} 
-                            whileTap={{ scale: 0.98 }}
+                            whileTap={{ scale: 0.96 }}
                             type="button"
                             onClick={() => setWebsiteActionModal((prev) => ({ ...prev, action }))}
                             className="rounded-xl px-4 py-2.5 text-left text-sm font-medium transition"
@@ -1460,14 +1456,14 @@ function MonitoringPageContent() {
                         rows={4} placeholder="State the moderation reason…" />
                       <div className="mt-4 flex justify-end gap-2">
                         <motion.button 
-                          whileTap={{ scale: 0.94 }}
+                          whileTap={{ scale: 0.96 }}
                           type="button" onClick={() => setWebsiteActionModal({ open: false, target: null, action: 'take_down', reason: '' })}
                           className="rounded-xl px-4 py-2 text-sm font-semibold transition flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Cancel
                         </motion.button>
                         <motion.button 
-                          whileTap={{ scale: 0.94 }}
+                          whileTap={{ scale: 0.96 }}
                           type="button" onClick={submitWebsiteAction}
                           disabled={Boolean(websiteActionModal.target) && workingWebsiteKey === `${websiteActionModal.target.userId}::${websiteActionModal.target.id}`}
                           className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
@@ -1485,7 +1481,7 @@ function MonitoringPageContent() {
                 {productDeleteModal.open && productDeleteModal.target && (
                   <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={overlayStyle}>
                     <motion.div initial={{ scale: 0.97, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.2 }}
+                      exit={{ scale: 0.97, opacity: 0 }} transition={{ duration: 0.28 }}
                       className="w-full max-w-xl rounded-[24px] p-6"
                       style={{ background: 'rgba(255,255,255,0.97)', border: '1px solid rgba(166,61,255,0.16)', boxShadow: '0 24px 56px rgba(103,2,191,0.14)' }}>
                       <h3 className="text-xl font-bold mb-1" style={{ color: '#4a1a8a' }}>Delete Product</h3>
@@ -1502,14 +1498,14 @@ function MonitoringPageContent() {
                         rows={4} placeholder="State why this product is being deleted…" />
                       <div className="mt-4 flex justify-end gap-2">
                         <motion.button 
-                          whileTap={{ scale: 0.94 }}
+                          whileTap={{ scale: 0.96 }}
                           type="button" onClick={() => setProductDeleteModal({ open: false, target: null, reason: '' })}
                           className="rounded-xl px-4 py-2 text-sm font-semibold transition flex items-center justify-center"
                           style={{ background: 'rgba(166,61,255,0.07)', color: '#7a6aa0', border: '1px solid rgba(166,61,255,0.12)' }}>
                           Cancel
                         </motion.button>
                         <motion.button 
-                          whileTap={{ scale: 0.94 }}
+                          whileTap={{ scale: 0.96 }}
                           type="button" onClick={submitDeleteProduct}
                           disabled={Boolean(productDeleteModal.target) && workingProductId === productDeleteModal.target.id}
                           className="rounded-xl px-5 py-2 text-sm font-semibold text-white transition hover:brightness-95 disabled:opacity-60 flex items-center justify-center"
@@ -1527,7 +1523,7 @@ function MonitoringPageContent() {
                 {toast.open && (
                   <motion.div
                     initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 12 }} transition={{ duration: 0.2 }}
+                    exit={{ opacity: 0, y: 12 }} transition={{ duration: 0.28 }}
                     className="fixed bottom-6 right-6 z-[70] rounded-2xl px-5 py-3 text-sm font-semibold text-white shadow-lg"
                     style={{ background: toast.tone === 'error' ? '#dc2626' : '#16a34a' }}>
                     {toast.message}

@@ -225,7 +225,6 @@ export const CategoryTile = ({
   };
 
   const onMediaPointerDown: React.PointerEventHandler<HTMLDivElement> = (event) => {
-    event.stopPropagation();
     const pointX = event.clientX;
     const pointY = event.clientY;
     dragStartRef.current = {
@@ -239,7 +238,6 @@ export const CategoryTile = ({
 
   const onMediaPointerMove: React.PointerEventHandler<HTMLDivElement> = (event) => {
     if (!isFraming || !dragStartRef.current) return;
-    event.stopPropagation();
     const dx = event.clientX - dragStartRef.current.x;
     const dy = event.clientY - dragStartRef.current.y;
     const nextX = Math.max(-300, Math.min(300, Math.round(dragStartRef.current.ox + dx)));
@@ -393,7 +391,7 @@ export const CategoryTile = ({
     <>
       <style>{`
         .${tileClassName} {
-          width: ${safeWidth}px;
+          width: min(${safeWidth}px, 100%);
           height: ${safeHeight}px;
           margin: ${safeMarginY}px ${safeMarginX}px;
           border-radius: ${safeRadius}px;
@@ -486,12 +484,6 @@ export const CategoryTile = ({
             event.stopPropagation();
             setIsEditingLabel(true);
           }}
-          onMouseDown={(event) => {
-            event.stopPropagation();
-          }}
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
           onBlur={() => {
             if (isEditingLabel) flushLabelText();
           }}
@@ -515,13 +507,13 @@ export const CategoryTile = ({
       {contextMenu && resolvedImageUrl ? (
         <div
           ref={contextMenuRef}
-          className="fixed z-[10000] min-w-[160px] overflow-hidden rounded-xl border border-[var(--builder-border)] bg-[var(--builder-surface-1)] shadow-[0_18px_50px_rgba(0,0,0,0.18)]"
+          className="fixed z-[10000] min-w-[160px] overflow-hidden rounded-xl border border-(--builder-border) bg-(--builder-surface-1) shadow-[0_18px_50px_rgba(0,0,0,0.18)]"
           onClick={(event) => event.stopPropagation()}
           onContextMenu={(event) => event.preventDefault()}
         >
           <button
             type="button"
-            className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${resolvedImageFit === "contain" ? "bg-[var(--builder-surface-2)] text-[var(--builder-text)]" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)]"}`}
+            className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${resolvedImageFit === "contain" ? "bg-builder-surface-2 text-builder-text" : "text-builder-text hover:bg-builder-surface-2"}`}
             onClick={() => {
               applyImageFit("contain");
               setContextMenu(null);
@@ -532,7 +524,7 @@ export const CategoryTile = ({
           </button>
           <button
             type="button"
-            className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${resolvedImageFit === "cover" ? "bg-[var(--builder-surface-2)] text-[var(--builder-text)]" : "text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)]"}`}
+            className={`flex w-full items-center justify-between px-3 py-2 text-left text-xs ${resolvedImageFit === "cover" ? "bg-builder-surface-2 text-builder-text" : "text-builder-text hover:bg-builder-surface-2"}`}
             onClick={() => {
               applyImageFit("cover");
               setContextMenu(null);
@@ -563,7 +555,7 @@ function ColorField({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-[11px] text-[var(--builder-text-muted)]">{title}</label>
+      <label className="text-[11px] text-builder-text-muted">{title}</label>
       <div className="flex items-center gap-2">
         <input
           type="color"
@@ -571,7 +563,7 @@ function ColorField({
           aria-label={title}
           value={value || "#ffffff"}
           onChange={(event) => onChange(event.target.value)}
-          className="h-8 w-10 cursor-pointer rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-1"
+          className="h-8 w-10 cursor-pointer rounded border border-(--builder-border) bg-builder-surface-2 p-1"
         />
         <input
           title={`${title} hex`}
@@ -579,7 +571,7 @@ function ColorField({
           value={value || ""}
           onChange={(event) => onChange(event.target.value)}
           placeholder="#RRGGBB"
-          className="h-8 flex-1 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+          className="h-8 flex-1 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
         />
       </div>
     </div>
@@ -632,6 +624,34 @@ const CategoryTileSettings = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
 
+  const looksLikeImageUrl = (value: string) => {
+    const trimmed = String(value || "").trim();
+    if (!trimmed) return false;
+    if (!/^https?:\/\//i.test(trimmed) && !trimmed.startsWith("data:image/") && !trimmed.startsWith("blob:")) return false;
+    if (trimmed.startsWith("data:image/") || trimmed.startsWith("blob:")) return true;
+    return /\.(png|jpe?g|gif|webp|svg|avif)(\?.*)?$/i.test(trimmed);
+  };
+
+  const extractDroppedImageUrl = (dataTransfer: DataTransfer | null | undefined): string => {
+    if (!dataTransfer) return "";
+    const libraryUrl = dataTransfer.getData("media-library-url") || "";
+    const canvasUrl = dataTransfer.getData("canvas-image-url") || "";
+    const uriList = dataTransfer.getData("text/uri-list") || "";
+    const plainText = dataTransfer.getData("text/plain") || "";
+    const html = dataTransfer.getData("text/html") || "";
+    const htmlMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+    const htmlUrl = htmlMatch?.[1] || "";
+    return [libraryUrl, canvasUrl, uriList, plainText, htmlUrl].find((item) => looksLikeImageUrl(item)) || "";
+  };
+
+  const applyImageUrl = (nextUrl: string) => {
+    const normalized = String(nextUrl || "").trim();
+    if (!normalized) return;
+    setProp((props: CategoryTileProps) => {
+      props.imageUrl = normalized;
+    });
+  };
+
   const onUploadFile = async (file: File) => {
     if (!file.type.startsWith("image/")) return;
 
@@ -657,7 +677,7 @@ const CategoryTileSettings = () => {
     <div className="flex flex-col gap-0">
       <DesignSection title="Category Card" defaultOpen>
         <div className="flex flex-col gap-2">
-          <label className="text-[11px] text-[var(--builder-text-muted)]">Category Text</label>
+          <label className="text-[11px] text-builder-text-muted">Category Text</label>
           <input
             title="Category text"
             aria-label="Category text"
@@ -668,10 +688,10 @@ const CategoryTileSettings = () => {
                 props.label = value;
               });
             }}
-            className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+            className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
           />
 
-          <label className="mt-1 text-[11px] text-[var(--builder-text-muted)]">Image URL</label>
+          <label className="mt-1 text-[11px] text-builder-text-muted">Image URL</label>
           <input
             title="Category image URL"
             aria-label="Category image URL"
@@ -683,7 +703,7 @@ const CategoryTileSettings = () => {
               });
             }}
             placeholder="https://..."
-            className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+            className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
           />
 
           <input
@@ -703,7 +723,7 @@ const CategoryTileSettings = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-3)] px-3 text-xs text-[var(--builder-text)]"
+              className="h-8 rounded border border-(--builder-border) bg-builder-surface-3 px-3 text-xs text-builder-text"
             >
               {uploading ? "Uploading..." : "Upload Image"}
             </button>
@@ -714,17 +734,17 @@ const CategoryTileSettings = () => {
                   props.imageUrl = "";
                 });
               }}
-              className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-3)] px-3 text-xs text-[var(--builder-text)]"
+              className="h-8 rounded border border-(--builder-border) bg-builder-surface-3 px-3 text-xs text-builder-text"
             >
               Use Icon
             </button>
           </div>
 
-          <p className="text-[10px] text-[var(--builder-text-muted)]">
+          <p className="text-[10px] text-builder-text-muted">
             Tip: Drag image directly on the card to reframe. Double-click the image to toggle fit. Right-click for crop or adjust.
           </p>
 
-          <label className="mt-1 text-[11px] text-[var(--builder-text-muted)]">Default Icon</label>
+          <label className="mt-1 text-[11px] text-builder-text-muted">Default Icon</label>
           <select
             title="Default icon"
             aria-label="Default icon"
@@ -735,14 +755,14 @@ const CategoryTileSettings = () => {
                 props.iconType = value;
               });
             }}
-            className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+            className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
           >
             <option value="shoppingBag">Shopping Bag</option>
             <option value="home">Home</option>
             <option value="star">Star</option>
           </select>
 
-          <label className="mt-1 text-[11px] text-[var(--builder-text-muted)]">Icon Theme</label>
+          <label className="mt-1 text-[11px] text-builder-text-muted">Icon Theme</label>
           <select
             title="Icon theme"
             aria-label="Icon theme"
@@ -753,7 +773,7 @@ const CategoryTileSettings = () => {
                 props.iconTheme = value;
               });
             }}
-            className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+            className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
           >
             <option value="violet">Violet</option>
             <option value="indigo">Indigo</option>
@@ -761,7 +781,7 @@ const CategoryTileSettings = () => {
 
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Width</label>
+              <label className="text-[11px] text-builder-text-muted">Width</label>
               <input
                 type="number"
                 title="Card width"
@@ -775,11 +795,11 @@ const CategoryTileSettings = () => {
                     props.cardWidth = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Height</label>
+              <label className="text-[11px] text-builder-text-muted">Height</label>
               <input
                 type="number"
                 title="Card height"
@@ -793,11 +813,11 @@ const CategoryTileSettings = () => {
                     props.cardHeight = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Image Height</label>
+              <label className="text-[11px] text-builder-text-muted">Image Height</label>
               <input
                 type="number"
                 title="Image height"
@@ -811,11 +831,11 @@ const CategoryTileSettings = () => {
                     props.mediaHeight = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Radius</label>
+              <label className="text-[11px] text-builder-text-muted">Radius</label>
               <input
                 type="number"
                 title="Corner radius"
@@ -829,11 +849,11 @@ const CategoryTileSettings = () => {
                     props.borderRadius = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Margin X</label>
+              <label className="text-[11px] text-builder-text-muted">Margin X</label>
               <input
                 type="number"
                 title="Horizontal margin"
@@ -847,11 +867,11 @@ const CategoryTileSettings = () => {
                     props.marginX = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Margin Y</label>
+              <label className="text-[11px] text-builder-text-muted">Margin Y</label>
               <input
                 type="number"
                 title="Vertical margin"
@@ -865,11 +885,11 @@ const CategoryTileSettings = () => {
                     props.marginY = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Text Size</label>
+              <label className="text-[11px] text-builder-text-muted">Text Size</label>
               <input
                 type="number"
                 title="Text size"
@@ -883,11 +903,11 @@ const CategoryTileSettings = () => {
                     props.fontSize = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Zoom</label>
+              <label className="text-[11px] text-builder-text-muted">Zoom</label>
               <input
                 type="number"
                 step="0.1"
@@ -902,14 +922,14 @@ const CategoryTileSettings = () => {
                     props.mediaScale = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
           </div>
 
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Image X</label>
+              <label className="text-[11px] text-builder-text-muted">Image X</label>
               <input
                 type="number"
                 title="Image X offset"
@@ -923,11 +943,11 @@ const CategoryTileSettings = () => {
                     props.mediaOffsetX = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--builder-text-muted)]">Image Y</label>
+              <label className="text-[11px] text-builder-text-muted">Image Y</label>
               <input
                 type="number"
                 title="Image Y offset"
@@ -941,7 +961,7 @@ const CategoryTileSettings = () => {
                     props.mediaOffsetY = next;
                   });
                 }}
-                className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+                className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
               />
             </div>
           </div>
@@ -956,7 +976,7 @@ const CategoryTileSettings = () => {
                   props.mediaScale = 1;
                 });
               }}
-              className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-3)] px-3 text-xs text-[var(--builder-text)]"
+              className="h-8 rounded border border-(--builder-border) bg-builder-surface-3 px-3 text-xs text-builder-text"
             >
               Reset Frame
             </button>
@@ -993,7 +1013,7 @@ const CategoryTileSettings = () => {
           </div>
 
           <div className="mt-2 flex flex-col gap-1">
-            <label className="text-[11px] text-[var(--builder-text-muted)]">Image Fit</label>
+            <label className="text-[11px] text-builder-text-muted">Image Fit</label>
             <select
               title="Image fit"
               aria-label="Image fit"
@@ -1004,7 +1024,7 @@ const CategoryTileSettings = () => {
                   props.imageFit = value;
                 });
               }}
-              className="h-8 rounded border border-[var(--builder-border)] bg-[var(--builder-surface-2)] px-2 text-xs text-[var(--builder-text)]"
+              className="h-8 rounded border border-(--builder-border) bg-builder-surface-2 px-2 text-xs text-builder-text"
             >
               <option value="cover">Crop / Fill</option>
               <option value="contain">Show Whole Image</option>
@@ -1012,7 +1032,7 @@ const CategoryTileSettings = () => {
           </div>
 
           <div
-            className="mt-2 rounded border border-dashed border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2 text-[10px] text-[var(--builder-text-muted)]"
+            className="mt-2 rounded border border-dashed border-(--builder-border) bg-builder-surface-2 p-2 text-[10px] text-builder-text-muted"
             onDragOver={(event) => {
               event.preventDefault();
               event.dataTransfer.dropEffect = "copy";

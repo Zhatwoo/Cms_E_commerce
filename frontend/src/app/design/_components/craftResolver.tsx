@@ -52,8 +52,19 @@ import { SplitScreenHeroBlock } from "../../_assets/Hero/SplitScreenHeroBlock";
 import { MinimalTypeHeroBlock } from "../../_assets/Hero/MinimalTypeHeroBlock";
 import { VideoStyleHeroBlock } from "../../_assets/Hero/VideoStyleHeroBlock";
 import { CollectionHeroBlock } from "../../_assets/Hero/CollectionHeroBlock";
+import { FeaturesGridBlock } from "../../_assets/Content/FeaturesGridBlock";
+import { TestimonialBlock } from "../../_assets/Content/TestimonialBlock";
+import { StatsCounterBlock } from "../../_assets/Content/StatsCounterBlock";
+import { NewsletterCTABlock } from "../../_assets/Content/NewsletterCTABlock";
+import { ImageTextBlock } from "../../_assets/Content/ImageTextBlock";
+import { BrandLogosBlock } from "../../_assets/Content/BrandLogosBlock";
+import { CTABannerBlock } from "../../_assets/Content/CTABannerBlock";
 import { CategoryTile as CategoryTileComponent } from "../_designComponents/CategoryTile/CategoryTile";
 import { CategoriesCardCanvas } from "../../_assets/Cards/CategoriesCard/CategoriesCard";
+import { FeaturedProductCanvas } from "../../_assets/Cards/FeaturedProduct/FeaturedProduct";
+import { ProductDescriptionCanvas } from "../../_assets/Cards/ProductDescription/ProductDescription";
+import { TeamMemberCardComp } from "../../_assets/Cards/teammembercard/teammembercard";
+
 
 type Resolver = Record<string, React.ComponentType<any>>;
 
@@ -71,7 +82,18 @@ function withResolverFallback<T extends Resolver>(base: T): T {
       if (typeof prop !== "string") return direct;
 
       const normalized = prop.trim().toLowerCase();
-      
+
+      // If the name ends with 'Comp' (common in our asset names), try the name without that suffix
+      // e.g. 'TeamMemberCardComp' -> try 'TeamMemberCard' / 'teammembercard' / 'TeamMemberCard'
+      if (normalized.endsWith("comp")) {
+        const withoutComp = prop.trim().slice(0, -4); // remove the 'Comp' suffix (preserve case for some lookups)
+        const candidates = [withoutComp, withoutComp.trim().toLowerCase(), withoutComp.charAt(0).toUpperCase() + withoutComp.slice(1)];
+        for (const candidate of candidates) {
+          const found = Reflect.get(target, candidate, receiver);
+          if (found) return found;
+        }
+      }
+
       // Fuzzy shape match for numbered names (e.g. "Heart 1" -> "Heart")
       const fuzzyShape = shapes.find(s => normalized.includes(s));
       if (fuzzyShape) {
@@ -177,8 +199,19 @@ export function buildCraftResolver(): Resolver {
   const MinimalTypeHeroBlockComp = asComponent(MinimalTypeHeroBlock, ContainerComp);
   const VideoStyleHeroBlockComp = asComponent(VideoStyleHeroBlock, ContainerComp);
   const CollectionHeroBlockComp = asComponent(CollectionHeroBlock, ContainerComp);
+  const FeaturesGridBlockComp = asComponent(FeaturesGridBlock, ContainerComp);
+  const TestimonialBlockComp = asComponent(TestimonialBlock, ContainerComp);
+  const StatsCounterBlockComp = asComponent(StatsCounterBlock, ContainerComp);
+  const NewsletterCTABlockComp = asComponent(NewsletterCTABlock, ContainerComp);
+  const ImageTextBlockComp = asComponent(ImageTextBlock, ContainerComp);
+  const BrandLogosBlockComp = asComponent(BrandLogosBlock, ContainerComp);
+  const CTABannerBlockComp = asComponent(CTABannerBlock, ContainerComp);
   const CategoryTileComp = asComponent(CategoryTileComponent, ContainerComp);
   const CategoriesCardCanvasComp = asComponent(CategoriesCardCanvas, ContainerComp);
+  const FeaturedProductCanvasComp = asComponent(FeaturedProductCanvas, ContainerComp);
+  const ProductDescriptionCanvasComp = asComponent(ProductDescriptionCanvas, ContainerComp);
+  const TeamMemberCardCompResolved = asComponent(TeamMemberCardComp, ContainerComp);
+
   const addAliases = (base: Resolver, name: string, comp: React.ComponentType<any>, extra: string[] = []) => {
     const variants = [
       name,
@@ -210,6 +243,8 @@ export function buildCraftResolver(): Resolver {
     Video: VideoComp,
     video: VideoComp,
     VIDEO: VideoComp,
+    VideoComponent: VideoComp,
+    "Video Component": VideoComp,
     Button: ButtonComp,
     button: ButtonComp,
     Divider: DividerComp,
@@ -319,6 +354,44 @@ export function buildCraftResolver(): Resolver {
     "Category Tile": CategoryTileComp,
     CategoriesCardCanvas: CategoriesCardCanvasComp,
     categoriescardcanvas: CategoriesCardCanvasComp,
+    CategoriesCard: CategoriesCardCanvasComp,
+    categoriescard: CategoriesCardCanvasComp,
+    FeaturedProductCanvas: FeaturedProductCanvasComp,
+    featuredproductcanvas: FeaturedProductCanvasComp,
+    FeaturedProduct: FeaturedProductCanvasComp,
+    featuredproduct: FeaturedProductCanvasComp,
+    "Featured Product": FeaturedProductCanvasComp,
+    ProductDescriptionCanvas: ProductDescriptionCanvasComp,
+    productdescriptioncanvas: ProductDescriptionCanvasComp,
+    ProductDescription: ProductDescriptionCanvasComp,
+    productdescription: ProductDescriptionCanvasComp,
+    "Product Description": ProductDescriptionCanvasComp,
+    TeamMemberCardComp: TeamMemberCardCompResolved,
+    teammembercardcomp: TeamMemberCardCompResolved,
+    TeamMemberCard: TeamMemberCardCompResolved,
+    teammembercard: TeamMemberCardCompResolved,
+    "Team Member Card": TeamMemberCardCompResolved,
+    FeaturesGridBlock: FeaturesGridBlockComp,
+    featuresgridblock: FeaturesGridBlockComp,
+    "Features Grid Block": FeaturesGridBlockComp,
+    TestimonialBlock: TestimonialBlockComp,
+    testimonialblock: TestimonialBlockComp,
+    "Testimonial Block": TestimonialBlockComp,
+    StatsCounterBlock: StatsCounterBlockComp,
+    statscounterblock: StatsCounterBlockComp,
+    "Stats Counter Block": StatsCounterBlockComp,
+    NewsletterCTABlock: NewsletterCTABlockComp,
+    newsletterctablock: NewsletterCTABlockComp,
+    "Newsletter CTA Block": NewsletterCTABlockComp,
+    ImageTextBlock: ImageTextBlockComp,
+    imagetextblock: ImageTextBlockComp,
+    "Image Text Block": ImageTextBlockComp,
+    BrandLogosBlock: BrandLogosBlockComp,
+    brandlogosblock: BrandLogosBlockComp,
+    "Brand Logos Block": BrandLogosBlockComp,
+    CTABannerBlock: CTABannerBlockComp,
+    ctabannerblock: CTABannerBlockComp,
+    "CTA Banner Block": CTABannerBlockComp,
   };
   base.Image = ImageComp;
   base.image = ImageComp;
@@ -326,6 +399,9 @@ export function buildCraftResolver(): Resolver {
   base.text = TextComp;
   base.Container = ContainerComp;
   base.container = ContainerComp;
+  base.Video = VideoComp;
+  base.video = VideoComp;
+  addAliases(base, "Video", VideoComp, ["video component", "Video Component"]);
   addAliases(base, "Button", ButtonComp);
   addAliases(base, "Divider", DividerComp);
   addAliases(base, "Banner", BannerComp);
@@ -343,6 +419,10 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "ProfileLoginNode", ProfileLoginNodeComp, ["ProfileLogin", "profilelogin"]);
   addAliases(base, "ProductSlider", ProductSliderComp, ["Product Slider", "productslider"]);
   addAliases(base, "CategoriesCardCanvas", CategoriesCardCanvasComp, ["Categories Card Canvas", "categoriescardcanvas"]);
+  addAliases(base, "CategoriesCard", CategoriesCardCanvasComp, ["Categories Card", "categoriescard"]);
+  addAliases(base, "FeaturedProductCanvas", FeaturedProductCanvasComp, ["Featured Product", "featuredproduct", "FeaturedProduct"]);
+  addAliases(base, "ProductDescriptionCanvas", ProductDescriptionCanvasComp, ["Product Description", "productdescription", "ProductDescription"]);
+  addAliases(base, "Team Member Card", TeamMemberCardCompResolved, ["teammembercard", "TeamMemberCard", "TeamMemberCardComp", "TeamMemberCardCanvas"]);
   addAliases(base, "CategoryTile", CategoryTileComp, ["Category Tile", "categorytile"]);
   addAliases(base, "ProductCard", ProductCardComp, ["Product Card", "productcard"]);
   addAliases(base, "ProductDescriptionCard", ProductDescriptionCardComp, ["Product Description Card", "productdescriptioncard"]);
@@ -354,6 +434,13 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "MinimalTypeHeroBlock", MinimalTypeHeroBlockComp, ["Minimal Type Hero Block", "minimaltypeheroblock"]);
   addAliases(base, "VideoStyleHeroBlock", VideoStyleHeroBlockComp, ["Video Style Hero Block", "videostyleheroblock"]);
   addAliases(base, "CollectionHeroBlock", CollectionHeroBlockComp, ["Collection Hero Block", "collectionheroblock"]);
+  addAliases(base, "FeaturesGridBlock", FeaturesGridBlockComp, ["Features Grid Block", "featuresgridblock"]);
+  addAliases(base, "TestimonialBlock", TestimonialBlockComp, ["Testimonial Block", "testimonialblock"]);
+  addAliases(base, "StatsCounterBlock", StatsCounterBlockComp, ["Stats Counter Block", "statscounterblock"]);
+  addAliases(base, "NewsletterCTABlock", NewsletterCTABlockComp, ["Newsletter CTA Block", "newsletterctablock"]);
+  addAliases(base, "ImageTextBlock", ImageTextBlockComp, ["Image Text Block", "imagetextblock"]);
+  addAliases(base, "BrandLogosBlock", BrandLogosBlockComp, ["Brand Logos Block", "brandlogosblock"]);
+  addAliases(base, "CTABannerBlock", CTABannerBlockComp, ["CTA Banner Block", "ctabannerblock"]);
   return withResolverFallback(base);
 }
 

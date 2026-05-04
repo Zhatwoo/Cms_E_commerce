@@ -163,7 +163,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
 
               {/* Top: custom frontend result */}
               <div className={`overflow-hidden rounded-2xl ${card}`}>
-                <div className={`flex items-center justify-between px-5 py-2.5 ${isDarkMode ? 'bg-gradient-to-r from-[#bf4dff] to-[#8b3dff]' : 'bg-[#0bc298]'}`}>
+                <div className={`flex items-center justify-between px-5 py-2.5 ${isDarkMode ? 'bg-linear-to-r from-[#bf4dff] to-[#8b3dff]' : 'bg-[#0bc298]'}`}>
                   <span className="text-xs font-bold tracking-wide text-white">Custom frontend without custom code</span>
                   <div className="flex gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-white/30" />
@@ -187,7 +187,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
                         viewport={{ once: false }}
                         transition={{ delay: 0.26 + i * 0.08, duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
                       >
-                        <div className={`absolute inset-0 bg-gradient-to-br ${
+                        <div className={`absolute inset-0 bg-linear-to-br ${
                           isDarkMode 
                             ? (i === 0 ? 'from-[#7c3aed]/12' : i === 1 ? 'from-[#d946ef]/10' : 'from-[#ffcc00]/8')
                             : (i === 0 ? 'from-[#fecdd3]/40' : i === 1 ? 'from-[#fef3c7]/40' : 'from-[#e0f2fe]/40')
@@ -198,7 +198,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
                   <div className="flex items-center gap-2 pt-1">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                       <motion.div
-                        className="h-full rounded-full bg-gradient-to-r from-[#7c3aed] to-[#d946ef]"
+                        className="h-full rounded-full bg-linear-to-r from-[#7c3aed] to-[#d946ef]"
                         initial={{ width: 0 }}
                         whileInView={{ width: '68%' }}
                         viewport={{ once: false }}
@@ -306,7 +306,7 @@ export function CentricTools({ isDarkMode = false }: { isDarkMode?: boolean }) {
                 ))}
               </dl>
 
-              <div className="mt-5 h-px w-full bg-gradient-to-r from-transparent via-[#7c3aed]/25 to-transparent" />
+              <div className="mt-5 h-px w-full bg-linear-to-r from-transparent via-[#7c3aed]/25 to-transparent" />
               <p className={`mt-3 text-center text-[10px] ${frameDesc}`}>✦ Live preview enabled</p>
             </Reveal>
 

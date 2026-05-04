@@ -215,7 +215,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
                 item.id === 'home'
                   ? pathname === '/m_dashboard'
                   : item.id === 'web-builder'
-                    ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
+                    ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/projects')
                     : item.id === 'inventory'
                       ? pathname.startsWith('/m_dashboard/inventory')
                       : item.href
@@ -296,7 +296,7 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
               item.id === 'home'
                 ? pathname === '/m_dashboard'
                 : item.id === 'web-builder'
-                  ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/web-builder') || pathname.startsWith('/m_dashboard/projects')
+                  ? pathname.startsWith('/design') || pathname.startsWith('/m_dashboard/projects')
                   : item.id === 'inventory'
                     ? pathname.startsWith('/m_dashboard/inventory')
                     : item.href

@@ -3,7 +3,8 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 const { getAll, getOne, create, update, delete: deleteProduct, uploadImage, adminDelete } = require('../controllers/productController');
-const { protect, admin } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 const upload = multer({
   storage: multer.memoryStorage(),

@@ -3,6 +3,7 @@ import { useNode } from "@craftjs/core";
 import { Star } from "lucide-react";
 import { RatingSettings } from "./RatingSettings";
 import type { RatingProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -74,12 +75,14 @@ export const Rating = ({
   flipVertical = false,
   cursor = "default",
   overflow = "visible",
+  isFreeform,
 }: RatingProps) => {
-  const { connectors: { connect, drag }, actions } = useNode();
+  const { id, connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "inline-flex"
@@ -118,6 +121,7 @@ export const Rating = ({
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
+      data-node-id={id}
       data-fluid-space="true"
       className={`inline-flex ${customClassName}`}
       style={{
@@ -241,7 +245,7 @@ export const RatingDefaultProps: Partial<RatingProps> = {
   height: "auto",
   padding: 0,
   margin: 0,
-  fontFamily: "Outfit",
+  fontFamily: fonts.uiRaw,
   fontWeight: "500",
   fontSize: 12,
   lineHeight: 1.2,

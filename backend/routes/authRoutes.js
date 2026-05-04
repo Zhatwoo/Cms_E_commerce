@@ -19,7 +19,7 @@ const {
   createStripeSetupIntent,
   getStripePublicKey
 } = require('../controllers/authController');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 const { validate } = require('../middleware/validate');
 
 const upload = multer({

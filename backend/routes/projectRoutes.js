@@ -5,8 +5,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const router = express.Router();
-const { list, create, getOne, getBySubdomain, update, delete: deleteProject, listTrash, restore, permanentDelete, uploadMedia, deleteMedia, getStorageUsage } = require('../controllers/projectController');
-const { protect } = require('../middleware/auth');
+const { list, create, getOne, getBySubdomain, update, delete: deleteProject, listTrash, restore, permanentDelete, uploadMedia, deleteMedia, getStorageUsage, listTemplateLibrary } = require('../controllers/projectController');
+const protect = require('../middleware/protectMiddleware');
 
 const mediaUpload = multer({
   storage: multer.diskStorage({
@@ -31,6 +31,7 @@ const mediaUpload = multer({
 router.use(protect);
 
 router.get('/', list);
+router.get('/templates/library', listTemplateLibrary);
 router.get('/trash', listTrash);
 router.get('/by-subdomain', getBySubdomain);
 router.post('/', create);

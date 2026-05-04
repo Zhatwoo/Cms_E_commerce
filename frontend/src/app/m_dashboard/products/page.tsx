@@ -7,7 +7,8 @@ import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { type Product, type ProductVariant } from '../lib/productsData';
-import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
+import { createProduct, deleteProduct, updateProduct, type ApiProduct } from '@/lib/api';
+import { useProducts } from './hooks/useProducts';
 import { SearchBar } from '../components/ui/searchbar';
 import { EmptyState, type EmptyStateTone } from '../components/ui/emptyState';
 import ProductAddModal from './components/productAddModal';
@@ -21,7 +22,7 @@ import { AddProductButton } from './components/button';
 import { StatusFilterButton } from './components/subbuttons';
 import { ViewModeToggle } from '../components/buttons/viewModeToggle';
 
-type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain' | 'projectId'>;
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 type ProductPopupState = {
@@ -474,14 +475,30 @@ function normalizeSubdomain(value?: string | null): string {
 export default function ProductsPage() {
   const { colors, theme } = useTheme();
   const { showConfirm, showAlert } = useAlert();
-  const { selectedProject, loading: projectLoading } = useProject();
+  const { selectedProject, selectedProjectId, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
-  const blockedAddProductMessage = !selectedSubdomain
-    ? 'Set a subdomain for this website first to manage products.'
+  const blockedAddProductMessage = !selectedProjectId
+    ? 'Select a website project first to manage products.'
     : null;
-  const canAddProducts = Boolean(selectedSubdomain);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
+  const canAddProducts = Boolean(selectedProjectId) && !projectLoading;
+  const addProductHelperMessage = selectedProjectId && !selectedSubdomain
+    ? "This website isn't published yet — you can still add products now."
+    : null;
+  const handleProductLoadError = useCallback(
+    (msg: string) => showAlert(msg, 'error'),
+    [showAlert]
+  );
+  const {
+    products,
+    loading: loadingProducts,
+    reload: loadProducts,
+  } = useProducts<Product>({
+    enabled: canAddProducts,
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+    transform: toDashboardProduct,
+    onError: handleProductLoadError,
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -547,40 +564,6 @@ export default function ProductsPage() {
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [openMenuProductId]);
-
-  const loadProducts = useCallback(async () => {
-    if (projectLoading) {
-      setLoadingProducts(true);
-      return;
-    }
-    setLoadingProducts(true);
-    if (!canAddProducts) {
-      setProducts([]);
-      setLoadingProducts(false);
-      return;
-    }
-    try {
-      const res = await listProducts({
-        subdomain: selectedSubdomain,
-        page: 1,
-        limit: 500,
-      });
-      if (res?.success && Array.isArray(res.items)) {
-        setProducts(res.items.map(toDashboardProduct));
-      } else {
-        setProducts([]);
-      }
-    } catch (error) {
-      setProducts([]);
-      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
-
-  useEffect(() => {
-    void loadProducts();
-  }, [loadProducts]);
 
   const handleRefreshOnFocus = useCallback(() => {
     if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
@@ -761,16 +744,24 @@ export default function ProductsPage() {
         images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
       };
 
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, payload);
+      const providedId = typeof (productData as { id?: unknown })?.id === 'string'
+        ? String((productData as { id?: unknown }).id)
+        : undefined;
+      const providedIdMatchesExisting = !!providedId && products.some((p) => p.id === providedId);
+      const targetProductId =
+        (editingProduct && typeof editingProduct.id === 'string' ? editingProduct.id : undefined) ||
+        (providedIdMatchesExisting ? providedId : undefined);
+
+      if (targetProductId) {
+        await updateProduct(targetProductId, payload);
         successMessage = 'Product updated successfully!';
       } else {
-        if (!selectedSubdomain) {
-          showAlert('Set a subdomain for this website first to manage products.', 'error');
+        if (!selectedSubdomain && !selectedProjectId) {
+          showAlert('Select a website project first to manage products.', 'error');
           return false;
         }
         await createProduct({
-          subdomain: selectedSubdomain,
+          ...(selectedSubdomain ? { subdomain: selectedSubdomain } : { projectId: selectedProjectId || undefined }),
           ...payload,
           slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
         });
@@ -867,7 +858,7 @@ export default function ProductsPage() {
           >
             My{' '}
             <span
-              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Products
@@ -888,8 +879,10 @@ export default function ProductsPage() {
           className="mt-6 mb-7 max-w-[860px] mx-auto"
         />
 
-        {blockedAddProductMessage && (
-          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
+        {(blockedAddProductMessage || addProductHelperMessage) && (
+          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>
+            {blockedAddProductMessage || addProductHelperMessage}
+          </p>
         )}
 
         <div className="w-full grid grid-cols-2 gap-[10px]">
@@ -922,7 +915,7 @@ export default function ProductsPage() {
                 <AddProductButton
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
-                  title={blockedAddProductMessage || 'Add product'}
+                  title={blockedAddProductMessage || addProductHelperMessage || 'Add product'}
                 />
               </div>
 
@@ -1001,6 +994,19 @@ export default function ProductsPage() {
         uploadSubdomain={selectedSubdomain}
         projectIndustry={selectedProject?.industry || null}
       />
+
+      <AnimatePresence>
+        {editingProduct && (
+          <ProductEditModal
+            isOpen={true}
+            onClose={() => setEditingProduct(undefined)}
+            onSave={handleSaveProduct}
+            editingProduct={editingProduct}
+            uploadSubdomain={selectedSubdomain}
+            projectIndustry={selectedProject?.industry || null}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {viewingProduct && (

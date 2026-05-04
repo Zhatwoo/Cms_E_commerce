@@ -1,7 +1,7 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { getProject, getStoredUser, updateProject } from "@/lib/api";
+import React, { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { getProject, getStoredUser, setActiveProjectId, updateProject } from "@/lib/api";
 import { ensureFirebaseAuthForStorage } from "@/lib/firebase";
 
 type DesignProjectContextType = {
@@ -52,7 +52,14 @@ export function DesignProjectProvider({
   const [permission, setPermission] = useState<"editor" | "viewer" | "owner">("viewer");
   const [loading, setLoading] = useState(true);
 
-  const updateProjectTitle = async (newTitle: string): Promise<boolean> => {
+  // Ensure `/api/*` calls in the builder include the correct project scope via `x-project-id`
+  // so draft projects (no subdomain yet) can still load project-scoped products/inventory.
+  useLayoutEffect(() => {
+    setActiveProjectId(projectId);
+    return () => setActiveProjectId(null);
+  }, [projectId]);
+
+  const updateProjectTitle = useCallback(async (newTitle: string): Promise<boolean> => {
     if (!projectId) return false;
     try {
       const res = await updateProject(projectId, { title: newTitle });
@@ -65,7 +72,7 @@ export function DesignProjectProvider({
       console.error("Failed to update project title:", error);
       return false;
     }
-  };
+  }, [projectId]);
 
   // Sync Firebase Auth when user has backend session (so Storage uploads work)
   useEffect(() => {
@@ -107,8 +114,13 @@ export function DesignProjectProvider({
     return () => { cancelled = true; };
   }, [projectId]);
 
+  const value = useMemo(
+    () => ({ projectId, pageId: pageId || null, projectIndustry, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle }),
+    [projectId, pageId, projectIndustry, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle]
+  );
+
   return (
-    <DesignProjectContext.Provider value={{ projectId, pageId: pageId || null, projectIndustry, clientName, websiteName, projectSubdomain, permission, loading, updateProjectTitle }}>
+    <DesignProjectContext.Provider value={value}>
       {children}
     </DesignProjectContext.Provider>
   );

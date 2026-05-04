@@ -74,7 +74,7 @@ export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
       )}
 
       {/* ── Top gold rule ── */}
-      <div className={`h-[2px] w-full bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
+      <div className={`h-[2px] w-full bg-linear-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
 
       <div className="relative z-10 mx-auto max-w-[1280px] px-4 sm:px-6 md:px-10 lg:px-14 xl:px-16">
 
@@ -96,7 +96,7 @@ export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
             <h2 className="mt-4 text-[clamp(2rem,5vw,4.5rem)] font-black leading-[1.03] tracking-[-0.03em]">
               Ready to build your
               <br />
-              <span className={`bg-gradient-to-r bg-clip-text text-transparent ${isDarkMode ? 'from-[#f5c400] via-[#ffdd55] to-[#f5c400]' : 'from-[#9333ea] via-[#c026d3] to-[#ec4899]'}`}>
+              <span className={`bg-linear-to-r bg-clip-text text-transparent ${isDarkMode ? 'from-[#f5c400] via-[#ffdd55] to-[#f5c400]' : 'from-[#9333ea] via-[#c026d3] to-[#ec4899]'}`}>
                 online store?
               </span>
             </h2>
@@ -114,8 +114,8 @@ export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
               suppressHydrationWarning
               className={`group relative overflow-hidden rounded-full px-[clamp(1.75rem,3vw,3rem)] py-[clamp(0.8rem,1.5vw,1.1rem)] text-[clamp(0.9rem,1.3vw,1.1rem)] font-extrabold text-white transition-all duration-300 hover:brightness-110 ${
                 isDarkMode 
-                  ? 'bg-gradient-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_6px_32px_rgba(139,61,255,0.45)] hover:shadow-[0_8px_40px_rgba(139,61,255,0.65)]' 
-                  : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] shadow-[0_6px_32px_rgba(217,70,239,0.3)] hover:shadow-[0_8px_40px_rgba(217,70,239,0.45)]'
+                  ? 'bg-linear-to-r from-[#7c3aed] to-[#9d3fff] shadow-[0_6px_32px_rgba(139,61,255,0.45)] hover:shadow-[0_8px_40px_rgba(139,61,255,0.65)]' 
+                  : 'bg-linear-to-r from-[#9333ea] to-[#ec4899] shadow-[0_6px_32px_rgba(217,70,239,0.3)] hover:shadow-[0_8px_40px_rgba(217,70,239,0.45)]'
               }`}
             >
               {/* Shimmer sweep */}
@@ -242,7 +242,7 @@ export function Footer({ isDarkMode = false }: { isDarkMode?: boolean }) {
       </div>
 
       {/* ── Bottom gold rule ── */}
-      <div className={`h-[2px] w-full bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]/60' : 'via-[#9333ea]/30'} to-transparent`} />
+      <div className={`h-[2px] w-full bg-linear-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]/60' : 'via-[#9333ea]/30'} to-transparent`} />
     </footer>
   );
 }

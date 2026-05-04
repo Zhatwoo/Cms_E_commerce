@@ -50,8 +50,9 @@ export const Spacer = ({
     boxShadow = "none",
     overflow = "visible",
     cursor = "default",
+    isFreeform,
 }: SpacerProps) => {
-    const { connectors: { connect, drag } } = useNode();
+    const { id, connectors: { connect, drag } } = useNode();
 
     // Resolve spacing
     const p = typeof padding === "number" ? padding : 0;
@@ -73,8 +74,9 @@ export const Spacer = ({
     const rbr = radiusBottomRight ?? br;
     const rbl = radiusBottomLeft ?? br;
 
-    const effectiveDisplay =
-        editorVisibility === "hide"
+    const effectiveDisplay = isFreeform
+        ? "block"
+        : editorVisibility === "hide"
             ? "none"
             : editorVisibility === "show" && display === "none"
                 ? "block"
@@ -85,6 +87,7 @@ export const Spacer = ({
             ref={(ref) => {
                 if (ref) connect(drag(ref));
             }}
+            data-node-id={id}
             data-fluid-space="true"
             className={`relative group ${borderWidth === 0 ? "border border-dashed border-brand-medium/10 hover:border-brand-medium/30" : ""} transition-colors ${customClassName}`}
             style={{

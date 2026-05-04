@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useMemo, useState, useCallback } from "react";
 
 export type ImportedComponentItem = {
   id: string;
@@ -67,8 +67,13 @@ export function ImportedComponentsProvider({ children }: { children: React.React
     saveToStorage([]);
   }, []);
 
+  const value = useMemo(
+    () => ({ items, addItem, removeItem, clearAll }),
+    [items, addItem, removeItem, clearAll]
+  );
+
   return (
-    <ImportedComponentsContext.Provider value={{ items, addItem, removeItem, clearAll }}>
+    <ImportedComponentsContext.Provider value={value}>
       {children}
     </ImportedComponentsContext.Provider>
   );

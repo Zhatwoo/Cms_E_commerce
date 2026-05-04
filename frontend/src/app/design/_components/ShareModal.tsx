@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useDesignProject } from "../_context/DesignProjectContext";
 import { apiFetch } from "@/lib/api";
-import { createPortal } from "react-dom";
+import { ModalShell } from '@/components/ui/ModalShell';
 import {
     X,
     Copy,
@@ -195,23 +195,45 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
 
     const handleCopyLink = () => {
         const url = `${window.location.origin}/design?projectId=${projectId}`;
-        navigator.clipboard.writeText(url).then(() => {
-            setCopiedLink(true);
-            setTimeout(() => setCopiedLink(false), 2500);
-        });
+        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2500);
+            }).catch(() => {
+                fallbackCopyTextToClipboard(url);
+            });
+        } else {
+            fallbackCopyTextToClipboard(url);
+        }
     };
 
-    if (!isOpen) return null;
-    if (typeof document === "undefined") return null;
+    // Fallback for older browsers or non-secure context
+    function fallbackCopyTextToClipboard(text: string) {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            // Avoid scrolling to bottom
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 2500);
+        } catch (err) {
+            // Optionally handle error
+        }
+    }
 
-    return createPortal(
-        <div
-            className="fixed inset-0 z-[99999] flex items-center justify-center"
-            onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    return (
+        <ModalShell
+            isOpen={isOpen}
+            onClose={onClose}
+            usePortal
+            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/60 backdrop-blur-sm"
         >
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-
             {/* Modal */}
             <div
                 className="relative z-10 w-full max-w-lg mx-4 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200"
@@ -631,7 +653,6 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
                     </div>
                 </div>
             )}
-        </div>,
-        document.body
+        </ModalShell>
     );
 };

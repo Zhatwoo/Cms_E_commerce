@@ -2,7 +2,7 @@ import React from "react";
 import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { NumericInput } from "../../_components/rightPanel/settings/inputs/NumericInput";
@@ -12,7 +12,7 @@ import type { ButtonProps, SetProp, TypographyProps } from "../../_types/compone
 
 export const ButtonSettings = () => {
   const {
-    label, link, variant,
+    id, label, link, variant,
     backgroundColor, textColor,
     fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration, color,
     borderRadius, borderWidth,
@@ -21,10 +21,11 @@ export const ButtonSettings = () => {
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     node,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     label: node.data.props.label,
     link: node.data.props.link,
     variant: node.data.props.variant,
@@ -65,6 +66,7 @@ export const ButtonSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
     node,
   }));
@@ -77,31 +79,31 @@ export const ButtonSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Label */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Label</label>
+            <label className="text-[10px] text-builder-text">Label</label>
             <input
               type="text"
               value={label}
               onChange={(e) => typedSetProp((props) => { props.label = e.target.value; })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
             />
           </div>
 
           {/* Link URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Link URL</label>
+            <label className="text-[10px] text-builder-text">Link URL</label>
             <input
               type="text"
               value={link}
               onChange={(e) => typedSetProp((props) => { props.link = e.target.value; })}
               placeholder="https://..."
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
             />
           </div>
 
           {/* Variant */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Variant</label>
-            <div className="grid grid-cols-5 gap-1 bg-[var(--builder-surface-2)] p-1 rounded-lg border border-[var(--builder-border)]">
+            <label className="text-[10px] text-builder-text">Variant</label>
+            <div className="grid grid-cols-5 gap-1 bg-builder-surface-2 p-1 rounded-lg border border-(--builder-border)">
               {(["primary", "secondary", "outline", "ghost", "cta"] as const).map((v) => (
                 <button
                   key={v}
@@ -118,8 +120,8 @@ export const ButtonSettings = () => {
                     }
                   })}
                   className={`text-[10px] py-1.5 rounded capitalize transition-colors ${variant === v
-                    ? "bg-[var(--builder-accent)] text-black"
-                    : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                    ? "bg-builder-accent text-black"
+                    : "text-builder-text-muted hover:text-builder-text"
                     }`}
                 >
                   {v}
@@ -140,9 +142,11 @@ export const ButtonSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -174,7 +178,7 @@ export const ButtonSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Colors */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Background</label>
+            <label className="text-[10px] text-builder-text">Background</label>
             <ColorPicker
               value={backgroundColor || "#3b82f6"}
               onChange={(val) => typedSetProp((props) => { props.backgroundColor = val; })}
@@ -184,7 +188,7 @@ export const ButtonSettings = () => {
           {/* Border & Radius */}
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Radius</label>
+              <label className="text-[10px] text-builder-text">Radius</label>
               <NumericInput
                 value={borderRadius ?? 8}
                 onChange={(val) => typedSetProp((props) => { props.borderRadius = val; })}
@@ -193,7 +197,7 @@ export const ButtonSettings = () => {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] text-[var(--builder-text)]">Border Width</label>
+              <label className="text-[10px] text-builder-text">Border Width</label>
               <NumericInput
                 value={borderWidth ?? 0}
                 onChange={(val) => typedSetProp((props) => { props.borderWidth = val; })}

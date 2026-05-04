@@ -3,7 +3,7 @@ import { useNode } from "@craftjs/core";
 import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -14,16 +14,17 @@ import type { ImageProps, SetProp } from "../../_types/components";
 
 export const ImageSettings = () => {
   const {
-    src, alt, objectFit,
+    id, src, alt, objectFit,
     width, height,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     paddingLeft, paddingRight, paddingTop, paddingBottom,
     marginLeft, marginRight, marginTop, marginBottom,
     opacity, boxShadow, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     src: node.data.props.src,
     alt: node.data.props.alt,
     objectFit: node.data.props.objectFit,
@@ -57,6 +58,7 @@ export const ImageSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
   }));
 
@@ -124,14 +126,14 @@ export const ImageSettings = () => {
         <div className="flex flex-col gap-3">
           {/* Source URL */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Source URL</label>
+            <label className="text-[10px] text-builder-text">Source URL</label>
             <div className="flex gap-2">
               <input
                 type="text"
                 value={src}
                 onChange={(e) => typedSetProp((props) => { props.src = e.target.value; })}
                 placeholder="https://example.com/image.jpg"
-                className="flex-1 bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+                className="flex-1 bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
               />
               {/* Hidden file input */}
               <input
@@ -146,13 +148,13 @@ export const ImageSettings = () => {
                 type="button"
                 onClick={handleBrowseClick}
                 disabled={uploading}
-                className="px-3 py-2 bg-[var(--builder-surface-3)] hover:bg-[var(--builder-surface-3)] border border-[var(--builder-border)] rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
+                className="px-3 py-2 bg-builder-surface-3 hover:bg-builder-surface-3 border border-(--builder-border) rounded-md transition-colors flex items-center justify-center disabled:opacity-50"
                 title="Browse files"
               >
                 {uploading ? (
-                  <Loader2 className="w-4 h-4 text-[var(--builder-text-muted)] animate-spin" />
+                  <Loader2 className="w-4 h-4 text-builder-text-muted animate-spin" />
                 ) : (
-                  <Upload className="w-4 h-4 text-[var(--builder-text-muted)]" />
+                  <Upload className="w-4 h-4 text-builder-text-muted" />
                 )}
               </button>
               {/* Clear button (only show if image is selected) */}
@@ -169,13 +171,13 @@ export const ImageSettings = () => {
             </div>
             {uploading && (
               <div className="mt-1.5 flex flex-col gap-1">
-                <div className="h-1.5 w-full bg-[var(--builder-surface-3)] rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-builder-surface-3 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-[var(--builder-accent)] rounded-full transition-[width] duration-150"
+                    className="h-full bg-builder-accent rounded-full transition-[width] duration-150"
                     style={{ width: `${uploadProgress}%` }}
                   />
                 </div>
-                <p className="text-[10px] text-[var(--builder-text-muted)]">{uploadProgress}% uploaded</p>
+                <p className="text-[10px] text-builder-text-muted">{uploadProgress}% uploaded</p>
               </div>
             )}
             {uploadError && (
@@ -189,36 +191,36 @@ export const ImageSettings = () => {
               </p>
             )}
             {isDataUrl && !uploading && !uploadError && (
-              <p className="text-[9px] text-[var(--builder-text-faint)] mt-1">
+              <p className="text-[9px] text-builder-text-faint mt-1">
                 Using local preview (not in Storage)
               </p>
             )}
-            <p className="text-[9px] text-[var(--builder-text-faint)] mt-2 italic px-1">
+            <p className="text-[9px] text-builder-text-faint mt-2 italic px-1">
               Tip: Drag & drop from the Media tab to replace instantly.
             </p>
           </div>
 
           {/* Alt Text */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Alt Text</label>
+            <label className="text-[10px] text-builder-text">Alt Text</label>
             <input
               type="text"
               value={alt}
               onChange={(e) => typedSetProp((props) => { props.alt = e.target.value; })}
               placeholder="Describe the image"
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
             />
           </div>
 
           {/* Object Fit */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] text-[var(--builder-text)]">Object Fit</label>
+            <label className="text-[10px] text-builder-text">Object Fit</label>
             <select
               value={objectFit}
               onChange={(e) => typedSetProp((props) => {
                 props.objectFit = e.target.value as ImageProps["objectFit"];
               })}
-              className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-1.5 focus:outline-none"
+              className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-1.5 focus:outline-none"
             >
               <option value="cover">Cover</option>
               <option value="contain">Contain</option>
@@ -240,9 +242,11 @@ export const ImageSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

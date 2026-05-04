@@ -1,6 +1,6 @@
 const jwt = require('jsonwebtoken');
 const PublishedSiteUser = require('../models/PublishedSiteUser');
-const { SITE_COOKIE_NAME, resolvePublishedSite } = require('../middleware/publishedSiteAuth');
+const { SITE_COOKIE_NAME, resolvePublishedSite } = require('../utils/publishedSiteResolver');
 
 const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 

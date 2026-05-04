@@ -2,6 +2,7 @@ const { db, getRealtimeDb } = require('../config/firebase');
 const { docToObject, deleteRecursive } = require('../utils/firestoreHelper');
 const Domain = require('./Domain');
 const { getTrashRetentionMs } = require('../utils/trashConfig');
+const log = require('../utils/logger')('Project');
 
 function getProjectsRef(userId) {
   return db.collection('user').doc('roles').collection('client').doc(userId).collection('projects');
@@ -43,7 +44,7 @@ async function list(userId) {
   const t = Date.now();
   const ref = getProjectsRef(userId);
   const snap = await ref.get();
-  console.log('[READ] Firestore projects.get', { path: ref.path, docs: snap.size, ms: Date.now() - t });
+  log.debug('[READ] Firestore projects.get', { path: ref.path, docs: snap.size, ms: Date.now() - t });
   const items = snap.docs.map(d => sanitizeProject(docToObject(d))).filter(x => x);
   // Sort in JS instead of Firestore to avoid filtering out docs missing 'updated_at'
   return items.sort((a, b) => {
@@ -63,6 +64,8 @@ async function update(userId, projectId, data) {
   const updates = {};
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.templateName !== undefined) updates.template_name = (data.templateName || '').toString().trim() || null;
+  if (data.templateContent !== undefined) updates.template_content = data.templateContent || null;
   if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
@@ -107,7 +110,7 @@ async function moveToTrash(userId, projectId) {
     try {
       await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).remove();
     } catch (e) {
-      console.warn('moveToTrash: RTDB cleanup failed:', e.message);
+      log.warn('moveToTrash: RTDB cleanup failed:', e.message);
     }
   }
 
@@ -133,7 +136,7 @@ async function listTrash(userId) {
     // Auto-purge older than retention threshold if found during listing
     if (ageMs > retentionMs) {
       // Trigger background purge (don't await to keep response fast)
-      permanentDelete(userId, x.id).catch(err => console.error('Auto-purge failed:', err));
+      permanentDelete(userId, x.id).catch(err => log.error('Auto-purge failed:', err));
       return false;
     }
 
@@ -183,7 +186,7 @@ async function restore(userId, projectId) {
         status: 'draft',
       });
     } catch (e) {
-      console.warn('restore: RTDB sync failed:', e.message);
+      log.warn('restore: RTDB sync failed:', e.message);
     }
   }
 
@@ -213,7 +216,7 @@ async function permanentDelete(userId, projectId) {
     try {
       await rtdb.ref(`user/roles/client/${userId}/projects/${projectId}`).remove();
     } catch (e) {
-      console.warn('permanentDelete: RTDB cleanup failed:', e.message);
+      log.warn('permanentDelete: RTDB cleanup failed:', e.message);
     }
   }
 }
@@ -247,7 +250,7 @@ async function getBySubdomain(userId, subdomain) {
       }
     }
   } catch (err) {
-    console.warn('getBySubdomain RTDB fallback error:', err.message);
+    log.warn('getBySubdomain RTDB fallback error:', err.message);
   }
   return null;
 }
@@ -275,7 +278,7 @@ async function listShared(userId, userEmail) {
         .get();
     } catch (e) {
       if (/index|indexes/i.test(String(e.message))) {
-        console.warn('[Project.listShared] Run: firebase deploy --only firestore:indexes');
+        log.warn('[Project.listShared] Run: firebase deploy --only firestore:indexes');
       }
       return { docs: [] };
     }
@@ -285,7 +288,7 @@ async function listShared(userId, userEmail) {
     normalizedEmail ? runQuery('email', normalizedEmail) : { docs: [] },
     userId ? runQuery('userId', userId) : { docs: [] },
   ]);
-  console.log('[READ] Firestore listShared collectionGroup', { byEmail: byEmailSnap?.docs?.length || 0, byUserId: byUserIdSnap?.docs?.length || 0, ms: Date.now() - t0 });
+  log.debug('[READ] Firestore listShared collectionGroup', { byEmail: byEmailSnap?.docs?.length || 0, byUserId: byUserIdSnap?.docs?.length || 0, ms: Date.now() - t0 });
 
   const allCollabDocs = [
     ...(byEmailSnap.docs || []),
@@ -336,7 +339,7 @@ async function listShared(userId, userEmail) {
 
   const sharedProjects = results.filter(p => p !== null);
 
-  console.log('[READ] Firestore listShared done', { sharedCount: sharedProjects.length, totalMs: Date.now() - t0 });
+  log.debug('[READ] Firestore listShared done', { sharedCount: sharedProjects.length, totalMs: Date.now() - t0 });
   return sharedProjects;
 }
 
@@ -345,11 +348,11 @@ async function countAll() {
     const t0 = Date.now();
     // Use collectionGroup to count projects across all users efficiently
     const snap = await db.collectionGroup('projects').get();
-    console.log('[READ] Project.countAll collectionGroup', { count: snap.size, ms: Date.now() - t0 });
+    log.debug('[READ] Project.countAll collectionGroup', { count: snap.size, ms: Date.now() - t0 });
     return snap.size;
   } catch (e) {
     if (/index|indexes/i.test(String(e.message))) {
-      console.warn('[Project.countAll] Fallback: collectionGroup index needed. Run: firebase deploy --only firestore:indexes');
+      log.warn('[Project.countAll] Fallback: collectionGroup index needed. Run: firebase deploy --only firestore:indexes');
       // Fallback if index missing (this is slow but safe)
       const snap = await db.collection('user').doc('roles').collection('client').get();
       let total = 0;
@@ -358,9 +361,70 @@ async function countAll() {
       }
       return total;
     }
-    console.error('[Project.countAll] Error:', e.message);
+    log.error('[Project.countAll] Error:', e.message);
     return 0;
   }
+}
+
+/**
+ * List template projects across all users for the shared template library.
+ * Uses collectionGroup so templates created by one user are visible to others.
+ */
+async function listTemplateLibrary(limit = 60) {
+  const t0 = Date.now();
+
+  const normalizedLimit = Number.isFinite(Number(limit))
+    ? Math.max(1, Math.min(200, Number(limit)))
+    : 60;
+
+  // Avoid where() index requirements by reading and filtering in-memory.
+  const groupSnap = await db.collectionGroup('projects').get();
+  const templateDocs = groupSnap.docs.filter((doc) => {
+    const data = doc.data() || {};
+    const status = String(data.status || '').trim().toLowerCase();
+    return status === 'template';
+  });
+
+  const ownerIds = Array.from(new Set(templateDocs.map((doc) => doc.ref.parent?.parent?.id).filter(Boolean)));
+  const ownerNameById = new Map();
+
+  await Promise.all(ownerIds.map(async (ownerId) => {
+    try {
+      const ownerSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).get();
+      if (ownerSnap.exists) {
+        const data = ownerSnap.data() || {};
+        ownerNameById.set(ownerId, data.full_name || data.displayName || data.username || null);
+      }
+    } catch (_) {
+      // Keep owner name optional when lookup fails.
+    }
+  }));
+
+  const items = templateDocs
+    .map((doc) => {
+      const ownerId = doc.ref.parent?.parent?.id || null;
+      const base = sanitizeProject(docToObject(doc));
+      return {
+        ...base,
+        ownerId,
+        ownerName: ownerId ? ownerNameById.get(ownerId) || null : null,
+      };
+    })
+    .sort((a, b) => {
+      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tB - tA;
+    })
+    .slice(0, normalizedLimit);
+
+  log.debug('[READ] Project.listTemplateLibrary', {
+    total: groupSnap.size,
+    templates: templateDocs.length,
+    returned: items.length,
+    ms: Date.now() - t0,
+  });
+
+  return items;
 }
 
 
@@ -379,4 +443,5 @@ module.exports = {
   getTrashRef, // Exported for controller usage
   countAll,
   countWithSubdomain,
+  listTemplateLibrary,
 };

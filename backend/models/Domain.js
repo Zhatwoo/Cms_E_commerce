@@ -1,5 +1,6 @@
 const { db, admin } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
+const log = require('../utils/logger')('Domain');
 const FieldValue = admin.firestore.FieldValue;
 
 const COLLECTION = 'domains';
@@ -346,7 +347,7 @@ async function setSubdomainLookup(subdomain, { userId, projectId, domainId, stat
         });
       }
     } catch (e) {
-      console.warn('setSubdomainLookup: failed to sync client domains path:', e.message);
+      log.warn('setSubdomainLookup: failed to sync client domains path:', e.message);
     }
   }
 }
@@ -367,42 +368,54 @@ async function findBySubdomain(subdomain) {
 
   // Fallback: collection group query on client domains
   try {
+    // Avoid composite-index requirement by querying only on subdomain then filtering in memory.
+    // (subdomain == X AND status == published) would otherwise require a composite index.
     const groupSnap = await db.collectionGroup('domains')
       .where('subdomain', '==', normalized)
-      .where('status', '==', 'published')
-      .limit(1)
+      .limit(10)
       .get();
+
     if (!groupSnap.empty) {
-      const doc = groupSnap.docs[0];
-      const data = docToObject(doc);
-      // Extract userId from path: user/roles/client/{userId}/domains/{domainId}
-      const pathParts = doc.ref.path.split('/');
-      const clientIdx = pathParts.indexOf('client');
-      const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
-      let publishedContent = data.publishedContent ?? data.published_content ?? null;
-      if (publishedContent && typeof publishedContent === 'object') {
-        try { publishedContent = JSON.parse(JSON.stringify(publishedContent)); } catch { publishedContent = null; }
+      const publishedDoc = groupSnap.docs.find((doc) => {
+        try {
+          const status = String(doc.get('status') || '').toLowerCase();
+          return status === 'published';
+        } catch {
+          return false;
+        }
+      });
+
+      if (publishedDoc) {
+        const data = docToObject(publishedDoc);
+        // Extract userId from path: user/roles/client/{userId}/domains/{domainId}
+        const pathParts = publishedDoc.ref.path.split('/');
+        const clientIdx = pathParts.indexOf('client');
+        const userId = clientIdx >= 0 && clientIdx + 1 < pathParts.length ? pathParts[clientIdx + 1] : data.userId;
+        let publishedContent = data.publishedContent ?? data.published_content ?? null;
+        if (publishedContent && typeof publishedContent === 'object') {
+          try { publishedContent = JSON.parse(JSON.stringify(publishedContent)); } catch { publishedContent = null; }
+        }
+        return {
+          id: data.id || publishedDoc.id,
+          projectId: data.projectId,
+          userId: userId,
+          subdomain: normalized,
+          projectTitle: data.projectTitle,
+          status: data.status,
+          publishedContent,
+          owner: data.ownerUserId || data.ownerName || data.ownerEmail ? {
+            userId: data.ownerUserId || null,
+            email: data.ownerEmail || null,
+            name: data.ownerName || null,
+            avatar: data.ownerAvatar || null,
+            username: data.ownerUsername || null,
+            subscriptionPlan: data.ownerSubscriptionPlan || null,
+          } : null,
+        };
       }
-      return {
-        id: data.id || doc.id,
-        projectId: data.projectId,
-        userId: userId,
-        subdomain: normalized,
-        projectTitle: data.projectTitle,
-        status: data.status,
-        publishedContent,
-        owner: data.ownerUserId || data.ownerName || data.ownerEmail ? {
-          userId: data.ownerUserId || null,
-          email: data.ownerEmail || null,
-          name: data.ownerName || null,
-          avatar: data.ownerAvatar || null,
-          username: data.ownerUsername || null,
-          subscriptionPlan: data.ownerSubscriptionPlan || null,
-        } : null,
-      };
     }
   } catch (e) {
-    console.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
+    log.warn('findBySubdomain collectionGroup query failed, falling back:', e.message);
   }
 
   return null;
@@ -450,7 +463,7 @@ async function findByCustomDomain(domain) {
       };
     }
   } catch (e) {
-    console.warn('findByCustomDomain failed:', e.message);
+    log.warn('findByCustomDomain failed:', e.message);
   }
   return null;
 }
@@ -755,7 +768,7 @@ async function applyScheduledPublishes() {
       });
       await batch.commit();
     } catch (e) {
-      console.warn('applyScheduledPublishes failed for', item.subdomain, e.message);
+      log.warn('applyScheduledPublishes failed for', item.subdomain, e.message);
     }
   }
   return toApply.length;

@@ -50,6 +50,7 @@ export const BadgeSettings = () => {
     gap,
     position,
     display,
+    isFreeform,
     alignSelf,
     zIndex,
     top,
@@ -101,6 +102,7 @@ export const BadgeSettings = () => {
     gap: node.data.props.gap,
     position: node.data.props.position,
     display: node.data.props.display,
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
@@ -119,12 +121,12 @@ export const BadgeSettings = () => {
     <div className="flex flex-col pb-4">
       <DesignSection title="Badge" defaultOpen={true}>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-[var(--builder-text)]">Label</label>
+          <label className="text-[10px] text-builder-text">Label</label>
           <input
             type="text"
             value={typeof text === "string" ? text : ""}
             onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-            className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+            className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
           />
         </div>
       </DesignSection>
@@ -134,6 +136,7 @@ export const BadgeSettings = () => {
           nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

@@ -116,7 +116,7 @@ export function ProfileForm({ initialData, onSave, onCancel, isSaving }: Profile
         </div>
       </div>
 
-      <div className="my-10 h-px w-full bg-gradient-to-r from-transparent via-[#F3F4F6] to-transparent" />
+      <div className="my-10 h-px w-full bg-linear-to-r from-transparent via-[#F3F4F6] to-transparent" />
 
       <div className="flex items-center justify-end gap-8">
         <button

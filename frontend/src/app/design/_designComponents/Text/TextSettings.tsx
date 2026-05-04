@@ -5,11 +5,12 @@ import { TransformGroup } from "../../_components/rightPanel/settings/TransformG
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import type { TextProps, SetProp } from "../../_types/components";
 
 export const TextSettings = () => {
   const {
+    id,
     text,
     fontSize, fontFamily, fontWeight, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, color, textDecoration,
     width, height,
@@ -17,12 +18,13 @@ export const TextSettings = () => {
     paddingTop, paddingBottom, paddingLeft, paddingRight,
     opacity, boxShadow,
     rotation, flipHorizontal, flipVertical,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
     previewEditable,
     isCodeBlock,
     codeLanguage,
     actions: { setProp }
   } = useNode(node => ({
+    id: node.id,
     text: node.data.props.text,
     fontSize: node.data.props.fontSize,
     fontStyle: node.data.props.fontStyle,
@@ -59,6 +61,7 @@ export const TextSettings = () => {
     right: node.data.props.right,
     bottom: node.data.props.bottom,
     left: node.data.props.left,
+    isFreeform: node.data.props.isFreeform,
     editorVisibility: node.data.props.editorVisibility,
     previewEditable: node.data.props.previewEditable,
   }));
@@ -74,10 +77,10 @@ export const TextSettings = () => {
             value={safeText}
             onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
             placeholder={isCodeBlock ? "Type your code here..." : "Type your text here..."}
-            className={`w-full bg-[var(--builder-surface-2)] p-2 rounded-lg text-[var(--builder-text)] focus:border-[var(--builder-accent)] focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
+            className={`w-full bg-builder-surface-2 p-2 rounded-lg text-builder-text focus:border-(--builder-accent) focus:outline-none resize-y min-h-[40px] ${isCodeBlock ? "font-mono text-[12px]" : ""}`}
           />
           {isCodeBlock && (
-            <p className="text-[10px] text-[var(--builder-text-muted)] -mt-2">
+            <p className="text-[10px] text-builder-text-muted -mt-2">
               Code block mode {codeLanguage ? `(${codeLanguage})` : ""}.
             </p>
           )}
@@ -87,15 +90,15 @@ export const TextSettings = () => {
               type="checkbox"
               checked={Boolean(previewEditable)}
               onChange={(e) => typedSetProp((props) => { props.previewEditable = e.target.checked; })}
-              className="accent-[var(--builder-accent)] cursor-pointer"
+              className="accent-builder-accent cursor-pointer"
             />
-            <span className="text-[12px] text-[var(--builder-text)]">Allow input in Preview</span>
+            <span className="text-[12px] text-builder-text">Allow input in Preview</span>
           </div>
-          <p className="text-[10px] text-[var(--builder-text-muted)] -mt-2">
+          <p className="text-[10px] text-builder-text-muted -mt-2">
             Lets users type into this text block on the Preview page only.
           </p>
 
-          <div className="h-px bg-[var(--builder-border)] w-full" />
+          <div className="h-px bg-builder-border w-full" />
 
           <TypographyGroup
             fontFamily={fontFamily}
@@ -123,9 +126,11 @@ export const TextSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

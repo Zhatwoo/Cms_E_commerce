@@ -21,14 +21,6 @@ export function ChevronDownIcon({ className = 'h-5 w-5', strokeWidth = 2 }: Icon
   );
 }
 
-export function ExternalLinkIcon({ className = 'h-5 w-5', strokeWidth = 2 }: IconProps) {
-  return (
-    <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-    </svg>
-  );
-}
-
 export function StorageIcon({ className = 'h-5 w-5', strokeWidth = 2 }: IconProps) {
   return (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,31 +48,3 @@ export function CloseIcon({ className = 'w-5 h-5', strokeWidth = 2 }: IconProps)
   );
 }
 
-export function CheckIcon({ className = 'h-4 w-4', strokeWidth = 2 }: IconProps) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={strokeWidth} d="M3.5 8.5L6.5 11.5L12.5 4.5" />
-    </svg>
-  );
-}
-
-export function TrashOutlineIcon({ className = 'h-4 w-4' }: IconProps) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M2.5 4.5h11" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6 2.75h4" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M5 4.5v7.25a1 1 0 001 1h4a1 1 0 001-1V4.5" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M6.75 6.75v3.5" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.6} d="M9.25 6.75v3.5" />
-    </svg>
-  );
-}
-
-export function RestoreIcon({ className = 'h-4 w-4' }: IconProps) {
-  return (
-    <svg className={className} viewBox="0 0 16 16" fill="none" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M5 5H2.75V2.75" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.7} d="M2.75 5a5.25 5.25 0 109.45 3.15" />
-    </svg>
-  );
-}

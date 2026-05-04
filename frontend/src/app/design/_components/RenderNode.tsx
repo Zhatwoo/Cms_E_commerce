@@ -5,6 +5,7 @@ import { ResizeOverlay } from "./ResizeOverlay";
 import { useCanvasTool } from "./CanvasToolContext";
 import { useInlineTextEdit } from "./InlineTextEditContext";
 
+
 function getNodeChildIds(node: Record<string, any> | null | undefined): string[] {
   if (!node || typeof node !== "object") return [];
   const data = (node.data ?? {}) as Record<string, unknown>;
@@ -81,7 +82,7 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
   const suppressPassiveHover = name === "Page";
 
   const { isActive, actions, query } = useEditor((state, query) => ({
-    isActive: query.getEvent('selected').contains(id),
+    isActive: query.getEvent("selected").contains(id),
   }));
 
   const [isDomHovered, setIsDomHovered] = useState(false);
@@ -180,6 +181,18 @@ export const RenderNode = ({ render }: { render: React.ReactElement }) => {
           const clickedIsGroup = clickedIsCanvas || (clickedDisplayName && selectableGroupNames.has(clickedDisplayName));
 
           if (clickedIsGroup && !clickedIsPageLike) {
+            // If this container is already selected, let the click pass
+            // through so the user can select child components inside it.
+            const state = query.getState();
+            const currentSelected = state.events.selected;
+            const alreadySelected =
+              (currentSelected instanceof Set && currentSelected.has(id)) ||
+              (Array.isArray(currentSelected) && currentSelected.includes(id));
+            if (alreadySelected) {
+              // Don't block — allow child selection
+              return;
+            }
+
             if (event.cancelable) event.preventDefault();
             event.stopPropagation();
             if (typeof event.stopImmediatePropagation === "function" && clickedDisplayName !== "Section") {

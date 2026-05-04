@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
 const CART_KEY_PREFIX = 'storefront_cart_';
 
@@ -26,6 +26,9 @@ type StorefrontContextValue = {
   openCart: () => void;
   closeCart: () => void;
   cartOpen: boolean;
+  showAddToCartSuccess: boolean;
+  setShowAddToCartSuccess: (open: boolean) => void;
+  lastAddedProduct: { name: string; image?: string } | null;
 };
 
 const StorefrontContext = createContext<StorefrontContextValue | null>(null);
@@ -62,6 +65,8 @@ export function StorefrontProvider({
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [lastAddedAt, setLastAddedAt] = useState(0);
+  const [showAddToCartSuccess, setShowAddToCartSuccess] = useState(false);
+  const [lastAddedProduct, setLastAddedProduct] = useState<{ name: string; image?: string } | null>(null);
 
   useEffect(() => {
     setCart(loadCart(subdomain));
@@ -83,6 +88,8 @@ export function StorefrontProvider({
         return [...prev, { ...product, quantity: qty }];
       });
       setLastAddedAt(Date.now());
+      setLastAddedProduct({ name: product.name, image: product.image });
+      setShowAddToCartSuccess(true);
     },
     []
   );
@@ -107,23 +114,36 @@ export function StorefrontProvider({
     );
   }, []);
 
-  const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0);
+  const cartCount = useMemo(() => cart.reduce((sum, i) => sum + i.quantity, 0), [cart]);
+  const openCart = useCallback(() => setCartOpen(true), []);
+  const closeCart = useCallback(() => setCartOpen(false), []);
 
-  const value: StorefrontContextValue = {
-    subdomain,
-    siteTitle,
-    setSiteTitle,
-    cart,
-    lastAddedAt,
-    addToCart,
-    removeFromCart,
-    removeManyFromCart,
-    updateQuantity,
-    cartCount,
-    openCart: () => setCartOpen(true),
-    closeCart: () => setCartOpen(false),
-    cartOpen,
-  };
+  const value = useMemo<StorefrontContextValue>(
+    () => ({
+      subdomain,
+      siteTitle,
+      setSiteTitle,
+      cart,
+      lastAddedAt,
+      addToCart,
+      removeFromCart,
+      removeManyFromCart,
+      updateQuantity,
+      cartCount,
+      openCart,
+      closeCart,
+      cartOpen,
+      showAddToCartSuccess,
+      setShowAddToCartSuccess,
+      lastAddedProduct,
+    }),
+    [
+      subdomain, siteTitle, cart, lastAddedAt,
+      addToCart, removeFromCart, removeManyFromCart, updateQuantity,
+      cartCount, openCart, closeCart, cartOpen,
+      showAddToCartSuccess, lastAddedProduct,
+    ]
+  );
 
   return (
     <StorefrontContext.Provider value={value}>

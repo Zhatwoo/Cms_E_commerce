@@ -2,6 +2,7 @@
 const Domain = require('../models/Domain');
 const Product = require('../models/Product');
 const WebsiteAnalytics = require('../models/WebsiteAnalytics');
+const log = require('../utils/logger')('publicSiteController');
 
 function buildAnalyticsKeys(domain, canonicalSubdomain) {
   return Array.from(new Set([
@@ -9,33 +10,6 @@ function buildAnalyticsKeys(domain, canonicalSubdomain) {
     String(domain?.projectId || '').trim(),
     String(canonicalSubdomain || '').trim(),
   ].filter(Boolean)));
-}
-
-const MIGRATIONS = [
-  ['Create Beautiful Websites', 'Welcome to Our Website'],
-  ['Our visual builder makes it easy to create stunning websites without writing a single line of code.', "We're here to help you discover what you need. Browse our offerings and get in touch."],
-  ['Start Building', 'Learn More'],
-  ['"Excellent service and support. Highly recommended!"', '"Quality products and great experience. Will definitely be back."'],
-  ['John Doe', 'Happy Customer'],
-  ['CEO, Company Name', 'Verified Buyer'],
-  ['JD', 'HC'],
-];
-
-function migrateContent(val) {
-  if (typeof val === 'string') {
-    let out = val;
-    for (const [oldText, newText] of MIGRATIONS) {
-      if (out.includes(oldText)) out = out.split(oldText).join(newText);
-    }
-    return out;
-  }
-  if (Array.isArray(val)) return val.map(migrateContent);
-  if (val && typeof val === 'object' && val.constructor === Object) {
-    const out = {};
-    for (const [k, v] of Object.entries(val)) out[k] = migrateContent(v);
-    return out;
-  }
-  return val;
 }
 
 exports.getBySubdomain = async (req, res) => {
@@ -85,13 +59,13 @@ exports.getBySubdomain = async (req, res) => {
         String(analyticsDomainId || '').trim(),
       ]);
 
-      console.log(`[Analytics] Server-side track for subdomain "${canonicalSubdomain || domain.subdomain || 'unknown'}" using keys: ${Array.from(keys).join(', ')}`);
+      log.debug(`Server-side track for subdomain "${canonicalSubdomain || domain.subdomain || 'unknown'}" using keys: ${Array.from(keys).join(', ')}`);
 
       Promise.all(Array.from(keys).map((key) => WebsiteAnalytics.trackView(key, viewData)))
-        .catch((err) => console.error('getBySubdomain trackView error:', err.message));
+        .catch((err) => log.error('getBySubdomain trackView error:', err.message));
     }
 
-    // Serve the published snapshot with migration for old default template text
+    // Serve the published snapshot exactly as authored during publish.
     const raw = domain.publishedContent ?? null;
     // Normalize: if content is a string, parse it to an object so the frontend
     // always receives a plain object (handles both string and map storage formats)
@@ -99,7 +73,7 @@ exports.getBySubdomain = async (req, res) => {
     if (typeof raw === 'string') {
       try { parsedRaw = JSON.parse(raw); } catch { parsedRaw = raw; }
     }
-    const content = parsedRaw ? migrateContent(parsedRaw) : null;
+    const content = parsedRaw ?? null;
     res.status(200).json({
       success: true,
       data: { content },
@@ -108,7 +82,7 @@ exports.getBySubdomain = async (req, res) => {
       owner: domain.owner || null,
     });
   } catch (error) {
-    console.error('getBySubdomain error:', error);
+    log.error('getBySubdomain error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };
@@ -128,10 +102,15 @@ exports.getProducts = async (req, res) => {
     if (!domain || !domain.userId || !domain.projectId) {
       return res.status(404).json({ success: false, message: 'Site not found' });
     }
-    const published = await Product.findPublicBySubdomain(subdomain, { limit: 100 });
+
+    // Prefer project-scoped products (supports creating products pre-publish).
+    const byProject = await Product.findPublicByProject(domain.userId, domain.projectId, { limit: 100 });
+    const published = byProject.length > 0
+      ? byProject
+      : await Product.findPublicBySubdomain(subdomain, { limit: 100 });
     res.status(200).json({ success: true, data: published });
   } catch (error) {
-    console.error('getProducts error:', error);
+    log.error('getProducts error:', error);
     res.status(500).json({ success: false, message: 'Server error', error: error.message });
   }
 };

@@ -1,12 +1,14 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { motion } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
   AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
   RectangleHorizontal, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
   Plus, Search, X, Video as VideoIcon,
 } from "lucide-react";
+import { DesignTooltip } from "../DesignTooltip";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
 import { useCanvasTool } from "../CanvasToolContext";
@@ -15,19 +17,20 @@ import { GROUPED_TEMPLATES as ASSETS_GROUPS } from "../../../_assets";
 import { GROUPED_TEMPLATES as TEMPLATES_GROUPS } from "../../../_templates";
 import { AssetLivePreview } from "./assetsPanel";
 import { Container } from "../../_designComponents/Container/Container";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
 import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
 import { Video } from "../../_designComponents/Video/Video";
 import { Button } from "../../_designComponents/Button/Button";
 import { Divider } from "../../_designComponents/Divider/Divider";
-import { Section } from "../../_designComponents/Section/Section";
-import { Row } from "../../_designComponents/Row/Row";
-import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
 import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
 import { CRAFT_RESOLVER } from "../craftResolver";
+import { addElementToCanvas } from "../../_lib/addElementToCanvas";
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
 import { Pagination } from "../../_designComponents/Pagination/Pagination";
@@ -69,8 +72,29 @@ const COMP_STYLES: Record<string, { base: string; hoverColor: string }> = {
   "New Page":         { base: "bg-builder-accent/10 text-builder-accent", hoverColor: "#FFCC00" },
 };
 
+const COMPONENT_TOOLTIPS: Record<string, string> = {
+  Section: "Full-width layout block for organizing page sections",
+  Container: "Flexible box for grouping and nesting elements",
+  Row: "Horizontal layout - arrange elements side by side",
+  Banner: "Alert-style announcement bar or notification strip",
+  Badge: "Small label or tag to highlight status or categories",
+  Column: "Vertical layout column - stack elements top to bottom",
+  Text: "Add editable text — headings, paragraphs, labels",
+  Image: "Add an image — upload from device or enter a URL",
+  Video: "Embed a video — YouTube, Vimeo, or direct URL",
+  Spacer: "Invisible spacing block to create gaps between elements",
+  Button: "Clickable button with customizable text, color and link",
+  "Checkbox / Radio": "Form input - checkbox, radio button or toggle",
+  Pagination: "Navigation controls for multi-page content",
+  Rating: "Star rating display for products or reviews",
+  Divider: "Horizontal rule to separate content sections",
+  Tabs: "Tabbed content switcher - show one panel at a time",
+  Accordion: "Expandable/collapsible content panels",
+  "New Page": "Add a new blank page to the canvas",
+};
+
 export const ComponentsPanel = () => {
-  const { connectors } = useEditor();
+  const { connectors, actions, query } = useEditor();
   const { activeTool } = useCanvasTool();
   const { items: importedItems } = useImportedComponents();
   const [panelView, setPanelView] = useState<"landing" | "blocks" | "templates" | "imports">("landing");
@@ -101,8 +125,6 @@ export const ComponentsPanel = () => {
       element: <Banner background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8} text="FLASH SALE: Up to 70% off - Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" textAlign="center" lineHeight={1.2} />,
     },
     { label: "Badge",     icon: <Badge />,          iconStyle: COMP_STYLES.Badge.base,     hoverColor: COMP_STYLES.Badge.hoverColor,
-      // Badge is a leaf node (it renders its own label from `text`).
-      // Creating it as a canvas with a child Text node can corrupt Craft's tree and crash the Frame render.
       element: <BadgeComponent text="Badge" background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8} />,
     },
     { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
@@ -163,6 +185,9 @@ export const ComponentsPanel = () => {
   }, [searchQuery, WORKING_COMPONENTS, importedItems]);
 
   // ── Component card ──────────────────────────────────────────────────────────
+  // Plain div + ref: motion.div forwards refs through framer-motion's wrapper,
+  // which can swallow the DOM ref Craft.js's connectors.create needs to attach
+  // its drag listeners. Hover/tap animations live in CSS instead.
   const renderComponentItem = (v: any) => (
     <div
       key={v.id || v.label}
@@ -171,25 +196,31 @@ export const ComponentsPanel = () => {
         const el = v.dragElement || v.element;
         if (el) connectors.create(ref, withFreePositionDefaults(el));
       }}
+      onClick={() => {
+        if (v.isNewPage) return;
+        const el = v.dragElement || v.element;
+        if (el) addElementToCanvas(query, actions, withFreePositionDefaults(el));
+      }}
       {...(v.isNewPage
         ? { "data-component-new-page": "true", "data-drag-source": "component" }
         : { "data-drag-source": "component" })}
-      className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
+      className="builder-comp-card group relative flex flex-col gap-1.5 cursor-pointer transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
     >
       {/* Icon tile */}
-      <div
-        className={`
-          relative h-16 w-full rounded-xl overflow-hidden
-          flex flex-col items-center justify-center
-          transition-all duration-200
-          border border-[var(--builder-border)]
-          group-hover:border-transparent
-          group-hover:scale-[1.03]
-          group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.18)]
-          ${v.iconStyle || "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)]"}
-        `}
-        style={{ '--tile-hover': v.hoverColor } as React.CSSProperties}
-      >
+      <DesignTooltip content={COMPONENT_TOOLTIPS[v.label] || v.label} position="right">
+        <div
+          className={`
+            relative h-16 w-full rounded-xl overflow-hidden
+            flex flex-col items-center justify-center
+            transition-all duration-200
+            border border-(--builder-border)
+            group-hover:border-transparent
+            group-hover:scale-[1.03]
+            group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.18)]
+            ${v.iconStyle || "bg-builder-surface-2 text-builder-text-muted"}
+          `}
+          style={{ '--tile-hover': v.hoverColor } as React.CSSProperties}
+        >
         {/* solid color fill on hover */}
         <div className="builder-tile-hover-bg absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl"
           style={{ backgroundColor: v.hoverColor || 'var(--builder-purple)' }} />
@@ -206,9 +237,10 @@ export const ComponentsPanel = () => {
             <Plus className="w-2 h-2 text-white" strokeWidth={3} />
           </div>
         </div>
-      </div>
+        </div>
+      </DesignTooltip>
 
-      <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">
+      <span className="text-[9px] font-bold text-builder-text-muted text-center group-hover:text-builder-text transition-colors truncate px-0.5 uppercase tracking-tight">
         {v.label}
       </span>
     </div>
@@ -219,22 +251,26 @@ export const ComponentsPanel = () => {
     if (v.type === "import") {
       return (
         <div key={v.id}
+          data-drag-source="imported"
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
-          className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
+          onClick={() => addElementToCanvas(query, actions, withFreePositionDefaults(v.element))}
+          className="builder-comp-card group relative flex flex-col gap-1.5 cursor-pointer transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
         >
-          <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-[var(--builder-border)] group-hover:border-[var(--builder-border-mid)] bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] transition-all duration-200 group-hover:scale-[1.03]">
+          <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-(--builder-border) group-hover:border-(--builder-border-mid) bg-builder-surface-2 text-builder-text-muted transition-all duration-200 group-hover:scale-[1.03]">
             <FileCode className="w-5 h-5 builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
           </div>
-          <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
+          <span className="text-[9px] font-bold text-builder-text-muted text-center group-hover:text-builder-text transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
         </div>
       );
     }
     return (
       <div key={v.id}
+        data-drag-source="component"
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
-        className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1"
+        onClick={() => addElementToCanvas(query, actions, v.element)}
+        className="builder-comp-card group relative flex flex-col gap-1.5 cursor-pointer col-span-1 transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
       >
-        <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-[var(--builder-border)] group-hover:border-[var(--builder-border-mid)] bg-[var(--builder-surface-2)] transition-all duration-200 group-hover:scale-[1.03]">
+        <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-(--builder-border) group-hover:border-(--builder-border-mid) bg-builder-surface-2 transition-all duration-200 group-hover:scale-[1.03]">
           {v.type === "block" ? (
             <div className="flex items-center justify-center w-full px-1">
               <AssetLivePreview item={v.item}
@@ -242,36 +278,47 @@ export const ComponentsPanel = () => {
                 maxHeight={60} />
             </div>
           ) : (
-            <LayoutTemplate className="w-5 h-5 text-[var(--builder-text-muted)] builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
+            <LayoutTemplate className="w-5 h-5 text-builder-text-muted builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
           )}
         </div>
-        <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
+        <span className="text-[9px] font-bold text-builder-text-muted text-center group-hover:text-builder-text transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
       </div>
     );
   };
 
   // ── Back button shared style ─────────────────────────────────────────────────
   const backBtn = (onClick: () => void) => (
-    <button onClick={onClick}
-      className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all border border-[var(--builder-border)]">
-      <ChevronLeft className="w-4 h-4" />
-    </button>
+    <div className="shrink-0 w-8">
+      <DesignTooltip content="Back to components" position="right">
+        <button onClick={onClick}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-builder-text-muted hover:text-builder-accent hover:bg-builder-surface-2 transition-all border border-(--builder-border)">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </DesignTooltip>
+    </div>
   );
 
   // ── Resource row ─────────────────────────────────────────────────────────────
-  const resourceRow = (item: { id: string; label: string; sub: string; icon: React.ReactNode; action: () => void }) => (
-    <button key={item.id} onClick={item.action}
-      className="group relative h-14 rounded-xl flex items-center px-3 gap-3 overflow-hidden cursor-pointer transition-all duration-200
-        bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)]
-        border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]
-        hover:shadow-[0_0_12px_var(--builder-purple-glow)]"
-    >
+  const resourceRow = (item: { id: string; label: string; sub: string; icon: React.ReactNode; action: () => void; tooltip: string }) => (
+    <DesignTooltip key={item.id} content={item.tooltip} position="top">
+      <motion.button
+        type="button"
+        onClick={item.action}
+        whileHover={{ scale: 1.005 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
+        className="group relative w-full h-14 rounded-xl flex items-center px-3 gap-3 overflow-hidden cursor-pointer transition-all duration-200
+          bg-builder-surface-2 hover:bg-builder-surface-3
+          border border-(--builder-border) hover:border-(--builder-border-mid)
+          hover:shadow-[0_0_12px_var(--builder-purple-glow)]"
+      >
       {/* accent left stripe */}
-      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--builder-accent)] opacity-0 group-hover:opacity-100 transition-opacity rounded-l-xl" />
+      <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-builder-accent opacity-0 group-hover:opacity-100 transition-opacity rounded-l-xl" />
 
       <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0
-        bg-[var(--builder-surface-3)] text-[var(--builder-purple-light)]
-        group-hover:text-[var(--builder-accent)] group-hover:bg-[var(--builder-surface-hover)]
+        bg-builder-surface-3 text-builder-purple-light
+        group-hover:text-builder-accent group-hover:bg-builder-surface-hover
         transition-all duration-200 group-hover:drop-shadow-[0_0_6px_var(--builder-accent-glow)]">
         {React.isValidElement(item.icon)
           ? React.cloneElement(item.icon as React.ReactElement<{ className?: string }>, { className: "w-4 h-4" })
@@ -279,12 +326,13 @@ export const ComponentsPanel = () => {
       </div>
 
       <div className="flex flex-col items-start min-w-0">
-        <span className="text-[10px] font-black tracking-widest uppercase text-[var(--builder-text)] truncate">{item.label}</span>
-        <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--builder-text-faint)] group-hover:text-[var(--builder-text-muted)] transition-colors">{item.sub}</span>
+        <span className="text-[10px] font-black tracking-widest uppercase text-builder-text truncate">{item.label}</span>
+        <span className="text-[8px] font-bold uppercase tracking-wider text-builder-text-faint group-hover:text-builder-text-muted transition-colors">{item.sub}</span>
       </div>
 
-      <ChevronRight className="ml-auto w-3.5 h-3.5 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-0.5 shrink-0" />
-    </button>
+      <ChevronRight className="ml-auto w-3.5 h-3.5 text-builder-text-faint group-hover:text-builder-accent transition-all group-hover:translate-x-0.5 shrink-0" />
+      </motion.button>
+    </DesignTooltip>
   );
 
   return (
@@ -293,21 +341,23 @@ export const ComponentsPanel = () => {
       {/* Search */}
       <div className="px-3 py-2 shrink-0">
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--builder-text-faint)] group-focus-within:text-[var(--builder-accent)] transition-colors" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-builder-text-faint group-focus-within:text-builder-accent transition-colors" />
           <input type="text" placeholder="Search components…"
             value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-8 rounded-lg pl-9 pr-8 text-xs
-              bg-[var(--builder-surface-2)] border border-[var(--builder-border)]
-              text-[var(--builder-text)] placeholder:text-[var(--builder-text-faint)]
-              focus:outline-none focus:border-[var(--builder-border-mid)]
+              bg-builder-surface-2 border border-(--builder-border)
+              text-builder-text placeholder:text-builder-text-faint
+              focus:outline-none focus:border-(--builder-border-mid)
               focus:shadow-[0_0_0_2px_var(--builder-purple-glow)]
               transition-all"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--builder-text-faint)] hover:text-[var(--builder-accent)] transition-colors">
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <DesignTooltip content="Clear search" position="left">
+              <button onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-builder-text-faint hover:text-builder-accent transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </DesignTooltip>
           )}
         </div>
       </div>
@@ -324,7 +374,7 @@ export const ComponentsPanel = () => {
                 if (!items.length) return null;
                 return (
                   <div key={type} className="flex flex-col gap-2">
-                    <span className="text-[9px] font-black text-[var(--builder-text-faint)] uppercase tracking-[0.2em] px-0.5">
+                    <span className="text-[9px] font-black text-builder-text-faint uppercase tracking-[0.2em] px-0.5">
                       {type === "component" ? "Components" : type === "block" ? "Pre-built Blocks" : type === "template" ? "Templates" : "Imports"}
                     </span>
                     <div className="grid grid-cols-3 gap-2">{items.map(renderSearchResultItem)}</div>
@@ -334,8 +384,8 @@ export const ComponentsPanel = () => {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center py-12 gap-2 opacity-40">
-              <Search className="w-8 h-8 text-[var(--builder-text-muted)]" />
-              <span className="text-xs text-[var(--builder-text-muted)] font-medium">No results</span>
+              <Search className="w-8 h-8 text-builder-text-muted" />
+              <span className="text-xs text-builder-text-muted font-medium">No results</span>
             </div>
           )}
         </div>
@@ -351,72 +401,74 @@ export const ComponentsPanel = () => {
 
           {/* Divider with yellow accent */}
           <div className="flex items-center gap-2 px-0.5">
-            <div className="h-px flex-1 bg-[var(--builder-border)]" />
-            <span className="text-[8px] font-black uppercase tracking-[0.25em] text-[var(--builder-accent)]">Resources</span>
-            <div className="h-px flex-1 bg-[var(--builder-border)]" />
+            <div className="h-px flex-1 bg-builder-border" />
+            <span className="text-[8px] font-black uppercase tracking-[0.25em] text-builder-accent">Resources</span>
+            <div className="h-px flex-1 bg-builder-border" />
           </div>
 
           {/* Resource rows */}
           <div className="flex flex-col gap-2">
             {[
-              { id: "blocks",    label: "Pre-built Blocks", sub: "Ready-made sections",       icon: <Box />,           action: () => setPanelView("blocks") },
-              { id: "templates", label: "Templates",        sub: "Full page layouts",          icon: <LayoutTemplate />, action: () => setPanelView("templates") },
-              { id: "imports",   label: "My Imports",       sub: `${importedItems.length} custom modules`, icon: <FileCode />, action: () => setPanelView("imports") },
+              { id: "blocks",    label: "Pre-built Blocks", sub: "Ready-made sections",       icon: <Box />,           action: () => setPanelView("blocks"),    tooltip: "Browse pre-built sections and drag onto your page" },
+              { id: "templates", label: "Templates",        sub: "Full page layouts",          icon: <LayoutTemplate />, action: () => setPanelView("templates"), tooltip: "Choose a full page template to start with" },
+              { id: "imports",   label: "My Imports",       sub: `${importedItems.length} custom modules`, icon: <FileCode />, action: () => setPanelView("imports"),   tooltip: "View your imported HTML blocks and components" },
             ].map(resourceRow)}
           </div>
         </div>
 
         {/* Blocks view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "blocks" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "blocks" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
-            <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
+            <div className="flex items-center gap-2 py-3 sticky top-0 bg-builder-surface z-10">
               {backBtn(() => setPanelView("landing"))}
-              <span className="text-[10px] font-black text-[var(--builder-text)] uppercase tracking-widest">Pre-built Blocks</span>
+              <span className="text-[10px] font-black text-builder-text uppercase tracking-widest">Pre-built Blocks</span>
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar pb-4"><AssetsPanel /></div>
           </div>
         </div>
 
         {/* Templates view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "templates" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "templates" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
-            <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
+            <div className="flex items-center gap-2 py-3 sticky top-0 bg-builder-surface z-10">
               {backBtn(() => setPanelView("landing"))}
-              <span className="text-[10px] font-black text-[var(--builder-text)] uppercase tracking-widest">Templates</span>
+              <span className="text-[10px] font-black text-builder-text uppercase tracking-widest">Templates</span>
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar pb-20"><TemplatePanel /></div>
           </div>
         </div>
 
         {/* Imports view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "imports" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "imports" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
-            <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
+            <div className="flex items-center gap-2 py-3 sticky top-0 bg-builder-surface z-10">
               {backBtn(() => setPanelView("landing"))}
-              <span className="text-[10px] font-black text-[var(--builder-text)] uppercase tracking-widest">My Imports</span>
+              <span className="text-[10px] font-black text-builder-text uppercase tracking-widest">My Imports</span>
             </div>
             <div className="flex-1 overflow-y-auto no-scrollbar pb-20 space-y-3">
               {importedItems.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 gap-2 opacity-40">
-                  <FileCode className="w-8 h-8 text-[var(--builder-text-muted)]" />
-                  <span className="text-xs text-[var(--builder-text-muted)] font-medium">No imports yet</span>
+                  <FileCode className="w-8 h-8 text-builder-text-muted" />
+                  <span className="text-xs text-builder-text-muted font-medium">No imports yet</span>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {importedItems.map((item) => (
                     <div key={item.id}
+                      data-drag-source="imported"
                       ref={(ref) => {
                         if (!ref || activeTool === "hand") return;
                         connectors.create(ref, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />));
                       }}
-                      className="group p-2.5 rounded-xl cursor-grab transition-all duration-200
-                        bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)]
-                        border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]">
+                      onClick={() => addElementToCanvas(query, actions, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />))}
+                      className="group p-2.5 rounded-xl cursor-pointer transition-all duration-200
+                        bg-builder-surface-2 hover:bg-builder-surface-3
+                        border border-(--builder-border) hover:border-(--builder-border-mid)">
                       <div className="h-12 rounded-lg mb-2 flex items-center justify-center
-                        bg-[var(--builder-surface-3)] border border-dashed border-[var(--builder-border)]">
-                        <FileCode className="w-5 h-5 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-purple-light)] transition-colors" />
+                        bg-builder-surface-3 border border-dashed border-(--builder-border)">
+                        <FileCode className="w-5 h-5 text-builder-text-faint group-hover:text-builder-purple-light transition-colors" />
                       </div>
-                      <span className="text-[9px] text-[var(--builder-text-muted)] font-semibold line-clamp-2 uppercase tracking-tight">{item.name}</span>
+                      <span className="text-[9px] text-builder-text-muted font-semibold line-clamp-2 uppercase tracking-tight">{item.name}</span>
                     </div>
                   ))}
                 </div>
