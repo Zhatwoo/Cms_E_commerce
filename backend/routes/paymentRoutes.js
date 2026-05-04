@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const unionbankService = require('../services/unionbankService');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 const User = require('../models/User');
 const { getFirstUrl } = require('../utils/urlBase');
 

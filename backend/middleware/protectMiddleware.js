@@ -1,11 +1,11 @@
-// middleware/auth.js
+// middleware/protectMiddleware.js
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const log = require('../utils/logger')('authMiddleware');
+const log = require('../utils/logger')('protectMiddleware');
 
-// Protect routes - verify JWT token (id is Firebase Auth uid)
-// Token from HttpOnly cookie (preferred) or Authorization header
-exports.protect = async (req, res, next) => {
+// Verify JWT token (id is Firebase Auth uid).
+// Token from HttpOnly cookie (preferred) or Authorization header.
+module.exports = async function protect(req, res, next) {
   let token =
     req.cookies?.mercato_token ||
     (req.headers.authorization && req.headers.authorization.startsWith('Bearer')
@@ -14,7 +14,6 @@ exports.protect = async (req, res, next) => {
 
   if (!token) {
     if (process.env.NODE_ENV === 'development') {
-      // Development bypass: use a default admin if no token provided
       const devUserId = 'QXBHLYPNx5gMEQjpa2HxD4SfRWT2';
       const user = await User.get(devUserId);
       if (user) {
@@ -60,7 +59,6 @@ exports.protect = async (req, res, next) => {
       subscriptionPlan: user.subscriptionPlan || 'free'
     };
 
-    // Update presence - at most once every minute for lastSeen, but immediately recover isOnline when needed.
     const now = Date.now();
     const lastSeenMs = user.lastSeen ? new Date(user.lastSeen).getTime() : 0;
     if (now - lastSeenMs > 60000 || user.isOnline !== true) {
@@ -70,14 +68,5 @@ exports.protect = async (req, res, next) => {
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Not authorized, invalid token' });
-  }
-};
-
-
-exports.admin = (req, res, next) => {
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
-    next();
-  } else {
-    return res.status(403).json({ success: false, message: 'Access denied. Admin only.' });
   }
 };

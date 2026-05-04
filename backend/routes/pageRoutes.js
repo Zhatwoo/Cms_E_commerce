@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAll, getOne, create, update, delete: deletePage, autoSave, getDraft, deleteDraft, getAllDrafts } = require('../controllers/pageController');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 
 
 router.get('/', getAll);

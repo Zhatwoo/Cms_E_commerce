@@ -7,7 +7,7 @@ const {
     remove,
     sharedWithMe,
 } = require('../controllers/collaborationController');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 
 router.use(protect);
 
