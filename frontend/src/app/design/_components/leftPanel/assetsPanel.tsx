@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ChevronDown, Layout, Star, FileText, CreditCard, FormInput, PanelBottom, Smile, Shapes as ShapesIcon, Megaphone, Briefcase, ShoppingBag } from "lucide-react";
 import { DesignTooltip } from "../DesignTooltip";
 import { GROUPED_TEMPLATES } from "../../../_assets";
+import { addElementToCanvas } from "../../_lib/addElementToCanvas";
 import { buildCraftResolver } from "../craftResolver";
 import { Container } from "../../_designComponents/Container/Container";
 import { Text } from "../../_designComponents/Text/Text";
@@ -532,7 +533,7 @@ export const AssetLivePreview = ({
 };
 
 export const AssetsPanel = () => {
-  const { connectors } = useEditor();
+  const { connectors, actions, query } = useEditor();
   const [panelView, setPanelView] = useState<"folders" | "items">("folders");
   const [activeFolder, setActiveFolder] = useState<string | null>(null);
   const [selectedAsset, setSelectedAsset] = useState<AssetSelection | null>(null);
@@ -752,8 +753,14 @@ export const AssetsPanel = () => {
                             item,
                             key: assetKey,
                           });
+                          if (item?.element) {
+                            const dragElement = iconFolder
+                              ? React.cloneElement(item.element as React.ReactElement<any>, { color: "#000000" })
+                              : item.element;
+                            addElementToCanvas(query, actions, dragElement);
+                          }
                         }}
-                        className={`group bg-builder-surface-2 p-3 rounded-xl hover:bg-builder-surface-3 transition-all border cursor-move shadow-sm ${isSelected ? "border-(--builder-accent) bg-builder-surface-3" : "border-(--builder-border) hover:border-(--builder-border-mid)"
+                        className={`group bg-builder-surface-2 p-3 rounded-xl hover:bg-builder-surface-3 transition-all border cursor-pointer shadow-sm ${isSelected ? "border-(--builder-accent) bg-builder-surface-3" : "border-(--builder-border) hover:border-(--builder-border-mid)"
                           }`}
                       >
                         <div className="flex flex-col gap-2">

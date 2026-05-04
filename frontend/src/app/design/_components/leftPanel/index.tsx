@@ -995,11 +995,15 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                             e.dataTransfer.setData("media-library-name", item.name);
                             e.dataTransfer.setData("text/plain", item.url);
                           }}
-                          onClick={() => {
-                            const next = new Set(selectedItems);
-                            if (next.has(item.id)) next.delete(item.id);
-                            else next.add(item.id);
-                            setSelectedItems(next);
+                          onClick={(e) => {
+                            if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                              const next = new Set(selectedItems);
+                              if (next.has(item.id)) next.delete(item.id);
+                              else next.add(item.id);
+                              setSelectedItems(next);
+                              return;
+                            }
+                            addMediaToCanvas(item);
                           }}
                           ref={(ref) => {
                             if (ref) {
