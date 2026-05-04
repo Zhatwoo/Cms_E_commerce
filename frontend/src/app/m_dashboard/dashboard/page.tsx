@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import {
   updateProject,
@@ -95,10 +95,27 @@ function isTemplateProject(project?: Project | null) {
 
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
   const { theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
-  const [activeTab, setActiveTab] = useState<HeroTab>('designs');
+  // Persist activeTab in the URL so a remount (route refresh, parent re-render)
+  // doesn't kick the user back to "Your Designs" when they're browsing Templates.
+  const tabFromUrl = (searchParams?.get('tab') === 'templates' ? 'templates' : 'designs') as HeroTab;
+  const [activeTab, setActiveTabState] = useState<HeroTab>(tabFromUrl);
+  useEffect(() => {
+    if (tabFromUrl !== activeTab) setActiveTabState(tabFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabFromUrl]);
+  const setActiveTab = useCallback((next: HeroTab) => {
+    setActiveTabState(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    if (next === 'designs') params.delete('tab');
+    else params.set('tab', next);
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false });
+  }, [pathname, router, searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -189,13 +206,25 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     };
   }, [refreshProjects]);
 
-  const projectCount = recentProjects.length;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const matchesSearch = (project: Project) => {
+    if (!normalizedSearch) return true;
+    const title = (project.title ?? '').toLowerCase();
+    const subdomain = (project.subdomain ?? '').toLowerCase();
+    return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+  };
+
+  const filteredRecentProjects = normalizedSearch
+    ? recentProjects.filter(matchesSearch)
+    : recentProjects;
+  const projectCount = filteredRecentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
-  const featuredProject = recentProjects[displayProjectIndex] ?? null;
-  const carouselProjects = projectCount > 1 ? [...recentProjects, recentProjects[0]] : recentProjects;
+  const featuredProject = filteredRecentProjects[displayProjectIndex] ?? null;
+  const carouselProjects = projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects;
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
-  const recentProjectIds = new Set(recentProjects.map((project) => project.id));
-  const designProjects = allProjects.filter((project) => !isTemplateProject(project));
+  const recentProjectIds = new Set(filteredRecentProjects.map((project) => project.id));
+  const designProjectsAll = allProjects.filter((project) => !isTemplateProject(project));
+  const designProjects = designProjectsAll.filter(matchesSearch);
   const otherProjects = designProjects.length > 3 && !showAllOtherProjects
     ? designProjects.filter((project) => !recentProjectIds.has(project.id))
     : designProjects;
