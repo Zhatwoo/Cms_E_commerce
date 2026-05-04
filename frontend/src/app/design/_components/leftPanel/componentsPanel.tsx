@@ -250,6 +250,7 @@ export const ComponentsPanel = () => {
           whileTap={{ scale: 0.985 }}
           transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
           style={{ willChange: "transform" }}
+          data-drag-source="imported"
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
           className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
         >
@@ -266,6 +267,7 @@ export const ComponentsPanel = () => {
         whileTap={{ scale: 0.985 }}
         transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
         style={{ willChange: "transform" }}
+        data-drag-source="component"
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
         className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1"
       >
@@ -454,6 +456,7 @@ export const ComponentsPanel = () => {
                 <div className="grid grid-cols-2 gap-2">
                   {importedItems.map((item) => (
                     <div key={item.id}
+                      data-drag-source="imported"
                       ref={(ref) => {
                         if (!ref || activeTool === "hand") return;
                         connectors.create(ref, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />));

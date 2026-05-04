@@ -986,6 +986,7 @@ export const LeftPanel = ({ onToggle, activePanel: controlledPanel, setActivePan
                       return (
                         <div
                           key={item.id}
+                          data-drag-source="asset"
                           className={`group relative aspect-[4/3] rounded-lg overflow-hidden border transition-all duration-300 cursor-move ${selectedItems.has(item.id) ? "border-(--builder-purple) ring-1 ring-(--builder-purple)" : "border-(--builder-border) bg-builder-surface-2"
                             }`}
                           draggable
