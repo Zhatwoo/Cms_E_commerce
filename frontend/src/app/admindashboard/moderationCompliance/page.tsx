@@ -172,7 +172,7 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, data }) =>
                                 <div className="space-y-3">
                                     <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#A78BFA]">Screenshot Evidence</p>
                                     <div className="aspect-video w-full rounded-2xl bg-[#f5f4ff] border-2 border-dashed border-[rgba(166,61,255,0.2)] flex flex-col items-center justify-center group overflow-hidden relative">
-                                        <div className="absolute inset-0 bg-gradient-to-br from-transparent to-[rgba(166,61,255,0.05)]" />
+                                        <div className="absolute inset-0 bg-linear-to-br from-transparent to-[rgba(166,61,255,0.05)]" />
                                         <svg className="w-10 h-10 text-[#B13BFF] opacity-30 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                                         <p className="mt-3 text-[10px] font-bold uppercase text-[#B13BFF] opacity-50">Captured-view-0294.png</p>
                                     </div>

@@ -16,7 +16,7 @@ export function AdminPageHero({ title, subtitle, rightContent, className = '' }:
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className={`mb-6 rounded-3xl border border-[rgba(177,59,255,0.29)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.14)] sm:px-7 ${className}`}
+      className={`mb-6 rounded-3xl border border-[rgba(177,59,255,0.29)] bg-linear-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.14)] sm:px-7 ${className}`}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>

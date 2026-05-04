@@ -365,7 +365,7 @@ export function AdminDashboard() {
     return (
         <main className="flex-1 overflow-y-auto">
             <div className="w-full px-4 pb-24 pt-4 sm:px-6 lg:px-6 lg:pb-32 lg:pt-6">
-                <div className="rounded-3xl border border-[rgba(177,59,255,0.24)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:px-7">
+                <div className="rounded-3xl border border-[rgba(177,59,255,0.24)] bg-linear-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] px-5 py-6 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:px-7">
                 <div className="flex flex-col gap-2">
                     <motion.h1
                         className="text-[2.45rem] font-bold leading-none tracking-[-0.04em] text-[#26155E] sm:text-[3.35rem]"
@@ -374,7 +374,7 @@ export function AdminDashboard() {
                         transition={{ duration: 0.45, ease: [0.25, 0.8, 0.25, 1] }}
                     >
                         Welcome,{' '}
-                        <span className="bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] bg-clip-text text-transparent">
+                        <span className="bg-linear-to-r from-[#B13BFF] to-[#6D28D9] bg-clip-text text-transparent">
                             {displayName}!
                         </span>
                     </motion.h1>

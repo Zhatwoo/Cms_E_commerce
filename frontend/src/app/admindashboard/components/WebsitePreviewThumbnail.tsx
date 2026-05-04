@@ -61,7 +61,7 @@ export function WebsitePreviewThumbnail({
 
   return (
     <div
-      className={`w-full aspect-[16/10] rounded-t-lg overflow-hidden flex items-center justify-center relative bg-gradient-to-br from-blue-50 to-purple-50 ${className}`}
+      className={`w-full aspect-[16/10] rounded-t-lg overflow-hidden flex items-center justify-center relative bg-linear-to-br from-blue-50 to-purple-50 ${className}`}
       style={{
         backgroundColor: bgColor,
         borderBottom: `1px solid ${borderColor}`,

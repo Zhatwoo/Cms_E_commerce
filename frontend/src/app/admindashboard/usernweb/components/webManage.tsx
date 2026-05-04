@@ -946,7 +946,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                       key={key}
                       className={`select-none cursor-pointer transition-all duration-200 rounded-lg ${
                         isSelected
-                          ? 'bg-gradient-to-r from-[#E8D9FF] to-[#F0E5FF] border-2 border-[#D0B4FF] shadow-md hover:shadow-lg hover:from-[#E0CAFF] hover:to-[#E8D9FF]'
+                          ? 'bg-linear-to-r from-[#E8D9FF] to-[#F0E5FF] border-2 border-[#D0B4FF] shadow-md hover:shadow-lg hover:from-[#E0CAFF] hover:to-[#E8D9FF]'
                           : 'border-b border-[rgba(177,59,255,0.1)] hover:bg-white/35'
                       }`}
                       onClick={(e) => {

@@ -902,8 +902,8 @@ const ColorPickerPopover = ({ value, onChange, onMediaChange, onClose, anchorRef
                         className="relative w-full h-[140px] rounded-lg cursor-crosshair overflow-hidden"
                         style={{ backgroundColor: `rgb(${hueRgb.r}, ${hueRgb.g}, ${hueRgb.b})` }}
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-white to-transparent" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
+                        <div className="absolute inset-0 bg-linear-to-r from-white to-transparent" />
+                        <div className="absolute inset-0 bg-linear-to-t from-black to-transparent" />
                         <div
                             className="absolute w-3 h-3 rounded-full border-2 border-white shadow-md -translate-x-1/2 -translate-y-1/2 pointer-events-none"
                             style={{ left: `${hsva.s * 100}%`, top: `${(1 - hsva.v) * 100}%` }}

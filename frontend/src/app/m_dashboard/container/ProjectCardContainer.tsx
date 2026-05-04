@@ -109,7 +109,7 @@ export function ProjectCardContainer({
   />
   
   {/* SCRIM OVERLAY: This ensures the badge is ALWAYS readable by adding a subtle shadow behind it */}
-  <div className="absolute inset-0 z-10 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-60 pointer-events-none" />
+  <div className="absolute inset-0 z-10 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60 pointer-events-none" />
 
   {/* BADGE PLACEMENT: Floating in the bottom-right corner */}
   <div className="absolute bottom-4 right-4 z-20 flex gap-2 pointer-events-none">

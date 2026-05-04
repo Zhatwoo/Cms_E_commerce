@@ -858,7 +858,7 @@ export default function ProductsPage() {
           >
             My{' '}
             <span
-              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Products

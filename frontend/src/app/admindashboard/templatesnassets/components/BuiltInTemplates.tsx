@@ -40,7 +40,7 @@ export default function BuiltInTemplates({ templates }: BuiltInTemplatesProps) {
                 {template.thumbnail ? (
                   <Image src={template.thumbnail} alt={template.name} fill className="object-cover transition-transform duration-500 group-hover:scale-105" unoptimized />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-[#8FC67E] via-[#4F805C] to-[#1E3C3C]">
+                  <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-[#8FC67E] via-[#4F805C] to-[#1E3C3C]">
                     <span className="text-lg font-semibold text-white/90">{template.category}</span>
                   </div>
                 )}

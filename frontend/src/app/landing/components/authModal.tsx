@@ -338,7 +338,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full rounded-xl bg-linear-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? 'Signing in…' : 'Log in'}
                     </button>
@@ -457,7 +457,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full rounded-xl bg-linear-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? 'Creating account…' : 'Create account'}
                     </button>
@@ -502,7 +502,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'login', initialEmail
                     type="button"
                     onClick={handleResend}
                     disabled={resendLoading || !(pendingEmail || loginEmail || regEmail)}
-                    className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="mt-6 w-full rounded-xl bg-linear-to-r from-[#6d1eea] to-[#7b19dc] py-3 text-base font-extrabold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {resendLoading ? 'Sending…' : 'Resend email'}
                   </button>

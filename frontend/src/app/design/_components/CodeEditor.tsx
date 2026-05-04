@@ -47,7 +47,7 @@ interface ComponentProps {
 
 export const MyComponent: React.FC<ComponentProps> = ({ className = "" }) => {
   return (
-    <div className={'w-full p-6 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg ' + className}>
+    <div className={'w-full p-6 bg-linear-to-r from-blue-500 to-purple-600 rounded-lg shadow-lg ' + className}>
       <h2 className="text-2xl font-bold text-white mb-4">My Reusable Component</h2>
       <p className="text-white/80">Build amazing components with Next.js and Tailwind CSS</p>
     </div>

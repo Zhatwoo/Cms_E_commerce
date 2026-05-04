@@ -65,7 +65,7 @@ export function ProjectSwitchPill() {
         `}
       >
         {/* ICON: Now with more margin-right to breathe */}
-        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] shadow-[0_4px_12px_rgba(0,0,0,0.18)] ${isDark ? 'bg-gradient-to-br from-[#FFCE00] to-[#FFAA00]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899]'}`}>
+        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[8px] shadow-[0_4px_12px_rgba(0,0,0,0.18)] ${isDark ? 'bg-linear-to-br from-[#FFCE00] to-[#FFAA00]' : 'bg-linear-to-r from-[#9333ea] to-[#ec4899]'}`}>
           <span className={`text-[11px] font-black ${isDark ? 'text-[#141446]' : 'text-white'}`}>{selectedInitial}</span>
         </div>
 
@@ -124,7 +124,7 @@ export function ProjectSwitchPill() {
                   >
                     <div className={`
                       w-9 h-9 rounded-xl flex items-center justify-center font-black text-[12px] shrink-0 transition-transform group-hover:scale-105
-                      ${active ? (isDark ? 'bg-[#FFCE00] text-[#141446]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white') : (isDark ? 'bg-[#3A4473]/30 text-[#A8B8DF]' : 'bg-slate-100 text-slate-500')}
+                      ${active ? (isDark ? 'bg-[#FFCE00] text-[#141446]' : 'bg-linear-to-r from-[#9333ea] to-[#ec4899] text-white') : (isDark ? 'bg-[#3A4473]/30 text-[#A8B8DF]' : 'bg-slate-100 text-slate-500')}
                     `}>
                       {project.title?.charAt(0) || 'U'}
                     </div>
