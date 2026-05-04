@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { useCallback, useEffect, useState } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import {
   updateProject,
@@ -17,6 +17,7 @@ import { useAlert } from '../components/context/alert-context';
 import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
+import { ModalShell } from '@/components/ui/ModalShell';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
@@ -94,10 +95,27 @@ function isTemplateProject(project?: Project | null) {
 
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
   const { theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
-  const [activeTab, setActiveTab] = useState<HeroTab>('designs');
+  // Persist activeTab in the URL so a remount (route refresh, parent re-render)
+  // doesn't kick the user back to "Your Designs" when they're browsing Templates.
+  const tabFromUrl = (searchParams?.get('tab') === 'templates' ? 'templates' : 'designs') as HeroTab;
+  const [activeTab, setActiveTabState] = useState<HeroTab>(tabFromUrl);
+  useEffect(() => {
+    if (tabFromUrl !== activeTab) setActiveTabState(tabFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabFromUrl]);
+  const setActiveTab = useCallback((next: HeroTab) => {
+    setActiveTabState(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    if (next === 'designs') params.delete('tab');
+    else params.set('tab', next);
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false });
+  }, [pathname, router, searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -188,13 +206,25 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     };
   }, [refreshProjects]);
 
-  const projectCount = recentProjects.length;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const matchesSearch = (project: Project) => {
+    if (!normalizedSearch) return true;
+    const title = (project.title ?? '').toLowerCase();
+    const subdomain = (project.subdomain ?? '').toLowerCase();
+    return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+  };
+
+  const filteredRecentProjects = normalizedSearch
+    ? recentProjects.filter(matchesSearch)
+    : recentProjects;
+  const projectCount = filteredRecentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
-  const featuredProject = recentProjects[displayProjectIndex] ?? null;
-  const carouselProjects = projectCount > 1 ? [...recentProjects, recentProjects[0]] : recentProjects;
+  const featuredProject = filteredRecentProjects[displayProjectIndex] ?? null;
+  const carouselProjects = projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects;
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
-  const recentProjectIds = new Set(recentProjects.map((project) => project.id));
-  const designProjects = allProjects.filter((project) => !isTemplateProject(project));
+  const recentProjectIds = new Set(filteredRecentProjects.map((project) => project.id));
+  const designProjectsAll = allProjects.filter((project) => !isTemplateProject(project));
+  const designProjects = designProjectsAll.filter(matchesSearch);
   const otherProjects = designProjects.length > 3 && !showAllOtherProjects
     ? designProjects.filter((project) => !recentProjectIds.has(project.id))
     : designProjects;
@@ -533,15 +563,20 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </AnimatePresence>
       </div>
 
-      {renamingProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
-          if (actioningProjectId === renamingProject.id) return;
+      <ModalShell
+        isOpen={!!renamingProject}
+        onClose={() => {
+          if (renamingProject && actioningProjectId === renamingProject.id) return;
           setRenamingProject(null);
           setRenameTitle('');
-        }}>
+        }}
+        usePortal
+        disabled={!!(renamingProject && actioningProjectId === renamingProject.id)}
+        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      >
+        {renamingProject && (
           <div
             className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
-            onClick={(e) => e.stopPropagation()}
           >
             <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Rename project</h3>
             <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
@@ -591,8 +626,8 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
 
       <style jsx>{`
         .template-pan-img,

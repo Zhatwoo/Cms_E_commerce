@@ -1,8 +1,10 @@
 const { db } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
+const log = require('../utils/logger')('InventoryMovement');
 
 const ROOT_COLLECTION = 'published_subdomains';
 const MOVEMENT_COLLECTION = 'inventory_movements';
+const PRODUCT_COLLECTION = 'products';
 
 function toNumber(value, fallback = 0) {
   const n = Number(value);
@@ -37,9 +39,45 @@ async function getOwnedSubdomains(userId, subdomain) {
   return snap.docs.map((d) => d.id);
 }
 
+// Look the subdomain up from the product doc when the caller couldn't supply one.
+// Otherwise the movement silently fails to persist and the user sees an empty
+// list after refresh even though the product stock did update.
+async function lookupSubdomainFromProduct(userId, productId) {
+  if (!userId || !productId) return '';
+  const ownerSnap = await db
+    .collection(ROOT_COLLECTION)
+    .where('user_id', '==', userId)
+    .get();
+  for (const ownerDoc of ownerSnap.docs) {
+    const subdomain = ownerDoc.id;
+    const productSnap = await db
+      .collection(ROOT_COLLECTION)
+      .doc(subdomain)
+      .collection(PRODUCT_COLLECTION)
+      .doc(productId)
+      .get();
+    if (productSnap.exists) return subdomain;
+  }
+  return '';
+}
+
 async function create(data) {
-  const normalizedSubdomain = normalizeSubdomain(data.subdomain);
+  let normalizedSubdomain = normalizeSubdomain(data.subdomain);
+  if (!normalizedSubdomain && data.userId && data.productId) {
+    normalizedSubdomain = await lookupSubdomainFromProduct(data.userId, data.productId);
+    if (normalizedSubdomain) {
+      log.warn('movement create fell back to product-derived subdomain', {
+        userId: data.userId,
+        productId: data.productId,
+        subdomain: normalizedSubdomain,
+      });
+    }
+  }
   if (!normalizedSubdomain) {
+    log.error('movement create failed: no subdomain resolvable', {
+      userId: data.userId,
+      productId: data.productId,
+    });
     throw new Error('subdomain is required for inventory movements');
   }
 

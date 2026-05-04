@@ -167,7 +167,8 @@ export function PublishModal({
       isOpen={open}
       onClose={onClose}
       disabled={publishing || scheduling}
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      usePortal
+      className="fixed inset-0 z-9999 flex items-center justify-center p-4"
       style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
     >
         <motion.div

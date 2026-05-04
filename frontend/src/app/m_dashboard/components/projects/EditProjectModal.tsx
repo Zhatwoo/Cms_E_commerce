@@ -58,7 +58,8 @@ export function EditProjectModal({
       isOpen={isOpen}
       onClose={onCancel}
       disabled={saving}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-[8px]"
+      usePortal
+      className="fixed inset-0 z-9999 flex items-center justify-center p-4 backdrop-blur-[8px]"
       style={{
         backgroundColor: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(15, 23, 42, 0.25)',
       }}
