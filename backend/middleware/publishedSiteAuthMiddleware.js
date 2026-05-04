@@ -1,48 +1,9 @@
+// middleware/publishedSiteAuthMiddleware.js
 const jwt = require('jsonwebtoken');
-const Domain = require('../models/Domain');
 const PublishedSiteUser = require('../models/PublishedSiteUser');
+const { SITE_COOKIE_NAME, resolvePublishedSite } = require('../utils/publishedSiteResolver');
 
-const SITE_COOKIE_NAME = 'mercato_site_token';
-
-function readSiteIdentifier(req) {
-  const headerIdentifier = req.headers['x-site-identifier'];
-  if (typeof headerIdentifier === 'string' && headerIdentifier.trim()) {
-    return headerIdentifier.trim().toLowerCase();
-  }
-
-  const bodyIdentifier = req.body?.siteIdentifier;
-  if (typeof bodyIdentifier === 'string' && bodyIdentifier.trim()) {
-    return bodyIdentifier.trim().toLowerCase();
-  }
-
-  const queryIdentifier = req.query?.siteIdentifier;
-  if (typeof queryIdentifier === 'string' && queryIdentifier.trim()) {
-    return queryIdentifier.trim().toLowerCase();
-  }
-
-  if (typeof req.siteIdentifier === 'string' && req.siteIdentifier.trim()) {
-    return req.siteIdentifier.trim().toLowerCase();
-  }
-
-  if (typeof req.params?.subdomain === 'string' && req.params.subdomain.trim()) {
-    return req.params.subdomain.trim().toLowerCase();
-  }
-
-  return '';
-}
-
-async function resolvePublishedSite(req) {
-  const identifier = readSiteIdentifier(req);
-  if (!identifier) return null;
-
-  if (identifier.includes('.')) {
-    return Domain.findByCustomDomain(identifier);
-  }
-
-  return Domain.findBySubdomain(identifier);
-}
-
-async function protectPublishedSiteUser(req, res, next) {
+module.exports = async function protectPublishedSiteUser(req, res, next) {
   const token =
     req.cookies?.[SITE_COOKIE_NAME] ||
     (req.headers.authorization && req.headers.authorization.startsWith('Bearer')
@@ -78,11 +39,4 @@ async function protectPublishedSiteUser(req, res, next) {
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Invalid published-site session' });
   }
-}
-
-module.exports = {
-  SITE_COOKIE_NAME,
-  readSiteIdentifier,
-  resolvePublishedSite,
-  protectPublishedSiteUser,
 };
