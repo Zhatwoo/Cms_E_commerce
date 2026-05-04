@@ -184,13 +184,12 @@ export const ComponentsPanel = () => {
   }, [searchQuery, WORKING_COMPONENTS, importedItems]);
 
   // ── Component card ──────────────────────────────────────────────────────────
+  // Plain div + ref: motion.div forwards refs through framer-motion's wrapper,
+  // which can swallow the DOM ref Craft.js's connectors.create needs to attach
+  // its drag listeners. Hover/tap animations live in CSS instead.
   const renderComponentItem = (v: any) => (
-    <motion.div
+    <div
       key={v.id || v.label}
-      whileHover={{ scale: 1.01 }}
-      whileTap={{ scale: 0.985 }}
-      transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
-      style={{ willChange: "transform" }}
       ref={(ref) => {
         if (!ref || activeTool === "hand") return;
         const el = v.dragElement || v.element;
@@ -199,7 +198,7 @@ export const ComponentsPanel = () => {
       {...(v.isNewPage
         ? { "data-component-new-page": "true", "data-drag-source": "component" }
         : { "data-drag-source": "component" })}
-      className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
+      className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
     >
       {/* Icon tile */}
       <DesignTooltip content={COMPONENT_TOOLTIPS[v.label] || v.label} position="right">
@@ -238,38 +237,30 @@ export const ComponentsPanel = () => {
       <span className="text-[9px] font-bold text-builder-text-muted text-center group-hover:text-builder-text transition-colors truncate px-0.5 uppercase tracking-tight">
         {v.label}
       </span>
-    </motion.div>
+    </div>
   );
 
   const renderSearchResultItem = (v: any) => {
     if (v.type === "component") return renderComponentItem(v);
     if (v.type === "import") {
       return (
-        <motion.div key={v.id}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.985 }}
-          transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
-          style={{ willChange: "transform" }}
+        <div key={v.id}
           data-drag-source="imported"
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
-          className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
+          className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
         >
           <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-(--builder-border) group-hover:border-(--builder-border-mid) bg-builder-surface-2 text-builder-text-muted transition-all duration-200 group-hover:scale-[1.03]">
             <FileCode className="w-5 h-5 builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
           </div>
           <span className="text-[9px] font-bold text-builder-text-muted text-center group-hover:text-builder-text transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-        </motion.div>
+        </div>
       );
     }
     return (
-      <motion.div key={v.id}
-        whileHover={{ scale: 1.01 }}
-        whileTap={{ scale: 0.985 }}
-        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
-        style={{ willChange: "transform" }}
+      <div key={v.id}
         data-drag-source="component"
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
-        className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1"
+        className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1 transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
       >
         <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-(--builder-border) group-hover:border-(--builder-border-mid) bg-builder-surface-2 transition-all duration-200 group-hover:scale-[1.03]">
           {v.type === "block" ? (
@@ -283,7 +274,7 @@ export const ComponentsPanel = () => {
           )}
         </div>
         <span className="text-[9px] font-bold text-builder-text-muted text-center group-hover:text-builder-text transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-      </motion.div>
+      </div>
     );
   };
 

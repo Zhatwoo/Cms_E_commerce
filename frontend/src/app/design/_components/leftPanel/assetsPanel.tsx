@@ -712,15 +712,11 @@ export const AssetsPanel = () => {
 
                   return (
                     <DesignTooltip key={`tooltip-${assetKey}`} content="Drag to add to canvas" position="right">
-                      <motion.div
+                      <div
                         key={assetKey}
                         data-drag-source="asset"
                         data-asset-category={item.category}
                         data-asset-label={item.label}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.985 }}
-                        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
-                        style={{ willChange: "transform" }}
                         ref={(ref) => {
                           if (!ref || !item?.element) return;
 
@@ -823,7 +819,7 @@ export const AssetsPanel = () => {
                             )}
                           </div>
                         </div>
-                      </motion.div>
+                      </div>
                     </DesignTooltip>
                   );
                 };
