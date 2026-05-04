@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import {
@@ -208,27 +208,48 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   }, [refreshProjects]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const matchesSearch = (project: Project) => {
-    if (!normalizedSearch) return true;
-    const title = (project.title ?? '').toLowerCase();
-    const subdomain = (project.subdomain ?? '').toLowerCase();
-    return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
-  };
 
-  const filteredRecentProjects = normalizedSearch
-    ? recentProjects.filter(matchesSearch)
-    : recentProjects;
+  // Hoist all derived collections into memos. Without these, every keystroke,
+  // carousel tick, or 15s poll re-runs every filter and rebuilds Sets — and
+  // every consumer of recentProjects/designProjects re-renders too.
+  const filteredRecentProjects = useMemo(() => {
+    if (!normalizedSearch) return recentProjects;
+    return recentProjects.filter((project) => {
+      const title = (project.title ?? '').toLowerCase();
+      const subdomain = (project.subdomain ?? '').toLowerCase();
+      return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+    });
+  }, [recentProjects, normalizedSearch]);
+
   const projectCount = filteredRecentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
   const featuredProject = filteredRecentProjects[displayProjectIndex] ?? null;
-  const carouselProjects = projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects;
+  const carouselProjects = useMemo(
+    () => (projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects),
+    [filteredRecentProjects, projectCount]
+  );
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
-  const recentProjectIds = new Set(filteredRecentProjects.map((project) => project.id));
-  const designProjectsAll = allProjects.filter((project) => !isTemplateProject(project));
-  const designProjects = designProjectsAll.filter(matchesSearch);
-  const otherProjects = designProjects.length > 3 && !showAllOtherProjects
-    ? designProjects.filter((project) => !recentProjectIds.has(project.id))
-    : designProjects;
+
+  const designProjectsAll = useMemo(
+    () => allProjects.filter((project) => !isTemplateProject(project)),
+    [allProjects]
+  );
+  const designProjects = useMemo(() => {
+    if (!normalizedSearch) return designProjectsAll;
+    return designProjectsAll.filter((project) => {
+      const title = (project.title ?? '').toLowerCase();
+      const subdomain = (project.subdomain ?? '').toLowerCase();
+      return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+    });
+  }, [designProjectsAll, normalizedSearch]);
+
+  const otherProjects = useMemo(() => {
+    if (designProjects.length > 3 && !showAllOtherProjects) {
+      const recentIds = new Set(filteredRecentProjects.map((project) => project.id));
+      return designProjects.filter((project) => !recentIds.has(project.id));
+    }
+    return designProjects;
+  }, [designProjects, filteredRecentProjects, showAllOtherProjects]);
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
