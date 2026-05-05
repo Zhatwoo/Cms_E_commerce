@@ -6,6 +6,7 @@ import type { Project } from '@/lib/api';
 import { listTemplateProjectEntries, type TemplateProjectRegistryEntry } from '@/lib/templateProjectRegistry';
 import { GROUPED_TEMPLATES } from '@/app/_templates';
 import { ModalShell } from '@/components/ui/ModalShell';
+import { EmptyState } from '@/app/m_dashboard/components/ui/emptyState';
 import { DraftPreviewThumbnail } from '../../components/projects/DraftPreviewThumbnail';
 
 type DashboardTheme = 'light' | 'dark';
@@ -32,6 +33,10 @@ type TemplatesTabContentProps = {
   searchQuery: string;
   applyingTemplateId: string | null;
   onApplyTemplate: (templateProjectId: string) => Promise<void>;
+  /** Called when the user clicks a pre-built template card. Lets the parent route to the design editor with the right project context. */
+  onOpenPrebuiltTemplate?: (folder: string, label: string) => void;
+  /** Allow the saved-templates "Apply to" label to be reassigned to a different project from inside the dashboard. */
+  onSelectTargetProject?: (projectId: string) => void;
 };
 
 export function TemplatesTabContent({
@@ -43,6 +48,8 @@ export function TemplatesTabContent({
   searchQuery,
   applyingTemplateId,
   onApplyTemplate,
+  onOpenPrebuiltTemplate,
+  onSelectTargetProject,
 }: TemplatesTabContentProps) {
   const [entries, setEntries] = useState<TemplateProjectRegistryEntry[]>([]);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateCard | null>(null);
@@ -255,11 +262,14 @@ export function TemplatesTabContent({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
             {prebuiltTemplates.map((template) => (
-              <article
+              <button
+                type="button"
                 key={`${template.folder}-${template.label}`}
-                className={`overflow-hidden rounded-3xl border shadow-[0_18px_50px_rgba(29,18,74,0.08)] ${theme === 'dark'
-                  ? 'border-[#2D2A67] bg-[#161447]'
-                  : 'border-[#E8DAFF] bg-white'
+                onClick={() => onOpenPrebuiltTemplate?.(template.folder, template.label)}
+                disabled={!onOpenPrebuiltTemplate}
+                className={`group text-left overflow-hidden rounded-3xl border shadow-[0_18px_50px_rgba(29,18,74,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_60px_rgba(29,18,74,0.16)] focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default disabled:hover:translate-y-0 ${theme === 'dark'
+                  ? 'border-[#2D2A67] bg-[#161447] focus-visible:outline-[#FFCE00]'
+                  : 'border-[#E8DAFF] bg-white focus-visible:outline-[#7C3AED]'
                 }`}
               >
                 <div className="relative aspect-16/10 overflow-hidden bg-[#f8f5ff]">
@@ -293,14 +303,14 @@ export function TemplatesTabContent({
                     Starter asset template
                   </p>
                 </div>
-              </article>
+              </button>
             ))}
           </div>
         )}
       </section>
 
       <section className="mx-auto w-full max-w-none pt-2">
-        <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h3
             className={`
               text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
@@ -309,20 +319,51 @@ export function TemplatesTabContent({
           >
             Saved Templates
           </h3>
-          <span className={`text-xs ${theme === 'dark' ? 'text-[#8C84C8]' : 'text-[#7C3AED]/70'}`}>
-            Apply to: {selectedProject?.title || 'Select a project in Your Designs first'}
-          </span>
+          <label className={`flex items-center gap-2 text-xs ${theme === 'dark' ? 'text-[#8C84C8]' : 'text-[#7C3AED]/70'}`}>
+            <span className="font-semibold uppercase tracking-widest text-[10px]">Apply to</span>
+            <select
+              value={selectedProject?.id ?? ''}
+              onChange={(e) => onSelectTargetProject?.(e.target.value)}
+              disabled={!onSelectTargetProject || projects.filter((project) => String(project.status || '').trim().toLowerCase() !== 'template').length === 0}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold outline-none transition-colors disabled:opacity-50 ${theme === 'dark'
+                ? 'border-[#2A246B] bg-[#161247] text-white focus:border-[#7C3AED]'
+                : 'border-[#E5D7FF] bg-white text-[#16083D] focus:border-[#7C3AED]'
+              }`}
+            >
+              {!selectedProject && (
+                <option value="" disabled>
+                  Select a project…
+                </option>
+              )}
+              {projects
+                .filter((project) => String(project.status || '').trim().toLowerCase() !== 'template')
+                .map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.title || 'Untitled Project'}
+                  </option>
+                ))}
+            </select>
+          </label>
         </div>
 
         {filteredTemplates.length === 0 ? (
-          <div
-            className={`rounded-2xl border p-6 text-sm ${theme === 'dark'
-              ? 'border-[#2A2664] bg-[#161247] text-[#B7B2E0]'
-              : 'border-[#E5D7FF] bg-[#FAF6FF] text-[#4A2D84]'
-            }`}
-          >
-            No saved templates yet. Save one from builder preview to see it here.
-          </div>
+          normalizedSearch ? (
+            <EmptyState
+              tone={theme}
+              size="compact"
+              badgeText="No matches"
+              title={`No templates match "${searchQuery.trim()}"`}
+              description="Try a different keyword, or clear the search to see all saved templates."
+            />
+          ) : (
+            <EmptyState
+              tone={theme}
+              size="compact"
+              badgeText="Saved Templates"
+              title="No saved templates yet"
+              description="Save a template from the builder preview to see it here."
+            />
+          )
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
             {filteredTemplates.map((template) => {

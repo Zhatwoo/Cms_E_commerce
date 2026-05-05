@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import {
@@ -21,6 +21,7 @@ import { ModalShell } from '@/components/ui/ModalShell';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
+import { EmptyState } from '@/app/m_dashboard/components/ui/emptyState';
 
 const INDUSTRIES = [
   { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
@@ -97,7 +98,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
+  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects, setSelectedProjectId } = useProject();
   const { theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
   // Persist activeTab in the URL so a remount (route refresh, parent re-render)
@@ -177,29 +178,26 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return () => document.removeEventListener('click', closeMenu);
   }, [openProjectMenuId]);
 
+  // Refresh project list on focus / visibility so changes from another tab
+  // surface here. The previous 15s setInterval ran a full project re-fetch
+  // every 15s on top of focus/visibility events, which contributed to the
+  // perceived lag — focus events alone cover the realistic stale-data
+  // window for a dashboard tab the user just came back to.
   useEffect(() => {
     const refreshFromLibrary = () => {
       void refreshProjects?.();
     };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         refreshFromLibrary();
       }
     };
 
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        refreshFromLibrary();
-      }
-    }, 15000);
-
     window.addEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
     window.addEventListener('focus', refreshFromLibrary);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
       window.removeEventListener('focus', refreshFromLibrary);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
@@ -207,27 +205,48 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   }, [refreshProjects]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
-  const matchesSearch = (project: Project) => {
-    if (!normalizedSearch) return true;
-    const title = (project.title ?? '').toLowerCase();
-    const subdomain = (project.subdomain ?? '').toLowerCase();
-    return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
-  };
 
-  const filteredRecentProjects = normalizedSearch
-    ? recentProjects.filter(matchesSearch)
-    : recentProjects;
+  // Hoist all derived collections into memos. Without these, every keystroke,
+  // carousel tick, or 15s poll re-runs every filter and rebuilds Sets — and
+  // every consumer of recentProjects/designProjects re-renders too.
+  const filteredRecentProjects = useMemo(() => {
+    if (!normalizedSearch) return recentProjects;
+    return recentProjects.filter((project) => {
+      const title = (project.title ?? '').toLowerCase();
+      const subdomain = (project.subdomain ?? '').toLowerCase();
+      return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+    });
+  }, [recentProjects, normalizedSearch]);
+
   const projectCount = filteredRecentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
   const featuredProject = filteredRecentProjects[displayProjectIndex] ?? null;
-  const carouselProjects = projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects;
+  const carouselProjects = useMemo(
+    () => (projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects),
+    [filteredRecentProjects, projectCount]
+  );
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
-  const recentProjectIds = new Set(filteredRecentProjects.map((project) => project.id));
-  const designProjectsAll = allProjects.filter((project) => !isTemplateProject(project));
-  const designProjects = designProjectsAll.filter(matchesSearch);
-  const otherProjects = designProjects.length > 3 && !showAllOtherProjects
-    ? designProjects.filter((project) => !recentProjectIds.has(project.id))
-    : designProjects;
+
+  const designProjectsAll = useMemo(
+    () => allProjects.filter((project) => !isTemplateProject(project)),
+    [allProjects]
+  );
+  const designProjects = useMemo(() => {
+    if (!normalizedSearch) return designProjectsAll;
+    return designProjectsAll.filter((project) => {
+      const title = (project.title ?? '').toLowerCase();
+      const subdomain = (project.subdomain ?? '').toLowerCase();
+      return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+    });
+  }, [designProjectsAll, normalizedSearch]);
+
+  const otherProjects = useMemo(() => {
+    if (designProjects.length > 3 && !showAllOtherProjects) {
+      const recentIds = new Set(filteredRecentProjects.map((project) => project.id));
+      return designProjects.filter((project) => !recentIds.has(project.id));
+    }
+    return designProjects;
+  }, [designProjects, filteredRecentProjects, showAllOtherProjects]);
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
@@ -513,7 +532,17 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
-          {activeTab === 'designs' ? (
+          {activeTab === 'designs' && normalizedSearch && designProjects.length === 0 && designProjectsAll.length > 0 ? (
+            <EmptyState
+              key="designs-no-search-match"
+              tone={theme as 'light' | 'dark'}
+              size="compact"
+              badgeText="No matches"
+              title={`No designs match "${searchQuery.trim()}"`}
+              description="Try a different keyword, or clear the search to see all your projects."
+              secondaryAction={{ label: 'Clear search', onClick: () => setSearchQuery('') }}
+            />
+          ) : activeTab === 'designs' ? (
             <YourDesignsTabContent
               theme={theme}
               userName={userName}
@@ -558,6 +587,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               searchQuery={searchQuery}
               applyingTemplateId={applyingTemplateId}
               onApplyTemplate={handleApplyTemplate}
+              onOpenPrebuiltTemplate={(folder, label) => {
+                const target = selectedProject?.id;
+                const query = new URLSearchParams();
+                if (target) query.set('projectId', target);
+                query.set('template', `${folder}:${label}`);
+                router.push(`/design?${query.toString()}`);
+              }}
+              onSelectTargetProject={(projectId) => {
+                setSelectedProjectId(projectId);
+              }}
             />
           )}
         </AnimatePresence>

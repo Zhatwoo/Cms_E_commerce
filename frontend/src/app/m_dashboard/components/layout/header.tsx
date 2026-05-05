@@ -86,22 +86,6 @@ const UserIcon = () => (
     </svg>
 );
 
-const ProfileMenuIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className="h-4 w-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
 const LogoutIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -407,15 +391,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                             exit={{ opacity: 0, y: -6, scale: 0.98 }}
                                             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                                         >
-                                            <Link
-                                                href="/m_dashboard/settings"
-                                                className="flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                                                style={{ color: colors.text.primary }}
-                                                onClick={() => setShowMenu(false)}
-                                            >
-                                                <ProfileMenuIcon />
-                                                Settings
-                                            </Link>
                                             <button
                                                 type="button"
                                                 onClick={handleLogout}

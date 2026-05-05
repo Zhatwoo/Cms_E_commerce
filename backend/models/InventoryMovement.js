@@ -30,9 +30,22 @@ async function getOwnedSubdomains(userId, subdomain) {
   const normalized = normalizeSubdomain(subdomain);
   if (normalized) {
     const snap = await db.collection(ROOT_COLLECTION).doc(normalized).get();
-    if (!snap.exists) return [];
-    const ownerId = snap.get('user_id');
-    return ownerId === userId ? [normalized] : [];
+    if (snap.exists) {
+      const ownerId = snap.get('user_id');
+      if (ownerId === userId) return [normalized];
+      if (ownerId && ownerId !== userId) return [];
+    }
+    // Parent doc missing user_id (drafted project or pre-publish state). Fall back
+    // to checking whether the user has at least one product under this subdomain;
+    // if so, they own it for inventory purposes.
+    const productOwned = await db
+      .collection(ROOT_COLLECTION)
+      .doc(normalized)
+      .collection(PRODUCT_COLLECTION)
+      .where('user_id', '==', userId)
+      .limit(1)
+      .get();
+    return productOwned.empty ? [] : [normalized];
   }
 
   const snap = await db.collection(ROOT_COLLECTION).where('user_id', '==', userId).get();
@@ -61,6 +74,25 @@ async function lookupSubdomainFromProduct(userId, productId) {
   return '';
 }
 
+// Make sure the parent published_subdomains/{subdomain} doc has a user_id so
+// listForUser's `where('user_id', '==', userId)` query and getOwnedSubdomains
+// lookup can find the movements we're about to write.
+async function ensureSubdomainOwner(subdomain, userId) {
+  if (!subdomain || !userId) return;
+  const ref = db.collection(ROOT_COLLECTION).doc(subdomain);
+  const snap = await ref.get();
+  if (!snap.exists) {
+    await ref.set(
+      { subdomain, user_id: userId, created_at: new Date(), updated_at: new Date() },
+      { merge: true }
+    );
+    return;
+  }
+  if (!snap.get('user_id')) {
+    await ref.set({ user_id: userId, updated_at: new Date() }, { merge: true });
+  }
+}
+
 async function create(data) {
   let normalizedSubdomain = normalizeSubdomain(data.subdomain);
   if (!normalizedSubdomain && data.userId && data.productId) {
@@ -79,6 +111,14 @@ async function create(data) {
       productId: data.productId,
     });
     throw new Error('subdomain is required for inventory movements');
+  }
+
+  // listForUser scans by getOwnedSubdomains() which only returns subdomains
+  // where the parent doc carries user_id. If the project was never published,
+  // products live under the subdomain's product subcollection but the parent
+  // doc may be missing user_id — so list-side queries return nothing.
+  if (data.userId) {
+    await ensureSubdomainOwner(normalizedSubdomain, data.userId);
   }
 
   const quantity = toNumber(data.quantity, 0);
