@@ -46,15 +46,13 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
                 color: colors.text.primary,
                 }}
             />
-            {idx === 0 && (
-                <button
+            <button
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-6 top-1/2 -translate-y-1/2 opacity-30 hover:opacity-100 transition-opacity"
                 style={{ color: colors.text.muted }}
-                >
+            >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-            )}
+            </button>
             </div>
         </div>
         ))}

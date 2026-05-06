@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { FeedbackMessage } from '../components/ui/feedbackMessage';
 import {
   Package,
   AlertTriangle,
@@ -372,7 +373,6 @@ export default function InventoryPage() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importPopup, setImportPopup] = useState<ImportPopupState>({ open: false, message: '', tone: 'success' });
-  const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineSaveLockRef = useRef<string | null>(null);
   const localStatusMovementsRef = useRef<InventoryMovement[]>([]);
@@ -460,16 +460,8 @@ export default function InventoryPage() {
   };
 
   const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
-    if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current);
     setImportPopup({ open: true, message, tone });
-    const popupDuration = tone === 'success' ? 1500 : 3500;
-    importPopupTimerRef.current = window.setTimeout(() => {
-      setImportPopup((p) => ({ ...p, open: false }));
-      importPopupTimerRef.current = null;
-    }, popupDuration);
   }, []);
-
-  useEffect(() => () => { if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current); }, []);
 
   useEffect(() => {
     if (!openStatusMenuRowId) return;
@@ -1351,51 +1343,13 @@ export default function InventoryPage() {
       <input ref={fileInputRef} type="file" accept=".csv" title="Import CSV" style={{ display: 'none' }} onChange={handleFileChange} />
 
       {/* Centered success/error popup */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {importPopup.open && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                position: 'fixed', inset: 0, zIndex: 2147483000,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-                background: 'rgba(10, 8, 28, 0.6)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-              }}
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-                style={{
-                  width: '100%',
-                  maxWidth: 250,
-                  borderRadius: 14,
-                  border: `1px solid ${importPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)'}`,
-                  padding: '12px 16px',
-                  background: '#181a59',
-                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
-                }}
-              >
-                <p style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25, textAlign: 'center', margin: 0 }}>
-                  {importPopup.message}
-                </p>
-                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
-                  {importPopup.tone === 'success'
-                    ? <CheckCircle size={24} color={T.green} />
-                    : <AlertTriangle size={24} color={T.red} />}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <FeedbackMessage
+        open={importPopup.open}
+        tone={importPopup.tone}
+        message={importPopup.message}
+        variant="toast"
+        onClose={() => setImportPopup((prev) => ({ ...prev, open: false }))}
+      />
 
       <div style={{ maxWidth: 1090, margin: '0 auto', padding: '36px 22px 30px', position: 'relative', zIndex: 1 }}>
 

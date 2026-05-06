@@ -172,7 +172,14 @@ export function ProjectSelectorModal() {
       setActioningProjectId(project.id);
       setActionError('');
       const res = await deleteProject(project.id);
-      if (res.success) setProjects((prev) => prev.filter((p) => p.id !== project.id));
+      if (res.success) {
+        setProjects((prev) => prev.filter((p) => p.id !== project.id));
+        showAlert(
+          `"${project.title || 'Untitled Project'}" was moved to trash successfully.`,
+          'Project Deleted',
+          'success'
+        );
+      }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('Project not found')) {
@@ -203,6 +210,11 @@ export function ProjectSelectorModal() {
       if (res.success) {
         setTrashedProjects((prev) => prev.filter((p) => p.id !== project.id));
         await loadActiveProjects();
+        showAlert(
+          `"${project.title || 'Untitled Project'}" was restored successfully.`,
+          'Project Restored',
+          'success'
+        );
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -243,6 +255,11 @@ export function ProjectSelectorModal() {
       const res = await permanentDeleteProject(projectId);
       if (!res.success) return;
       setTrashedProjects((prev) => prev.filter((p) => p.id !== projectId));
+      showAlert(
+        `"${projectTitle}" was permanently deleted.`,
+        'Project Permanently Deleted',
+        'success'
+      );
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.includes('Project not found') || msg.includes('not found')) {

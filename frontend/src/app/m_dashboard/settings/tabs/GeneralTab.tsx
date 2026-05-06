@@ -1,6 +1,6 @@
 import type React from 'react';
-import { motion } from 'framer-motion';
 import { AtSign, Camera, Check, FileText, Globe, Save, User } from 'lucide-react';
+import { FeedbackMessage } from '../../components/ui/feedbackMessage';
 
 type GeneralForm = {
   name: string;
@@ -27,6 +27,7 @@ type GeneralTabProps = {
   onFieldChange: (field: keyof GeneralForm, value: string) => void;
   onReset: () => void;
   onSave: () => void;
+  onClearFeedback: () => void;
 };
 
 export function GeneralTab({
@@ -44,6 +45,7 @@ export function GeneralTab({
   onFieldChange,
   onReset,
   onSave,
+  onClearFeedback,
 }: GeneralTabProps) {
   const isDark = theme === 'dark';
 
@@ -86,21 +88,13 @@ export function GeneralTab({
   </div>
 
   {/* FEEDBACK TOAST: Floating & Modern */}
-  {generalFeedback && (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-8 p-4 rounded-2xl border backdrop-blur-md flex items-center gap-3 text-[13px] font-bold uppercase tracking-wider"
-      style={{
-        backgroundColor: generalFeedback.type === 'success' ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)',
-        borderColor: generalFeedback.type === 'success' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
-        color: generalFeedback.type === 'success' ? colors.status.good : colors.status.error,
-      }}
-    >
-      <div className={`w-2 h-2 rounded-full animate-pulse ${generalFeedback.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-      {generalFeedback.message}
-    </motion.div>
-  )}
+  <FeedbackMessage
+    open={Boolean(generalFeedback)}
+    tone={generalFeedback?.type ?? 'info'}
+    message={generalFeedback?.message ?? ''}
+    variant="toast"
+    onClose={onClearFeedback}
+  />
 
   {/* IDENTITY CARD: Glassmorphic Hub */}
   <div

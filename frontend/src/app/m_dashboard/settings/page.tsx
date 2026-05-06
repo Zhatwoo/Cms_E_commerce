@@ -303,6 +303,7 @@ export default function SettingsPage() {
                     onFieldChange={handleGeneralFieldChange}
                     onReset={handleGeneralReset}
                     onSave={handleSaveGeneral}
+                    onClearFeedback={() => setGeneralFeedback(null)}
                 />
             );
         }

@@ -1,11 +1,11 @@
 'use client';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle, LucideIcon } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
+import { FeedbackMessage } from '../components/ui/feedbackMessage';
 import { type Product, type ProductVariant } from '../lib/productsData';
 import { createProduct, deleteProduct, updateProduct, type ApiProduct } from '@/lib/api';
 import { useProducts } from './hooks/useProducts';
@@ -516,29 +516,9 @@ export default function ProductsPage() {
     message: '',
     tone: 'success',
   });
-  const productPopupTimerRef = useRef<number | null>(null);
 
   const showProductPopup = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
-    if (productPopupTimerRef.current) {
-      window.clearTimeout(productPopupTimerRef.current);
-    }
-
     setProductPopup({ open: true, message, tone });
-
-    const popupDuration = tone === 'success' ? 1500 : 3000;
-
-    productPopupTimerRef.current = window.setTimeout(() => {
-      setProductPopup((prev) => ({ ...prev, open: false }));
-      productPopupTimerRef.current = null;
-    }, popupDuration);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (productPopupTimerRef.current) {
-        window.clearTimeout(productPopupTimerRef.current);
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -809,43 +789,13 @@ export default function ProductsPage() {
 
   return (
     <div className="dashboard-landing-light space-y-6">
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {productPopup.open && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4"
-              style={{ backgroundColor: 'rgba(10, 8, 28, 0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-                className="w-full max-w-[250px] rounded-[14px] border px-4 py-3 shadow-xl"
-                style={{
-                  backgroundColor: '#181a59',
-                  borderColor: productPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)',
-                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
-                }}
-              >
-                <p className="text-center" style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25 }}>
-                  {productPopup.message}
-                </p>
-                <div className="mt-2 flex justify-center">
-                  {productPopup.tone === 'success'
-                    ? <CheckCircle className="w-6 h-6" style={{ color: '#22c55e' }} />
-                    : <AlertTriangle className="w-6 h-6" style={{ color: '#ef4444' }} />}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <FeedbackMessage
+        open={productPopup.open}
+        tone={productPopup.tone}
+        message={productPopup.message}
+        variant="toast"
+        onClose={() => setProductPopup((prev) => ({ ...prev, open: false }))}
+      />
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
 

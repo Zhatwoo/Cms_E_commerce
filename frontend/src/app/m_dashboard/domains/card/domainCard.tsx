@@ -60,7 +60,7 @@ export function DomainCard({
   exit={{ opacity: 0 }}
   transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
   // REMOVED overflow-hidden here to allow the tooltip to break out
-  className="relative rounded-[2.2rem] cursor-pointer transition-all duration-500 group border"
+  className="group relative z-0 cursor-pointer rounded-[2.2rem] border transition-all duration-500 hover:z-10000"
   style={{
     background: theme === 'dark' ? '#15093E' : '#F6F7FB',
     borderColor: selected
@@ -144,7 +144,7 @@ export function DomainCard({
       )}
       
       {published && (
-        <div className="relative group/tooltip hover:z-9999">
+        <div className="group/tooltip relative z-0 hover:z-10000">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onUnpublish(project.id, e); }}
@@ -154,9 +154,9 @@ export function DomainCard({
             <ArrowDownToLine size={14} className="rotate-180" />
           </button>
 
-          <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-[#12193A] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-all pointer-events-none whitespace-nowrap z-9999 shadow-2xl border border-white/10">
+          <div className="pointer-events-none absolute bottom-full left-1/2 z-10001 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-[#12193A] px-3 py-2 opacity-0 shadow-2xl transition-all group-hover/tooltip:opacity-100">
             <span className="text-[9px] font-black uppercase tracking-widest text-white">Take Down Site</span>
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-[#12193A]" />
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-[#12193A]" />
           </div>
         </div>
       )}

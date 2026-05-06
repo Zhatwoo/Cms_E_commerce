@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { useTheme } from './context/theme-context';
 import { publishProject, schedulePublish } from '@/lib/api';
 import { getDraft } from '@/app/design/_lib/pageApi';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
 
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
@@ -168,24 +169,39 @@ export function PublishModal({
       onClose={onClose}
       disabled={publishing || scheduling}
       usePortal
-      className="fixed inset-0 z-9999 flex items-center justify-center p-4"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
     >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="rounded-2xl border p-6 w-full max-w-md shadow-xl"
-          style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-        >
-          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>
-            Publish to live domain
-          </h3>
-          <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
-            Choose a subdomain to create your own live site. Each subdomain is a separate, publicly accessible website. You can change it later in My Sites.
-          </p>
-
-          <div className="space-y-4">
+      <ModalCard
+        title="Publish to live domain"
+        subtitle="Choose a subdomain for your public website"
+        footer={
+          <div className="flex gap-2 w-full justify-end">
+            <ModalButton
+              label="Cancel"
+              onClick={onClose}
+              variant="secondary"
+              disabled={publishing || scheduling}
+            />
+            {mode === 'now' ? (
+              <ModalButton
+                label={publishing ? 'Publishing…' : 'Publish'}
+                onClick={handlePublishNow}
+                variant="primary"
+                disabled={publishing || scheduling}
+                primaryColor="#3B82F6"
+              />
+            ) : (
+              <ModalButton
+                label={scheduling ? 'Scheduling…' : 'Set schedule'}
+                onClick={handleSchedule}
+                variant="primary"
+                disabled={publishing || scheduling}
+                primaryColor="#F59E0B"
+              />
+            )}
+          </div>
+        }
+      >
+        <div className="space-y-4">
             {projects.length > 1 && onProjectChange && (
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
@@ -277,38 +293,8 @@ export function PublishModal({
                 </p>
               </div>
             )}
-          </div>
-
-          <div className="flex gap-2 mt-6">
-            <button
-              type="button"
-              onClick={() => !publishing && !scheduling && onClose()}
-              className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium"
-              style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-            >
-              Cancel
-            </button>
-            {mode === 'now' ? (
-              <button
-                type="button"
-                onClick={handlePublishNow}
-                disabled={publishing}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium"
-              >
-                {publishing ? 'Publishing…' : 'Publish'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSchedule}
-                disabled={scheduling}
-                className="flex-1 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium"
-              >
-                {scheduling ? 'Scheduling…' : 'Set schedule'}
-              </button>
-            )}
-          </div>
-        </motion.div>
+        </div>
+      </ModalCard>
     </ModalShell>
   );
 }

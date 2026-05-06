@@ -18,6 +18,8 @@ import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
 import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
@@ -324,7 +326,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const handleDeleteActiveProject = async (project: Project) => {
     const normalizedStatus = String(project.status || '').trim().toLowerCase();
     if (normalizedStatus === 'published' || normalizedStatus === 'live') {
-      showAlert('This project is live. Take down (unpublish) the website first before moving it to trash.');
+      showAlert(
+        'This project is live. Take down (unpublish) the website first before moving it to trash.',
+        'Cannot Move To Trash',
+        'error'
+      );
       setOpenProjectMenuId(null);
       return;
     }
@@ -338,6 +344,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       if (!res.success) return;
 
       await refreshProjects();
+      showAlert(
+        `"${project.title || 'Untitled Project'}" was moved to trash successfully.`,
+        'Project Deleted',
+        'success'
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to move project to trash.';
       showAlert(message);
@@ -614,12 +625,29 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
       >
         {renamingProject && (
-          <div
-            className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
+          <ModalCard
+            title="Rename project"
+            subtitle="Update the project title"
+            footer={
+              <div className="flex gap-2 w-full justify-end">
+                <ModalButton
+                  label="Cancel"
+                  onClick={() => {
+                    setRenamingProject(null);
+                    setRenameTitle('');
+                  }}
+                  variant="secondary"
+                  disabled={actioningProjectId === renamingProject.id}
+                />
+                <ModalButton
+                  label={actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
+                  onClick={submitRenameProject}
+                  variant="primary"
+                  disabled={actioningProjectId === renamingProject.id}
+                />
+              </div>
+            }
           >
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Rename project</h3>
-            <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
-
             <input
               type="text"
               value={renameTitle}
@@ -638,33 +666,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               }`}
               placeholder="Untitled Project"
             />
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRenamingProject(null);
-                  setRenameTitle('');
-                }}
-                disabled={actioningProjectId === renamingProject.id}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#120533]'}`}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitRenameProject}
-                disabled={actioningProjectId === renamingProject.id}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold disabled:opacity-50 ${
-                  theme === 'dark' 
-                    ? 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740]' 
-                    : 'bg-[#8B5CF6] text-white hover:bg-[#7C3AED]'
-                }`}
-              >
-                {actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
+          </ModalCard>
         )}
       </ModalShell>
 
