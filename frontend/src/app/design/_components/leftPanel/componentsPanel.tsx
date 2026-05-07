@@ -1,12 +1,14 @@
 "use client";
 import React, { useState, useMemo } from "react";
 import { useEditor, Element } from "@craftjs/core";
+import { motion } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, Box, Layers, Columns, Maximize, Minus,
   AlertCircle, ImageIcon, Star, CheckSquare, ListIcon, Badge,
   RectangleHorizontal, Type, Layout, ChevronDown, LayoutTemplate, FileCode,
   Plus, Search, X, Video as VideoIcon,
 } from "lucide-react";
+import { DesignTooltip } from "../DesignTooltip";
 import { AssetsPanel } from "./assetsPanel";
 import { TemplatePanel } from "./templatePanel";
 import { useCanvasTool } from "../CanvasToolContext";
@@ -15,14 +17,14 @@ import { GROUPED_TEMPLATES as ASSETS_GROUPS } from "../../../_assets";
 import { GROUPED_TEMPLATES as TEMPLATES_GROUPS } from "../../../_templates";
 import { AssetLivePreview } from "./assetsPanel";
 import { Container } from "../../_designComponents/Container/Container";
+import { Section } from "../../_designComponents/Section/Section";
+import { Row } from "../../_designComponents/Row/Row";
+import { Column } from "../../_designComponents/Column/Column";
 import { Text } from "../../_designComponents/Text/Text";
 import { Image } from "../../_designComponents/Image/Image";
 import { Video } from "../../_designComponents/Video/Video";
 import { Button } from "../../_designComponents/Button/Button";
 import { Divider } from "../../_designComponents/Divider/Divider";
-import { Section } from "../../_designComponents/Section/Section";
-import { Row } from "../../_designComponents/Row/Row";
-import { Column } from "../../_designComponents/Column/Column";
 import { Tabs } from "../../_designComponents/Tabs/Tabs";
 import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
@@ -69,6 +71,27 @@ const COMP_STYLES: Record<string, { base: string; hoverColor: string }> = {
   "New Page":         { base: "bg-builder-accent/10 text-builder-accent", hoverColor: "#FFCC00" },
 };
 
+const COMPONENT_TOOLTIPS: Record<string, string> = {
+  Section: "Full-width layout block for organizing page sections",
+  Container: "Flexible box for grouping and nesting elements",
+  Row: "Horizontal layout - arrange elements side by side",
+  Banner: "Alert-style announcement bar or notification strip",
+  Badge: "Small label or tag to highlight status or categories",
+  Column: "Vertical layout column - stack elements top to bottom",
+  Text: "Add editable text — headings, paragraphs, labels",
+  Image: "Add an image — upload from device or enter a URL",
+  Video: "Embed a video — YouTube, Vimeo, or direct URL",
+  Spacer: "Invisible spacing block to create gaps between elements",
+  Button: "Clickable button with customizable text, color and link",
+  "Checkbox / Radio": "Form input - checkbox, radio button or toggle",
+  Pagination: "Navigation controls for multi-page content",
+  Rating: "Star rating display for products or reviews",
+  Divider: "Horizontal rule to separate content sections",
+  Tabs: "Tabbed content switcher - show one panel at a time",
+  Accordion: "Expandable/collapsible content panels",
+  "New Page": "Add a new blank page to the canvas",
+};
+
 export const ComponentsPanel = () => {
   const { connectors } = useEditor();
   const { activeTool } = useCanvasTool();
@@ -101,8 +124,6 @@ export const ComponentsPanel = () => {
       element: <Banner background="#ef4444" height="42px" alignItems="center" justifyContent="center" padding={8} text="FLASH SALE: Up to 70% off - Use code SAVE70" fontSize={13} fontWeight="700" color="#ffffff" textAlign="center" lineHeight={1.2} />,
     },
     { label: "Badge",     icon: <Badge />,          iconStyle: COMP_STYLES.Badge.base,     hoverColor: COMP_STYLES.Badge.hoverColor,
-      // Badge is a leaf node (it renders its own label from `text`).
-      // Creating it as a canvas with a child Text node can corrupt Craft's tree and crash the Frame render.
       element: <BadgeComponent text="Badge" background="#16a34a" borderRadius={999} width="120px" height="36px" padding={8} gap={8} />,
     },
     { label: "Column",    icon: <Columns />,        iconStyle: COMP_STYLES.Column.base,    hoverColor: COMP_STYLES.Column.hoverColor,    element: <Element is={Column} canvas /> },
@@ -164,8 +185,12 @@ export const ComponentsPanel = () => {
 
   // ── Component card ──────────────────────────────────────────────────────────
   const renderComponentItem = (v: any) => (
-    <div
+    <motion.div
       key={v.id || v.label}
+      whileHover={{ scale: 1.01 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+      style={{ willChange: "transform" }}
       ref={(ref) => {
         if (!ref || activeTool === "hand") return;
         const el = v.dragElement || v.element;
@@ -177,19 +202,20 @@ export const ComponentsPanel = () => {
       className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
     >
       {/* Icon tile */}
-      <div
-        className={`
-          relative h-16 w-full rounded-xl overflow-hidden
-          flex flex-col items-center justify-center
-          transition-all duration-200
-          border border-[var(--builder-border)]
-          group-hover:border-transparent
-          group-hover:scale-[1.03]
-          group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.18)]
-          ${v.iconStyle || "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)]"}
-        `}
-        style={{ '--tile-hover': v.hoverColor } as React.CSSProperties}
-      >
+      <DesignTooltip content={COMPONENT_TOOLTIPS[v.label] || v.label} position="right">
+        <div
+          className={`
+            relative h-16 w-full rounded-xl overflow-hidden
+            flex flex-col items-center justify-center
+            transition-all duration-200
+            border border-[var(--builder-border)]
+            group-hover:border-transparent
+            group-hover:scale-[1.03]
+            group-hover:shadow-[0_4px_16px_rgba(0,0,0,0.18)]
+            ${v.iconStyle || "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)]"}
+          `}
+          style={{ '--tile-hover': v.hoverColor } as React.CSSProperties}
+        >
         {/* solid color fill on hover */}
         <div className="builder-tile-hover-bg absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-xl"
           style={{ backgroundColor: v.hoverColor || 'var(--builder-purple)' }} />
@@ -206,19 +232,24 @@ export const ComponentsPanel = () => {
             <Plus className="w-2 h-2 text-white" strokeWidth={3} />
           </div>
         </div>
-      </div>
+        </div>
+      </DesignTooltip>
 
       <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">
         {v.label}
       </span>
-    </div>
+    </motion.div>
   );
 
   const renderSearchResultItem = (v: any) => {
     if (v.type === "component") return renderComponentItem(v);
     if (v.type === "import") {
       return (
-        <div key={v.id}
+        <motion.div key={v.id}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.985 }}
+          transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+          style={{ willChange: "transform" }}
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
           className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing"
         >
@@ -226,11 +257,15 @@ export const ComponentsPanel = () => {
             <FileCode className="w-5 h-5 builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
           </div>
           <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-        </div>
+        </motion.div>
       );
     }
     return (
-      <div key={v.id}
+      <motion.div key={v.id}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
         className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1"
       >
@@ -246,26 +281,37 @@ export const ComponentsPanel = () => {
           )}
         </div>
         <span className="text-[9px] font-bold text-[var(--builder-text-muted)] text-center group-hover:text-[var(--builder-text)] transition-colors truncate px-0.5 uppercase tracking-tight">{v.label}</span>
-      </div>
+      </motion.div>
     );
   };
 
   // ── Back button shared style ─────────────────────────────────────────────────
   const backBtn = (onClick: () => void) => (
-    <button onClick={onClick}
-      className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all border border-[var(--builder-border)]">
-      <ChevronLeft className="w-4 h-4" />
-    </button>
+    <div className="shrink-0 w-8">
+      <DesignTooltip content="Back to components" position="right">
+        <button onClick={onClick}
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--builder-text-muted)] hover:text-[var(--builder-accent)] hover:bg-[var(--builder-surface-2)] transition-all border border-[var(--builder-border)]">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      </DesignTooltip>
+    </div>
   );
 
   // ── Resource row ─────────────────────────────────────────────────────────────
-  const resourceRow = (item: { id: string; label: string; sub: string; icon: React.ReactNode; action: () => void }) => (
-    <button key={item.id} onClick={item.action}
-      className="group relative h-14 rounded-xl flex items-center px-3 gap-3 overflow-hidden cursor-pointer transition-all duration-200
-        bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)]
-        border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]
-        hover:shadow-[0_0_12px_var(--builder-purple-glow)]"
-    >
+  const resourceRow = (item: { id: string; label: string; sub: string; icon: React.ReactNode; action: () => void; tooltip: string }) => (
+    <DesignTooltip key={item.id} content={item.tooltip} position="top">
+      <motion.button
+        type="button"
+        onClick={item.action}
+        whileHover={{ scale: 1.005 }}
+        whileTap={{ scale: 0.985 }}
+        transition={{ duration: 0.14, ease: [0.2, 0, 0, 1] }}
+        style={{ willChange: "transform" }}
+        className="group relative w-full h-14 rounded-xl flex items-center px-3 gap-3 overflow-hidden cursor-pointer transition-all duration-200
+          bg-[var(--builder-surface-2)] hover:bg-[var(--builder-surface-3)]
+          border border-[var(--builder-border)] hover:border-[var(--builder-border-mid)]
+          hover:shadow-[0_0_12px_var(--builder-purple-glow)]"
+      >
       {/* accent left stripe */}
       <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-[var(--builder-accent)] opacity-0 group-hover:opacity-100 transition-opacity rounded-l-xl" />
 
@@ -284,7 +330,8 @@ export const ComponentsPanel = () => {
       </div>
 
       <ChevronRight className="ml-auto w-3.5 h-3.5 text-[var(--builder-text-faint)] group-hover:text-[var(--builder-accent)] transition-all group-hover:translate-x-0.5 shrink-0" />
-    </button>
+      </motion.button>
+    </DesignTooltip>
   );
 
   return (
@@ -304,10 +351,12 @@ export const ComponentsPanel = () => {
               transition-all"
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--builder-text-faint)] hover:text-[var(--builder-accent)] transition-colors">
-              <X className="w-3.5 h-3.5" />
-            </button>
+            <DesignTooltip content="Clear search" position="left">
+              <button onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--builder-text-faint)] hover:text-[var(--builder-accent)] transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </DesignTooltip>
           )}
         </div>
       </div>
@@ -359,15 +408,15 @@ export const ComponentsPanel = () => {
           {/* Resource rows */}
           <div className="flex flex-col gap-2">
             {[
-              { id: "blocks",    label: "Pre-built Blocks", sub: "Ready-made sections",       icon: <Box />,           action: () => setPanelView("blocks") },
-              { id: "templates", label: "Templates",        sub: "Full page layouts",          icon: <LayoutTemplate />, action: () => setPanelView("templates") },
-              { id: "imports",   label: "My Imports",       sub: `${importedItems.length} custom modules`, icon: <FileCode />, action: () => setPanelView("imports") },
+              { id: "blocks",    label: "Pre-built Blocks", sub: "Ready-made sections",       icon: <Box />,           action: () => setPanelView("blocks"),    tooltip: "Browse pre-built sections and drag onto your page" },
+              { id: "templates", label: "Templates",        sub: "Full page layouts",          icon: <LayoutTemplate />, action: () => setPanelView("templates"), tooltip: "Choose a full page template to start with" },
+              { id: "imports",   label: "My Imports",       sub: `${importedItems.length} custom modules`, icon: <FileCode />, action: () => setPanelView("imports"),   tooltip: "View your imported HTML blocks and components" },
             ].map(resourceRow)}
           </div>
         </div>
 
         {/* Blocks view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "blocks" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "blocks" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
             <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
               {backBtn(() => setPanelView("landing"))}
@@ -378,7 +427,7 @@ export const ComponentsPanel = () => {
         </div>
 
         {/* Templates view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "templates" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "templates" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
             <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
               {backBtn(() => setPanelView("landing"))}
@@ -389,7 +438,7 @@ export const ComponentsPanel = () => {
         </div>
 
         {/* Imports view */}
-        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "imports" ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
+        <div className={`absolute inset-0 transition-all duration-300 ${panelView === "imports" && !searchQuery.trim() ? "opacity-100 translate-x-0" : "opacity-0 translate-x-full pointer-events-none"}`}>
           <div className="h-full flex flex-col p-3 pt-0">
             <div className="flex items-center gap-2 py-3 sticky top-0 bg-[var(--builder-surface)] z-10">
               {backBtn(() => setPanelView("landing"))}

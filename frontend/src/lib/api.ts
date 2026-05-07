@@ -295,6 +295,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((options.headers as Record<string, string>) || {}),
@@ -305,21 +306,28 @@ export async function apiFetch<T>(
     delete headers['x-skip-active-project-scope'];
   }
 
-  if (!skipActiveProjectScope && activeProjectId && !headers['x-project-id']) {
+  const isPublicSitePath = normalizedPath.startsWith('/api/public/');
+  if (!skipActiveProjectScope && !isPublicSitePath && activeProjectId && !headers['x-project-id']) {
     headers['x-project-id'] = activeProjectId;
   }
-
-  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
 
   // In the browser, prefer same-origin requests to Next's `/api/*` proxy.
   // This avoids CORS/cookie edge cases when accessing via LAN IP on phones.
   if (typeof window !== 'undefined' && normalizedPath.startsWith('/api/')) {
-    const res = await fetch(normalizedPath, {
-      ...options,
-      headers,
-      credentials: 'include',
-    });
-    return handleResponse<T>(res);
+    try {
+      const res = await fetch(normalizedPath, {
+        ...options,
+        headers,
+        credentials: 'include',
+      });
+      return await handleResponse<T>(res);
+    } catch (error) {
+      // If it's a network error (TypeError), fall through to candidate loop
+      // which might try a direct backend URL (localhost:5001 etc.)
+      if (!(error instanceof TypeError)) {
+        throw error;
+      }
+    }
   }
 
   const candidates = getApiCandidates();
@@ -673,6 +681,8 @@ export async function createUser(params: {
 export type Project = {
   id: string;
   title: string;
+  templateName?: string | null;
+  templateContent?: string | Record<string, unknown> | null;
   status: string;
   industry?: string | null;
   templateId?: string | null;
@@ -694,6 +704,15 @@ export async function listProjects(): Promise<{ success: boolean; projects: Proj
   const res = await apiFetch<{ success: boolean; projects: Project[] }>('/api/projects');
   console.log('[READ] listProjects fetch done', { projects: res?.projects?.length, ms: Date.now() - t0 });
   return res;
+}
+
+export async function listTemplateLibrary(limit = 60): Promise<{ success: boolean; templates: Project[] }> {
+  const query = new URLSearchParams();
+  if (Number.isFinite(limit)) query.set('limit', String(limit));
+  const qs = query.toString();
+  return apiFetch<{ success: boolean; templates: Project[] }>(
+    qs ? `/api/projects/templates/library?${qs}` : '/api/projects/templates/library'
+  );
 }
 
 export async function createProject(params: {
@@ -724,7 +743,15 @@ export async function getProjectBySubdomain(subdomain: string): Promise<{ succes
 
 export async function updateProject(
   id: string,
-  params: { title?: string; status?: string; industry?: string | null; subdomain?: string | null; thumbnail?: string | null }
+  params: {
+    title?: string;
+    status?: string;
+    templateName?: string | null;
+    templateContent?: string | Record<string, unknown> | null;
+    industry?: string | null;
+    subdomain?: string | null;
+    thumbnail?: string | null;
+  }
 ): Promise<{ success: boolean; project: Project; message?: string }> {
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
     method: 'PATCH',
@@ -751,7 +778,13 @@ export async function restoreProject(id: string): Promise<{ success: boolean; pr
 
 /** Get project storage usage (bytes and human readable). */
 export async function getProjectStorage(id: string): Promise<{ success: boolean; storageBytes: number; storageReadable: string }> {
-  return apiFetch<{ success: boolean; storageBytes: number; storageReadable: string }>(`/api/projects/${id}/storage`);
+  return apiFetch<{ success: boolean; storageBytes: number; storageReadable: string }>(`/api/projects/${id}/storage`, {
+    headers: {
+      // The project is already explicit in the route param.
+      // Skip implicit active project header injection for this request.
+      'x-skip-active-project-scope': '1',
+    },
+  });
 }
 
 /** Permanently purge a project from the database. This action cannot be undone. */
@@ -1057,6 +1090,15 @@ export async function listProducts(params?: {
   });
 }
 
+export async function getProduct(id: string): Promise<{ success: boolean; data?: ApiProduct; message?: string }> {
+  const normalizedId = String(id || '').trim();
+  if (!normalizedId) {
+    throw new Error('Product id is required');
+  }
+
+  return apiFetch<{ success: boolean; data?: ApiProduct; message?: string }>(`/api/products/${encodeURIComponent(normalizedId)}`);
+}
+
 // For uploading prodcut images to Firebase Storage 
 export async function uploadProductImageApi(
   file: File,
@@ -1106,7 +1148,10 @@ export async function uploadProductImageApi(
 }
 
 export async function createProduct(params: {
-  subdomain: string;
+  /** Optional when using the active project scope header (`x-project-id`). */
+  subdomain?: string;
+  /** Optional fallback when `x-project-id` is not available. */
+  projectId?: string;
   name: string;
   sku?: string;
   category?: string;
@@ -1821,6 +1866,7 @@ export type AnalyticsResponse = {
     };
     trends: {
       users: number[];
+      maxActiveUsers: number[];
       websites: number[];
       domains: number[];
       pending: number[];

@@ -70,6 +70,42 @@ async function resolveOwnedDomain(userId, subdomainInput) {
   return { error: 'Project/domain not found for this subdomain' };
 }
 
+function sortProductsNewestFirst(items) {
+  return (Array.isArray(items) ? items : [])
+    .slice()
+    .sort((a, b) => {
+      const aTime = new Date(a?.createdAt || a?.updatedAt || 0).getTime();
+      const bTime = new Date(b?.createdAt || b?.updatedAt || 0).getTime();
+      return bTime - aTime;
+    });
+}
+
+function mergeUniqueProducts(...lists) {
+  const byId = new Map();
+  for (const list of lists) {
+    const items = Array.isArray(list) ? list : [];
+    for (const item of items) {
+      if (!item || !item.id) continue;
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    }
+  }
+  return Array.from(byId.values());
+}
+
+function paginateItems(items, pagination = {}) {
+  const limitNum = Math.max(1, parseInt(pagination.limit, 10) || 20);
+  const pageNum = Math.max(1, parseInt(pagination.page, 10) || 1);
+  const total = items.length;
+  const start = (pageNum - 1) * limitNum;
+  const slice = items.slice(start, start + limitNum);
+  return {
+    items: slice,
+    total,
+    page: pageNum,
+    totalPages: Math.ceil(total / limitNum),
+  };
+}
+
 exports.getAll = async (req, res) => {
   try {
     const { status, search, page, limit, subdomain, scope } = req.query;
@@ -86,27 +122,83 @@ exports.getAll = async (req, res) => {
       return res.status(200).json({ success: true, ...result });
     }
 
-    const filters = { userId: req.user.id };
-    if (status) filters.status = status;
-    if (search) filters.search = search;
-    if (!subdomain && headerProjectId) {
-      const selectedProject = await Project.get(req.user.id, headerProjectId);
-      const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
-      if (selectedProjectSubdomain) {
-        const owned = await resolveOwnedDomain(req.user.id, selectedProjectSubdomain);
-        if (!owned.error) {
-          filters.subdomain = owned.subdomain;
-        }
-      }
-    }
+    // Explicit subdomain query always wins (legacy behavior).
     if (subdomain) {
       const owned = await resolveOwnedDomain(req.user.id, subdomain);
       if (owned.error) {
         return res.status(400).json({ success: false, message: owned.error });
       }
-      filters.subdomain = owned.subdomain;
+      // Controller already verified ownership; read directly from the subdomain bucket
+      // (published_subdomains/{subdomain}/products) even if the published_subdomains lookup doc is missing.
+      const subdomainResult = await Product.findAllForSubdomain(
+        { subdomain: owned.subdomain, status, search },
+        { page, limit }
+      );
+
+      // Back-compat: if UI sends a project scope header too, include any project-scoped
+      // products for the same project (some older flows could create under project scope
+      // even after a subdomain was assigned).
+      if (headerProjectId) {
+        const selectedProject = await Project.get(req.user.id, headerProjectId);
+        const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
+        if (selectedProject && selectedProjectSubdomain && selectedProjectSubdomain === owned.subdomain) {
+          const projectResult = await Product.findAllForProject(
+            { userId: req.user.id, projectId: headerProjectId, status, search },
+            // Fetch full set (model paginates in-memory). We'll paginate after merging.
+            { page: 1, limit: 10000 }
+          );
+          const merged = sortProductsNewestFirst(
+            mergeUniqueProducts(subdomainResult.items, projectResult.items)
+          );
+          const paged = paginateItems(merged, { page, limit });
+          return res.status(200).json({ success: true, ...paged });
+        }
+      }
+
+      return res.status(200).json({ success: true, ...subdomainResult });
     }
-    const result = await Product.findAllForUser(filters, { page, limit });
+
+    // If dashboard sent an active project scope header, prefer that project's storage:
+    // - if project has a subdomain, keep using subdomain-scoped products (back-compat)
+    // - if no subdomain yet, use project-scoped products so clients can add products pre-publish
+    if (headerProjectId) {
+      const selectedProject = await Project.get(req.user.id, headerProjectId);
+      if (!selectedProject) {
+        return res.status(404).json({ success: false, message: 'Project not found' });
+      }
+
+      const selectedProjectSubdomain = Product.normalizeSubdomain(selectedProject?.subdomain || '');
+      if (selectedProjectSubdomain) {
+        const owned = await resolveOwnedDomain(req.user.id, selectedProjectSubdomain);
+        if (owned.error) {
+          return res.status(400).json({ success: false, message: owned.error });
+        }
+        const subdomainResult = await Product.findAllForSubdomain(
+          { subdomain: owned.subdomain, status, search },
+          { page, limit }
+        );
+
+        // Include project-scoped products too (see note above).
+        const projectResult = await Product.findAllForProject(
+          { userId: req.user.id, projectId: headerProjectId, status, search },
+          { page: 1, limit: 10000 }
+        );
+        const merged = sortProductsNewestFirst(
+          mergeUniqueProducts(subdomainResult.items, projectResult.items)
+        );
+        const paged = paginateItems(merged, { page, limit });
+        return res.status(200).json({ success: true, ...paged });
+      }
+
+      const result = await Product.findAllForProject(
+        { userId: req.user.id, projectId: headerProjectId, status, search },
+        { page, limit }
+      );
+      return res.status(200).json({ success: true, ...result });
+    }
+
+    // Fallback: list across all owned subdomains (legacy behavior).
+    const result = await Product.findAllForUser({ userId: req.user.id, status, search }, { page, limit });
     res.status(200).json({ success: true, ...result });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
@@ -116,10 +208,30 @@ exports.getAll = async (req, res) => {
 exports.getOne = async (req, res) => {
   try {
     const { idOrSlug } = req.params;
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
     const isId = idOrSlug.length >= 20 && !idOrSlug.includes('-');
-    const product = isId
-      ? await Product.findByIdForUser(idOrSlug, req.user.id)
-      : await Product.findBySlugForUser(idOrSlug, req.user.id, req.query.subdomain);
+
+    let product = null;
+    if (headerProjectId) {
+      product = isId
+        ? await Product.findByIdForProject(idOrSlug, req.user.id, headerProjectId)
+        : await Product.findBySlugForProject(idOrSlug, req.user.id, headerProjectId);
+    }
+
+    // If caller is scoped to a project that has a subdomain, also try the subdomain bucket.
+    if (!product && headerProjectId && isId) {
+      const project = await Project.get(req.user.id, headerProjectId);
+      const projectSubdomain = Product.normalizeSubdomain(project?.subdomain || '');
+      if (projectSubdomain) {
+        product = await Product.findByIdForSubdomain(idOrSlug, projectSubdomain);
+      }
+    }
+
+    if (!product) {
+      product = isId
+        ? await Product.findByIdForUser(idOrSlug, req.user.id)
+        : await Product.findBySlugForUser(idOrSlug, req.user.id, req.query.subdomain);
+    }
 
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
@@ -161,49 +273,91 @@ exports.create = async (req, res) => {
       subCategory,
       sub_category,
       subdomain,
+      projectId,
     } = req.body;
     if (!name) {
       return res.status(400).json({ success: false, message: 'Name is required' });
     }
 
-    const owned = await resolveOwnedDomain(req.user.id, subdomain);
-    if (owned.error) {
-      return res.status(400).json({ success: false, message: owned.error });
-    }
+    const baseData = {
+      name,
+      sku: sku || '',
+      category: category || '',
+      slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
+      description: description || '',
+      price: price ?? 0,
+      basePrice: basePrice ?? null,
+      costPrice: costPrice ?? null,
+      finalPrice: finalPrice ?? null,
+      compareAtPrice: compareAtPrice ?? null,
+      discount: discount ?? 0,
+      discountType: discountType || 'percentage',
+      hasVariants: hasVariants !== undefined ? !!hasVariants : (Array.isArray(variants) && variants.length > 0),
+      variants: Array.isArray(variants) ? variants : [],
+      variantStocks: variantStocks && typeof variantStocks === 'object' ? variantStocks : {},
+      variantPrices: variantPrices && typeof variantPrices === 'object' ? variantPrices : {},
+      priceRangeMin: priceRangeMin ?? null,
+      priceRangeMax: priceRangeMax ?? null,
+      images: Array.isArray(images) ? images : [],
+      status: status || 'draft',
+      subcategory: String(subcategory ?? subCategory ?? sub_category ?? '').trim(),
+      stock: stock ?? null,
+      onHandStock: onHandStock ?? undefined,
+      reservedStock: reservedStock ?? undefined,
+      lowStockThreshold: lowStockThreshold ?? undefined,
+    };
 
-    const data = await Product.createForSubdomain({
-      subdomain: owned.subdomain,
-      userId: req.user.id,
-      projectId: owned.domain.projectId || null,
-      domainId: owned.domain.id || owned.domain.domainId || null,
-      data: {
-        name,
-        sku: sku || '',
-        category: category || '',
-        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
-        description: description || '',
-        price: price ?? 0,
-        basePrice: basePrice ?? null,
-        costPrice: costPrice ?? null,
-        finalPrice: finalPrice ?? null,
-        compareAtPrice: compareAtPrice ?? null,
-        discount: discount ?? 0,
-        discountType: discountType || 'percentage',
-        hasVariants: hasVariants !== undefined ? !!hasVariants : (Array.isArray(variants) && variants.length > 0),
-        variants: Array.isArray(variants) ? variants : [],
-        variantStocks: variantStocks && typeof variantStocks === 'object' ? variantStocks : {},
-        variantPrices: variantPrices && typeof variantPrices === 'object' ? variantPrices : {},
-        priceRangeMin: priceRangeMin ?? null,
-        priceRangeMax: priceRangeMax ?? null,
-        images: Array.isArray(images) ? images : [],
-        status: status || 'draft',
-        subcategory: String(subcategory ?? subCategory ?? sub_category ?? '').trim(),
-        stock: stock ?? null,
-        onHandStock: onHandStock ?? undefined,
-        reservedStock: reservedStock ?? undefined,
-        lowStockThreshold: lowStockThreshold ?? undefined,
-      },
-    });
+    let data = null;
+
+    // Legacy path: subdomain-scoped products.
+    if (subdomain) {
+      const owned = await resolveOwnedDomain(req.user.id, subdomain);
+      if (owned.error) {
+        return res.status(400).json({ success: false, message: owned.error });
+      }
+
+      data = await Product.createForSubdomain({
+        subdomain: owned.subdomain,
+        userId: req.user.id,
+        projectId: owned.domain.projectId || null,
+        domainId: owned.domain.id || owned.domain.domainId || null,
+        data: baseData,
+      });
+    } else {
+      // New path: project-scoped products (for draft projects without subdomain).
+      const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+      const effectiveProjectId = String(projectId || headerProjectId || '').trim();
+      if (!effectiveProjectId) {
+        return res.status(400).json({ success: false, message: 'subdomain or projectId is required' });
+      }
+      const project = await Project.get(req.user.id, effectiveProjectId);
+      if (!project) {
+        return res.status(404).json({ success: false, message: 'Project not found' });
+      }
+
+      // If the project already has a subdomain, keep products in the subdomain bucket
+      // so reads (which prefer subdomain for published sites) see the newly created product.
+      const projectSubdomain = Product.normalizeSubdomain(project?.subdomain || '');
+      if (projectSubdomain) {
+        const owned = await resolveOwnedDomain(req.user.id, projectSubdomain);
+        if (owned.error) {
+          return res.status(400).json({ success: false, message: owned.error });
+        }
+        data = await Product.createForSubdomain({
+          subdomain: owned.subdomain,
+          userId: req.user.id,
+          projectId: owned.domain.projectId || effectiveProjectId || null,
+          domainId: owned.domain.id || owned.domain.domainId || null,
+          data: baseData,
+        });
+      } else {
+        data = await Product.createForProject({
+          userId: req.user.id,
+          projectId: effectiveProjectId,
+          data: baseData,
+        });
+      }
+    }
 
     try {
       const notif = await Notification.create({
@@ -255,7 +409,24 @@ exports.update = async (req, res) => {
       subCategory,
       sub_category,
     } = req.body;
-    const existing = await Product.findByIdForUser(req.params.id, req.user.id);
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+    const existingInProject = headerProjectId
+      ? await Product.findByIdForProject(req.params.id, req.user.id, headerProjectId)
+      : null;
+
+    let existingInSubdomain = null;
+    if (!existingInProject && headerProjectId) {
+      const project = await Project.get(req.user.id, headerProjectId);
+      const projectSubdomain = Product.normalizeSubdomain(project?.subdomain || '');
+      if (projectSubdomain) {
+        existingInSubdomain = await Product.findByIdForSubdomain(req.params.id, projectSubdomain);
+      }
+    }
+
+    const existing =
+      existingInProject ||
+      existingInSubdomain ||
+      await Product.findByIdForUser(req.params.id, req.user.id);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -293,7 +464,11 @@ exports.update = async (req, res) => {
     if (reservedStock !== undefined) updates.reservedStock = reservedStock;
     if (lowStockThreshold !== undefined) updates.lowStockThreshold = lowStockThreshold;
 
-    const data = await Product.updateForUser(req.params.id, req.user.id, updates);
+    const data = existingInProject
+      ? await Product.updateForProject(req.params.id, req.user.id, headerProjectId, updates)
+      : existingInSubdomain
+        ? await Product.updateForSubdomain(req.params.id, existingInSubdomain.subdomain, updates)
+        : await Product.updateForUser(req.params.id, req.user.id, updates);
     if (!data) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
@@ -375,12 +550,33 @@ exports.uploadImage = async (req, res) => {
 
 exports.delete = async (req, res) => {
   try {
-    const existing = await Product.findByIdForUser(req.params.id, req.user.id);
+    const headerProjectId = String(req.headers['x-project-id'] || '').trim();
+    const existingInProject = headerProjectId
+      ? await Product.findByIdForProject(req.params.id, req.user.id, headerProjectId)
+      : null;
+
+    let existingInSubdomain = null;
+    if (!existingInProject && headerProjectId) {
+      const project = await Project.get(req.user.id, headerProjectId);
+      const projectSubdomain = Product.normalizeSubdomain(project?.subdomain || '');
+      if (projectSubdomain) {
+        existingInSubdomain = await Product.findByIdForSubdomain(req.params.id, projectSubdomain);
+      }
+    }
+
+    const existing =
+      existingInProject ||
+      existingInSubdomain ||
+      await Product.findByIdForUser(req.params.id, req.user.id);
     if (!existing) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    const deleted = await Product.deleteByIdForUser(req.params.id, req.user.id);
+    const deleted = existingInProject
+      ? await Product.deleteByIdForProject(req.params.id, req.user.id, headerProjectId)
+      : existingInSubdomain
+        ? await Product.deleteByIdForSubdomain(req.params.id, existingInSubdomain.subdomain)
+        : await Product.deleteByIdForUser(req.params.id, req.user.id);
     if (!deleted) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }

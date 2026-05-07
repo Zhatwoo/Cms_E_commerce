@@ -4,15 +4,9 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminSidebar } from '../components/sidebar';
 import { AdminHeader } from '../components/header';
+import { AdminPageHero } from '../components/AdminPageHero';
 import { addNotification } from '@/lib/notifications';
 import { useAdminLoading } from '../components/LoadingProvider';
-
-/* ── icon helpers ─────────────────────────────────────────────── */
-const ChevronRightIcon = () => (
-    <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-);
 
 const SearchIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
     <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,10 +16,9 @@ const SearchIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
 
 /* ── shared light-mode style atoms ───────────────────────────── */
 const panel: React.CSSProperties = {
-    background: 'rgba(255,255,255,0.88)',
+    background: 'rgba(255,255,255,0.96)',
     border: '1px solid rgba(166,61,255,0.16)',
-    boxShadow: '0 20px 50px rgba(103,2,191,0.12), 0 4px 12px rgba(103,2,191,0.04)',
-    backdropFilter: 'blur(20px)',
+    boxShadow: '0 16px 36px rgba(103,2,191,0.10), 0 4px 12px rgba(103,2,191,0.04)',
 };
 
 /* ── DismissModal ─────────────────────────────────────────────── */
@@ -60,7 +53,7 @@ const DismissModal: React.FC<DismissModalProps> = ({ isOpen, onClose, onConfirm,
                                 whileTap={{ scale: 0.96 }}
                                 type="button" onClick={onClose} className="text-base font-semibold" style={{ color: '#9A99AF' }}>Cancel</motion.button>
                             <motion.button
-                                whileTap={{ scale: 0.94 }}
+                                whileTap={{ scale: 0.96 }}
                                 type="button"
                                 onClick={() => { onConfirm(); onClose(); }}
                                 className="rounded-2xl px-10 py-3 text-base font-semibold text-white transition-opacity hover:opacity-90 flex items-center justify-center"
@@ -153,11 +146,11 @@ const DetailsModal: React.FC<DetailsModalProps> = ({ isOpen, onClose, data }) =>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-6">
-                                    <div className="p-5 rounded-2xl border border-[rgba(166,61,255,0.08)]">
+                                    <div className="rounded-2xl border border-[rgba(166,61,255,0.14)] bg-white p-5 shadow-sm">
                                         <p className="text-[9px] font-bold uppercase tracking-widest text-[#A78BFA] mb-1.5">Violation Type</p>
                                         <p className="text-sm font-black" style={{ color: '#4a1a8a' }}>{data.violationType}</p>
                                     </div>
-                                    <div className="p-5 rounded-2xl border border-[rgba(166,61,255,0.08)]">
+                                    <div className="rounded-2xl border border-[rgba(166,61,255,0.14)] bg-white p-5 shadow-sm">
                                         <p className="text-[9px] font-bold uppercase tracking-widest text-[#A78BFA] mb-1.5">Report Date</p>
                                         <p className="text-sm font-black" style={{ color: '#4a1a8a' }}>{data.reportDate}</p>
                                     </div>
@@ -321,23 +314,16 @@ function ModerationComplianceBoard() {
 
     return (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="space-y-6">
-            {/* Header */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }} className="mb-2">
-                <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-                    <div>
-                        <h1 className="mb-1 text-3xl font-bold sm:text-4xl" style={{ color: '#7b1de8' }}>Moderation &amp; Compliance</h1>
-                        <div className="mt-1 flex items-center gap-2 text-sm" style={{ color: '#a78bfa' }}>
-                            <span>Moderation &amp; Compliance</span>
-                            <ChevronRightIcon />
-                            <span className="font-semibold" style={{ color: '#7b1de8' }}>{tabLabel}</span>
-                        </div>
-                    </div>
+            <AdminPageHero
+                title="Moderation & Compliance"
+                subtitle={`Review and resolve policy cases in the ${tabLabel} queue.`}
+                rightContent={(
                     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="flex items-center gap-3">
                         <div className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: '#FFCC00', color: '#232323' }}>Auto-review on</div>
                         <div className="rounded-full border px-3 py-1 text-xs" style={{ border: '1px solid rgba(138,134,164,0.35)', color: '#8A86A4' }}>Last sync 2 min ago</div>
                     </motion.div>
-                </div>
-            </motion.div>
+                )}
+            />
 
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="space-y-4">
                 {/* Stat cards */}
@@ -371,17 +357,17 @@ function ModerationComplianceBoard() {
 
                 {/* Tabs + search */}
                 <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex gap-1 rounded-xl p-1 relative" style={{ border: '1px solid rgba(166,61,255,0.2)', background: 'rgba(255,255,255,0.7)' }}>
+                    <div className="relative flex gap-1 rounded-xl border p-1" style={{ borderColor: 'rgba(166,61,255,0.16)', background: '#ffffff' }}>
                         {(['reports', 'records'] as const).map((t) => (
                             <motion.button
                                 key={t}
-                                whileTap={{ scale: 0.94 }}
+                                whileTap={{ scale: 0.96 }}
                                 onClick={() => {
                                     if (t === tab) return;
                                     startLoading();
                                     setTab(t);
                                 }}
-                                className={`relative min-w-[132px] rounded-lg px-6 py-2.5 text-sm font-semibold transition-colors duration-200 ${
+                                className={`relative min-w-[110px] rounded-lg px-4 py-2.5 text-xs font-semibold transition-colors duration-300 sm:min-w-[132px] sm:px-6 sm:text-sm ${
                                     tab === t ? 'text-[#471396]' : 'text-[#66607E] hover:text-[#471396]'
                                 }`}
                             >
@@ -389,7 +375,7 @@ function ModerationComplianceBoard() {
                                     <motion.div
                                         layoutId="moderationTabBackground"
                                         className="absolute inset-0 rounded-lg bg-[#FFCC00] shadow-sm"
-                                        transition={{ type: "spring", bounce: 0.15, duration: 0.5 }}
+                                        transition={{ type: "spring", bounce: 0.18, duration: 0.5 }}
                                     />
                                 )}
                                 <span className="relative z-10">{t.charAt(0).toUpperCase() + t.slice(1)}</span>
@@ -397,19 +383,19 @@ function ModerationComplianceBoard() {
                         ))}
                     </div>
 
-                    <div className="relative flex-1 min-w-[17rem]">
+                    <div className="relative w-full min-w-0 flex-1 sm:min-w-[17rem]">
                         <input
                             aria-label="Search websites"
                             placeholder="Search websites"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="h-12 w-full rounded-2xl pl-12 pr-4 text-sm font-medium outline-none"
-                            style={{ background: 'rgba(248,245,255,0.9)', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
+                            style={{ background: '#ffffff', border: '1.5px solid rgba(166,61,255,0.16)', color: '#471396' }}
                         />
                         <div className="absolute left-3 top-1/2 -translate-y-1/2">
                             <motion.div 
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
+                                whileHover={{ scale: 1.06 }}
+                                whileTap={{ scale: 0.96 }}
                                 className="flex items-center justify-center text-[#FFB800]">
                                 <SearchIcon className="h-5 w-5" />
                             </motion.div>
@@ -420,7 +406,7 @@ function ModerationComplianceBoard() {
                 {/* Main table */}
                 <motion.div
                     initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }}
-                    className="overflow-hidden rounded-[40px] p-10"
+                    className="overflow-hidden rounded-[28px] p-5 sm:rounded-[40px] sm:p-10"
                     style={panel}
                 >
                     <div className="min-h-[350px]">
@@ -434,8 +420,8 @@ function ModerationComplianceBoard() {
                                             <motion.div
                                                 key={rpt.id}
                                                 whileHover={{ x: 4 }}
-                                                className="flex items-center justify-between rounded-2xl px-8 py-6 group transition-all"
-                                                style={{ background: 'rgba(246,243,255,0.7)', border: '1px solid rgba(166,61,255,0.1)' }}
+                                                className="group flex flex-col items-start justify-between gap-4 rounded-2xl px-5 py-5 transition-all sm:px-8 sm:py-6 md:flex-row md:items-center"
+                                                style={{ background: '#ffffff', border: '1px solid rgba(166,61,255,0.14)', boxShadow: '0 8px 20px rgba(103,2,191,0.06)' }}
                                             >
                                                 <div className="flex items-center gap-6">
                                                     <div className="h-16 w-1 rounded-full shrink-0" style={{ background: severityStyles[rpt.severity].bg }} />
@@ -443,18 +429,18 @@ function ModerationComplianceBoard() {
                                                         <p className="text-xl font-black tracking-tight" style={{ color: '#471396' }}>{rpt.site}</p>
                                                         <div className="flex items-center gap-3 mt-1.5">
                                                             <p className="text-sm font-bold opacity-60" style={{ color: '#8A86A4' }}>{rpt.violationType}</p>
-                                                            <div className="h-1 w-1 rounded-full bg-gray-300" />
+                                                            <div className="h-1 w-1 rounded-full bg-[#B2AEBF]" />
                                                             <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: severityStyles[rpt.severity].color }}>{rpt.severity}</p>
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex w-full items-center gap-3 opacity-100 transition-opacity md:w-auto md:gap-4 md:opacity-0 md:group-hover:opacity-100">
                                                     <motion.button 
-                                                        whileTap={{ scale: 0.94 }}
-                                                        type="button" onClick={() => handleView(rpt)} className="px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition" style={{ color: '#471396', border: '1.5px solid rgba(166,61,255,0.2)' }}>Inspect</motion.button>
+                                                        whileTap={{ scale: 0.96 }}
+                                                        type="button" onClick={() => handleView(rpt)} className="rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest transition sm:px-6 sm:text-sm" style={{ color: '#471396', border: '1.5px solid rgba(166,61,255,0.2)' }}>Inspect</motion.button>
                                                     <motion.button 
-                                                        whileTap={{ scale: 0.94 }}
-                                                        type="button" onClick={() => { setCurrentSite(rpt.site); setShowDismissModal(true); }} className="px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest text-white transition shadow-sm" style={{ background: '#FF4343' }}>Dismiss</motion.button>
+                                                        whileTap={{ scale: 0.96 }}
+                                                        type="button" onClick={() => { setCurrentSite(rpt.site); setShowDismissModal(true); }} className="rounded-xl px-4 py-2.5 text-xs font-black uppercase tracking-widest text-white transition shadow-sm sm:px-6 sm:text-sm" style={{ background: '#FF4343' }}>Dismiss</motion.button>
                                                 </div>
                                             </motion.div>
                                         ))}
@@ -463,10 +449,10 @@ function ModerationComplianceBoard() {
                             )}
                             {tab === 'records' && (
                                 <motion.div key="records" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}>
-                                    <h3 className="mb-6 text-2xl font-bold" style={{ color: '#471396' }}>Compliance History</h3>
-                                    <div className="mb-6 text-sm font-bold opacity-50" style={{ color: '#8A86A4' }}>{filteredLabel}</div>
+                                    <h3 className="mb-8 text-3xl font-black tracking-tight" style={{ color: '#471396' }}>Compliance History</h3>
+                                    <div className="mb-6 text-sm font-bold uppercase tracking-widest opacity-50" style={{ color: '#8A86A4' }}>{filteredLabel}</div>
                                     <div className="space-y-4">
-                                        <div className="rounded-2xl px-8 py-6" style={{ background: 'rgba(240,235,255,0.6)', border: '1px solid rgba(166,61,255,0.09)' }}>
+                                        <div className="rounded-2xl px-8 py-6" style={{ background: '#ffffff', border: '1px solid rgba(166,61,255,0.14)', boxShadow: '0 8px 20px rgba(103,2,191,0.06)' }}>
                                             <div className="flex items-center gap-5">
                                                 <div className="h-12 w-1.5 rounded-full" style={{ background: '#10B981' }} />
                                                 <div>

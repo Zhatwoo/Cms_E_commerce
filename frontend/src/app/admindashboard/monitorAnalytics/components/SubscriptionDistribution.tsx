@@ -61,7 +61,7 @@ export default function SubscriptionDistribution({ distribution, loading }: Prop
                     </div>
                 </div>
 
-                <div className="admin-dashboard-inset-panel rounded-[20px] p-6 sm:p-8">
+                <div className="rounded-[20px] border border-[rgba(166,61,255,0.2)] bg-white p-6 shadow-[0_14px_30px_rgba(103,2,191,0.09)] sm:p-8">
                     <div className="flex flex-col lg:flex-row items-center gap-10">
                         <svg viewBox="0 0 360 360" className="w-full max-w-[280px] aspect-square">
                             {subscriptionSegments.map((segment) => {

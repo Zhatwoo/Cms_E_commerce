@@ -21,6 +21,7 @@ const eslintConfig = defineConfig([
       'react-hooks/refs': 'warn',
       'react-hooks/static-components': 'warn',
       'prefer-const': 'warn',
+      '@next/next/no-html-link-for-pages': 'off',
     },
   },
   // Override default ignores of eslint-config-next.

@@ -26,6 +26,7 @@ export const ContainerSettings = () => {
     position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
     rotation, flipHorizontal, flipVertical,
+    isFreeform,
     productId,
     toggleTarget, triggerAction, collapsibleKey, defaultOpen, defaultOpenMobile, defaultOpenDesktop, showOn, mobileBreakpoint,
     actions: { setProp }
@@ -85,6 +86,7 @@ export const ContainerSettings = () => {
     rotation: node.data.props.rotation,
     flipHorizontal: node.data.props.flipHorizontal,
     flipVertical: node.data.props.flipVertical,
+    isFreeform: node.data.props.isFreeform,
     productId: node.data.props.productId,
     toggleTarget: node.data.props.toggleTarget,
     triggerAction: node.data.props.triggerAction,
@@ -114,6 +116,7 @@ export const ContainerSettings = () => {
           nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

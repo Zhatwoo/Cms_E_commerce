@@ -63,6 +63,8 @@ async function update(userId, projectId, data) {
   const updates = {};
   if (data.title !== undefined) updates.title = data.title;
   if (data.status !== undefined) updates.status = data.status;
+  if (data.templateName !== undefined) updates.template_name = (data.templateName || '').toString().trim() || null;
+  if (data.templateContent !== undefined) updates.template_content = data.templateContent || null;
   if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
@@ -363,6 +365,67 @@ async function countAll() {
   }
 }
 
+/**
+ * List template projects across all users for the shared template library.
+ * Uses collectionGroup so templates created by one user are visible to others.
+ */
+async function listTemplateLibrary(limit = 60) {
+  const t0 = Date.now();
+
+  const normalizedLimit = Number.isFinite(Number(limit))
+    ? Math.max(1, Math.min(200, Number(limit)))
+    : 60;
+
+  // Avoid where() index requirements by reading and filtering in-memory.
+  const groupSnap = await db.collectionGroup('projects').get();
+  const templateDocs = groupSnap.docs.filter((doc) => {
+    const data = doc.data() || {};
+    const status = String(data.status || '').trim().toLowerCase();
+    return status === 'template';
+  });
+
+  const ownerIds = Array.from(new Set(templateDocs.map((doc) => doc.ref.parent?.parent?.id).filter(Boolean)));
+  const ownerNameById = new Map();
+
+  await Promise.all(ownerIds.map(async (ownerId) => {
+    try {
+      const ownerSnap = await db.collection('user').doc('roles').collection('client').doc(ownerId).get();
+      if (ownerSnap.exists) {
+        const data = ownerSnap.data() || {};
+        ownerNameById.set(ownerId, data.full_name || data.displayName || data.username || null);
+      }
+    } catch (_) {
+      // Keep owner name optional when lookup fails.
+    }
+  }));
+
+  const items = templateDocs
+    .map((doc) => {
+      const ownerId = doc.ref.parent?.parent?.id || null;
+      const base = sanitizeProject(docToObject(doc));
+      return {
+        ...base,
+        ownerId,
+        ownerName: ownerId ? ownerNameById.get(ownerId) || null : null,
+      };
+    })
+    .sort((a, b) => {
+      const tA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const tB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      return tB - tA;
+    })
+    .slice(0, normalizedLimit);
+
+  console.log('[READ] Project.listTemplateLibrary', {
+    total: groupSnap.size,
+    templates: templateDocs.length,
+    returned: items.length,
+    ms: Date.now() - t0,
+  });
+
+  return items;
+}
+
 
 module.exports = {
   create,
@@ -379,4 +442,5 @@ module.exports = {
   getTrashRef, // Exported for controller usage
   countAll,
   countWithSubdomain,
+  listTemplateLibrary,
 };

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useEditor } from "@craftjs/core";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, LockOpen, Code2, X, Terminal, Palette, MousePointer2, Sparkles } from "lucide-react";
+import { Eye, EyeOff, Lock, LockOpen, Code2, X, Terminal, Layout, MousePointer, Activity } from "lucide-react";
 import { serializeCraftToClean } from "../../_lib/serializer";
 import { autoSavePage } from "../../_lib/pageApi";
 import { useAlert } from "@/app/m_dashboard/components/context/alert-context";
@@ -22,9 +22,9 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: "design", label: "Design", icon: <Palette className="w-4 h-4 shrink-0" /> },
-  { id: "prototype", label: "Prototype", icon: <MousePointer2 className="w-4 h-4 shrink-0" /> },
-  { id: "animation", label: "Animation", icon: <Sparkles className="w-4 h-4 shrink-0" /> },
+  { id: "design", label: "Design", icon: <Layout className="w-4 h-4 shrink-0" /> },
+  { id: "prototype", label: "Prototype", icon: <MousePointer className="w-4 h-4 shrink-0" /> },
+  { id: "animation", label: "Animation", icon: <Activity className="w-4 h-4 shrink-0" /> },
   { id: "code", label: "Code", icon: <Code2 className="w-4 h-4 shrink-0" /> },
 ];
 
@@ -117,7 +117,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
       >
         <div className="h-full p-4 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-6 gap-2">
-            <h3 className="text-builder-text font-bold text-lg">Configs</h3>
+            <h3 className="text-builder-text font-bold text-lg">Configurations</h3>
             <div className="flex items-center gap-1">
               {permission !== "viewer" && onClose && (
                 <button
@@ -180,9 +180,9 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                   </div>
                 </div>
 
-                {/* Tab Bar */}
-                <div className="w-full mb-6 px-0.5">
-                  <div className="grid grid-cols-4 w-full p-1 rounded-xl" style={{ background: "var(--builder-surface-2)" }}>
+                {/* Tab Bar - Formal & Premium Segmented Control */}
+                <div className="w-full mb-6 px-1">
+                  <div className="flex w-full p-1 rounded-xl gap-1" style={{ background: "var(--builder-surface-2)" }}>
                     {(() => {
                       const limits = getLimits(user?.subscriptionPlan);
                       return TABS.map((tab) => {
@@ -199,27 +199,26 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               }
                               setActiveTab(tab.id);
                             }}
-                            className={`relative group z-10 w-full px-1 py-2 rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-0.5 min-w-0 ${isActive
-                              ? "text-[var(--builder-accent)]"
+                            className={`relative flex-1 p-1.5 rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 min-w-0 ${isActive
+                              ? "bg-[var(--builder-surface-3)] text-[var(--builder-accent)] shadow-sm"
                               : isRestricted || (permission === "viewer" && tab.id === "code")
                                 ? "text-[var(--builder-text-faint)] cursor-not-allowed"
-                                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
+                                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]/50"
                               }`}
                           >
-                            {isActive && (
-                              <div className="absolute inset-0 rounded-lg"
-                                style={{ background: "var(--builder-surface-3)", boxShadow: "0 0 10px var(--builder-accent-glow)" }}
-                              />
-                            )}
-                            <div className="flex items-center gap-1 min-w-0 w-full justify-center relative z-10">
+                            <div className="flex flex-col items-center gap-0.5 min-w-0 justify-center">
                               {isRestricted ? (
-                                <Lock size={10} className="text-amber-500/60 shrink-0" />
+                                <Lock size={12} className="text-amber-500/60 shrink-0" />
                               ) : (
-                                <div className={`shrink-0 transition-transform duration-200 ${isActive ? "scale-110 drop-shadow-[0_0_4px_var(--builder-accent-glow)]" : "group-hover:scale-105"}`}>
-                                  {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 12 })}
+                              <div className={`shrink-0 transition-all duration-200 ${isActive ? "scale-110" : ""}`}>
+                                  {React.cloneElement(tab.icon as React.ReactElement<any>, { size: 16, strokeWidth: isActive ? 2.5 : 2 })}
                                 </div>
                               )}
-                              <span className="text-[9px] font-bold tracking-tight truncate">{tab.label}</span>
+                              {width >= 320 && (
+                                <span className={`text-[9px] uppercase truncate tracking-tighter text-center w-full px-0.5 mt-0.5 ${isActive ? "font-bold" : "font-medium"}`}>
+                                  {tab.label}
+                                </span>
+                              )}
                             </div>
                           </button>
                         );
@@ -271,7 +270,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center h-64 text-[var(--builder-text-muted)]">
-                <p className="text-sm">Select an element to edit</p>
+                <p className="text-sm">Select a component to edit</p>
               </div>
             )}
           </div>

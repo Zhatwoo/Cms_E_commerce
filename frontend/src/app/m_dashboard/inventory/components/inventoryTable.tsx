@@ -1,8 +1,10 @@
 'use client';
 import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Package } from 'lucide-react';
 import { type ApiProduct } from '@/lib/api';
+import { StatusBadge } from '../../components/ui/StatusBadge';
 
 interface InventoryRow extends ApiProduct {
   _baseProductId: string;
@@ -28,7 +30,6 @@ interface InventoryTableProps {
   onStatusMenuToggle: (rowId: string | null) => void;
   onUpdateProductStatus: (product: InventoryRow, status: 'active' | 'inactive') => void;
   getStockNumbers: (p: InventoryRow) => { onHand: number; reserved: number; available: number; lowThreshold: number };
-  StatusPill: React.ComponentType<{ stock: number; lowThreshold: number }>;
 }
 
 // Skeleton row for loading state
@@ -73,30 +74,93 @@ export function InventoryTable({
   onStatusMenuToggle,
   onUpdateProductStatus,
   getStockNumbers,
-  StatusPill,
 }: InventoryTableProps) {
   const INVENTORY_VISIBLE_ROWS = 7;
   const INVENTORY_ROW_HEIGHT_PX = 72;
+  const STATUS_MENU_WIDTH = 164;
+  const STATUS_MENU_HEIGHT = 104;
+  const STATUS_MENU_GAP = 8;
+  const isDark = theme === 'dark';
+  const shellBackground = isDark ? '#141446' : '#FFFFFF';
+  const shellBorder = isDark ? '#2D3A90' : 'rgba(20, 3, 74, 0.08)';
+  const rowBorder = isDark ? 'rgba(255,255,255,0.055)' : 'rgba(20, 3, 74, 0.08)';
+  const rowHoverBackground = isDark ? 'rgba(255,255,255,0.018)' : 'rgba(124,58,237,0.03)';
+  const headerBackground = isDark
+    ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)'
+    : '#803BED';
+  const subTextColor = isDark ? T.textMuted : 'rgba(20, 3, 74, 0.6)';
+  const stockCellBackground = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(124,58,237,0.03)';
+  const stockCellActiveBackground = isDark ? 'rgba(95,107,199,0.14)' : 'rgba(124,58,237,0.1)';
+  const statusButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [statusMenuPosition, setStatusMenuPosition] = useState<{ top: number; left: number } | null>(null);
 
+  const updateStatusMenuPosition = React.useCallback((rowId: string) => {
+    const buttonEl = statusButtonRefs.current[rowId];
+    if (!buttonEl) return;
+    const rect = buttonEl.getBoundingClientRect();
+    const viewportPadding = 8;
+
+    const shouldOpenUpward = rect.bottom + STATUS_MENU_GAP + STATUS_MENU_HEIGHT > window.innerHeight - viewportPadding;
+    const top = shouldOpenUpward
+      ? Math.max(viewportPadding, rect.top - STATUS_MENU_GAP - STATUS_MENU_HEIGHT)
+      : Math.min(window.innerHeight - STATUS_MENU_HEIGHT - viewportPadding, rect.bottom + STATUS_MENU_GAP);
+    const left = Math.min(
+      window.innerWidth - STATUS_MENU_WIDTH - viewportPadding,
+      Math.max(viewportPadding, rect.left)
+    );
+
+    setStatusMenuPosition({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!openStatusMenuRowId) {
+      setStatusMenuPosition(null);
+      return;
+    }
+
+    updateStatusMenuPosition(openStatusMenuRowId);
+
+    const handleViewportChange = () => {
+      if (!openStatusMenuRowId) return;
+      updateStatusMenuPosition(openStatusMenuRowId);
+    };
+
+    window.addEventListener('resize', handleViewportChange);
+    window.addEventListener('scroll', handleViewportChange, true);
+    return () => {
+      window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('scroll', handleViewportChange, true);
+    };
+  }, [openStatusMenuRowId, updateStatusMenuPosition]);
+
+  const openStatusProduct = openStatusMenuRowId
+    ? (filteredItems.find((item) => item.id === openStatusMenuRowId) as InventoryRow | undefined)
+    : undefined;
+  const openStatusValue = String(openStatusProduct?.status || 'active').toLowerCase() === 'inactive' ? 'inactive' : 'active';
   return (
-    <div style={{ overflow: 'hidden', marginBottom: 18, borderRadius: 24, background: theme === 'dark' ? T.card : undefined, border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined }}>
-      <div style={{ overflowX: 'auto' }}>
+    <div
+      className="max-w-272.5 mx-auto overflow-hidden rounded-3xl border [font-family:var(--font-outfit),sans-serif]"
+      style={{
+        marginBottom: 18,
+        backgroundColor: shellBackground,
+        borderColor: shellBorder,
+      }}
+    >
+      <div style={{ overflowX: 'auto', overflowY: 'hidden' }}>
         {/* Header */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
             gap: 16,
-            padding: '20px 24px',
+            padding: '13px 24px',
             minWidth: 760,
-            background: theme === 'dark' ? 'linear-gradient(90deg, #1E1B4B 0%, #312E81 100%)' : '#803BED',
+            background: headerBackground,
             color: '#FFFFFF',
             fontSize: 10,
             fontWeight: 800,
             letterSpacing: '0.15em',
             textTransform: 'uppercase',
-            boxShadow: '0 4px 20px rgba(124, 58, 237, 0.15)',
-            borderRadius: '24px 24px 0 0',
           }}
         >
           <span>Product</span>
@@ -138,35 +202,30 @@ export function InventoryTable({
                     display: 'grid',
                     gridTemplateColumns: '2fr 1fr 1fr 1fr 1.5fr 1.2fr',
                     gap: 16,
-                    padding: '15px 24px',
+                    padding: '14px 24px',
                     alignItems: 'center',
                     fontSize: 14,
                     minWidth: 760,
-                    borderBottom: i < filteredItems.length - 1 ? `1px solid ${T.cardBorder}` : 'none',
-                    transition: 'all 0.2s ease',
+                    borderBottom: i < filteredItems.length - 1 ? `1px solid ${rowBorder}` : 'none',
+                    transition: 'background 0.15s',
                     backgroundColor: 'transparent',
-                    cursor: 'pointer',
-                    borderRadius: '16px',
-                    margin: '0 4px',
                   }}
                   onMouseEnter={(e) => {
                     const target = e.currentTarget as HTMLDivElement;
-                    target.style.backgroundColor = theme === 'dark' ? 'rgba(139, 92, 246, 0.08)' : '#FFFFFF';
-                    target.style.boxShadow = theme === 'dark' ? 'none' : '0 6px 16px rgba(124, 58, 237, 0.06)';
+                    target.style.backgroundColor = rowHoverBackground;
                   }}
                   onMouseLeave={(e) => {
                     const target = e.currentTarget as HTMLDivElement;
                     target.style.backgroundColor = 'transparent';
-                    target.style.boxShadow = 'none';
                   }}
                 >
                   <span style={{ color: T.text, fontWeight: 500, display: 'flex', flexDirection: 'column' }}>
                     {product.name || 'Untitled Product'}
                     {product._variantLabel && (
-                      <span style={{ color: T.textMuted, fontSize: 12, fontWeight: 400, marginTop: 2 }}>{product._variantLabel}</span>
+                      <span style={{ color: subTextColor, fontSize: 12, fontWeight: 400, marginTop: 2 }}>{product._variantLabel}</span>
                     )}
                   </span>
-                  <span style={{ color: T.textMuted }}>{product.sku || '-'}</span>
+                  <span style={{ color: subTextColor }}>{product.sku || '-'}</span>
                   <div
                     onDoubleClick={() => onStartInlineStockEdit(product, onHand)}
                     title="Double-click stock to edit, press Enter to save"
@@ -178,7 +237,7 @@ export function InventoryTable({
                       justifyContent: 'flex-start',
                       border: `1px solid ${editingStockId === product.id ? '#5f6bc7' : T.cardBorder}`,
                       borderRadius: 8,
-                      background: editingStockId === product.id ? 'rgba(95,107,199,0.14)' : 'rgba(255,255,255,0.03)',
+                      background: editingStockId === product.id ? stockCellActiveBackground : stockCellBackground,
                       cursor: editingStockId === product.id ? 'text' : 'pointer',
                       transition: 'border-color 0.15s, background 0.15s',
                       padding: '0 10px',
@@ -193,7 +252,7 @@ export function InventoryTable({
                       if (editingStockId === product.id) return;
                       const target = e.currentTarget as HTMLDivElement;
                       target.style.borderColor = T.cardBorder;
-                      target.style.background = 'rgba(255,255,255,0.03)';
+                      target.style.background = stockCellBackground;
                     }}
                   >
                     {editingStockId === product.id ? (
@@ -239,9 +298,15 @@ export function InventoryTable({
                       <span style={{ color: T.text }}>{onHand}</span>
                     )}
                   </div>
-                  <span style={{ color: T.textMuted }}>{reserved}</span>
+                  <span style={{ color: subTextColor }}>{reserved}</span>
                   <div style={{ justifySelf: 'start' }}>
-                    <StatusPill stock={onHand} lowThreshold={lowThreshold} />
+                    {onHand <= 0 ? (
+                      <StatusBadge status="draft" label="Out of Stock" size="sm" />
+                    ) : onHand <= lowThreshold ? (
+                      <StatusBadge status="shared" label="Low Stock" size="sm" />
+                    ) : (
+                      <StatusBadge status="published" label="In Stock" size="sm" />
+                    )}
                   </div>
                   <div style={{ justifySelf: 'start' }}>
                     {(() => {
@@ -253,11 +318,20 @@ export function InventoryTable({
                       return (
                         <div data-status-menu-root="true" style={{ position: 'relative' }}>
                           <button
+                            ref={(el) => {
+                              statusButtonRefs.current[rowStatusMenuId] = el;
+                            }}
                             type="button"
                             disabled={updatingProductStatusId === baseProductId}
                             onClick={() => {
                               if (updatingProductStatusId === baseProductId) return;
-                              onStatusMenuToggle(isStatusMenuOpen ? null : rowStatusMenuId);
+                              if (isStatusMenuOpen) {
+                                onStatusMenuToggle(null);
+                                setStatusMenuPosition(null);
+                                return;
+                              }
+                              onStatusMenuToggle(rowStatusMenuId);
+                              requestAnimationFrame(() => updateStatusMenuPosition(rowStatusMenuId));
                             }}
                             style={{
                               background: isActive ? T.greenBg : T.redBg,
@@ -281,65 +355,6 @@ export function InventoryTable({
                             <span>{isActive ? 'Active' : 'Inactive'}</span>
                             <span style={{ fontSize: 10 }}>▼</span>
                           </button>
-
-                          {isStatusMenuOpen && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                top: '100%',
-                                left: 0,
-                                marginTop: 8,
-                                width: 164,
-                                borderRadius: 12,
-                                border: `1px solid ${T.cardBorder}`,
-                                background: T.card,
-                                padding: 8,
-                                zIndex: 40,
-                              }}
-                            >
-                              {[
-                                { value: 'active' as const, label: 'Active' },
-                                { value: 'inactive' as const, label: 'Inactive' },
-                              ].map((option) => {
-                                const checked = productStatus === option.value;
-                                return (
-                                  <button
-                                    key={option.value}
-                                    type="button"
-                                    onClick={() => {
-                                      onStatusMenuToggle(null);
-                                      if (option.value !== productStatus) {
-                                        onUpdateProductStatus(product, option.value);
-                                      }
-                                    }}
-                                    style={{
-                                      width: '100%',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'space-between',
-                                      padding: '8px 12px',
-                                      borderRadius: 8,
-                                      border: 'none',
-                                      background: 'transparent',
-                                      color: option.value === 'active' ? T.green : T.red,
-                                      fontSize: 14,
-                                      cursor: 'pointer',
-                                      textAlign: 'left',
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-                                    }}
-                                  >
-                                    <span>{option.label}</span>
-                                    <span>{checked ? '✓' : ''}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
                         </div>
                       );
                     })()}
@@ -350,6 +365,68 @@ export function InventoryTable({
           </div>
         )}
       </div>
+
+      {openStatusMenuRowId && openStatusProduct && statusMenuPosition && typeof document !== 'undefined' && createPortal(
+        <div
+          data-status-menu-root="true"
+          style={{
+            position: 'fixed',
+            top: statusMenuPosition.top,
+            left: statusMenuPosition.left,
+            width: STATUS_MENU_WIDTH,
+            borderRadius: 12,
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(20, 3, 74, 0.08)'}`,
+            background: isDark ? 'rgba(20, 20, 70, 0.95)' : '#FFFFFF',
+            padding: 8,
+            zIndex: 2147482000,
+            boxShadow: isDark ? '0 18px 34px rgba(0,0,0,0.35)' : '0 14px 28px rgba(20,3,74,0.1)',
+            backdropFilter: 'blur(12px)',
+          }}
+        >
+          {[
+            { value: 'active' as const, label: 'Active' },
+            { value: 'inactive' as const, label: 'Inactive' },
+          ].map((option) => {
+            const checked = openStatusValue === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onStatusMenuToggle(null);
+                  if (openStatusProduct && option.value !== openStatusValue) {
+                    onUpdateProductStatus(openStatusProduct, option.value);
+                  }
+                }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: 'none',
+                  background: 'transparent',
+                  color: option.value === 'active' ? T.green : T.red,
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.05)';
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+                }}
+              >
+                <span>{option.label}</span>
+                <span>{checked ? '✓' : ''}</span>
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

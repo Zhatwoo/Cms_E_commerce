@@ -9,16 +9,19 @@ function parsePx(value: string | undefined): number | null {
   return m ? parseFloat(m[1]) : null;
 }
 
-function fluidSpace(value: number, min = 0): string {
+function fluidSpace(value: number | string, min = 0): string {
+  if (typeof value === "string") return value;
   if (!Number.isFinite(value) || value <= 0) return `${value || 0}px`;
   const preferred = Math.max(0.1, value / 12);
   const floor = Math.max(min, Math.round(value * 0.45));
   return `clamp(${floor}px, ${preferred.toFixed(2)}cqw, ${value}px)`;
 }
 
-function normalizeContainerHeight(value: string | undefined): string {
-  if (value == null) return "240px";
-  return String(value).trim().toLowerCase() === "auto" ? "240px" : value;
+function normalizeContainerHeight(value: string | undefined, hasChildren: boolean): string {
+  if (value == null) return hasChildren ? "auto" : "240px";
+  const v = String(value).trim().toLowerCase();
+  // Allow 'auto' to actually be auto, but keep 240px fallback for empty drop zones
+  return v === "auto" ? "auto" : value;
 }
 
 function isColorLike(value: unknown): boolean {
@@ -71,6 +74,8 @@ export const Container = ({
   gridRowGap = 0,
   gridAutoRows = "auto",
   gridAutoFlow = "row",
+  justifyItems = "stretch",
+  alignContent = "flex-start",
   display = "flex",
   position = "static",
   zIndex = 0,
@@ -87,6 +92,7 @@ export const Container = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  isFreeform = false,
   designWidth = 1440,
   designHeight = 900,
   customClassName = "",
@@ -109,7 +115,7 @@ export const Container = ({
 
   const hasChildren = childCount > 0 || React.Children.count(children) > 0;
   const isFlexRowParent = parentDisplay === "flex" && parentFlexDirection === "row";
-  const resolvedHeight = normalizeContainerHeight(height);
+  const resolvedHeight = normalizeContainerHeight(height, hasChildren);
 
   const wPx = parsePx(width);
   const hPx = parsePx(resolvedHeight);
@@ -117,15 +123,13 @@ export const Container = ({
   const scaleX = canScale && wPx != null ? wPx / designWidth : 1;
   const scaleY = canScale && hPx != null ? hPx / designHeight : 1;
 
-  // Resolve padding
-  const p = typeof padding === 'number' ? padding : 0;
+  const p = typeof padding === "number" ? padding : 0;
   const pl = paddingLeft !== undefined ? paddingLeft : p;
   const pr = paddingRight !== undefined ? paddingRight : p;
   const pt = paddingTop !== undefined ? paddingTop : p;
   const pb = paddingBottom !== undefined ? paddingBottom : p;
 
-  // Resolve margin
-  const m = typeof margin === 'number' ? margin : 0;
+  const m = typeof margin === "number" ? margin : 0;
   const ml = marginLeft !== undefined ? marginLeft : m;
   const mr = marginRight !== undefined ? marginRight : m;
   const mt = marginTop !== undefined ? marginTop : m;
@@ -157,7 +161,6 @@ export const Container = ({
     [rotation, flipHorizontal, flipVertical]
   );
 
-  // Resolve border radius
   const br = borderRadius || 0;
   const rtl = radiusTopLeft !== undefined ? radiusTopLeft : br;
   const rtr = radiusTopRight !== undefined ? radiusTopRight : br;
@@ -202,7 +205,13 @@ export const Container = ({
   const isGridDisplay = effectiveDisplay === "grid";
 
   const shouldFlexFill = width === "100%" && isFlexRowParent;
-  const resolvedPosition = position === "static" ? "relative" : position;
+
+  // Only use positioning offsets for non-static positions
+  const isPositioned = position !== "static";
+
+  // Background video needs a positioned ancestor
+  const resolvedPosition = hasBackgroundVideo && position === "static" ? "relative" : position;
+  const showPlaceholderMinHeight = !hasChildren && resolvedHeight === "auto";
 
   return (
     <div
@@ -212,7 +221,7 @@ export const Container = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
-      className={`relative ${hasChildren ? "" : "min-h-[120px]"} ${customClassName}`}
+      className={`${resolvedPosition !== "static" ? "relative" : ""} ${showPlaceholderMinHeight ? "min-h-[120px]" : ""} ${customClassName}`}
       style={{
         background: resolvedBackground,
         isolation: "isolate",
@@ -221,7 +230,7 @@ export const Container = ({
         height: resolvedHeight,
         flex: shouldFlexFill ? "1 1 0%" : undefined,
         boxSizing: "border-box",
-        maxWidth: position === "static" ? "100%" : undefined,
+        maxWidth: !isPositioned ? "100%" : undefined,
         minWidth: 0,
         borderTopLeftRadius: `${rtl}px`,
         borderTopRightRadius: `${rtr}px`,
@@ -233,33 +242,33 @@ export const Container = ({
         position: resolvedPosition,
         containerType: "inline-size",
         contain: "layout",
-        display: effectiveDisplay,
+        display: isFreeform ? "block" : effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,
-        top: position !== "static" ? top : undefined,
-        right: position !== "static" ? posRight : undefined,
-        bottom: position !== "static" ? bottom : undefined,
-        left: position !== "static" ? posLeft : undefined,
-        // Flex properties
-        flexDirection: isFlexDisplay ? flexDirection : undefined,
-        flexWrap: isFlexDisplay ? flexWrap : undefined,
-        alignItems: isFlexDisplay || isGridDisplay ? alignItems : undefined,
-        justifyContent: isFlexDisplay || isGridDisplay ? justifyContent : undefined,
-        columnGap: isFlexDisplay
+        top: isPositioned ? top : undefined,
+        right: isPositioned ? posRight : undefined,
+        bottom: isPositioned ? bottom : undefined,
+        left: isPositioned ? posLeft : undefined,
+        flexDirection: !isFreeform && isFlexDisplay ? flexDirection : undefined,
+        flexWrap: !isFreeform && isFlexDisplay ? flexWrap : undefined,
+        alignItems: !isFreeform && (isFlexDisplay || isGridDisplay) ? alignItems : undefined,
+        justifyContent: !isFreeform && (isFlexDisplay || isGridDisplay) ? justifyContent : undefined,
+        columnGap: !isFreeform && isFlexDisplay
           ? fluidSpace(gap, 0)
-          : isGridDisplay
+          : !isFreeform && isGridDisplay
             ? fluidSpace((gridColumnGap ?? gridGap) as number, 0)
             : undefined,
-        rowGap: isFlexDisplay
+        rowGap: !isFreeform && isFlexDisplay
           ? fluidSpace(gap, 0)
-          : isGridDisplay
+          : !isFreeform && isGridDisplay
             ? fluidSpace((gridRowGap ?? gridGap) as number, 0)
             : undefined,
-        // Grid properties
-        gridTemplateColumns: isGridDisplay ? gridTemplateColumns : undefined,
-        gridTemplateRows: isGridDisplay ? gridTemplateRows : undefined,
-        gridAutoRows: isGridDisplay ? gridAutoRows : undefined,
-        gridAutoFlow: isGridDisplay ? gridAutoFlow : undefined,
+        gridTemplateColumns: !isFreeform && isGridDisplay ? gridTemplateColumns : undefined,
+        gridTemplateRows: !isFreeform && isGridDisplay ? gridTemplateRows : undefined,
+        gridAutoRows: !isFreeform && isGridDisplay ? gridAutoRows : undefined,
+        gridAutoFlow: !isFreeform && isGridDisplay ? gridAutoFlow : undefined,
+        justifyItems: !isFreeform && isGridDisplay ? justifyItems : undefined,
+        alignContent: !isFreeform && isGridDisplay ? alignContent : undefined,
         boxShadow,
         opacity,
         overflow,
@@ -300,7 +309,7 @@ export const Container = ({
 };
 
 export const ContainerDefaultProps: Partial<ContainerProps> = {
-  background: "#ffffff",
+  background: "transparent",
   padding: 0,
   paddingTop: 0,
   paddingRight: 0,
@@ -336,6 +345,8 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   gridRowGap: 0,
   gridAutoRows: "auto",
   gridAutoFlow: "row",
+  justifyItems: "stretch",
+  alignContent: "flex-start",
   position: "static",
   display: "flex",
   zIndex: 0,
@@ -347,13 +358,15 @@ export const ContainerDefaultProps: Partial<ContainerProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
-  cursor: "default"
+  cursor: "default",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Container.craft = {
   displayName: "Container",
   props: ContainerDefaultProps,
   related: {
-    settings: ContainerSettings
-  }
+    settings: ContainerSettings,
+  },
 };

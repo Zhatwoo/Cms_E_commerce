@@ -1,38 +1,32 @@
 "use client";
 
 import React from "react";
-import { SimpleHeader, HeaderWithCTA } from "./Header";
+import { Element } from "@craftjs/core";
+import { SimpleHeader } from "./Header";
 import {
   HeaderWithSearch,
   HeaderWithMegamenu,
-  MinimalistSaleHeader,
-  LuxuryHeader,
-  MobileHeader,
-  DarkModeHeader,
   ProfileLogin
 } from "./Header";
-import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3 } from "./Hero";
-import { FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1 } from "./Content";
-import { ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1 } from "./Forms";
+import { CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, SplitScreenHero, MinimalTypeHero, VideoStyleHero, CollectionHero } from "./Hero";
+import { FeaturesGrid, Testimonial, StatsCounter, NewsletterCTA, ImageText, BrandLogos, CTABanner } from "./Content";
 import {
   ProductCard,
   TeamMemberCard,
-  GridViewCard,
   ProductDescription,
   FeaturedProduct,
   ProductDescriptionCard,
   CategoriesCard,
-  BrowseCategory,
    ProductsOverview,
-  ProductDetailView,
-  ProductDetailViewV2,
-  ProductDetailViewV3,
 } from "./Cards";
 import {
-  SimpleFooter,
-  MultiColumnFooter,
-  NewsletterFooter,
-  BrandFooter
+  StudioFooter,
+  MarketplaceFooter,
+  DarkCommerceFooter,
+  BrutalistFooter,
+  NeoFooter,
+  SynclyFooter,
+  MinimalFooter,
 } from "./Footer";
 import {
   FacebookIcon,
@@ -55,6 +49,80 @@ import {
   CartIcon,
   ShoppingBagIcon,
   ShoppingBasketIcon,
+  PackageIcon,
+  TruckIcon,
+  CreditCardIcon,
+  TagIcon,
+  StoreIcon,
+  ReceiptIcon,
+  WalletIcon,
+  CouponIcon,
+  BarcodeIcon,
+  ShieldCheckIcon,
+  GiftIcon,
+  QrCodeIcon,
+  BanknoteIcon,
+  BoxOpenIcon,
+  PackageCheckIcon,
+  ScanIcon,
+  InventoryIcon,
+  WarehouseIcon,
+  ReturnIcon,
+  RefundIcon,
+  LoyaltyIcon,
+  VerifiedIcon,
+  BoltDealIcon,
+  TimerIcon,
+  PercentOffIcon,
+  TargetDealIcon,
+  HeadsetIcon,
+  ChatSupportIcon,
+  HelpCircleIcon,
+  PhoneCallIcon,
+  MailSupportIcon,
+  DebitCardIcon,
+  BankTransferIcon,
+  PosTerminalIcon,
+  InvoiceIcon,
+  CashOnDeliveryIcon,
+  DeliveryBikeIcon,
+  TrackingIcon,
+  ReturnBoxIcon,
+  WarehouseShelfIcon,
+  PickupPointIcon,
+  FilterCommerceIcon,
+  SortCommerceIcon,
+  CompareIcon,
+  WishlistIcon,
+  RecentlyViewedIcon,
+  MoneyBackIcon,
+  VerifiedSellerIcon,
+  BestPriceIcon,
+  AuthenticProductIcon,
+  BundleOfferIcon,
+  YouTubeIcon,
+  TikTokIcon,
+  LinkedInIcon,
+  PinterestIcon,
+  SnapchatIcon,
+  RedditIcon,
+  TelegramIcon,
+  DiscordIcon,
+  WhatsAppIcon,
+  TwitchIcon,
+  GithubIcon,
+  DribbbleIcon,
+  BehanceIcon,
+  MediumIcon,
+  ThreadsIcon,
+  LineIcon,
+  WeChatIcon,
+  ViberIcon,
+  SignalIcon,
+  MessengerIcon,
+  VimeoIcon,
+  TumblrIcon,
+  XingIcon,
 } from "./Icon";
 import { Circle as CraftCircle } from "./shapes/circle/circle";
 import { Square as CraftSquare } from "./shapes/square/square";
@@ -78,19 +146,19 @@ import { TemplateEntry } from "./_types";
 
 export const Circle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
-    <circle cx="30" cy="30" r="28" fill="#ccc" />
+    <circle cx="30" cy="30" r="28" fill="#10b981" />
   </svg>
 );
 
 export const Square = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
-    <rect x="4" y="4" width="52" height="52" fill="#ccc" />
+    <rect x="4" y="4" width="52" height="52" fill="#e74c3c" />
   </svg>
 );
 
 export const Triangle = ({ width = 60, height = 60 }: { width?: number; height?: number }) => (
   <svg width={width} height={height} viewBox="0 0 60 60">
-    <polygon points="30,6 54,54 6,54" fill="#ccc" />
+    <polygon points="30,6 54,54 6,54" fill="#3498db" />
   </svg>
 );
 
@@ -134,23 +202,23 @@ export const KitePreview = (props: any) => (
   <svg width="60" height="60" viewBox="0 0 100 100"><polygon points="50,15 80,40 50,85 20,40" fill="#ef4444" /></svg>
 );
 
-export const DiamondTemplate: TemplateEntry = { label: "Diamond", description: "Diamond shape", preview: <DiamondPreview />, element: <CraftDiamond />, category: "icon" };
-export const HeartTemplate: TemplateEntry = { label: "Heart", description: "Heart shape", preview: <HeartPreview />, element: <CraftHeart />, category: "icon" };
-export const TrapezoidTemplate: TemplateEntry = { label: "Trapezoid", description: "Trapezoid shape", preview: <TrapezoidPreview />, element: <CraftTrapezoid />, category: "icon" };
-export const PentagonTemplate: TemplateEntry = { label: "Pentagon", description: "Pentagon shape", preview: <PentagonPreview />, element: <CraftPentagon />, category: "icon" };
-export const HexagonTemplate: TemplateEntry = { label: "Hexagon", description: "Hexagon shape", preview: <HexagonPreview />, element: <CraftHexagon />, category: "icon" };
-export const HeptagonTemplate: TemplateEntry = { label: "Heptagon", description: "Heptagon shape", preview: <HeptagonPreview />, element: <CraftHeptagon />, category: "icon" };
-export const OctagonTemplate: TemplateEntry = { label: "Octagon", description: "Octagon shape", preview: <OctagonPreview />, element: <CraftOctagon />, category: "icon" };
-export const NonagonTemplate: TemplateEntry = { label: "Nonagon", description: "Nonagon shape", preview: <NonagonPreview />, element: <CraftNonagon />, category: "icon" };
-export const DecagonTemplate: TemplateEntry = { label: "Decagon", description: "Decagon shape", preview: <DecagonPreview />, element: <CraftDecagon />, category: "icon" };
-export const ParallelogramTemplate: TemplateEntry = { label: "Parallelogram", description: "Parallelogram shape", preview: <ParallelogramPreview />, element: <CraftParallelogram />, category: "icon" };
-export const KiteTemplate: TemplateEntry = { label: "Kite", description: "Kite shape", preview: <KitePreview />, element: <CraftKite />, category: "icon" };
+export const DiamondTemplate: TemplateEntry = { label: "Diamond", description: "Diamond shape", preview: <DiamondPreview />, element: <Element is={CraftDiamond} canvas />, category: "icon" };
+export const HeartTemplate: TemplateEntry = { label: "Heart", description: "Heart shape", preview: <HeartPreview />, element: <Element is={CraftHeart} canvas />, category: "icon" };
+export const TrapezoidTemplate: TemplateEntry = { label: "Trapezoid", description: "Trapezoid shape", preview: <TrapezoidPreview />, element: <Element is={CraftTrapezoid} canvas />, category: "icon" };
+export const PentagonTemplate: TemplateEntry = { label: "Pentagon", description: "Pentagon shape", preview: <PentagonPreview />, element: <Element is={CraftPentagon} canvas />, category: "icon" };
+export const HexagonTemplate: TemplateEntry = { label: "Hexagon", description: "Hexagon shape", preview: <HexagonPreview />, element: <Element is={CraftHexagon} canvas />, category: "icon" };
+export const HeptagonTemplate: TemplateEntry = { label: "Heptagon", description: "Heptagon shape", preview: <HeptagonPreview />, element: <Element is={CraftHeptagon} canvas />, category: "icon" };
+export const OctagonTemplate: TemplateEntry = { label: "Octagon", description: "Octagon shape", preview: <OctagonPreview />, element: <Element is={CraftOctagon} canvas />, category: "icon" };
+export const NonagonTemplate: TemplateEntry = { label: "Nonagon", description: "Nonagon shape", preview: <NonagonPreview />, element: <Element is={CraftNonagon} canvas />, category: "icon" };
+export const DecagonTemplate: TemplateEntry = { label: "Decagon", description: "Decagon shape", preview: <DecagonPreview />, element: <Element is={CraftDecagon} canvas />, category: "icon" };
+export const ParallelogramTemplate: TemplateEntry = { label: "Parallelogram", description: "Parallelogram shape", preview: <ParallelogramPreview />, element: <Element is={CraftParallelogram} canvas />, category: "icon" };
+export const KiteTemplate: TemplateEntry = { label: "Kite", description: "Kite shape", preview: <KitePreview />, element: <Element is={CraftKite} canvas />, category: "icon" };
 
 export const CircleTemplate: TemplateEntry = {
   label: "Circle",
   description: "A simple SVG circle shape.",
   preview: <Circle />,
-  element: <CraftCircle />, // Draggable Craft.js component
+  element: <Element is={CraftCircle} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
@@ -158,7 +226,7 @@ export const SquareTemplate: TemplateEntry = {
   label: "Square",
   description: "A simple SVG square shape.",
   preview: <Square />,
-  element: <CraftSquare />, // Draggable Craft.js component
+  element: <Element is={CraftSquare} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
@@ -166,7 +234,7 @@ export const TriangleTemplate: TemplateEntry = {
   label: "Triangle",
   description: "A simple SVG triangle shape.",
   preview: <Triangle />,
-  element: <CraftTriangle />, // Draggable Craft.js component
+  element: <Element is={CraftTriangle} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
@@ -174,50 +242,40 @@ export const RectangleTemplate: TemplateEntry = {
   label: "Rectangle",
   description: "A simple SVG rectangle shape.",
   preview: <Rectangle />,
-  element: <CraftRectangle />, // Draggable Craft.js component
+  element: <Element is={CraftRectangle} canvas />, // Draggable Craft.js component
   category: "icon",
 };
 
 export const TEMPLATES: TemplateEntry[] = [
   SimpleHeader,
-  HeaderWithCTA,
   HeaderWithSearch,
   HeaderWithMegamenu,
-  MinimalistSaleHeader,
-  LuxuryHeader,
-  MobileHeader,
-  DarkModeHeader,
   ProfileLogin,
   CenteredHero,
   HeroWithImage,
   HeroBannerCTA,
   HeroBannerCTA_v2,
-  HeroBannerCTA_v3,
+  SplitScreenHero,
+  MinimalTypeHero,
+  VideoStyleHero,
+  CollectionHero,
   FeaturesGrid,
   Testimonial,
-  DeliveryAddress,
-  DeliveryAddressV1,
-  ContactForm,
-  NewsletterSignup,
-  OrderForm,
-  OrderFormV1,
-  LoginForm,
-  SignupForm,
-  AddToCart,
-  PaymentForm,
-  PaymentMethod,
-  PaymentMethodV1,
+  StatsCounter,
+  NewsletterCTA,
+  ImageText,
+  BrandLogos,
+  CTABanner,
   ProductCard,
   TeamMemberCard,
-  ProductDetailView,
-  ProductDetailViewV2,
-  ProductDetailViewV3,
   ProductsOverview,
   ProductDescriptionCard,
-  SimpleFooter,
-  MultiColumnFooter,
-  NewsletterFooter,
-  BrandFooter,
+  StudioFooter,
+  MarketplaceFooter,
+  DarkCommerceFooter,
+  BrutalistFooter,
+  SynclyFooter,
+  MinimalFooter,
   FacebookIcon,
   GoogleIcon,
   InstagramIcon,
@@ -238,6 +296,80 @@ export const TEMPLATES: TemplateEntry[] = [
   CartIcon,
   ShoppingBagIcon,
   ShoppingBasketIcon,
+  PackageIcon,
+  TruckIcon,
+  CreditCardIcon,
+  TagIcon,
+  StoreIcon,
+  ReceiptIcon,
+  WalletIcon,
+  CouponIcon,
+  BarcodeIcon,
+  ShieldCheckIcon,
+  GiftIcon,
+  QrCodeIcon,
+  BanknoteIcon,
+  BoxOpenIcon,
+  PackageCheckIcon,
+  ScanIcon,
+  InventoryIcon,
+  WarehouseIcon,
+  ReturnIcon,
+  RefundIcon,
+  LoyaltyIcon,
+  VerifiedIcon,
+  BoltDealIcon,
+  TimerIcon,
+  PercentOffIcon,
+  TargetDealIcon,
+  HeadsetIcon,
+  ChatSupportIcon,
+  HelpCircleIcon,
+  PhoneCallIcon,
+  MailSupportIcon,
+  DebitCardIcon,
+  BankTransferIcon,
+  PosTerminalIcon,
+  InvoiceIcon,
+  CashOnDeliveryIcon,
+  DeliveryBikeIcon,
+  TrackingIcon,
+  ReturnBoxIcon,
+  WarehouseShelfIcon,
+  PickupPointIcon,
+  FilterCommerceIcon,
+  SortCommerceIcon,
+  CompareIcon,
+  WishlistIcon,
+  RecentlyViewedIcon,
+  MoneyBackIcon,
+  VerifiedSellerIcon,
+  BestPriceIcon,
+  AuthenticProductIcon,
+  BundleOfferIcon,
+  YouTubeIcon,
+  TikTokIcon,
+  LinkedInIcon,
+  PinterestIcon,
+  SnapchatIcon,
+  RedditIcon,
+  TelegramIcon,
+  DiscordIcon,
+  WhatsAppIcon,
+  TwitchIcon,
+  GithubIcon,
+  DribbbleIcon,
+  BehanceIcon,
+  MediumIcon,
+  ThreadsIcon,
+  LineIcon,
+  WeChatIcon,
+  ViberIcon,
+  SignalIcon,
+  MessengerIcon,
+  VimeoIcon,
+  TumblrIcon,
+  XingIcon,
   CircleTemplate,
   SquareTemplate,
   TriangleTemplate,
@@ -257,29 +389,49 @@ export const TEMPLATES: TemplateEntry[] = [
 
 export const GROUPED_TEMPLATES = [
   {
-    folder: "Header",
+    folder: "Layout",
     items: [
       SimpleHeader,
-      HeaderWithCTA,
       HeaderWithSearch,
       HeaderWithMegamenu,
-      MinimalistSaleHeader,
-      LuxuryHeader,
-      MobileHeader,
-      DarkModeHeader,
-      ProfileLogin,
+      CenteredHero,
+      HeroWithImage,
+      HeroBannerCTA,
+      HeroBannerCTA_v2,
+      SplitScreenHero,
+      MinimalTypeHero,
+      VideoStyleHero,
+      CollectionHero,
+      StudioFooter,
+      MarketplaceFooter,
+      DarkCommerceFooter,
+      BrutalistFooter,
+      NeoFooter,
+      SynclyFooter,
+      MinimalFooter,
     ],
   },
   {
-    folder: "Hero",
-    items: [CenteredHero, HeroWithImage, HeroBannerCTA, HeroBannerCTA_v2, HeroBannerCTA_v3],
+    folder: "Marketing",
+    items: [
+      CTABanner,
+      NewsletterCTA,
+      FeaturesGrid,
+      ImageText,
+      StatsCounter,
+      BrandLogos,
+    ],
   },
   {
-    folder: "Content",
-    items: [FeaturesGrid, Testimonial, DeliveryAddress, DeliveryAddressV1],
+    folder: "Social Proof",
+    items: [Testimonial, BrandLogos, TeamMemberCard],
   },
   {
-    folder: "Cards",
+    folder: "Business",
+    items: [ProfileLogin, TeamMemberCard, ImageText, NewsletterCTA],
+  },
+  {
+    folder: "Commerce",
     items: [
       ProductCard,
       ProductDescriptionCard,
@@ -287,23 +439,29 @@ export const GROUPED_TEMPLATES = [
       ProductDescription,
       FeaturedProduct,
       CategoriesCard,
-      BrowseCategory,
-      ProductDetailView,
-      ProductDetailViewV2,
-      ProductDetailViewV3,
     ],
   },
   {
-    folder: "Forms",
-    items: [ContactForm, NewsletterSignup, OrderForm, OrderFormV1, LoginForm, SignupForm, AddToCart, PaymentForm, PaymentMethod, PaymentMethodV1],
-  },
-  {
-    folder: "Footer",
+    folder: "Utility",
     items: [
-      MultiColumnFooter,
-      SimpleFooter,
-      NewsletterFooter,
-      BrandFooter,
+      CTABanner,
+      FeaturesGrid,
+      StatsCounter,
+      CircleTemplate,
+      SquareTemplate,
+      TriangleTemplate,
+      RectangleTemplate,
+      DiamondTemplate,
+      HeartTemplate,
+      TrapezoidTemplate,
+      PentagonTemplate,
+      HexagonTemplate,
+      HeptagonTemplate,
+      OctagonTemplate,
+      NonagonTemplate,
+      DecagonTemplate,
+      ParallelogramTemplate,
+      KiteTemplate,
     ],
   },
   {
@@ -313,6 +471,29 @@ export const GROUPED_TEMPLATES = [
       GoogleIcon,
       InstagramIcon,
       TwitterIcon,
+      YouTubeIcon,
+      TikTokIcon,
+      LinkedInIcon,
+      PinterestIcon,
+      SnapchatIcon,
+      RedditIcon,
+      TelegramIcon,
+      DiscordIcon,
+      WhatsAppIcon,
+      MessengerIcon,
+      ThreadsIcon,
+      LineIcon,
+      WeChatIcon,
+      ViberIcon,
+      SignalIcon,
+      TwitchIcon,
+      GithubIcon,
+      DribbbleIcon,
+      BehanceIcon,
+      MediumIcon,
+      VimeoIcon,
+      TumblrIcon,
+      XingIcon,
       SearchIcon,
       HomeIcon,
       MenuIcon,
@@ -329,26 +510,57 @@ export const GROUPED_TEMPLATES = [
       CartIcon,
       ShoppingBagIcon,
       ShoppingBasketIcon,
-    ],
-  },
-  {
-    folder: "Shapes",
-    items: [
-      CircleTemplate,
-      SquareTemplate,
-      TriangleTemplate,
-      RectangleTemplate,
-      DiamondTemplate,
-      HeartTemplate,
-      TrapezoidTemplate,
-      PentagonTemplate,
-      HexagonTemplate,
-      HeptagonTemplate,
-      OctagonTemplate,
-      NonagonTemplate,
-      DecagonTemplate,
-      ParallelogramTemplate,
-      KiteTemplate,
+      PackageIcon,
+      TruckIcon,
+      CreditCardIcon,
+      TagIcon,
+      StoreIcon,
+      ReceiptIcon,
+      WalletIcon,
+      CouponIcon,
+      BarcodeIcon,
+      ShieldCheckIcon,
+      GiftIcon,
+      QrCodeIcon,
+      BanknoteIcon,
+      BoxOpenIcon,
+      PackageCheckIcon,
+      ScanIcon,
+      InventoryIcon,
+      WarehouseIcon,
+      ReturnIcon,
+      RefundIcon,
+      LoyaltyIcon,
+      VerifiedIcon,
+      BoltDealIcon,
+      TimerIcon,
+      PercentOffIcon,
+      TargetDealIcon,
+      HeadsetIcon,
+      ChatSupportIcon,
+      HelpCircleIcon,
+      PhoneCallIcon,
+      MailSupportIcon,
+      DebitCardIcon,
+      BankTransferIcon,
+      PosTerminalIcon,
+      InvoiceIcon,
+      CashOnDeliveryIcon,
+      DeliveryBikeIcon,
+      TrackingIcon,
+      ReturnBoxIcon,
+      WarehouseShelfIcon,
+      PickupPointIcon,
+      FilterCommerceIcon,
+      SortCommerceIcon,
+      CompareIcon,
+      WishlistIcon,
+      RecentlyViewedIcon,
+      MoneyBackIcon,
+      VerifiedSellerIcon,
+      BestPriceIcon,
+      AuthenticProductIcon,
+      BundleOfferIcon,
     ],
   },
 ];

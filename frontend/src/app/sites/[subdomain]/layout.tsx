@@ -23,8 +23,8 @@ export default function SiteLayout({
       minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
-      justifyContent: 'center', // vertical centering
-      alignItems: 'center',     // horizontal centering
+      justifyContent: 'flex-start',
+      alignItems: 'stretch',
       isolation: 'isolate',
       background: '#fff',
     }}>

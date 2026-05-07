@@ -3,7 +3,7 @@ import { useNode } from "@craftjs/core";
 import { Upload, X, Loader2 } from "lucide-react";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { TransformGroup } from "../../_components/rightPanel/settings/TransformGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
@@ -14,16 +14,17 @@ import type { VideoProps, SetProp } from "../../_types/components";
 
 export const VideoSettings = () => {
     const {
-        src, autoPlay, loop, muted, controls, objectFit,
+        id, src, autoPlay, loop, muted, controls, objectFit,
         width, height,
         borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
         paddingLeft, paddingRight, paddingTop, paddingBottom,
         marginLeft, marginRight, marginTop, marginBottom,
         opacity, boxShadow, overflow, cursor,
         rotation, flipHorizontal, flipVertical,
-        position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+        position, display, alignSelf, zIndex, top, right, bottom, left, isFreeform, editorVisibility,
         actions: { setProp }
     } = useNode(node => ({
+        id: node.id,
         src: node.data.props.src,
         autoPlay: node.data.props.autoPlay,
         loop: node.data.props.loop,
@@ -60,6 +61,7 @@ export const VideoSettings = () => {
         right: node.data.props.right,
         bottom: node.data.props.bottom,
         left: node.data.props.left,
+        isFreeform: node.data.props.isFreeform,
         editorVisibility: node.data.props.editorVisibility,
     }));
 
@@ -82,9 +84,31 @@ export const VideoSettings = () => {
             setUploading(true);
             setUploadProgress(0);
             try {
-                // Use addFileToMediaLibrary to ensure this upload shows up in the 'Media' tab in the left panel
-                const item = await addFileToMediaLibrary(projectId, file);
-                typedSetProp((props) => { props.src = item.url; });
+                // Use uploadMediaApi directly with progress tracking for better reliability
+                const { url } = await uploadMediaApi(projectId, file, {
+                    folder: 'videos',
+                    onProgress: (percent) => setUploadProgress(percent),
+                });
+                typedSetProp((props) => { props.src = url; });
+
+                // Also add to media library for the Media tab
+                try {
+                    const mediaStorageKey = `media_library_${projectId}`;
+                    const existing = localStorage.getItem(mediaStorageKey);
+                    const items = existing ? JSON.parse(existing) : [];
+                    const newItem = {
+                        id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+                        name: file.name,
+                        url,
+                        mimeType: file.type,
+                        size: file.size,
+                        createdAt: Date.now(),
+                    };
+                    items.unshift(newItem);
+                    localStorage.setItem(mediaStorageKey, JSON.stringify(items));
+                } catch (e) {
+                    // Ignore media library caching errors
+                }
             } catch (err) {
                 const msg = err instanceof Error ? err.message : String(err);
                 console.error("Upload failed:", err);
@@ -244,9 +268,11 @@ export const VideoSettings = () => {
             </DesignSection>
 
             <DesignSection title="Layout & Layer" defaultOpen={false}>
-                <PositionGroup
+                <LayoutLayerGroup
+                    nodeId={id}
                     position={position}
                     display={display}
+                    isFreeform={isFreeform}
                     alignSelf={alignSelf}
                     zIndex={zIndex}
                     top={top}

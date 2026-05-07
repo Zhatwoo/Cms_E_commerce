@@ -195,11 +195,37 @@ export const ShareModal: React.FC<Props> = ({ projectId, projectTitle, isOpen, o
 
     const handleCopyLink = () => {
         const url = `${window.location.origin}/design?projectId=${projectId}`;
-        navigator.clipboard.writeText(url).then(() => {
+        if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(() => {
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2500);
+            }).catch(() => {
+                fallbackCopyTextToClipboard(url);
+            });
+        } else {
+            fallbackCopyTextToClipboard(url);
+        }
+    };
+
+    // Fallback for older browsers or non-secure context
+    function fallbackCopyTextToClipboard(text: string) {
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            // Avoid scrolling to bottom
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
             setCopiedLink(true);
             setTimeout(() => setCopiedLink(false), 2500);
-        });
-    };
+        } catch (err) {
+            // Optionally handle error
+        }
+    }
 
     if (!isOpen) return null;
     if (typeof document === "undefined") return null;

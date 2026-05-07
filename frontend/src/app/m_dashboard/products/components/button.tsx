@@ -1,4 +1,6 @@
 import React from 'react';
+import { useTheme } from '../../components/context/theme-context';
+import { Plus } from 'lucide-react';
 
 export interface AddProductButtonProps {
   onClick: () => void;
@@ -11,22 +13,24 @@ export function AddProductButton({
   disabled,
   title = 'Add product',
 }: AddProductButtonProps) {
+  const { theme } = useTheme();
+
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`h-[46px] px-4 rounded-xl border flex items-center justify-center text-[13px] font-bold ${
-        disabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
-      }`}
+      className="inline-flex h-10 items-center gap-2 px-3 py-5.5 rounded-xl text-xs font-bold transition-all hover:-translate-y-1 hover:brightness-110 active:scale-95 disabled:opacity-70"
       style={{
-        background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
-        borderColor: 'transparent',
-        color: '#ffffff',
-      }}
+              background: theme === 'dark' ? '#FACC15' :'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
+              color: theme === 'dark' ? '#120533' : '#FFFFFF',
+              boxShadow: theme === 'dark'
+                ? '0 8px 24px rgba(255, 206, 0, 0.42)'
+                : '0 8px 24px rgba(217,70,239,0.4)',
+            }}
       title={title}
     >
-      + Add Product
+     <Plus className="w-3.5 h-3.5" />  Add Product
     </button>
   );
 }

@@ -96,17 +96,7 @@ export function PublishModal({
         setPublishing(false);
         return;
       }
-      let contentToPublish: string | null = content;
-      try {
-        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-        if (parsed && typeof parsed === 'object' && parsed.nodes) {
-          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
-          const migrated = migratePublishedContent(parsed);
-          contentToPublish = JSON.stringify(migrated);
-        }
-      } catch {
-        // keep original content
-      }
+      const contentToPublish: string | null = content;
       const res = await publishProject(projectId, normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);
@@ -156,17 +146,7 @@ export function PublishModal({
         setScheduling(false);
         return;
       }
-      let contentToPublish: string | null = content;
-      try {
-        const parsed = typeof content === 'string' ? JSON.parse(content) : content;
-        if (parsed && typeof parsed === 'object' && parsed.nodes) {
-          const { migratePublishedContent } = await import('@/app/design/_lib/contentMigration');
-          const migrated = migratePublishedContent(parsed);
-          contentToPublish = JSON.stringify(migrated);
-        }
-      } catch {
-        // keep original content
-      }
+      const contentToPublish: string | null = content;
       const res = await schedulePublish(projectId, new Date(scheduledAt).toISOString(), normalized, contentToPublish);
       if (res.success) {
         onSuccess(normalized);

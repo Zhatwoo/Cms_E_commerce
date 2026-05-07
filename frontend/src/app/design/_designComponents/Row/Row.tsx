@@ -58,6 +58,7 @@ export const Row = ({
   rotation = 0,
   flipHorizontal = false,
   flipVertical = false,
+  isFreeform = false,
   customClassName = "",
   children,
 }: ContainerProps) => {
@@ -137,7 +138,8 @@ export const Row = ({
           ? { border: "none", outline: `${borderWidth}px ${borderStyle} ${borderColor}`, outlineOffset: 0 }
           : { borderWidth: `${borderWidth}px`, borderColor, borderStyle }),
         position,
-        display: effectiveDisplay,
+        position,
+        display: isFreeform ? "block" : effectiveDisplay,
         zIndex: zIndex !== 0 ? zIndex : undefined,
         alignSelf,
         top: position !== "static" ? top : undefined,
@@ -146,12 +148,12 @@ export const Row = ({
         left: position !== "static" ? posLeft : undefined,
         containerType: "inline-size",
         contain: "layout",
-        flexDirection: isFlexDisplay ? flexDirection : undefined,
-        flexWrap: isFlexDisplay ? flexWrap : undefined,
-        alignItems: isFlexDisplay ? effectiveAlignItems : undefined,
-        justifyContent: isFlexDisplay ? justifyContent : undefined,
-        columnGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
-        rowGap: isFlexDisplay ? fluidSpace(gap, 0) : undefined,
+        flexDirection: !isFreeform && isFlexDisplay ? flexDirection : undefined,
+        flexWrap: !isFreeform && isFlexDisplay ? flexWrap : undefined,
+        alignItems: !isFreeform && isFlexDisplay ? effectiveAlignItems : undefined,
+        justifyContent: !isFreeform && isFlexDisplay ? justifyContent : undefined,
+        columnGap: !isFreeform && isFlexDisplay ? fluidSpace(gap, 0) : undefined,
+        rowGap: !isFreeform && isFlexDisplay ? fluidSpace(gap, 0) : undefined,
         boxShadow,
         opacity,
         overflow,
@@ -200,6 +202,8 @@ export const RowDefaultProps: Partial<ContainerProps> = {
   boxShadow: "none",
   opacity: 1,
   overflow: "visible",
+  alignSelf: "auto",
+  isFreeform: false,
 };
 
 Row.craft = {

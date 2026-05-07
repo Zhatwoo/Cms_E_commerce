@@ -12,6 +12,21 @@ exports.protect = async (req, res, next) => {
       : null);
 
   if (!token) {
+    if (process.env.NODE_ENV === 'development') {
+      // Development bypass: use a default admin if no token provided
+      const devUserId = 'QXBHLYPNx5gMEQjpa2HxD4SfRWT2';
+      const user = await User.get(devUserId);
+      if (user) {
+        req.user = {
+          id: user.id,
+          email: user.email,
+          name: user.displayName || user.email || 'Administrator (Dev)',
+          role: user.role,
+          subscriptionPlan: user.subscriptionPlan || 'free'
+        };
+        return next();
+      }
+    }
     return res.status(401).json({
       success: false,
       message: 'Not authorized, no token provided'

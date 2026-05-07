@@ -1,5 +1,8 @@
 export { FeaturesGrid } from "./featuresgrid";
 export { Testimonial } from "./TStestimonial";
-export { DeliveryAddress } from "./DeliveryAddress";
-export { DeliveryAddressV1 } from "./DeliveryAddressV1";
+export { StatsCounter } from "./statscounter";
+export { NewsletterCTA } from "./newslettercta";
+export { ImageText } from "./imagetext";
+export { BrandLogos } from "./brandlogos";
+export { CTABanner } from "./ctabanner";
 

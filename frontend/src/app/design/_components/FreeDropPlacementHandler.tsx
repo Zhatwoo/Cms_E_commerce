@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { filterLeafSelectionIds } from "../_lib/canvasActions";
 
 type NodeShape = {
   data?: {
@@ -22,6 +23,7 @@ type DragSourceKind = "asset" | "component" | "imported" | null;
 const MAX_RETRY_FRAMES = 24;
 const LAYOUT_LIKE_TYPES = new Set(["Page", "Viewport", "Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
 const FLOW_PARENT_DISPLAY_NAMES = new Set(["Section", "Container", "Row", "Column", "Frame", "Tab Content", "TabContent"]);
+const SHAPE_DISPLAY_NAMES = new Set(["Circle", "Square", "Triangle", "Rectangle", "Diamond", "Heart", "Trapezoid", "Pentagon", "Hexagon", "Heptagon", "Octagon", "Nonagon", "Decagon", "Parallelogram", "Kite"]);
 
 function selectedToIds(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw;
@@ -107,11 +109,13 @@ export function FreeDropPlacementHandler() {
       const preIds = preDragNodeIdsRef.current;
       const newIds = Object.keys(nodes).filter((id) => !preIds.has(id));
 
-      // Preserve template/asset internal layout exactly as-authored.
-      // Asset drops can include nested Row/Column/Section structures that should not
-      // be reordered or normalized by the generic free-drop placement logic.
-      // Imported blocks are single elements, treat like component.
-      if (dragSourceKindRef.current === "asset") {
+      // Preserve authored layout only for multi-node asset drops (full templates/sections).
+      // Single-node asset drops (e.g. icons/shapes) should still be normalized so they
+      // land in a stable, visible position after drop.
+      const shouldPreserveAssetLayout =
+        dragSourceKindRef.current === "asset" && newIds.length > 1;
+
+      if (shouldPreserveAssetLayout) {
         if (newIds.length > 0 || attempt >= MAX_RETRY_FRAMES) {
           stopTracking();
         } else {
@@ -138,11 +142,14 @@ export function FreeDropPlacementHandler() {
 
       const idsToPlace = rootNewIds.length > 0
         ? rootNewIds
-        : selectedToIds(state?.events?.selected).filter((id) => {
-            const parentId = nodes[id]?.data?.parent;
-            if (!parentId) return false;
-            return !newIdSet.has(parentId);
-          });
+        : filterLeafSelectionIds(
+            selectedToIds(state?.events?.selected).filter((id) => {
+              const parentId = nodes[id]?.data?.parent;
+              if (!parentId) return false;
+              return !newIdSet.has(parentId);
+            }),
+            nodes as any
+          );
 
       if (idsToPlace.length === 0) {
         stopTracking();
@@ -177,7 +184,9 @@ export function FreeDropPlacementHandler() {
           parentDisplay === "grid" ||
           parentDisplayName === "Tab Content" ||
           parentDisplayName === "TabContent" ||
-          LAYOUT_LIKE_TYPES.has(parentDisplayName);
+          LAYOUT_LIKE_TYPES.has(parentDisplayName) ||
+          FLOW_PARENT_DISPLAY_NAMES.has(parentDisplayName) ||
+          SHAPE_DISPLAY_NAMES.has(parentDisplayName);
         const forceFlowPlacement = false;
 
         let left = 0;

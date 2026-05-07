@@ -99,6 +99,7 @@ export const ProfileLoginNode = ({
   customClassName = "",
 }: ProfileLoginNodeProps) => {
   const {
+    id,
     connectors: { connect, drag },
   } = useNode();
 
@@ -124,6 +125,7 @@ export const ProfileLoginNode = ({
       ref={(ref) => {
         if (ref) connect(drag(ref));
       }}
+      data-node-id={id}
       className={customClassName}
       style={{
         display: display === "inline-flex" ? "flex" : display,
@@ -157,12 +159,14 @@ export const ProfileLoginNode = ({
         height: resolvedHeight,
         boxSizing: "border-box",
         whiteSpace: "nowrap",
-        flexWrap: "nowrap",
+        flexWrap: "wrap",
       }}
     >
       <img
         src={avatarSrc}
         alt="Profile"
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
         style={{
           width: `${avatarSize}px`,
           height: `${avatarSize}px`,
@@ -170,6 +174,7 @@ export const ProfileLoginNode = ({
           objectFit: "cover",
           backgroundColor: "#d1d5db",
           flexShrink: 0,
+          WebkitUserDrag: "none",
         }}
       />
 
