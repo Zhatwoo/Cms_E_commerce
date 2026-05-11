@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { useThemeOptional } from './theme-context';
 import { THEMES } from './theme-context';
 import { FeedbackMessage, type FeedbackTone } from '../ui/feedbackMessage';
+import { ModalButton } from '@/components/ui/ModalButton';
 
 export type AlertTone = 'success' | 'error' | 'warning' | 'info';
 
@@ -86,7 +87,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         open: true,
         message,
         title,
-        tone: options?.tone ?? inferTone(title, message),
+        tone: options?.tone ?? 'warning',
         variant: 'confirm',
         confirmText: options?.confirmText,
         cancelText: options?.cancelText,
@@ -116,21 +117,8 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
 
   const footer = state.variant === 'confirm' ? (
     <>
-      <button
-        type="button"
-        onClick={handleClose}
-        className="rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:opacity-80"
-        style={{ color: colors.text.primary }}
-      >
-        {state.cancelText ?? 'No'}
-      </button>
-      <button
-        type="button"
-        onClick={handleConfirm}
-        className="rounded-lg px-4 py-2 text-sm font-semibold transition-colors bg-emerald-500 hover:bg-emerald-600 text-white"
-      >
-        {state.confirmText ?? 'Yes'}
-      </button>
+      <ModalButton label={state.cancelText ?? 'No'} onClick={handleClose} variant="secondary" />
+      <ModalButton label={state.confirmText ?? 'Yes'} onClick={handleConfirm} variant="primary" />
     </>
   ) : undefined;
 

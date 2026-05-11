@@ -1,15 +1,25 @@
+import React, { useEffect, useState } from 'react';
 import { Check, Eye, EyeOff, Lock, Save, ShieldCheck } from 'lucide-react';
 
 type SecurityTabProps = {
-  colors: Record<string, any>;
-  theme: string;
-  showPassword: boolean;
-  setShowPassword: (value: boolean) => void;
-  saveSuccess: boolean;
-  onSave: () => void;
+    colors: Record<string, any>;
+    theme: string;
+    showPassword: boolean;
+    setShowPassword: (value: boolean) => void;
+    saveSuccess: boolean;
+    onSave: () => void;
+    setIsDirty?: (v: boolean) => void;
 };
 
-export function SecurityTab({ colors, theme, showPassword, setShowPassword, saveSuccess, onSave }: SecurityTabProps) {
+export function SecurityTab({ colors, theme, showPassword, setShowPassword, saveSuccess, onSave, setIsDirty }: SecurityTabProps) {
+    const [currentPassword, setCurrentPassword] = useState('');
+    const [newPassword, setNewPassword] = useState('');
+    const [confirmPassword, setConfirmPassword] = useState('');
+
+    useEffect(() => {
+        const dirty = Boolean(currentPassword || newPassword || confirmPassword);
+        if (typeof setIsDirty === 'function') setIsDirty(dirty);
+    }, [currentPassword, newPassword, confirmPassword, setIsDirty]);
   return (
     <>
     <div className="mb-12">
@@ -37,6 +47,13 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
             <div className="relative">
             <Lock className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 opacity-20 group-focus-within:opacity-100 group-focus-within:text-violet-500 transition-all" />
             <input
+                value={field.key === 'current' ? currentPassword : field.key === 'new' ? newPassword : confirmPassword}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (field.key === 'current') setCurrentPassword(v);
+                  if (field.key === 'new') setNewPassword(v);
+                  if (field.key === 'confirm') setConfirmPassword(v);
+                }}
                 type={showPassword ? 'text' : 'password'}
                 placeholder="••••••••"
                 className="w-full pl-16 pr-14 py-4 rounded-[1.25rem] border outline-none transition-all font-medium text-sm focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
@@ -107,7 +124,7 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
         <div className="relative z-10 flex items-center gap-3">
             {saveSuccess ? <Check className="w-4 h-4 text-white" /> : <Save className="w-4 h-4 text-white" />}
             <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">
-            {saveSuccess ? 'Security Verified' : 'Update Credentials'}
+            {saveSuccess ? 'Security Verified' : 'Save Changes'}
             </span>
         </div>
         </button>

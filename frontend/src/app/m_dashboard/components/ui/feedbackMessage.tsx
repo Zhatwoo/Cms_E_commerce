@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertCircle, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { useThemeOptional } from '../context/theme-context';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
 
 export type FeedbackTone = 'success' | 'error' | 'warning' | 'info';
 
@@ -160,7 +162,7 @@ function FeedbackCard({
             style={{ zIndex: 9999999999, fontFamily: 'Outfit, sans-serif', ...toastCardStyles }}
           >
             <div className="h-1 w-full" style={{ backgroundColor: toneMeta.iconColor }} />
-            <div className="flex items-start gap-3 px-4 py-4">
+            <div className="flex items-center gap-3 px-4 py-4">
               <div
                 aria-hidden
                 className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full"
@@ -168,7 +170,7 @@ function FeedbackCard({
               >
                 <Icon size={20} />
               </div>
-              <div className="min-w-0 flex-1 pt-0.5">
+              <div className="min-w-0 flex-1">
                 {title && (
                   <p
                     className="mb-1 text-[10px] font-black uppercase tracking-[0.24em]"
@@ -216,58 +218,34 @@ function FeedbackCard({
         }}
         onClick={onBackdropClick ?? onClose}
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 8 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 8 }}
-          transition={{ duration: 0.2 }}
-          onClick={(event) => event.stopPropagation()}
-          className="w-full max-w-md overflow-hidden rounded-2xl border shadow-2xl"
-          style={{ fontFamily: 'Outfit, sans-serif', ...modalSurfaceStyles }}
-        >
-          <div className="h-1 w-full" style={{ backgroundColor: toneMeta.iconColor }} />
-          <div className="flex items-start gap-4 px-5 py-5">
-            <div
-              aria-hidden
-              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
-              style={{ backgroundColor: toneMeta.iconBg, color: toneMeta.iconColor }}
-            >
-              <Icon size={24} />
-            </div>
-            <div className="min-w-0 flex-1 pt-1">
-              {title && (
-                <h3
-                  className="mb-1.5 text-base font-semibold"
-                  style={{ color: isLight ? '#120533' : '#FFFFFF' }}
-                >
-                  {title}
-                </h3>
-              )}
+        <motion.div onClick={(event) => event.stopPropagation()}>
+          <ModalCard
+            title={title ?? 'Message'}
+            subtitle="Review this action before continuing"
+            footer={footer ?? (onClose ? (
+              <ModalButton
+                label="OK"
+                onClick={onClose}
+                variant="primary"
+              />
+            ) : undefined)}
+          >
+            <div className="flex items-center gap-4 text-left">
+              <div
+                aria-hidden
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
+                style={{ backgroundColor: toneMeta.iconBg, color: toneMeta.iconColor }}
+              >
+                <Icon size={24} />
+              </div>
               <p
-                className="whitespace-pre-wrap text-sm leading-relaxed"
+                className="whitespace-pre-wrap text-base leading-relaxed"
                 style={{ color: isLight ? 'rgba(18,5,51,0.78)' : 'rgba(255,255,255,0.8)' }}
               >
                 {message}
               </p>
             </div>
-          </div>
-          {footer && (
-            <div className="flex justify-end gap-3 border-t px-5 py-4" style={footerSurfaceStyles}>
-              {footer}
-            </div>
-          )}
-          {!footer && onClose && (
-            <div className="flex justify-end gap-3 border-t px-5 py-4" style={footerSurfaceStyles}>
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg px-5 py-2 text-sm font-semibold text-white transition-colors hover:opacity-90"
-                style={{ backgroundColor: toneMeta.iconColor }}
-              >
-                OK
-              </button>
-            </div>
-          )}
+          </ModalCard>
         </motion.div>
       </div>
     </AnimatePresence>

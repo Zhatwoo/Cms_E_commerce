@@ -210,7 +210,7 @@ export function PublishModal({
                 <select
                   value={projectId}
                   onChange={(e) => onProjectChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  className="w-full px-4 py-3 rounded-[1.25rem] border text-sm font-medium outline-none transition-all focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
                   style={{
                     backgroundColor: colors.bg.primary,
                     borderColor: colors.border.faint,
@@ -235,7 +235,7 @@ export function PublishModal({
                   setSubdomain(e.target.value);
                   setError('');
                 }}
-                className="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+                className="w-full px-4 py-3 rounded-[1.25rem] border text-sm font-mono outline-none transition-all focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
                 style={{
                   backgroundColor: colors.bg.primary,
                   borderColor: error ? '#ef4444' : colors.border.faint,
@@ -256,7 +256,7 @@ export function PublishModal({
               <button
                 type="button"
                 onClick={() => setMode('now')}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'now' ? 'bg-blue-600 text-white' : ''}`}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${mode === 'now' ? 'bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm' : ''}`}
                 style={mode !== 'now' ? { color: colors.text.secondary } : undefined}
               >
                 Publish now
@@ -264,7 +264,7 @@ export function PublishModal({
               <button
                 type="button"
                 onClick={() => setMode('schedule')}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'schedule' ? 'bg-amber-600 text-white' : ''}`}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${mode === 'schedule' ? 'bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm' : ''}`}
                 style={mode !== 'schedule' ? { color: colors.text.secondary } : undefined}
               >
                 Schedule for later
@@ -281,7 +281,7 @@ export function PublishModal({
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
                   min={new Date().toISOString().slice(0, 16)}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  className="w-full px-4 py-3 rounded-[1.25rem] border text-sm font-medium outline-none transition-all focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
                   style={{
                     backgroundColor: colors.bg.primary,
                     borderColor: colors.border.faint,

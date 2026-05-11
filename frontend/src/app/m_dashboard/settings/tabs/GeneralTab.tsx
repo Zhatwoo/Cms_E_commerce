@@ -243,7 +243,7 @@ export function GeneralTab({
       <div className="relative z-10 flex items-center gap-3">
         {generalSaveSuccess && !generalSaving ? <Check className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} /> : <Save className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} />}
         <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#120533]' : 'text-white'}`}>
-          {generalSaving ? 'Syncing...' : generalSaveSuccess ? 'Identity Verified' : 'Publish Profile'}
+          {generalSaving ? 'Syncing...' : generalSaveSuccess ? 'Identity Verified' : 'Save Changes'}
         </span>
       </div>
     </button>

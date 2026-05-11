@@ -47,7 +47,7 @@ export function ProjectCardContainer({
   const defaultMenuOptions: PopMenuOption[] = [
     {
       key: 'edit',
-      label: 'Edit',
+      label: 'Edit Details',
       onSelect: () => onEditProject(project),
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
@@ -57,7 +57,7 @@ export function ProjectCardContainer({
     },
     {
       key: 'delete',
-      label: 'Delete',
+      label: 'Move to trash',
       onSelect: () => onDeleteProject(project),
       className: 'text-red-500',
       icon: (

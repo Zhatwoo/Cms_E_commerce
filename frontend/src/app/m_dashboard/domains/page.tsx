@@ -24,6 +24,7 @@ import { ViewModeToggle } from '../components/buttons/viewModeToggle';
 import { EmptyState } from '../components/ui/emptyState';
 import {
   Globe, Plus, Check, Clock,
+  Loader2,
 } from 'lucide-react';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
 
@@ -57,7 +58,7 @@ export default function DomainsPage() {
   const { colors, theme } = useTheme();
   const { user, loading: authLoading } = useAuth();
   const { selectedProject, refreshProjects: refreshContextProjects } = useProject();
-  const { showAlert } = useAlert();
+  const { showAlert, showConfirm } = useAlert();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
@@ -139,6 +140,13 @@ export default function DomainsPage() {
 
   const handleUnpublish = async (projectId: string, e?: React.MouseEvent) => {
     e?.stopPropagation?.();
+    const confirmed = await showConfirm(
+      'This will take your site offline and visitors will no longer be able to access it. Do you want to continue?',
+      'Confirm Take Down',
+      { confirmText: 'Take Down', cancelText: 'Cancel', tone: 'warning' }
+    );
+    if (!confirmed) return;
+
     setUnpublishingId(projectId);
     try {
       const res = await unpublishProject(projectId);
@@ -150,7 +158,7 @@ export default function DomainsPage() {
           setSelectedDomain(updated ? { project: updated, subdomain: selectedDomain.subdomain } : null);
         }
         await refreshContextProjects?.();
-        showAlert('Site taken offline.', 'Take down');
+        showAlert('Site taken offline.', 'Take down', 'success');
       } else showAlert(res.message || 'Failed to take down', 'Error');
     } catch { showAlert('Failed to take down. Please try again.', 'Error'); }
     finally { setUnpublishingId(null); }
@@ -285,6 +293,47 @@ export default function DomainsPage() {
   return (
     <div className="dashboard-landing-light relative min-h-[calc(1  00vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif] space-y-5">
 
+      <AnimatePresence>
+        {unpublishingId && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-x-0 top-0 z-10000 h-1 overflow-hidden"
+              style={{ background: theme === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(18,5,51,0.08)' }}
+            >
+              <motion.div
+                className="h-full w-1/3"
+                style={{ background: GRAD }}
+                animate={{ x: ['-30%', '330%'] }}
+                transition={{ duration: 1.1, repeat: Infinity, ease: 'linear' }}
+              />
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ type: 'spring', stiffness: 360, damping: 28 }}
+              className="fixed left-1/2 top-4 z-10001 -translate-x-1/2 rounded-xl border px-4 py-2.5"
+              style={{
+                background: theme === 'dark' ? 'rgba(24,26,89,0.96)' : 'rgba(255,255,255,0.98)',
+                borderColor: theme === 'dark' ? 'rgba(255,255,255,0.14)' : 'rgba(103,2,191,0.16)',
+                boxShadow: theme === 'dark' ? '0 14px 28px rgba(0,0,0,0.35)' : '0 14px 28px rgba(18,5,51,0.12)',
+              }}
+            >
+              <div className="flex items-center gap-2.5">
+                <Loader2 className="h-4 w-4 animate-spin" style={{ color: theme === 'dark' ? '#FACC15' : '#7C3AED' }} />
+                <p className="text-xs font-semibold" style={{ color: colors.text.primary }}>
+                  Taking your site offline...
+                </p>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Ambient */}
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-20 left-1/3 w-[600px] h-[500px] rounded-full opacity-[0.06] blur-[120px]"
@@ -342,7 +391,7 @@ export default function DomainsPage() {
                 : '0 8px 24px rgba(217,70,239,0.4)',
             }}
           >
-            {addSiteLoading ? 'loading...' : <><Plus className="w-3.5 h-3.5" /> Add Site</>}
+            {addSiteLoading ? 'loading...' : <><Globe className="w-3.5 h-3.5" /> Publish Site</>}
           </button>
 
           <ViewModeToggle

@@ -24,6 +24,7 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
   const isDark = theme === 'dark';
 
   const selected = options.find((opt: OrderCategoryOption) => opt.id === value);
+  const triggerLabel = selected?.label ?? `Select ${title}`;
 
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
@@ -55,7 +56,7 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
         `}
       >
         <span className={`min-w-0 truncate text-sm font-medium tracking-tight ${isDark ? 'text-white' : 'text-[#120533]'}`}>
-          {`Select ${title}`}
+          {triggerLabel}
         </span>
         
         <div className="relative flex items-center justify-center">
@@ -107,6 +108,7 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
                 return (
                   <button
                     key={option.id}
+                    type="button"
                     onClick={() => { onChange(option.id); setOpen(false); }}
                     className={`
                       w-full flex items-center justify-between px-4 py-3 rounded-xl text-[13px] font-bold transition-all duration-200

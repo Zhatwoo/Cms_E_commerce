@@ -3,6 +3,8 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { FeedbackMessage } from '../components/ui/feedbackMessage';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
 import {
   Package,
   AlertTriangle,
@@ -1367,7 +1369,7 @@ export default function InventoryPage() {
               Inventory
             </span>
           </h1>
-          
+
         </div>
 
         <div className="mb-6 flex justify-center">
@@ -1468,7 +1470,7 @@ export default function InventoryPage() {
               <div className="flex justify-between items-end mb-8">
   <div className="flex flex-col gap-1">
     {/* 1. The Micro-Label (The "Audit Trail" context) */}
-    <span 
+    <span
       className={`
         text-[9px] font-black uppercase tracking-[0.4em] opacity-40
         [font-family:var(--font-outfit),sans-serif]
@@ -1490,14 +1492,14 @@ export default function InventoryPage() {
     </h3>
 
     {/* 3. The Minimalist Description */}
-    <p 
-      style={{ 
-        color: T.textMuted, 
-        fontSize: 12, 
+    <p
+      style={{
+        color: T.textMuted,
+        fontSize: 12,
         fontWeight: 500,
         opacity: 0.7,
         fontFamily: 'var(--font-outfit), sans-serif',
-        letterSpacing: '-0.01em' 
+        letterSpacing: '-0.01em'
       }}
     >
       Audit trail of all inventory changes.
@@ -1505,11 +1507,11 @@ export default function InventoryPage() {
   </div>
 
   {/* 4. The Premium Ghost Button */}
-  <GhostBtn 
-    onClick={openAllMovementsModal} 
-    disabled={loading} 
-    style={{ 
-      fontSize: 10, 
+  <GhostBtn
+    onClick={openAllMovementsModal}
+    disabled={loading}
+    style={{
+      fontSize: 10,
       fontWeight: 800,
       textTransform: 'uppercase',
       letterSpacing: '0.2em',
@@ -1581,100 +1583,128 @@ export default function InventoryPage() {
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
 
-        {/* All movements modal (original) */}
-        {showAllMovementsModal && (
-          <ModalBackdrop key="all-movements-modal" onClose={closeAllMovementsModal}>
+        {/* All movements modal (unified design with ModalCard) */}
+        <ModalShell isOpen={showAllMovementsModal} onClose={closeAllMovementsModal} usePortal>
+          <ModalCard
+            title="Stock Movements"
+            subtitle="Complete audit trail"
+          >
+            {/* Toolbar */}
             <div style={{
-              background: T.card, border: `1px solid ${T.cardBorder}`,
-              borderRadius: 20, width: '100%', maxWidth: 720, overflow: 'hidden',
-              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: 12,
+              marginBottom: 20,
             }}>
-              <div style={{
-                padding: '20px 28px', borderBottom: `1px solid ${T.cardBorder}`,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <h3 style={{ color: T.text, fontWeight: 700, margin: 0, fontFamily: 'var(--font-outfit), sans-serif' }}>All Stock Movements</h3>
-                  <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3, fontFamily: 'var(--font-outfit), sans-serif' }}>Complete movement history (latest first)</p>
-                </div>
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  fontSize: 13,
+                  cursor: totalMovements === 0 ? 'not-allowed' : 'pointer',
+                  fontWeight: 500,
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 20,
+                    height: 20,
+                    borderRadius: 6,
+                    border: `1.5px solid ${isAllMovementsSelected ? '#a855f7' : 'rgba(255,255,255,0.2)'}`,
+                    background: isAllMovementsSelected ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isAllMovementsSelected}
+                    disabled={totalMovements === 0}
+                    onChange={toggleSelectAllMovements}
+                    style={{
+                      accentColor: '#a855f7',
+                      width: 12,
+                      height: 12,
+                      cursor: totalMovements === 0 ? 'not-allowed' : 'pointer',
+                      margin: 0,
+                    }}
+                  />
+                </span>
+                <span>{totalMovements} total</span>
+              </label>
+              {selectedCount > 0 && (
                 <button
                   type="button"
-                  onClick={closeAllMovementsModal}
-                  title="Close movements"
-                  style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: 'pointer', padding: 6, display: 'flex' }}
+                  onClick={() => openBulkDeleteConfirm('selected')}
+                  disabled={isBulkDeleting}
+                  style={{
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    border: 'none',
+                    height: 36,
+                    padding: '0 16px',
+                    borderRadius: 10,
+                    cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+                    opacity: isBulkDeleting ? 0.6 : 1,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isBulkDeleting) e.currentTarget.style.background = '#b91c1c';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#dc2626';
+                  }}
                 >
-                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
+                  {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
                 </button>
-              </div>
-              <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 28px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <label
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      color: T.textMuted,
-                      fontSize: 12,
-                      cursor: totalMovements === 0 ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 24,
-                        height: 24,
-                        borderRadius: 7,
-                        border: `1px solid ${isAllMovementsSelected ? '#a855f7' : T.cardBorder}`,
-                        background: isAllMovementsSelected ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isAllMovementsSelected}
-                        disabled={totalMovements === 0}
-                        onChange={toggleSelectAllMovements}
-                        style={{ accentColor: '#a855f7', width: 14, height: 14, cursor: totalMovements === 0 ? 'not-allowed' : 'pointer' }}
-                      />
-                    </span>
-                    <span>{totalMovements} total</span>
-                  </label>
-                  {selectedCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => openBulkDeleteConfirm('selected')}
-                      disabled={isBulkDeleting}
-                      style={{
-                        ...brandActionButtonStyle,
-                        background: '#dc2626',
-                        height: 34,
-                        padding: '0 14px',
-                        cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
-                        opacity: isBulkDeleting ? 0.6 : 1,
-                      }}
-                    >
-                      Delete
-                    </button>
-                  )}
+              )}
+            </div>
+
+            {/* Content */}
+            <div style={{
+              maxHeight: '55vh',
+              overflowY: 'auto',
+            }}>
+              {loadingAllMovements ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '32px 16px',
+                  fontSize: 14,
+                  opacity: 0.6,
+                }}>
+                  Loading movements…
                 </div>
-                {loadingAllMovements ? (
-                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32, fontFamily: 'var(--font-outfit), sans-serif' }}>Loading…</div>
-                ) : allMovementsError ? (
-                  <div style={{ textAlign: 'center', color: T.red, padding: 32, fontFamily: 'var(--font-outfit), sans-serif' }}>{allMovementsError}</div>
-                ) : allMovements.length === 0 ? (
-                  <EmptyState
-                    badgeText="Movements"
-                    title="No movements recorded"
-                    description="This log will populate as inventory changes are made."
-                    tone={theme === 'dark' ? 'dark' : 'light'}
-                    size="compact"
-                    className="py-10 px-0"
-                  />
-                ) : (
-                  allMovements.map((m, index) => {
+              ) : allMovementsError ? (
+                <div style={{
+                  background: 'rgba(239,68,68,0.12)',
+                  border: '1px solid rgba(239,68,68,0.28)',
+                  borderRadius: 12,
+                  padding: 12,
+                  color: '#ef4444',
+                  fontSize: 13,
+                  textAlign: 'center',
+                  marginBottom: 16,
+                }}>
+                  {allMovementsError}
+                </div>
+              ) : allMovements.length === 0 ? (
+                <EmptyState
+                  badgeText="Movements"
+                  title="No movements recorded"
+                  description="This log will populate as inventory changes are made."
+                  tone="dark"
+                  size="compact"
+                  className="py-10 px-0"
+                />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {allMovements.map((m, index) => {
                     const movementId = String(m.id || '').trim();
                     const movementKey = movementId || `all-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
                     return (
@@ -1686,12 +1716,12 @@ export default function InventoryPage() {
                         onToggleSelect={movementId ? toggleMovementSelection : undefined}
                       />
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
             </div>
-          </ModalBackdrop>
-        )}
+          </ModalCard>
+        </ModalShell>
 
         {deleteConfirmMovement && (
           <ModalBackdrop key="delete-movement-modal" onClose={closeDeleteMovementConfirm}>

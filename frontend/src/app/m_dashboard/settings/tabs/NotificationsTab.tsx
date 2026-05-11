@@ -140,7 +140,7 @@ export function NotificationsTab({
           <div className="relative z-10 flex items-center gap-3">
             {saveSuccess ? <Check className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} /> : <Save className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} />}
             <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#120533]' : 'text-white'}`}>
-              {saveSuccess ? 'Saved!' : 'Save Preferences'}
+              {saveSuccess ? 'Saved!' : 'Save Changes'}
             </span>
           </div>
         </button>

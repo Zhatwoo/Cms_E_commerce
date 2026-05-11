@@ -158,13 +158,15 @@ export function ProjectSelectorModal() {
     const normalizedStatus = String(project.status || '').trim().toLowerCase();
     // Prevent trashing projects that are currently live/published.
     if (normalizedStatus === 'published' || normalizedStatus === 'live') {
-      await showAlert('Published projects cannot be deleted. Please take down (unpublish) the website first.', 'Cannot Delete Project');
+      await showAlert(
+        'This project is live. Take down (unpublish) the website first before moving it to trash.',
+        'Cannot Move To Trash',
+        'error'
+      );
       return;
     }
     const confirmed = await showConfirm(
-      `Are you sure you want to move "${project.title || 'Untitled Project'}" to the trash?`,
-      'Move to Trash',
-      { confirmText: 'Move to Trash', cancelText: 'Cancel' }
+      `Move "${project.title || 'Untitled Project'}" to trash?`
     );
     if (!confirmed) return;
 
@@ -197,9 +199,7 @@ export function ProjectSelectorModal() {
   const handleRestoreProject = async (project: Project) => {
     if (actioningProjectId) return;
     const confirmed = await showConfirm(
-      `Are you sure you want to restore "${project.title || 'Untitled Project'}"? It will move back to your active projects.`,
-      'Restore Project',
-      { confirmText: 'Restore Project', cancelText: 'Cancel' }
+      `Restore "${project.title || 'Untitled Project'}" from trash?`
     );
     if (!confirmed) return;
 
@@ -236,16 +236,12 @@ export function ProjectSelectorModal() {
     const projectTitle = project.title || 'Untitled Project';
     // Two-step confirmation to reduce accidental permanent deletion.
     const firstConfirm = await showConfirm(
-      `Are you sure you want to permanently delete "${projectTitle}"? This action cannot be undone.`,
-      'Delete Permanently?',
-      { confirmText: 'Yes, delete', cancelText: 'Cancel' }
+      `Permanently delete "${projectTitle}"? This cannot be undone.`
     );
     if (!firstConfirm) return;
 
     const finalConfirm = await showConfirm(
-      `This will permanently remove "${projectTitle}" from the database. This cannot be undone. Delete anyway?`,
-      'Final Confirmation',
-      { confirmText: 'Delete Permanently', cancelText: 'Cancel' }
+      `Delete "${projectTitle}" permanently?`
     );
     if (!finalConfirm) return;
 

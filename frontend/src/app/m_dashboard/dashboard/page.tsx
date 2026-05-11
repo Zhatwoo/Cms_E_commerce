@@ -17,9 +17,7 @@ import { useAlert } from '../components/context/alert-context';
 import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
-import { ModalShell } from '@/components/ui/ModalShell';
-import { ModalCard } from '@/components/ui/ModalCard';
-import { ModalButton } from '@/components/ui/ModalButton';
+import { EditProjectModal } from '@/app/m_dashboard/components/projects/EditProjectModal';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
@@ -129,7 +127,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [actioningProjectId, setActioningProjectId] = useState<string | null>(null);
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
-  const [renameTitle, setRenameTitle] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editSubdomain, setEditSubdomain] = useState('');
+  const [editError, setEditError] = useState('');
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
@@ -281,23 +281,30 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
   const handleEditActiveProject = async (project: Project) => {
     setRenamingProject(project);
-    setRenameTitle((project.title || 'Untitled Project').trim());
+    setEditTitle((project.title || 'Untitled Project').trim());
+    setEditSubdomain((project.subdomain || '').trim());
+    setEditError('');
     setOpenProjectMenuId(null);
   };
 
   const submitRenameProject = async () => {
     if (!renamingProject) return;
-    const trimmedTitle = renameTitle.trim();
+    const trimmedTitle = editTitle.trim();
+    const trimmedSubdomain = editSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
     if (!trimmedTitle) {
-      showAlert('Project title cannot be empty.');
+      setEditError('Project title cannot be empty.');
       return;
     }
 
     try {
       setActioningProjectId(renamingProject.id);
-      const res = await updateProject(renamingProject.id, { title: trimmedTitle });
+      setEditError('');
+      const res = await updateProject(renamingProject.id, {
+        title: trimmedTitle,
+        subdomain: trimmedSubdomain || null,
+      });
       if (!res.success) {
-        showAlert(res.message || 'Failed to rename project.');
+        setEditError(res.message || 'Failed to update project.');
         return;
       }
 
@@ -307,6 +314,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             ...item,
             ...(res.project || {}),
             title: res.project?.title || trimmedTitle,
+            subdomain: res.project?.subdomain ?? (trimmedSubdomain || null),
             updatedAt: res.project?.updatedAt || new Date().toISOString(),
           }
           : item
@@ -315,7 +323,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       setAllProjects(sorted);
       setRecentProjects(sorted.slice(0, 3));
       setRenamingProject(null);
-      setRenameTitle('');
+      setEditTitle('');
+      setEditSubdomain('');
+      setEditError('');
     } catch {
       showAlert('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
     } finally {
@@ -613,62 +623,25 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </AnimatePresence>
       </div>
 
-      <ModalShell
+      <EditProjectModal
         isOpen={!!renamingProject}
-        onClose={() => {
+        theme={theme}
+        projectName={renamingProject?.title || 'Untitled Project'}
+        title={editTitle}
+        subdomain={editSubdomain}
+        error={editError}
+        saving={!!(renamingProject && actioningProjectId === renamingProject.id)}
+        onTitleChange={setEditTitle}
+        onSubdomainChange={setEditSubdomain}
+        onCancel={() => {
           if (renamingProject && actioningProjectId === renamingProject.id) return;
           setRenamingProject(null);
-          setRenameTitle('');
+          setEditTitle('');
+          setEditSubdomain('');
+          setEditError('');
         }}
-        usePortal
-        disabled={!!(renamingProject && actioningProjectId === renamingProject.id)}
-        className="fixed inset-0 z-9999 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
-      >
-        {renamingProject && (
-          <ModalCard
-            title="Rename project"
-            subtitle="Update the project title"
-            footer={
-              <div className="flex gap-2 w-full justify-end">
-                <ModalButton
-                  label="Cancel"
-                  onClick={() => {
-                    setRenamingProject(null);
-                    setRenameTitle('');
-                  }}
-                  variant="secondary"
-                  disabled={actioningProjectId === renamingProject.id}
-                />
-                <ModalButton
-                  label={actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
-                  onClick={submitRenameProject}
-                  variant="primary"
-                  disabled={actioningProjectId === renamingProject.id}
-                />
-              </div>
-            }
-          >
-            <input
-              type="text"
-              value={renameTitle}
-              onChange={(e) => setRenameTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  submitRenameProject();
-                }
-              }}
-              autoFocus
-              className={`mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none ${
-                theme === 'dark'
-                  ? 'border-[#2D3A90] bg-[#0E0D3D] text-white focus:border-[#6B72D8]'
-                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#120533] focus:border-[#8B5CF6] placeholder:text-gray-400'
-              }`}
-              placeholder="Untitled Project"
-            />
-          </ModalCard>
-        )}
-      </ModalShell>
+        onSave={submitRenameProject}
+      />
 
       <style jsx>{`
         .template-pan-img,

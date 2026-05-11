@@ -36,6 +36,7 @@ import { apiFetch, createProject, getProject, getSchedule, getStoredUser, publis
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
+import { DotsLoader, LoadingText, Spinner } from "@/components/loading/LoadingBits";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -1313,13 +1314,6 @@ function PreviewContent() {
         .device-home-pill {
           width: 100px; height: 4px; background: #3f3f46; border-radius: 99px;
         }
-        .pv-loading-dot {
-          width: 8px; height: 8px; border-radius: 50%; background: #52525b;
-          animation: pvDot 1.2s ease-in-out infinite;
-        }
-        .pv-loading-dot:nth-child(2) { animation-delay: 0.15s; }
-        .pv-loading-dot:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes pvDot { 0%,80%,100%{transform:scale(0.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
       `}</style>
 
         {/* ── Toolbar ─────────────────────────────────────────────────── */}
@@ -1445,10 +1439,8 @@ function PreviewContent() {
         <div className="flex flex-col">
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32">
-              <div className="flex items-center gap-2">
-                <div className="pv-loading-dot" /><div className="pv-loading-dot" /><div className="pv-loading-dot" />
-              </div>
-              <p className="text-sm text-zinc-600">Loading preview…</p>
+              <DotsLoader />
+              <LoadingText text="Loading preview…" className="text-sm text-zinc-600" />
             </div>
           ) : viewMode === "Web-Preview" ? (
             <div className={`w-full flex flex-col items-center ${previewViewport === "desktop" ? "p-0" : "py-8 px-4"}`}>
@@ -1632,7 +1624,7 @@ function PreviewContent() {
                     setPublishDomainError("");
                   }}
                   placeholder="e.g. mystore"
-                  className="w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-medium text-white outline-none transition-all placeholder:text-zinc-500 focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500/30"
                   autoFocus
                 />
                 {publishDomainName.trim() && (
@@ -1643,12 +1635,38 @@ function PreviewContent() {
                 {publishDomainError && <p className="text-xs text-red-400">{publishDomainError}</p>}
               </div>
               <div className="mb-4 flex gap-2 rounded-lg bg-[#0a0a0a] p-1">
-                <button type="button" onClick={() => setPublishMode("now")} className={`flex-1 rounded-md py-2 text-sm font-medium ${publishMode === "now" ? "bg-blue-600 text-white" : "text-zinc-400"}`}>Publish now</button>
-                <button type="button" onClick={() => setPublishMode("schedule")} className={`flex-1 rounded-md py-2 text-sm font-medium ${publishMode === "schedule" ? "bg-blue-600 text-white" : "text-zinc-400"}`}>Schedule</button>
+                <button
+                  type="button"
+                  onClick={() => setPublishMode("now")}
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${
+                    publishMode === "now"
+                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm"
+                      : "text-zinc-300 hover:text-white"
+                  }`}
+                >
+                  Publish now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPublishMode("schedule")}
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${
+                    publishMode === "schedule"
+                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm"
+                      : "text-zinc-300 hover:text-white"
+                  }`}
+                >
+                  Schedule
+                </button>
               </div>
               {publishMode === "schedule" && (
                 <div className="mb-4 space-y-2">
-                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-white" />
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-medium text-white outline-none transition-all focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500/30"
+                  />
                 </div>
               )}
             </ModalCard>
@@ -1749,7 +1767,16 @@ function PreviewContent() {
 
 export default function PreviewPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-zinc-500">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-zinc-500">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner sizePx={36} borderPx={3} className="animate-spin rounded-full border-white/20 border-t-white/80" />
+            <LoadingText text="Loading..." className="text-sm text-zinc-500" />
+          </div>
+        </div>
+      }
+    >
       <PreviewContent />
     </Suspense>
   );

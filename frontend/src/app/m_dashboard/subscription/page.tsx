@@ -8,6 +8,8 @@ import { getStoredUser } from '@/lib/api';
 import { SUBSCRIPTION_LIMITS, type SubscriptionPlan } from '@/lib/subscriptionLimits';
 import { Check } from 'lucide-react';
 import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -414,10 +416,11 @@ export default function SubscriptionPage() {
             <button
               type="button"
               onClick={handleCancel}
-              className="px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-full border transition-all hover:bg-red-500 hover:text-white"
+              className={`cursor-pointer px-5 py-2 text-xs font-black uppercase tracking-widest rounded-full border transition-all hover:bg-red-500 hover:text-white ${
+                isDark ? 'text-red-300' : 'text-red-600'
+              }`}
               style={{
                 borderColor: isDark ? 'rgba(239,68,68,0.3)' : 'rgba(220,38,38,0.2)',
-                color: isDark ? '#fca5a5' : '#dc2626',
               }}
             >
               Cancel Plan
@@ -531,68 +534,31 @@ export default function SubscriptionPage() {
           const isDowngrade = action === 'downgrade';
 
           return (
-              <motion.div
-                key="modal-card"
-                initial={{ opacity: 0, scale: 0.92, y: 16 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 16 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                className="relative w-full max-w-sm rounded-[2rem] p-7"
-                style={{
-                  border: `3px solid ${target.accent}`,
-                  backgroundColor: isDark ? '#111058' : '#ffffff',
-                  boxShadow: isDark
-                    ? '0 30px 80px rgba(147,51,234,0.3)'
-                    : '8px 10px 40px rgba(20,20,50,0.12)',
-                }}
-              >
-                <p
-                  className="text-[11px] font-bold uppercase tracking-widest mb-1"
-                  style={{ color: isDowngrade ? '#ca8a04' : target.accent }}
-                >
-                  {isDowngrade ? 'Confirm Downgrade' : 'Confirm Upgrade'}
-                </p>
-                <h4
-                  className="text-xl font-extrabold mb-1"
-                  style={{ color: isDark ? '#fff' : '#120533' }}
-                >
-                  Switch to {target.name}
-                </h4>
-                <p
-                  className="text-[13px] mb-6 leading-relaxed"
-                  style={{ color: isDark ? 'rgba(255,255,255,0.55)' : '#a6a0c0' }}
-                >
-                  {isDowngrade
-                    ? `Moving from ${getPlan(currentPlan).name} to ${target.name} will reduce your feature access. This takes effect at the end of your billing cycle.`
-                    : `You'll gain access to all ${target.name} features immediately after confirming.`}
-                </p>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
+            <ModalCard
+              className="max-w-xl"
+              title={`Switch to ${target.name}`}
+              subtitle={isDowngrade ? 'Confirm downgrade' : 'Confirm upgrade'}
+              footer={
+                <div className="flex w-full justify-end gap-3">
+                  <ModalButton
+                    label="Cancel"
                     onClick={() => setConfirmTarget(null)}
-                    className="flex-1 rounded-full px-4 py-3 text-[14px] font-extrabold transition-all hover:brightness-95"
-                    style={{
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f4',
-                      color: isDark ? 'rgba(255,255,255,0.6)' : '#616170',
-                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #c1c1cd',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
+                    variant="secondary"
+                  />
+                  <ModalButton
+                    label={isDowngrade ? `Downgrade to ${target.name}` : `Upgrade to ${target.name}`}
                     onClick={confirmAction}
-                    className="flex-1 rounded-full px-4 py-3 text-[14px] font-extrabold transition-all hover:brightness-110"
-                    style={{
-                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
-                      color: '#fff',
-                    }}
-                  >
-                    {isDowngrade ? `Downgrade to ${target.name}` : `Upgrade to ${target.name}`}
-                  </button>
+                    variant="primary"
+                  />
                 </div>
-              </motion.div>
+              }
+            >
+              <p className="text-[13px] leading-relaxed" style={{ color: isDark ? 'rgba(255,255,255,0.72)' : '#5b5676' }}>
+                {isDowngrade
+                  ? `Moving from ${getPlan(currentPlan).name} to ${target.name} will reduce your feature access. This takes effect at the end of your billing cycle.`
+                  : `You'll gain access to all ${target.name} features immediately after confirming.`}
+              </p>
+            </ModalCard>
           );
         })()}
       </ModalShell>

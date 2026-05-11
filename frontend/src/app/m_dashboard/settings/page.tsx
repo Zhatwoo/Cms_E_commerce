@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
+import { useAlert } from '../components/context/alert-context';
 import { getMe, updateProfile, uploadAvatarApi, type User as ApiUser, getUnionBankLink, getPayPalLink } from '@/lib/api';
 import { TabBar, type TabBarItem } from '../components/ui/tabbar';
 import { AddCardModal } from './components/AddCardModal';
@@ -48,6 +49,13 @@ export default function SettingsPage() {
     const [orderNotifications, setOrderNotifications] = useState(true);
     const [marketingEmails, setMarketingEmails] = useState(false);
     const [securityAlerts, setSecurityAlerts] = useState(true);
+    const initialNotificationsRef = React.useRef({
+        emailNotifications: true,
+        orderNotifications: true,
+        marketingEmails: false,
+        securityAlerts: true,
+    });
+    const [securityTabDirty, setSecurityTabDirty] = useState(false);
 
     // User & Billing state
     const [user, setUser] = useState<ApiUser | null>(null);
@@ -70,9 +78,34 @@ export default function SettingsPage() {
         const fetchUser = async () => {
             try {
                 const response = await getMe();
+                // Debug: log getMe response to investigate avatar fetching issues
+                // eslint-disable-next-line no-console
+                console.debug('[SettingsPage] getMe response:', response);
                 if (response && response.success && response.user) {
                     setUser(response.user);
                     setPaymentMethods(response.user.paymentMethods || []);
+                    // initialize notification defaults from user if present
+                    if (response.user.notificationPreferences) {
+                        const p: any = response.user.notificationPreferences;
+                        setEmailNotifications(Boolean(p.emailNotifications));
+                        setOrderNotifications(Boolean(p.orderNotifications));
+                        setMarketingEmails(Boolean(p.marketingEmails));
+                        setSecurityAlerts(Boolean(p.securityAlerts));
+                        initialNotificationsRef.current = {
+                            emailNotifications: Boolean(p.emailNotifications),
+                            orderNotifications: Boolean(p.orderNotifications),
+                            marketingEmails: Boolean(p.marketingEmails),
+                            securityAlerts: Boolean(p.securityAlerts),
+                        };
+                    } else {
+                        // capture current defaults
+                        initialNotificationsRef.current = {
+                            emailNotifications,
+                            orderNotifications,
+                            marketingEmails,
+                            securityAlerts,
+                        };
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch user:', error);
@@ -82,6 +115,65 @@ export default function SettingsPage() {
         };
         fetchUser();
     }, []);
+
+    const { showAlert, showConfirm } = useAlert();
+
+    const isGeneralDirty = () => {
+        if (!user) return true;
+        if (pendingAvatarFile) return true;
+        if ((generalForm.name || '') !== (user.name || '')) return true;
+        if ((generalForm.email || '') !== (user.email || '')) return true;
+        if ((generalForm.username || '') !== (user.username || '')) return true;
+        if ((generalForm.website || '') !== (user.website || '')) return true;
+        if ((generalForm.bio || '') !== (user.bio || '')) return true;
+        return false;
+    };
+
+    const isNotificationsDirty = () => {
+        const init = initialNotificationsRef.current;
+        return (
+            emailNotifications !== init.emailNotifications ||
+            orderNotifications !== init.orderNotifications ||
+            marketingEmails !== init.marketingEmails ||
+            securityAlerts !== init.securityAlerts
+        );
+    };
+
+    const handleSaveWithConfirm = async (tab: SettingTab) => {
+        if (tab === 'general') {
+            if (!isGeneralDirty()) {
+                await showAlert('No changes to save');
+                return;
+            }
+            const ok = await showConfirm('Save the changes to your profile?', 'Save changes');
+            if (ok) await handleSaveGeneral();
+            return;
+        }
+
+        if (tab === 'notifications') {
+            if (!isNotificationsDirty()) {
+                await showAlert('No changes to save');
+                return;
+            }
+            const ok = await showConfirm('Save notification preference changes?', 'Save changes');
+            if (ok) await handleSave();
+            return;
+        }
+
+        if (tab === 'security') {
+            if (!securityTabDirty) {
+                await showAlert('No changes to save');
+                return;
+            }
+            const ok = await showConfirm('Save security changes (password)?', 'Save changes');
+            if (ok) await handleSave();
+            return;
+        }
+
+        // default fallback
+        const ok = await showConfirm('Save changes?', 'Save changes');
+        if (ok) await handleSave();
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -288,7 +380,7 @@ export default function SettingsPage() {
     const renderActiveTab = () => {
         if (activeTab === 'general') {
             return (
-                <GeneralTab
+                    <GeneralTab
                     colors={colors}
                     theme={theme}
                     user={user}
@@ -302,7 +394,7 @@ export default function SettingsPage() {
                     onAvatarChange={handleGeneralAvatarChange}
                     onFieldChange={handleGeneralFieldChange}
                     onReset={handleGeneralReset}
-                    onSave={handleSaveGeneral}
+                    onSave={() => handleSaveWithConfirm('general')}
                     onClearFeedback={() => setGeneralFeedback(null)}
                 />
             );
@@ -322,7 +414,7 @@ export default function SettingsPage() {
                     setMarketingEmails={setMarketingEmails}
                     setSecurityAlerts={setSecurityAlerts}
                     saveSuccess={saveSuccess}
-                    onSave={handleSave}
+                    onSave={() => handleSaveWithConfirm('notifications')}
                 />
             );
         }
@@ -335,7 +427,8 @@ export default function SettingsPage() {
                     showPassword={showPassword}
                     setShowPassword={setShowPassword}
                     saveSuccess={saveSuccess}
-                    onSave={handleSave}
+                    onSave={() => handleSaveWithConfirm('security')}
+                    setIsDirty={setSecurityTabDirty}
                 />
             );
         }
