@@ -1326,6 +1326,12 @@ export default function InventoryPage() {
         </td>
 
         <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
+          <div className="inline-flex w-full items-center justify-center text-sm font-semibold tabular-nums" style={{ color: T.text, minWidth: 24 }}>
+            {Number.isFinite(Number(m.afterOnHand)) ? Number(m.afterOnHand) : '--'}
+          </div>
+        </td>
+
+        <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
           <div className="text-sm text-center" style={{ color: T.textMuted }}>
             {m.createdAt ? new Date(m.createdAt).toLocaleString() : '--'}
           </div>
@@ -1549,10 +1555,11 @@ export default function InventoryPage() {
                   <div style={{ overflowX: 'auto' }}>
                     <table className="w-full min-w-245 border-collapse [font-family:var(--font-outfit),sans-serif]">
                     <colgroup>
-                      <col style={{ width: '14%' }} />
-                      <col style={{ width: '22%' }} />
-                      <col style={{ width: '40%' }} />
                       <col style={{ width: '12%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '34%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '11%' }} />
                       <col style={{ width: '12%' }} />
                     </colgroup>
                     <thead>
@@ -1560,6 +1567,7 @@ export default function InventoryPage() {
                         <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Type</th>
                         <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Product</th>
                         <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Metadata</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Action</th>
                         <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Quantity</th>
                         <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Date</th>
                       </tr>

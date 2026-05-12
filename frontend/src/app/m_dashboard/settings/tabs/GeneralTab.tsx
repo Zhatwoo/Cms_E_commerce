@@ -192,13 +192,17 @@ export function GeneralTab({
       />
       <textarea
         rows={5}
+        wrap="soft"
         value={generalForm.bio}
         onChange={(e) => onFieldChange('bio', e.target.value)}
-        className="w-full pl-12 pr-14 py-4 rounded-[1.25rem] border outline-none transition-all font-medium text-sm focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
+        className="w-full pl-12 pr-14 py-4 rounded-[1.25rem] border outline-none transition-all font-medium text-sm focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30 whitespace-pre-wrap wrap-break-word"
         style={{
           backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
           borderColor: colors.border.faint,
           color: colors.text.primary,
+          overflowWrap: 'break-word',
+          wordBreak: 'break-word',
+          resize: 'vertical',
         }}
         placeholder="Brief professional summary..."
       />

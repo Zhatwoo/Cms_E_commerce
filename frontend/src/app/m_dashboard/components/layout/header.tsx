@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
+import { useAlert } from '../context/alert-context';
 import { ProjectSwitchPill } from './ProjectSwitchPill';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
@@ -154,6 +155,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const pathname = usePathname();
     const { user, setUser } = useAuth();
     const { theme, toggleTheme, colors } = useTheme();
+    const { showConfirm } = useAlert();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -218,6 +220,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         pathname?.startsWith('/m_dashboard/orders');
 
     const handleLogout = async () => {
+        const ok = await showConfirm(
+            'You will need to sign in again to access your dashboard.',
+            'Log out of your account?'
+        );
+        if (!ok) return;
         await logout();
         setUser(null);
         setShowMenu(false);

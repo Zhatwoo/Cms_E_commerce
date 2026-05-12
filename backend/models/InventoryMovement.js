@@ -45,11 +45,34 @@ async function getOwnedSubdomains(userId, subdomain) {
       .where('user_id', '==', userId)
       .limit(1)
       .get();
-    return productOwned.empty ? [] : [normalized];
+    if (!productOwned.empty) return [normalized];
+
+    // Final fallback: a movement was previously recorded under this subdomain
+    // for this user, even if no product is currently tagged with user_id.
+    const movementOwned = await db
+      .collection(ROOT_COLLECTION)
+      .doc(normalized)
+      .collection(MOVEMENT_COLLECTION)
+      .where('user_id', '==', userId)
+      .limit(1)
+      .get();
+    return movementOwned.empty ? [] : [normalized];
   }
 
-  const snap = await db.collection(ROOT_COLLECTION).where('user_id', '==', userId).get();
-  return snap.docs.map((d) => d.id);
+  const ownedDocs = await db.collection(ROOT_COLLECTION).where('user_id', '==', userId).get();
+  const owned = new Set(ownedDocs.docs.map((d) => d.id));
+
+  // Also union in subdomains that have movements for this user but whose parent
+  // doc still lacks user_id — otherwise pre-existing movements stay invisible.
+  const movementOwned = await db
+    .collectionGroup(MOVEMENT_COLLECTION)
+    .where('user_id', '==', userId)
+    .get();
+  for (const doc of movementOwned.docs) {
+    const subdomainId = doc.ref.parent.parent && doc.ref.parent.parent.id;
+    if (subdomainId) owned.add(subdomainId);
+  }
+  return Array.from(owned);
 }
 
 // Look the subdomain up from the product doc when the caller couldn't supply one.

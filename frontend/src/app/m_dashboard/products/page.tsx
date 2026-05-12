@@ -919,6 +919,7 @@ export default function ProductsPage() {
               onClearFilters={() => {
                 setSearchTerm('');
                 setSelectedCategory('all');
+                setStatusFilter('all');
                 setCurrentPage(1);
               }}
               theme={theme}

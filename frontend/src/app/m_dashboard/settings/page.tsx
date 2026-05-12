@@ -156,7 +156,16 @@ export default function SettingsPage() {
                 return;
             }
             const ok = await showConfirm('Save notification preference changes?', 'Save changes');
-            if (ok) await handleSave();
+            if (ok) {
+                await handleSave();
+                initialNotificationsRef.current = {
+                    emailNotifications,
+                    orderNotifications,
+                    marketingEmails,
+                    securityAlerts,
+                };
+                await showAlert('Notification preferences saved successfully.', 'Saved', 'success');
+            }
             return;
         }
 
