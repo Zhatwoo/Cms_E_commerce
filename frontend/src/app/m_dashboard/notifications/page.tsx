@@ -72,11 +72,11 @@ export default function NotificationsPage() {
     setIsLoading(false);
   };
 
-  // useEffect(() => {
-  //   loadData();
-  //   window.addEventListener('notificationsUpdate', loadData);
-  //   return () => window.removeEventListener('notificationsUpdate', loadData);
-  // }, []);
+  useEffect(() => {
+    loadData();
+    window.addEventListener('notificationsUpdate', loadData);
+    return () => window.removeEventListener('notificationsUpdate', loadData);
+  }, []);
 
   const filteredList = useMemo(() => {
     return notifications.filter((item) => {
