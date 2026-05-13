@@ -1,7 +1,48 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Inventory Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the main inventory management page where users can track stock
+ * levels, manage inventory movements, and import/export inventory data.
+ *
+ * The component provides:
+ * - Inventory statistics display (on-hand, reserved, low stock)
+ * - Inventory table with search and filtering
+ * - Inline stock quantity editing
+ * - Status filtering and updates
+ * - Inventory movements history
+ * - CSV import/export functionality
+ * - Theme-aware styling
+ * - Tab-based interface
+ * - Real-time inventory updates
+ *
+ * What this Component Does:
+ * - Fetches inventory data from API
+ * - Displays inventory summary statistics
+ * - Renders filterable inventory table
+ * - Allows inline stock editing
+ * - Updates product status
+ * - Shows inventory movement history
+ * - Handles CSV import functionality
+ * - Allows exporting to CSV
+ * - Manages filtering and searching
+ * - Displays loading and error states
+ * - Provides confirmation dialogs
+ *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { FeedbackMessage } from '../components/ui/feedbackMessage';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButtonGroup } from '@/components/ui/ModalButton';
 import {
   Package,
   AlertTriangle,
@@ -16,9 +57,7 @@ import {
   createProduct,
   deleteInventoryMovement,
   bulkDeleteInventoryMovements,
-  getInventorySummary,
   importInventoryCsv,
-  listInventory,
   listInventoryMovements,
   updateProduct,
   type ApiProduct,
@@ -39,6 +78,7 @@ import ProductAddModal from '../products/components/productAddModal';
 import { AddProductButton } from '../products/components/button';
 import { ImportExportButtons, handleExportData, parseCsvToRows } from './components/import_export';
 import { InventoryTable } from './components/inventoryTable';
+import { useInventory } from './hooks/useInventory';
 
 // ─── Design tokens (original — unchanged) ────────────────────────────────────
 const T = {
@@ -294,25 +334,6 @@ const brandActionButtonStyle: React.CSSProperties = {
   height: 34, padding: '0 16px', boxShadow: '0 10px 28px rgba(112,21,214,0.35)',
 };
 
-// ENHANCED: movement type badge replaces plain colored text
-const MovTypeBadge = ({ type }: { type: string }) => {
-  const kind = String(type).toUpperCase();
-  const palette =
-    kind === 'IN'
-      ? { bg: T.greenBg, border: T.greenBorder, color: T.green, label: 'IN' }
-      : kind === 'OUT'
-        ? { bg: T.redBg, border: T.redBorder, color: T.red, label: 'OUT' }
-        : { bg: 'rgba(99,102,241,0.16)', border: 'rgba(99,102,241,0.34)', color: '#a5b4fc', label: kind || 'LOG' };
-  return (
-    <span style={{
-      background: palette.bg,
-      border: `1px solid ${palette.border}`,
-      color: palette.color,
-      borderRadius: 5, fontSize: 10, fontWeight: 700,
-      padding: '2px 7px', letterSpacing: 0.6, flexShrink: 0,
-    }}>{palette.label}</span>
-  );
-};
 
 const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: React.ReactNode }) => (
   typeof document !== 'undefined'
@@ -343,6 +364,52 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 export default function InventoryPage() {
   const { theme, colors } = useTheme();
   const isDark = theme === 'dark';
+  // Theme-aware UI values for the modal (keeps changes minimal and scoped)
+  const pageFontFamily = "var(--font-outfit), 'Outfit', sans-serif";
+  const modalBgColor = colors?.bg?.card ?? (isDark ? '#141446' : '#FFFFFF');
+  const modalBorderColor = colors?.border?.default ?? (isDark ? 'rgba(148,163,184,0.18)' : 'rgba(20,3,74,0.08)');
+  const modalTextColor = colors?.text?.primary ?? (isDark ? '#FFFFFF' : '#15093E');
+  const modalMutedColor = colors?.text?.muted ?? (isDark ? '#8799C0' : '#736a99');
+  const modalAccentStart = colors?.accent?.purple ?? '#7C3AED';
+  const modalAccentEnd = colors?.accent?.purpleDeep ?? '#D946EF';
+
+  function hexToRgba(hex: string | undefined, alpha = 1) {
+    if (!hex) return `rgba(0,0,0,${alpha})`;
+    const cleaned = hex.replace('#', '').trim();
+    if (cleaned.length === 3) {
+      const r = parseInt(cleaned[0] + cleaned[0], 16);
+      const g = parseInt(cleaned[1] + cleaned[1], 16);
+      const b = parseInt(cleaned[2] + cleaned[2], 16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+    const r = parseInt(cleaned.substring(0, 2), 16);
+    const g = parseInt(cleaned.substring(2, 4), 16);
+    const b = parseInt(cleaned.substring(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+
+  const MovTypeBadge = ({ type }: { type: string }) => {
+    const kind = String(type).toUpperCase();
+    const inColor = colors?.status?.good ?? T.green;
+    const outColor = colors?.status?.error ?? T.red;
+    const neutralColor = colors?.accent?.purple ?? '#a5b4fc';
+    const palette =
+      kind === 'IN'
+        ? { bg: hexToRgba(inColor, 0.12), border: hexToRgba(inColor, 0.28), color: inColor, label: 'IN' }
+        : kind === 'OUT'
+          ? { bg: hexToRgba(outColor, 0.12), border: hexToRgba(outColor, 0.28), color: outColor, label: 'OUT' }
+          : { bg: hexToRgba(neutralColor, 0.12), border: hexToRgba(neutralColor, 0.28), color: neutralColor, label: kind || 'LOG' };
+    return (
+      <span style={{
+        background: palette.bg,
+        border: `1px solid ${palette.border}`,
+        color: palette.color,
+        borderRadius: 6, fontSize: 11, fontWeight: 700,
+        padding: '4px 9px', letterSpacing: 0.2, flexShrink: 0,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+      }}>{palette.label}</span>
+    );
+  };
   const { selectedProject, loading: projectLoading } = useProject();
   const { showAlert, showConfirm } = useAlert();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
@@ -351,9 +418,6 @@ export default function InventoryPage() {
   const [activeContentTab, setActiveContentTab] = useState<InventoryContentTab>('inventory');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [items, setItems] = useState<InventoryRow[]>([]);
-  const [summary, setSummary] = useState<InventorySummary | null>(null);
-  const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [allMovements, setAllMovements] = useState<InventoryMovement[]>([]);
   const [showAllMovementsModal, setShowAllMovementsModal] = useState(false);
   const [loadingAllMovements, setLoadingAllMovements] = useState(false);
@@ -363,8 +427,6 @@ export default function InventoryPage() {
   const [selectedMovementIds, setSelectedMovementIds] = useState<string[]>([]);
   const [bulkDeleteMode, setBulkDeleteMode] = useState<'selected' | 'all' | null>(null);
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState<{ mode: 'selected' | 'all'; count: number } | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [adjustingId, setAdjustingId] = useState<string | null>(null);
   const [stockModal, setStockModal] = useState<StockAdjustmentModalState>({
     open: false, product: null, movementType: 'IN', quantity: '1',
@@ -378,7 +440,6 @@ export default function InventoryPage() {
   const [importing, setImporting] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importPopup, setImportPopup] = useState<ImportPopupState>({ open: false, message: '', tone: 'success' });
-  const importPopupTimerRef = useRef<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const inlineSaveLockRef = useRef<string | null>(null);
   const localStatusMovementsRef = useRef<InventoryMovement[]>([]);
@@ -410,6 +471,22 @@ export default function InventoryPage() {
 
     return typeof limit === 'number' ? merged.slice(0, limit) : merged;
   }, [movementTimestamp]);
+
+  const {
+    items,
+    summary,
+    movements,
+    setMovements,
+    loading,
+    error,
+    reload: loadData,
+  } = useInventory<InventoryRow>({
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+    search,
+    recentMovementsLimit: RECENT_MOVEMENTS_LIMIT,
+    mergeMovements: mergeServerAndLocalStatusMovements,
+  });
 
   const sanitizeNumberInput = (input: HTMLInputElement) => {
     if (input.type !== 'number') return;
@@ -450,16 +527,8 @@ export default function InventoryPage() {
   };
 
   const showImportPopup = useCallback((message: string, tone: 'success' | 'error') => {
-    if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current);
     setImportPopup({ open: true, message, tone });
-    const popupDuration = tone === 'success' ? 1500 : 3500;
-    importPopupTimerRef.current = window.setTimeout(() => {
-      setImportPopup((p) => ({ ...p, open: false }));
-      importPopupTimerRef.current = null;
-    }, popupDuration);
   }, []);
-
-  useEffect(() => () => { if (importPopupTimerRef.current) window.clearTimeout(importPopupTimerRef.current); }, []);
 
   useEffect(() => {
     if (!openStatusMenuRowId) return;
@@ -577,36 +646,6 @@ export default function InventoryPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSubdomain, showAlert, showImportPopup]);
-
-  const loadData = useCallback(async () => {
-    if (projectLoading) {
-      setLoading(true);
-      return;
-    }
-    setLoading(true); setError(null);
-    if (!selectedSubdomain) {
-      setItems([]);
-      setSummary(null);
-      setMovements([]);
-      setLoading(false);
-      return;
-    }
-    try {
-      const [invRes, summaryRes, movementRes] = await Promise.all([
-        listInventory({ subdomain: selectedSubdomain, limit: 500, search: search || undefined }),
-        getInventorySummary({ subdomain: selectedSubdomain, search: search || undefined }),
-        listInventoryMovements({ subdomain: selectedSubdomain, limit: RECENT_MOVEMENTS_LIMIT }),
-      ]);
-      setItems(Array.isArray(invRes.items) ? (invRes.items as InventoryRow[]) : []);
-      setSummary(summaryRes.data || null);
-      const serverMovements = Array.isArray(movementRes.items) ? movementRes.items : [];
-      setMovements(mergeServerAndLocalStatusMovements(serverMovements, RECENT_MOVEMENTS_LIMIT));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load inventory');
-    } finally { setLoading(false); }
-  }, [projectLoading, search, selectedSubdomain, mergeServerAndLocalStatusMovements]);
-
-  useEffect(() => { void loadData(); }, [loadData]);
 
   const loadAllMovements = useCallback(async () => {
     if (projectLoading) {
@@ -1147,7 +1186,11 @@ export default function InventoryPage() {
     onToggleSelect?: (movementId: string) => void;
   }) => {
     const kind = String(m.type || '').toUpperCase();
-    const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
+    const color = kind === 'IN'
+      ? (colors?.status?.good ?? '#22c55e')
+      : kind === 'OUT'
+        ? (colors?.status?.error ?? '#ef4444')
+        : (colors?.accent?.purple ?? '#a5b4fc');
     const quantityText = kind === 'IN' ? `+${m.quantity}` : kind === 'OUT' ? String(m.quantity) : '•';
     const noteText = String(m.notes || 'Inventory movement');
     const statusTransitionMatch = noteText.match(/^Product status changed from\s+(active|inactive)\s*(?:->|→)\s*(active|inactive)$/i);
@@ -1169,8 +1212,8 @@ export default function InventoryPage() {
               height: 24,
               marginTop: 13,
               borderRadius: 7,
-              border: `1px solid ${selected ? '#a855f7' : T.cardBorder}`,
-              background: selected ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
+              border: 'none',
+              background: 'transparent',
               cursor: 'pointer',
             }}
           >
@@ -1186,8 +1229,8 @@ export default function InventoryPage() {
         <div
           style={{
             flex: 1,
-            background: selected ? 'rgba(168,85,247,0.12)' : T.elevated,
-            border: `1px solid ${selected ? '#a855f7' : T.cardBorder}`,
+            background: 'transparent',
+            border: 'none',
             borderRadius: 10,
             padding: '11px 16px',
             display: 'flex',
@@ -1195,6 +1238,7 @@ export default function InventoryPage() {
             alignItems: 'center',
             transition: 'border-color 0.15s, background 0.15s',
             cursor: selectable && m.id ? 'pointer' : 'default',
+            fontFamily: pageFontFamily,
           }}
           onClick={() => {
             if (!selectable || !m.id) return;
@@ -1202,18 +1246,18 @@ export default function InventoryPage() {
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(135,153,192,0.6)';
-            (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.03)';
+            (e.currentTarget as HTMLDivElement).style.background = selected ? 'rgba(168,85,247,0.08)' : 'rgba(168,85,247,0.05)';
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLDivElement).style.borderColor = selected ? '#a855f7' : T.cardBorder;
-            (e.currentTarget as HTMLDivElement).style.background = selected ? 'rgba(168,85,247,0.12)' : T.elevated;
+            (e.currentTarget as HTMLDivElement).style.borderColor = selected ? (colors?.accent?.purple ?? '#a855f7') : modalBorderColor;
+            (e.currentTarget as HTMLDivElement).style.background = 'transparent';
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <MovTypeBadge type={m.type || ''} />
             <div>
-              <div style={{ fontSize: 13, color: T.text, fontWeight: 500 }}>{m.productName || 'Product'}</div>
-              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 2 }}>
+              <div style={{ fontSize: 13, color: modalTextColor, fontWeight: 500, fontFamily: pageFontFamily }}>{m.productName || 'Product'}</div>
+              <div style={{ fontSize: 12, color: modalMutedColor, marginTop: 2, fontFamily: pageFontFamily }}>
                 {statusTransitionMatch ? (
                   <>
                     Product status changed from{' '}
@@ -1241,7 +1285,7 @@ export default function InventoryPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
             <div style={{ textAlign: 'right' }}>
               <div style={{ color, fontWeight: 700, fontSize: 14 }}>{quantityText}</div>
-              <div style={{ fontSize: 11, color: T.textMuted, marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: modalMutedColor, marginTop: 2, fontFamily: pageFontFamily }}>
                 {m.createdAt ? new Date(m.createdAt).toLocaleString() : '--'}
               </div>
             </div>
@@ -1255,9 +1299,9 @@ export default function InventoryPage() {
                   width: 30,
                   height: 30,
                   borderRadius: 8,
-                  border: `1px solid ${T.redBorder}`,
-                  background: 'rgba(239,68,68,0.08)',
-                  color: T.red,
+                  border: `1px solid ${colors?.status?.error ?? '#ef4444'}`,
+                  background: isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.06)',
+                  color: colors?.status?.error ?? '#ef4444',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -1279,7 +1323,11 @@ export default function InventoryPage() {
     const kind = String(m.type || '').toUpperCase();
     const quantityValue = Number(m.quantity);
     const safeQuantity = Number.isFinite(quantityValue) ? Math.abs(quantityValue) : 0;
-    const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
+    const color = kind === 'IN'
+      ? (colors?.status?.good ?? '#22c55e')
+      : kind === 'OUT'
+        ? (colors?.status?.error ?? '#ef4444')
+        : (colors?.accent?.purple ?? '#a5b4fc');
     const quantityText = kind === 'IN' ? `+${safeQuantity}` : kind === 'OUT' ? `-${safeQuantity}` : `${safeQuantity}`;
     const noteText = String(m.notes || 'Inventory movement');
     const statusTransitionMatch = noteText.match(/^Product status changed from\s+(active|inactive)\s*(?:->|→)\s*(active|inactive)$/i);
@@ -1287,7 +1335,7 @@ export default function InventoryPage() {
     const fromStatus = statusTransitionMatch?.[1]?.toLowerCase();
     const toStatus = statusTransitionMatch?.[2]?.toLowerCase() || statusSingleMatch?.[1]?.toLowerCase();
     const statusWordColor = (status?: string) => (status === 'active' ? T.green : status === 'inactive' ? T.red : T.text);
-    const rowBackground = isDark ? 'transparent' : '#FFFFFF';
+    const rowBackground = isDark ? 'transparent' : modalBgColor;
     const rowHoverBackground = isDark ? 'rgba(255,255,255,0.03)' : '#F8F7FF';
     const rowDividerColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(20,3,74,0.08)';
 
@@ -1300,6 +1348,8 @@ export default function InventoryPage() {
         style={{
           background: rowBackground,
           borderBottom: isLast ? 'none' : `1px solid ${rowDividerColor}`,
+          fontFamily: pageFontFamily,
+          color: modalTextColor,
         }}
         onMouseEnter={(e) => {
           (e.currentTarget as HTMLTableRowElement).style.background = rowHoverBackground;
@@ -1316,17 +1366,17 @@ export default function InventoryPage() {
 
         <td className="px-5 py-4 align-middle text-center">
           <div className="min-w-0 text-center">
-            <div className="text-sm font-semibold truncate text-center" style={{ color: T.text }}>
+            <div className="text-sm font-semibold truncate text-center" style={{ color: modalTextColor, fontFamily: pageFontFamily }}>
               {m.productName || 'Product'}
             </div>
-            <div className="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-center" style={{ color: T.textMuted }}>
+            <div className="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-center" style={{ color: modalMutedColor, fontFamily: pageFontFamily }}>
               {m.productSku || 'No SKU'}
             </div>
           </div>
         </td>
 
         <td className="px-5 py-4 align-middle text-center">
-          <div className="min-w-0 text-center text-sm" style={{ color: T.textMuted }}>
+          <div className="min-w-0 text-center text-sm" style={{ color: modalMutedColor, fontFamily: pageFontFamily }}>
             {statusTransitionMatch ? (
               <span className="inline-flex flex-wrap items-center gap-1.5">
                 Product status changed from{' '}
@@ -1352,7 +1402,13 @@ export default function InventoryPage() {
         </td>
 
         <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
-          <div className="text-sm text-center" style={{ color: T.textMuted }}>
+          <div className="inline-flex w-full items-center justify-center text-sm font-semibold tabular-nums" style={{ color: modalTextColor, minWidth: 24, fontFamily: pageFontFamily }}>
+            {Number.isFinite(Number(m.afterOnHand)) ? Number(m.afterOnHand) : '--'}
+          </div>
+        </td>
+
+        <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
+          <div className="text-sm text-center" style={{ color: modalMutedColor, fontFamily: pageFontFamily }}>
             {m.createdAt ? new Date(m.createdAt).toLocaleString() : '--'}
           </div>
         </td>
@@ -1371,51 +1427,13 @@ export default function InventoryPage() {
       <input ref={fileInputRef} type="file" accept=".csv" title="Import CSV" style={{ display: 'none' }} onChange={handleFileChange} />
 
       {/* Centered success/error popup */}
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {importPopup.open && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                position: 'fixed', inset: 0, zIndex: 2147483000,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-                background: 'rgba(10, 8, 28, 0.6)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
-              }}
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-                style={{
-                  width: '100%',
-                  maxWidth: 250,
-                  borderRadius: 14,
-                  border: `1px solid ${importPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)'}`,
-                  padding: '12px 16px',
-                  background: '#181a59',
-                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
-                }}
-              >
-                <p style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25, textAlign: 'center', margin: 0 }}>
-                  {importPopup.message}
-                </p>
-                <div style={{ marginTop: 8, display: 'flex', justifyContent: 'center' }}>
-                  {importPopup.tone === 'success'
-                    ? <CheckCircle size={24} color={T.green} />
-                    : <AlertTriangle size={24} color={T.red} />}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <FeedbackMessage
+        open={importPopup.open}
+        tone={importPopup.tone}
+        message={importPopup.message}
+        variant="toast"
+        onClose={() => setImportPopup((prev) => ({ ...prev, open: false }))}
+      />
 
       <div style={{ maxWidth: 1090, margin: '0 auto', padding: '36px 22px 30px', position: 'relative', zIndex: 1 }}>
 
@@ -1433,7 +1451,7 @@ export default function InventoryPage() {
               Inventory
             </span>
           </h1>
-          
+
         </div>
 
         <div className="mb-6 flex justify-center">
@@ -1534,7 +1552,7 @@ export default function InventoryPage() {
               <div className="flex justify-between items-end mb-8">
   <div className="flex flex-col gap-1">
     {/* 1. The Micro-Label (The "Audit Trail" context) */}
-    <span 
+    <span
       className={`
         text-[9px] font-black uppercase tracking-[0.4em] opacity-40
         [font-family:var(--font-outfit),sans-serif]
@@ -1556,14 +1574,14 @@ export default function InventoryPage() {
     </h3>
 
     {/* 3. The Minimalist Description */}
-    <p 
-      style={{ 
-        color: T.textMuted, 
-        fontSize: 12, 
+    <p
+      style={{
+        color: T.textMuted,
+        fontSize: 12,
         fontWeight: 500,
         opacity: 0.7,
         fontFamily: 'var(--font-outfit), sans-serif',
-        letterSpacing: '-0.01em' 
+        letterSpacing: '-0.01em'
       }}
     >
       Audit trail of all inventory changes.
@@ -1571,11 +1589,11 @@ export default function InventoryPage() {
   </div>
 
   {/* 4. The Premium Ghost Button */}
-  <GhostBtn 
-    onClick={openAllMovementsModal} 
-    disabled={loading} 
-    style={{ 
-      fontSize: 10, 
+  <GhostBtn
+    onClick={openAllMovementsModal}
+    disabled={loading}
+    style={{
+      fontSize: 10,
       fontWeight: 800,
       textTransform: 'uppercase',
       letterSpacing: '0.2em',
@@ -1613,19 +1631,21 @@ export default function InventoryPage() {
                   <div style={{ overflowX: 'auto' }}>
                     <table className="w-full min-w-245 border-collapse [font-family:var(--font-outfit),sans-serif]">
                     <colgroup>
-                      <col style={{ width: '14%' }} />
-                      <col style={{ width: '22%' }} />
-                      <col style={{ width: '40%' }} />
                       <col style={{ width: '12%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '34%' }} />
+                      <col style={{ width: '11%' }} />
+                      <col style={{ width: '11%' }} />
                       <col style={{ width: '12%' }} />
                     </colgroup>
                     <thead>
                       <tr style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
-                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Type</th>
-                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Product</th>
-                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Metadata</th>
-                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Quantity</th>
-                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Date</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? (colors?.bg?.sidebar ?? '#1E1B4B') : modalAccentStart }}>Type</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? (colors?.bg?.sidebar ?? '#1E1B4B') : modalAccentStart }}>Product</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? (colors?.bg?.sidebar ?? '#1E1B4B') : modalAccentStart }}>Metadata</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? (colors?.bg?.sidebar ?? '#1E1B4B') : modalAccentStart }}>Action</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? (colors?.bg?.sidebar ?? '#1E1B4B') : modalAccentStart }}>Quantity</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? (colors?.bg?.sidebar ?? '#1E1B4B') : modalAccentStart }}>Date</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1647,100 +1667,134 @@ export default function InventoryPage() {
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
       <AnimatePresence>
 
-        {/* All movements modal (original) */}
-        {showAllMovementsModal && (
-          <ModalBackdrop key="all-movements-modal" onClose={closeAllMovementsModal}>
+        {/* All movements modal (unified design with ModalCard) */}
+        <ModalShell isOpen={showAllMovementsModal} onClose={closeAllMovementsModal} usePortal>
+          <ModalCard
+              title="Stock Movements"
+              subtitle="Complete audit trail"
+            >
             <div style={{
-              background: T.card, border: `1px solid ${T.cardBorder}`,
-              borderRadius: 20, width: '100%', maxWidth: 720, overflow: 'hidden',
-              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '12px 0',
+  marginBottom: 20,
+  background: 'transparent',
+}}>
+  {/* Selector Section */}
+  <label style={{
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    cursor: totalMovements === 0 ? 'not-allowed' : 'pointer',
+    opacity: totalMovements === 0 ? 0.4 : 1,
+  }}>
+    <input
+      type="checkbox"
+      checked={isAllMovementsSelected}
+      disabled={totalMovements === 0}
+      onChange={toggleSelectAllMovements}
+      style={{
+        accentColor: '#8B5CF6',
+        width: 15,
+        height: 15,
+        cursor: 'pointer',
+      }}
+    />
+    <span style={{
+      fontSize: 11,
+      fontWeight: 900,
+      textTransform: 'uppercase',
+      letterSpacing: '0.15em',
+      color: isDark ? '#FFFFFF' : '#14034A',
+      opacity: 0.7,
+    }}>
+      Select All
+    </span>
+  </label>
+
+  {/* Action Section */}
+  {selectedCount > 0 && (
+    <button
+      type="button"
+      onClick={() => openBulkDeleteConfirm('selected')}
+      disabled={isBulkDeleting}
+      style={{
+        background: 'transparent',
+        color: '#F472B6', // Pink from your reference image
+        border: '1px solid #F472B6',
+        borderRadius: 8,
+        height: 34,
+        padding: '0 16px',
+        fontSize: 10,
+        fontWeight: 900,
+        textTransform: 'uppercase',
+        letterSpacing: '0.2em',
+        cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
+        transition: 'all 0.2s ease',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      onMouseEnter={(e) => {
+        if (!isBulkDeleting) {
+          e.currentTarget.style.background = 'rgba(244, 114, 182, 0.05)';
+        }
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent';
+      }}
+    >
+      {isBulkDeleting ? 'Deleting...' : 'Delete Selected'}
+    </button>
+  )}
+</div>
+
+            {/* Content */}
+            <div style={{
+              maxHeight: '55vh',
+              overflowY: 'auto',
+              background: 'transparent',
+              color: modalTextColor,
+              fontFamily: pageFontFamily,
+              border: 'none',
+              borderRadius: 12,
+              padding: 12
             }}>
-              <div style={{
-                padding: '20px 28px', borderBottom: `1px solid ${T.cardBorder}`,
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <div>
-                  <h3 style={{ color: T.text, fontWeight: 700, margin: 0, fontFamily: 'var(--font-outfit), sans-serif' }}>All Stock Movements</h3>
-                  <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3, fontFamily: 'var(--font-outfit), sans-serif' }}>Complete movement history (latest first)</p>
+              {loadingAllMovements ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '32px 16px',
+                  fontSize: 14,
+                  opacity: 0.6,
+                }}>
+                  Loading movements…
                 </div>
-                <button
-                  type="button"
-                  onClick={closeAllMovementsModal}
-                  title="Close movements"
-                  style={{ background: 'transparent', border: 'none', color: T.textMuted, cursor: 'pointer', padding: 6, display: 'flex' }}
-                >
-                  <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              <div style={{ maxHeight: '65vh', overflowY: 'auto', padding: '20px 28px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-                  <label
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 8,
-                      color: T.textMuted,
-                      fontSize: 12,
-                      cursor: totalMovements === 0 ? 'not-allowed' : 'pointer',
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 24,
-                        height: 24,
-                        borderRadius: 7,
-                        border: `1px solid ${isAllMovementsSelected ? '#a855f7' : T.cardBorder}`,
-                        background: isAllMovementsSelected ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.04)',
-                      }}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isAllMovementsSelected}
-                        disabled={totalMovements === 0}
-                        onChange={toggleSelectAllMovements}
-                        style={{ accentColor: '#a855f7', width: 14, height: 14, cursor: totalMovements === 0 ? 'not-allowed' : 'pointer' }}
-                      />
-                    </span>
-                    <span>{totalMovements} total</span>
-                  </label>
-                  {selectedCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => openBulkDeleteConfirm('selected')}
-                      disabled={isBulkDeleting}
-                      style={{
-                        ...brandActionButtonStyle,
-                        background: '#dc2626',
-                        height: 34,
-                        padding: '0 14px',
-                        cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
-                        opacity: isBulkDeleting ? 0.6 : 1,
-                      }}
-                    >
-                      Delete
-                    </button>
-                  )}
+              ) : allMovementsError ? (
+                <div style={{
+                  background: 'rgba(239,68,68,0.12)',
+                  border: '1px solid rgba(239,68,68,0.28)',
+                  borderRadius: 12,
+                  padding: 12,
+                  color: '#ef4444',
+                  fontSize: 13,
+                  textAlign: 'center',
+                  marginBottom: 16,
+                }}>
+                  {allMovementsError}
                 </div>
-                {loadingAllMovements ? (
-                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32, fontFamily: 'var(--font-outfit), sans-serif' }}>Loading…</div>
-                ) : allMovementsError ? (
-                  <div style={{ textAlign: 'center', color: T.red, padding: 32, fontFamily: 'var(--font-outfit), sans-serif' }}>{allMovementsError}</div>
-                ) : allMovements.length === 0 ? (
-                  <EmptyState
-                    badgeText="Movements"
-                    title="No movements recorded"
-                    description="This log will populate as inventory changes are made."
-                    tone={theme === 'dark' ? 'dark' : 'light'}
-                    size="compact"
-                    className="py-10 px-0"
-                  />
-                ) : (
-                  allMovements.map((m, index) => {
+              ) : allMovements.length === 0 ? (
+                <EmptyState
+                  badgeText="Movements"
+                  title="No movements recorded"
+                  description="This log will populate as inventory changes are made."
+                  tone={isDark ? 'dark' : 'light'}
+                  size="compact"
+                  className="py-10 px-0"
+                />
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {allMovements.map((m, index) => {
                     const movementId = String(m.id || '').trim();
                     const movementKey = movementId || `all-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
                     return (
@@ -1752,12 +1806,12 @@ export default function InventoryPage() {
                         onToggleSelect={movementId ? toggleMovementSelection : undefined}
                       />
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
             </div>
-          </ModalBackdrop>
-        )}
+          </ModalCard>
+        </ModalShell>
 
         {deleteConfirmMovement && (
           <ModalBackdrop key="delete-movement-modal" onClose={closeDeleteMovementConfirm}>
@@ -1805,49 +1859,28 @@ export default function InventoryPage() {
 
         {/* Bulk delete confirmation */}
         {bulkDeleteConfirm && (
-          <ModalBackdrop key="bulk-delete-modal" onClose={closeBulkDeleteConfirm}>
-            <div style={{
-              background: T.card, border: `1px solid ${T.cardBorder}`,
-              borderRadius: 20, width: '100%', maxWidth: 520, overflow: 'hidden',
-              boxShadow: '0 30px 80px rgba(0,0,0,0.6)',
-            }}>
-              <div style={{ padding: '24px 28px 14px', borderBottom: `1px solid ${T.cardBorder}` }}>
-                <h3 style={{ color: T.text, fontWeight: 700, margin: 0 }}>Delete Movements</h3>
-                <p style={{ color: T.textMuted, fontSize: 13, margin: '8px 0 0' }}>
-                  {bulkDeleteConfirm.mode === 'selected'
-                    ? `Delete these ${bulkDeleteConfirm.count} selected movement record${bulkDeleteConfirm.count === 1 ? '' : 's'}? This action cannot be undone.`
-                    : `Delete all ${bulkDeleteConfirm.count} stock movement records for this project? This cannot be undone.`}
-                </p>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '16px 28px 22px' }}>
-                <button
-                  type="button"
-                  onClick={closeBulkDeleteConfirm}
-                  disabled={isBulkDeleting}
-                  style={{
-                    background: 'transparent', border: 'none',
-                    color: T.textMuted, fontSize: 14, cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
-                    padding: '10px 16px', opacity: isBulkDeleting ? 0.6 : 1,
-                  }}
-                >Cancel</button>
-                <button
-                  type="button"
-                  onClick={() => { void confirmBulkDelete(); }}
-                  disabled={isBulkDeleting}
-                  style={{
-                    ...brandActionButtonStyle,
-                    background: '#dc2626',
-                    cursor: isBulkDeleting ? 'not-allowed' : 'pointer',
-                    opacity: isBulkDeleting ? 0.6 : 1,
-                    height: 40,
-                    padding: '0 20px',
-                  }}
-                >
-                  {isBulkDeleting ? 'Deleting...' : 'Delete'}
-                </button>
-              </div>
-            </div>
-          </ModalBackdrop>
+          <ModalShell key="bulk-delete-modal" isOpen onClose={closeBulkDeleteConfirm} usePortal disabled={isBulkDeleting}>
+            <ModalCard
+              title="Delete Movements"
+              subtitle="This action cannot be undone"
+              className="max-w-[520px]"
+              footer={
+                <ModalButtonGroup
+                  buttons={[
+                      { label: 'Cancel', onClick: closeBulkDeleteConfirm, variant: 'secondary', disabled: isBulkDeleting },
+                      { label: isBulkDeleting ? 'Deleting...' : 'Delete', onClick: () => { void confirmBulkDelete(); }, variant: 'primary', disabled: isBulkDeleting },
+                  ]}
+                    primaryColor={colors?.accent?.purple ?? '#6C3BFF'}
+                />
+              }
+            >
+              <p style={{ color: modalMutedColor, fontSize: 13, margin: 0 }}>
+                {bulkDeleteConfirm.mode === 'selected'
+                  ? `Delete these ${bulkDeleteConfirm.count} selected movement record${bulkDeleteConfirm.count === 1 ? '' : 's'}? This action cannot be undone.`
+                  : `Delete all ${bulkDeleteConfirm.count} stock movement records for this project? This cannot be undone.`}
+              </p>
+            </ModalCard>
+          </ModalShell>
         )}
 
         {/* Stock adjustment modal (original structure) */}

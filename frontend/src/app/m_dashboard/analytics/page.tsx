@@ -1,5 +1,40 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Analytics Dashboard Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the main analytics and reporting page where users can view business
+ * metrics, sales trends, order history, and performance indicators for their
+ * e-commerce store with configurable time periods.
+ *
+ * The component provides:
+ * - Overview statistics (total sales, orders, revenue)
+ * - Sales trend visualization with period selection (7D/30D/90D/180D)
+ * - Purchase success rate tracking
+ * - Category-wise sales breakdown
+ * - Sales history with detailed order information
+ * - Theme-aware styling throughout
+ * - Real-time data fetching from API
+ * - Tab-based section organization
+ *
+ * What this Component Does:
+ * - Fetches inventory summary and order data from API
+ * - Calculates key metrics (total revenue, order count, etc.)
+ * - Generates monthly sales data for trend charts
+ * - Filters orders by selected time period
+ * - Organizes sales data by product category
+ * - Formats currency amounts in Philippine Peso
+ * - Provides tabbed interface for different analytics views
+ * - Shows area charts for sales trends
+ * - Displays order details with buyer information
+ * - Adapts styling based on current theme
+ *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
 import { useProject } from '../components/context/project-context';
@@ -917,9 +952,9 @@ export default function AnalyticsPage() {
       <section className="mb-6 text-center">
         <h1 className="text-[42px] sm:text-[56px] lg:text-[74px] 2xl:text-[82px] font-extrabold leading-[1.2] tracking-tight">
           <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Analytics</span>
-          <span 
-            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
-            style={{ 
+          <span
+            className={`block text-transparent bg-clip-text bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+            style={{
               textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
               paddingBottom: '0.1em',
               marginBottom: '-0.1em'
@@ -958,9 +993,9 @@ export default function AnalyticsPage() {
 
         <div className="mx-auto mt-4 sm:mt-5 flex w-full max-w-[860px] flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
           <div className={`m-dashboard-search-shadow flex-1 rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
-            <svg 
-              viewBox="0 0 20 20" 
-              className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`} 
+            <svg
+              viewBox="0 0 20 20"
+              className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`}
               fill="none"
             >
               <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

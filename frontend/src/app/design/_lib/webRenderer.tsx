@@ -3,6 +3,7 @@
 import React, { useState, useCallback } from "react";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import type { BuilderDocument, CleanNode, ComponentType } from "../_types/schema";
+import type { ApiProduct } from "@/lib/api";
 import type { AnimationConfig } from "../_types/animation";
 import type { Interaction, PrototypeConfig, TransitionType } from "../_types/prototype";
 import { AnimationWrapper, hasActiveAnimation } from "./animationEngine";
@@ -12,6 +13,7 @@ import { Icon as DesignIcon } from "../_designComponents/Icon/Icon";
 import { ProfileLoginBlock } from "@/app/_assets/Header/profile-login/ProfileLoginBlock";
 import { smartGroupCategories } from "@/lib/smartCategories";
 import { getIndustryCategories } from "@/lib/industryCatalog";
+import { fonts } from "@/lib/theme";
 import { FeaturesGridBlock } from "@/app/_assets/Content/FeaturesGridBlock";
 import { TestimonialBlock } from "@/app/_assets/Content/TestimonialBlock";
 import { StatsCounterBlock } from "@/app/_assets/Content/StatsCounterBlock";
@@ -34,7 +36,7 @@ import { CollectionHeroBlock } from "@/app/_assets/Hero/CollectionHeroBlock";
 
 /** When provided, the storefront can show real products and handle Add to Cart in place of static product cards. */
 export type StoreContext = {
-  products: Array<{ id: string; name: string; price: number; description?: string; images?: string[] }>;
+  products: Array<{ id: string; name: string; price: number; finalPrice?: number; description?: string; images?: string[] }>;
   addToCart: (product: { id: string; name: string; price: number; image?: string }) => void;
 };
 
@@ -1116,7 +1118,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
   Text: {
     text: "Edit me!",
     fontSize: 16,
-    fontFamily: "Outfit",
+    fontFamily: fonts.uiRaw,
     fontWeight: "400",
     lineHeight: 1.5,
     letterSpacing: 0,
@@ -1169,7 +1171,7 @@ const DEFAULTS: Record<string, Record<string, unknown>> = {
     variant: "primary",
     fontSize: 14,
     fontWeight: "500",
-    fontFamily: "Outfit",
+    fontFamily: fonts.uiRaw,
     borderRadius: 8,
     width: "auto",
     height: "auto",
@@ -2657,7 +2659,7 @@ function RenderNode({
       // For parity with standard blocks, we'll favor the saved children if they exist.
       const tileNodes = orderedIds
         .map((id) => renderChildNode(id))
-        .filter((entry): entry is React.ReactNode => Boolean(entry));
+        .filter(Boolean);
 
       const containerClassName = layoutMode === "compact"
         ? "grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
@@ -3450,12 +3452,7 @@ function RenderNode({
       );
     }
 
-    case "FooterCanvas": {
-      return (
-        <RenderNode nodeId={nodeId} type="Container" />
-      );
-    }
-
+    case "FooterCanvas":
     case "Team Member Card":
     case "Container": {
       const isLegacyCategoryTileContainer =
@@ -4061,7 +4058,6 @@ function RenderNode({
             padding: `${fluidSpace(pt, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pr, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pb, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)} ${fluidSpace(pl, 0, spacing.paddingRatio, spacing.paddingCqw, useFixedPx)}`,
             margin: (!builderParityMode && !isNarrowPreview) ? "0 auto" : `${fluidSpace(mt, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mr, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(mb, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)} ${fluidSpace(ml, 0, spacing.marginRatio, spacing.marginCqw, useFixedPx)}`,
             width: (!builderParityMode && !isNarrowPreview) ? "100%" : (normalizedWidth ?? (props.width as string) ?? "100%"),
-            alignSelf: "stretch",
             maxWidth: isNarrowPreview ? "100%" : undefined,
             minWidth: isNarrowPreview ? 0 : undefined,
             height: effectiveSectionHeight,

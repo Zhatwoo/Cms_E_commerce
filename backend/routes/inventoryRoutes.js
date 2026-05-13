@@ -9,7 +9,7 @@ const {
   bulkDeleteMovements,
   importInventory,
 } = require('../controllers/inventoryController');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 
 router.get('/', protect, getInventoryItems);
 router.get('/summary', protect, getInventorySummary);

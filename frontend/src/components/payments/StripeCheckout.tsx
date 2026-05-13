@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import StripePaymentForm from './StripePaymentForm';
+import { Spinner } from '@/components/loading/LoadingBits';
 
 interface StripeCheckoutProps {
   clientSecret: string;
@@ -24,7 +25,7 @@ export default function StripeCheckout({ clientSecret, publicKey, orderId, subdo
   if (!stripePromise || !clientSecret) {
     return (
       <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <div className="w-8 h-8 border-4 border-indigo-100 border-t-indigo-600 rounded-full animate-spin"></div>
+        <Spinner sizePx={32} borderPx={4} className="animate-spin rounded-full border-indigo-100 border-t-indigo-600" />
         <p className="text-zinc-500 text-sm animate-pulse">Initializing secure checkout...</p>
         {!publicKey && <p className="text-xs text-red-500 font-medium">Error: Stripe Public Key is missing.</p>}
       </div>

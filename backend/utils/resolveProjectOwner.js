@@ -1,4 +1,5 @@
 const { db } = require('../config/firebase');
+const log = require('./logger')('resolveProjectOwner');
 
 // Simple in-memory cache to reduce Firestore reads for active sessions.
 // Key: `${userId}:${projectId}:${userEmail}`, Value: { result, expiry }
@@ -117,7 +118,7 @@ async function _performResolution(userId, projectId, normalizedEmail) {
     }
 
   } catch (err) {
-    console.warn('[ResolveOwner] Resolution error:', err.message);
+    log.warn('Resolution error:', err.message);
   }
 
   return null;

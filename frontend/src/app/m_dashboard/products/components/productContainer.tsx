@@ -1,4 +1,45 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Product Container Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the product card and tile display component that renders
+ * individual products with variant selection, pricing, stock information, and
+ * action menus.
+ *
+ * The component provides:
+ * - Product image display with variant image switching
+ * - Product name, price, and SKU information
+ * - Variant selector dropdown for variant selection
+ * - Stock availability display
+ * - Status badge showing product status
+ * - Action menu with edit/delete/view options
+ * - Theme-aware styling
+ * - Low stock highlighting
+ * - Price range display for variant products
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders product card or tile display
+ * - Shows product image and variant images
+ * - Displays product name, SKU, and category
+ * - Shows pricing information (single or range)
+ * - Provides variant selector for multi-variant products
+ * - Displays available stock with low stock warning
+ * - Shows status badge (active/inactive/draft)
+ * - Renders action menu button
+ * - Calls callbacks for edit/delete/view actions
+ * - Handles variant selection state
+ * - Adapts styling based on theme
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { type Product, type ProductVariant } from '@/app/m_dashboard/lib/productsData';
@@ -200,8 +241,8 @@ export function ProductCard({
   initial={{ opacity: 0, y: 10 }}
   animate={{ opacity: 1, y: 0 }}
   className={`group relative flex w-full h-120 flex-col cursor-pointer transition-all duration-500 rounded-[2.5rem] overflow-hidden [font-family:var(--font-outfit),sans-serif] ${
-    theme === 'dark' 
-      ? 'bg-[#0F0F2D] border border-white/5 shadow-2xl' 
+    theme === 'dark'
+      ? 'bg-[#0F0F2D] border border-white/5 shadow-2xl'
       : 'bg-white border border-[#14034A]/5 shadow-[0_20px_50px_rgba(0,0,0,0.02)]'
   }`}
 >
@@ -244,16 +285,16 @@ export function ProductCard({
     </div>
 
     <div className="absolute right-6 bottom-6 z-20">
-      <StatusBadge 
-        status={product.status || 'draft'} 
+      <StatusBadge
+        status={product.status || 'draft'}
       />
     </div>
 
     {showImage ? (
-      <img 
-        src={imageValue} 
-        alt={product.name} 
-        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105" 
+      <img
+        src={imageValue}
+        alt={product.name}
+        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
       />
     ) : (
       <div className="flex items-center justify-center h-full opacity-5">
@@ -264,7 +305,7 @@ export function ProductCard({
 
   {/* BOTTOM SECTION: Minimalist Ledger */}
   <div className="px-9 py-8 flex-1 flex flex-col justify-between">
-    
+
     {/* Identity Row: Typography-led */}
     <div className="flex justify-between items-baseline">
       <div className="flex flex-col min-w-0">
@@ -290,7 +331,7 @@ export function ProductCard({
           {subcategoryLabel || 'General'}
         </span>
       </div>
-      
+
       <div className="flex flex-col gap-1 text-right">
         <span className="text-[9px] font-black uppercase tracking-[0.3em] opacity-20" style={{ color: theme === 'dark' ? '#FFF' : '#14034A' }}>Variants</span>
         <span className="text-[12px] font-bold text-violet-400">
@@ -314,7 +355,7 @@ export function ProductCard({
 
       {/* Subtle indicator for dark/light contrast */}
       <div className="h-px flex-1 mx-6 bg-[#14034A]/5" />
-      
+
       <span className="text-[10px] font-black text-[#8B5CF6] opacity-30 italic">Registry Entry</span>
     </div>
   </div>

@@ -175,7 +175,7 @@ export const ProfileLoginNode = ({
           backgroundColor: "#d1d5db",
           flexShrink: 0,
           WebkitUserDrag: "none",
-        }}
+        } as React.CSSProperties}
       />
 
       <span

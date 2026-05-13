@@ -3,6 +3,7 @@ import { useEditor, useNode } from "@craftjs/core";
 import { BadgeSettings } from "./badgeSettings";
 import { useInlineTextEdit } from "../../_components/InlineTextEditContext";
 import type { ContainerProps, TypographyProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 export interface BadgeProps extends ContainerProps, TypographyProps {
 	text?: string;
@@ -362,7 +363,7 @@ export const Badge = ({
 
 export const BadgeDefaultProps: Partial<BadgeProps> = {
 	text: "Badge",
-	fontFamily: "Outfit",
+	fontFamily: fonts.uiRaw,
 	fontWeight: "600",
 	fontStyle: "normal",
 	fontSize: 14,

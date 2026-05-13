@@ -1,11 +1,48 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Publish Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a modal component for publishing projects to a subdomain
+ * or scheduling future publications with flexible scheduling options.
+ *
+ * The component provides:
+ * - Immediate and scheduled publishing modes
+ * - Subdomain configuration and validation
+ * - Project selection (optional, for domain flows)
+ * - Publish scheduling with date/time selection
+ * - Success callback with subdomain confirmation
+ * - Theme-aware styling
+ * - Input validation and error messages
+ * - Loading state handling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:\n * - Opens modal for project publishing options\n * - Allows choosing between immediate or scheduled publish\n * - Configures subdomain for published site\n * - Validates subdomain format and availability\n * - Shows project switcher when multiple projects provided\n * - Handles date/time picker for scheduled publishes\n * - Calls publishProject or schedulePublish API\n * - Executes onSuccess callback with published subdomain\n * - Closes modal on cancellation\n * - Adapts styling based on light/dark theme\n *
+ * Props / Parameters:\n * ----------------------------------------------------------------------------\n *
+ * open: boolean\n * - Controls modal visibility.\n * - REQUIRED\n *
+ * onClose: () => void\n * - Callback when modal is closed.\n * - REQUIRED\n *
+ * onSuccess: (subdomain: string) => void\n * - Callback when publishing succeeds.\n * - Called with the published subdomain.\n * - REQUIRED\n *
+ * projectId: string\n * - ID of the project being published.\n * - REQUIRED\n *
+ * projectTitle: string\n * - Title of the project being published.\n * - Used for default subdomain generation.\n * - REQUIRED\n *
+ * existingSubdomain?: string | null\n * - Current published subdomain if already published.\n * - Used to populate initial value.\n *
+ * projects?: Array<{ id: string; title: string; subdomain?: string | null }>\n * - Array of projects for project selector.\n * - Only shown if length > 1.\n *
+ * onProjectChange?: (projectId: string) => void\n * - Callback when selected project changes.\n * - Only called if project selector is shown.\n *
+ * Context Dependencies:\n * - useTheme: For theme styling\n *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from './context/theme-context';
 import { publishProject, schedulePublish } from '@/lib/api';
 import { getDraft } from '@/app/design/_lib/pageApi';
 import { getSubdomainSiteUrl } from '@/lib/siteUrls';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
 
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
 
@@ -161,31 +198,45 @@ export function PublishModal({
     }
   };
 
-  if (!open) return null;
-
   return (
-    <AnimatePresence>
-      <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-        style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-        onClick={() => !publishing && !scheduling && onClose()}
+    <ModalShell
+      isOpen={open}
+      onClose={onClose}
+      disabled={publishing || scheduling}
+      usePortal
+    >
+      <ModalCard
+        title="Publish to live domain"
+        subtitle="Choose a subdomain for your public website"
+        footer={
+          <div className="flex gap-2 w-full justify-end">
+            <ModalButton
+              label="Cancel"
+              onClick={onClose}
+              variant="secondary"
+              disabled={publishing || scheduling}
+            />
+            {mode === 'now' ? (
+              <ModalButton
+                label={publishing ? 'Publishing…' : 'Publish'}
+                onClick={handlePublishNow}
+                variant="primary"
+                disabled={publishing || scheduling}
+                primaryColor="#3B82F6"
+              />
+            ) : (
+              <ModalButton
+                label={scheduling ? 'Scheduling…' : 'Set schedule'}
+                onClick={handleSchedule}
+                variant="primary"
+                disabled={publishing || scheduling}
+                primaryColor="#F59E0B"
+              />
+            )}
+          </div>
+        }
       >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="rounded-2xl border p-6 w-full max-w-md shadow-xl"
-          style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <h3 className="text-lg font-semibold mb-4" style={{ color: colors.text.primary }}>
-            Publish to live domain
-          </h3>
-          <p className="text-sm mb-4" style={{ color: colors.text.secondary }}>
-            Choose a subdomain to create your own live site. Each subdomain is a separate, publicly accessible website. You can change it later in My Sites.
-          </p>
-
-          <div className="space-y-4">
+        <div className="space-y-4">
             {projects.length > 1 && onProjectChange && (
               <div>
                 <label className="block text-sm font-medium mb-1" style={{ color: colors.text.secondary }}>
@@ -194,7 +245,7 @@ export function PublishModal({
                 <select
                   value={projectId}
                   onChange={(e) => onProjectChange(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  className="w-full px-4 py-3 rounded-[1.25rem] border text-sm font-medium outline-none transition-all focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
                   style={{
                     backgroundColor: colors.bg.primary,
                     borderColor: colors.border.faint,
@@ -219,7 +270,7 @@ export function PublishModal({
                   setSubdomain(e.target.value);
                   setError('');
                 }}
-                className="w-full px-3 py-2 rounded-lg border text-sm font-mono"
+                className="w-full px-4 py-3 rounded-[1.25rem] border text-sm font-mono outline-none transition-all focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
                 style={{
                   backgroundColor: colors.bg.primary,
                   borderColor: error ? '#ef4444' : colors.border.faint,
@@ -240,7 +291,7 @@ export function PublishModal({
               <button
                 type="button"
                 onClick={() => setMode('now')}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'now' ? 'bg-blue-600 text-white' : ''}`}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${mode === 'now' ? 'bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm' : ''}`}
                 style={mode !== 'now' ? { color: colors.text.secondary } : undefined}
               >
                 Publish now
@@ -248,7 +299,7 @@ export function PublishModal({
               <button
                 type="button"
                 onClick={() => setMode('schedule')}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode === 'schedule' ? 'bg-amber-600 text-white' : ''}`}
+                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${mode === 'schedule' ? 'bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm' : ''}`}
                 style={mode !== 'schedule' ? { color: colors.text.secondary } : undefined}
               >
                 Schedule for later
@@ -265,7 +316,7 @@ export function PublishModal({
                   value={scheduledAt}
                   onChange={(e) => setScheduledAt(e.target.value)}
                   min={new Date().toISOString().slice(0, 16)}
-                  className="w-full px-3 py-2 rounded-lg border text-sm"
+                  className="w-full px-4 py-3 rounded-[1.25rem] border text-sm font-medium outline-none transition-all focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
                   style={{
                     backgroundColor: colors.bg.primary,
                     borderColor: colors.border.faint,
@@ -277,39 +328,8 @@ export function PublishModal({
                 </p>
               </div>
             )}
-          </div>
-
-          <div className="flex gap-2 mt-6">
-            <button
-              type="button"
-              onClick={() => !publishing && !scheduling && onClose()}
-              className="flex-1 px-4 py-2 rounded-lg border text-sm font-medium"
-              style={{ borderColor: colors.border.faint, color: colors.text.secondary }}
-            >
-              Cancel
-            </button>
-            {mode === 'now' ? (
-              <button
-                type="button"
-                onClick={handlePublishNow}
-                disabled={publishing}
-                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium"
-              >
-                {publishing ? 'Publishing…' : 'Publish'}
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleSchedule}
-                disabled={scheduling}
-                className="flex-1 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-medium"
-              >
-                {scheduling ? 'Scheduling…' : 'Set schedule'}
-              </button>
-            )}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        </div>
+      </ModalCard>
+    </ModalShell>
   );
 }

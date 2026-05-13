@@ -1,4 +1,43 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Pagination Controls Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable pagination component for navigating through
+ * paginated product lists with numbered page buttons and navigation arrows.
+ *
+ * The component provides:
+ * - Previous/Next arrow navigation buttons
+ * - Numbered page buttons with active state highlighting
+ * - Ellipsis (...) for large page counts
+ * - Jump-to-last-page button functionality
+ * - Theme-aware styling for light and dark modes
+ * - Accessible ARIA labels for screen readers
+ * - Disabled states at pagination boundaries
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays up to 5 visible page buttons
+ * - Shows navigation arrows for previous/next pages
+ * - Disables arrows at first/last page boundaries
+ * - Provides jump navigation for large page counts
+ * - Highlights currently active page
+ * - Calls onPageChange callback on page selection
+ * - Adapts styling based on current theme
+ *
+ * Props / Parameters:
+ * ----\n *
+ * currentPage: number\n * - The currently active page number (1-indexed).\n * - REQUIRED\n *
+ * totalPages: number\n * - Total number of pages available.\n * - REQUIRED\n *
+ * onPageChange: (page: number) => void\n * - Callback fired when user navigates to different page.\n * - REQUIRED\n *
+ * ============================================================================
+ */
+
 import { useTheme } from '../../components/context/theme-context';
 
 export interface PaginationControlsProps {

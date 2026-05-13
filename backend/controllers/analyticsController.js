@@ -1,5 +1,6 @@
 const WebsiteAnalytics = require('../models/WebsiteAnalytics');
 const Domain = require('../models/Domain');
+const log = require('../utils/logger')('analyticsController');
 
 function buildAnalyticsKeys(domainData, normalizedSubdomain) {
   return Array.from(new Set([
@@ -18,7 +19,7 @@ exports.trackPageView = async (req, res) => {
     let subdomain = req.body?.subdomain || req.siteIdentifier;
 
     if (!subdomain) {
-      console.log(`[Analytics] No subdomain found in body or middleware`);
+      log.debug(`[Analytics] No subdomain found in body or middleware`);
       return res.status(200).json({
         success: true,
         message: 'No subdomain provided'
@@ -29,7 +30,7 @@ exports.trackPageView = async (req, res) => {
     const normalized = String(subdomain).toLowerCase().replace(/[^a-z0-9-]/g, '');
 
     if (!normalized) {
-      console.log(`[Analytics] Normalized subdomain is empty`);
+      log.debug(`[Analytics] Normalized subdomain is empty`);
       return res.status(200).json({
         success: true,
         message: 'Invalid subdomain'
@@ -41,7 +42,7 @@ exports.trackPageView = async (req, res) => {
       const domainData = await Domain.findBySubdomain(normalized);
       
       if (!domainData || !domainData.id) {
-        console.log(`[Analytics] Subdomain "${normalized}" not found or not published`);
+        log.debug(`[Analytics] Subdomain "${normalized}" not found or not published`);
         // Site not found or not published - silently succeed
         return res.status(200).json({
           success: true,
@@ -49,7 +50,7 @@ exports.trackPageView = async (req, res) => {
         });
       }
 
-      console.log(`[Analytics] Found domain ID: ${domainData.id} for subdomain: ${normalized}`);
+      log.debug(`[Analytics] Found domain ID: ${domainData.id} for subdomain: ${normalized}`);
       
       // Track the view using the domain ID
       const viewData = {
@@ -76,14 +77,14 @@ exports.trackPageView = async (req, res) => {
 
       await Promise.all(Array.from(keys).map((key) => WebsiteAnalytics.trackView(key, viewData)));
       
-      console.log(`[Analytics] View tracked successfully for domain ID: ${domainData.id}`);
+      log.debug(`[Analytics] View tracked successfully for domain ID: ${domainData.id}`);
 
       res.status(200).json({
         success: true,
         message: 'View tracked'
       });
     } catch (error) {
-      console.error('Error tracking view:', error);
+      log.error('Error tracking view:', error);
       // Still return success so the website doesn't break
       res.status(200).json({
         success: true,
@@ -91,7 +92,7 @@ exports.trackPageView = async (req, res) => {
       });
     }
   } catch (error) {
-    console.error('trackPageView Error:', error);
+    log.error('trackPageView Error:', error);
     // Return success to avoid blocking the site
     res.status(200).json({
       success: true,

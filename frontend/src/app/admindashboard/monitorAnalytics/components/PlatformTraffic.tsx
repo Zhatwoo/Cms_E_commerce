@@ -122,7 +122,7 @@ export default function PlatformTraffic({ period, onPeriodChange, signupsOverTim
             transition={{ duration: 0.3 }}
             className="space-y-6"
         >
-            <div className="rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-gradient-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] p-5 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:p-6">
+            <div className="rounded-[28px] border border-[rgba(177,59,255,0.18)] bg-linear-to-br from-[#FDFBFF] via-[#F8F2FF] to-[#F3E8FF] p-5 shadow-[0_10px_32px_rgba(177,59,255,0.12)] sm:p-6">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h2 className="admin-dashboard-purple text-[2rem] font-semibold leading-tight">Platform Traffic</h2>

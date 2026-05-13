@@ -1,6 +1,52 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+/**
+ * ============================================================================
+ * Add Payment Card Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component provides a Stripe card element modal for adding new
+ * payment cards to a user's account.
+ *
+ * The component provides:
+ * - Stripe card element for secure card input
+ * - Cardholder name input field
+ * - Setup intent creation
+ * - Card validation
+ * - Loading states during processing
+ * - Error handling and display
+ * - Success feedback
+ * - Theme-aware styling
+ * - Modal shell wrapper
+ *
+ * What this Component Does:
+ * - Renders Stripe card element
+ * - Collects cardholder name
+ * - Creates Stripe setup intent
+ * - Validates card information
+ * - Sends card token to Stripe
+ * - Stores card in user's profile
+ * - Shows loading during processing
+ * - Displays error messages
+ * - Closes modal on success
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * isOpen: boolean
+ * - Controls modal visibility
+ *
+ * onClose: () => void
+ * - Callback when modal closes
+ *
+ * onCardAdded?: () => void
+ * - Callback on successful card add
+ *
+ * ============================================================================
+ */
+
+import React, { useState, useEffect, useCallback } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
   Elements,
@@ -8,8 +54,12 @@ import {
   useStripe,
   useElements,
 } from '@stripe/react-stripe-js';
-import { X, CreditCard, Lock, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 import { getStripePublicKey, createStripeSetupIntent, updateProfile } from '@/lib/api';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
+import { useThemeOptional } from '@/app/m_dashboard/components/context/theme-context';
 
 // Stripe Card Element options
 const CARD_ELEMENT_OPTIONS = {
@@ -30,26 +80,29 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
-function CardForm({ 
-  onSuccess, 
-  onCancel, 
-  clientSecret, 
-  paymentMethods 
-}: { 
-  onSuccess: (methods: any[]) => void; 
-  onCancel: () => void; 
+function CardForm({
+  onSuccess,
+  onCancel,
+  clientSecret,
+  paymentMethods,
+  onFormSubmit,
+}: {
+  onSuccess: (methods: any[]) => void;
+  onCancel: () => void;
   clientSecret: string;
   paymentMethods: any[];
+  onFormSubmit: (handler: () => Promise<void>) => void;
 }) {
   const stripe = useStripe();
   const elements = useElements();
+  const themeOptional = useThemeOptional();
+  const isLight = (themeOptional?.theme ?? 'dark') === 'light';
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  const handleSubmit = async () => {
     if (!stripe || !elements) return;
+    if (processing) return;
 
     setProcessing(true);
     setError(null);
@@ -74,7 +127,6 @@ function CardForm({
       setError(stripeError.message || 'An error occurred');
       setProcessing(false);
     } else if (setupIntent && setupIntent.status === 'succeeded') {
-      // In a real app, setupIntent.payment_method is the ID.
       const { paymentMethod, error: pmError } = await stripe.createPaymentMethod({
         type: 'card',
         card: cardElement,
@@ -95,7 +147,7 @@ function CardForm({
       };
 
       const updatedMethods = [...paymentMethods, newCard];
-      
+
       try {
         await updateProfile({ paymentMethods: updatedMethods });
         onSuccess(updatedMethods);
@@ -107,61 +159,49 @@ function CardForm({
     }
   };
 
+  useEffect(() => {
+    onFormSubmit(handleSubmit);
+  }, [stripe, elements, clientSecret, onFormSubmit]);
+
+  const inputBgColor = isLight ? 'rgba(103,2,191,0.05)' : 'rgba(255,255,255,0.05)';
+  const inputBorderColor = isLight ? 'rgba(103,2,191,0.15)' : 'rgba(255,255,255,0.1)';
+  const labelColor = isLight ? 'rgba(18,5,51,0.55)' : 'rgba(255,255,255,0.55)';
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="p-4 rounded-xl border bg-zinc-50/50 border-zinc-200">
-        <label className="block text-sm font-medium text-zinc-700 mb-3">Card Details</label>
-        <div className="p-3 bg-white border rounded-lg shadow-sm focus-within:ring-2 focus-within:ring-violet-500 transition-all">
+    <div className="space-y-5">
+      <div>
+        <p className="text-xs font-black uppercase tracking-[0.15em] mb-2" style={{ color: labelColor }}>
+          Card Details
+        </p>
+        <div
+          className="p-4 rounded-lg border shadow-sm focus-within:ring-2 focus-within:ring-blue-500 transition-all"
+          style={{ backgroundColor: inputBgColor, borderColor: inputBorderColor }}
+        >
           <CardElement options={CARD_ELEMENT_OPTIONS} />
         </div>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg border border-red-100">
-          <AlertCircle className="w-4 h-4 shrink-0" />
+        <div className="flex items-start gap-2 p-3 text-xs font-semibold rounded-lg bg-red-500/10 border border-red-500/20 text-red-500">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <p>{error}</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-3 pt-2">
-        <button
-          type="submit"
-          disabled={!stripe || processing}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold rounded-xl hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
-        >
-          {processing ? (
-            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : (
-            <>
-              <Lock className="w-4 h-4" />
-              Securely Add Card
-            </>
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          disabled={processing}
-          className="w-full py-2.5 text-sm font-medium text-zinc-500 hover:text-zinc-800 transition-colors"
-        >
-          Cancel
-        </button>
-      </div>
-      
-      <p className="text-[10px] text-center text-zinc-400">
+      <p className="text-xs text-center" style={{ color: labelColor }}>
         Your card info is tokenized by Stripe and never stored in plain text.
       </p>
-    </form>
+    </div>
   );
 }
 
-export function AddCardModal({ 
-  isOpen, 
-  onClose, 
+export function AddCardModal({
+  isOpen,
+  onClose,
   onSuccess,
   paymentMethods
-}: { 
-  isOpen: boolean; 
+}: {
+  isOpen: boolean;
   onClose: () => void;
   onSuccess: (methods: any[]) => void;
   paymentMethods: any[];
@@ -170,10 +210,14 @@ export function AddCardModal({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitHandler, setSubmitHandler] = useState<(() => Promise<void>) | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
+      setError(null);
+      setClientSecret(null);
       const initStripe = async () => {
         try {
           const [keyRes, secretRes] = await Promise.all([
@@ -185,7 +229,7 @@ export function AddCardModal({
             throw new Error('Stripe Public Key is missing in backend configuration.');
           }
           setStripePromise(loadStripe(keyRes.publicKey));
-          
+
           if (!secretRes.success || !secretRes.clientSecret) {
             throw new Error('Failed to create setup intent.');
           }
@@ -201,61 +245,86 @@ export function AddCardModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  const handleAddCard = async () => {
+    if (!submitHandler || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await submitHandler();
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const registerSubmitHandler = useCallback((h: () => Promise<void>) => {
+    setSubmitHandler(() => h);
+  }, []);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden mt-[-10%] sm:mt-0">
-        <div className="p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-violet-600/10 flex items-center justify-center">
-                <CreditCard className="w-5 h-5 text-violet-600" />
-              </div>
-              <h2 className="text-xl font-bold text-zinc-900">Add New Card</h2>
-            </div>
-            <button 
-              onClick={onClose}
-              className="p-2 hover:bg-zinc-100 rounded-full transition-colors"
-            >
-              <X className="w-5 h-5 text-zinc-400" />
-            </button>
+    <ModalShell isOpen={isOpen} onClose={onClose} disabled={loading} usePortal>
+      {loading ? (
+        <ModalCard
+          title="Add new card"
+          subtitle="Preparing secure payment gateway"
+        >
+          <div className="flex flex-col items-center justify-center py-8 space-y-4">
+            <div className="w-10 h-10 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+            <p className="text-sm font-medium">Preparing secure gateway...</p>
           </div>
-
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-12 space-y-4">
-              <div className="w-10 h-10 border-4 border-violet-100 border-t-violet-600 rounded-full animate-spin"></div>
-              <p className="text-zinc-500 text-sm font-medium">Preparing secure gateway...</p>
+        </ModalCard>
+      ) : error && !clientSecret ? (
+        <ModalCard
+          title="Gateway error"
+          subtitle="Unable to load Stripe configuration"
+          footer={
+            <ModalButton
+              label="Close"
+              onClick={onClose}
+              variant="secondary"
+            />
+          }
+        >
+          <div className="text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mx-auto">
+              <AlertCircle className="w-6 h-6 text-red-500" />
             </div>
-          ) : clientSecret && stripePromise ? (
+            <p className="text-sm">{error || 'Stripe configuration is missing or could not be loaded.'}</p>
+          </div>
+        </ModalCard>
+      ) : clientSecret && stripePromise ? (
+        <ModalCard
+          title="Add new card"
+          subtitle="Securely store a payment method for future purchases"
+          footer={
+            <div className="flex gap-2 w-full justify-end">
+              <ModalButton
+                label="Cancel"
+                onClick={onClose}
+                variant="secondary"
+                disabled={loading || isSubmitting}
+              />
+              <ModalButton
+                label="Securely Add Card"
+                onClick={handleAddCard}
+                variant="primary"
+                disabled={loading || isSubmitting}
+                primaryColor="#3B82F6"
+              />
+            </div>
+          }
+        >
+          <div>
             <Elements stripe={stripePromise}>
-              <CardForm 
-                onSuccess={onSuccess} 
-                onCancel={onClose} 
-                clientSecret={clientSecret} 
+              <CardForm
+                onSuccess={onSuccess}
+                onCancel={onClose}
+                clientSecret={clientSecret}
                 paymentMethods={paymentMethods}
+                onFormSubmit={registerSubmitHandler}
               />
             </Elements>
-          ) : (
-            <div className="text-center py-12 space-y-4">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-6 h-6 text-red-600" />
-              </div>
-              <p className="text-zinc-900 font-semibold">Gateway Error</p>
-              <p className="text-zinc-600 text-sm whitespace-pre-wrap">{error || 'Stripe configuration is missing or could not be loaded.'}</p>
-              <button 
-                onClick={() => {
-                   setError(null);
-                   onClose();
-                }}
-                className="text-sm text-violet-600 font-semibold hover:underline"
-              >
-                Close and try again later
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+          </div>
+        </ModalCard>
+      ) : null}
+    </ModalShell>
   );
 }

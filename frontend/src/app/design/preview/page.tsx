@@ -4,6 +4,9 @@ import React, { useEffect, useMemo, useRef, useState, Suspense } from "react";
 import { ArrowLeft, Copy, Check, Download, Layers, Braces, Save, Globe, Upload, Monitor, Tablet, Smartphone, Lock, X, RotateCw } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Editor, Frame } from "@craftjs/core";
+import { ModalShell } from "@/components/ui/ModalShell";
+import { ModalCard } from "@/components/ui/ModalCard";
+import { ModalButton } from "@/components/ui/ModalButton";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/dist/ScrollTrigger";
 import { deserializeCleanToCraft, serializeCraftToClean } from "../_lib/serializer";
@@ -33,6 +36,7 @@ import { apiFetch, createProject, getProject, getSchedule, getStoredUser, publis
 import { getSubdomainSiteUrl } from "@/lib/siteUrls";
 import { getLimits } from "@/lib/subscriptionLimits";
 import html2canvas from "html2canvas";
+import { DotsLoader, LoadingText, Spinner } from "@/components/loading/LoadingBits";
 
 const DEFAULT_PROJECT_ID = "Leb2oTDdXU3Jh2wdW1sI";
 const STORAGE_KEY_PREFIX = "craftjs_preview_json";
@@ -1310,13 +1314,6 @@ function PreviewContent() {
         .device-home-pill {
           width: 100px; height: 4px; background: #3f3f46; border-radius: 99px;
         }
-        .pv-loading-dot {
-          width: 8px; height: 8px; border-radius: 50%; background: #52525b;
-          animation: pvDot 1.2s ease-in-out infinite;
-        }
-        .pv-loading-dot:nth-child(2) { animation-delay: 0.15s; }
-        .pv-loading-dot:nth-child(3) { animation-delay: 0.3s; }
-        @keyframes pvDot { 0%,80%,100%{transform:scale(0.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
       `}</style>
 
         {/* ── Toolbar ─────────────────────────────────────────────────── */}
@@ -1442,10 +1439,8 @@ function PreviewContent() {
         <div className="flex flex-col">
           {loading ? (
             <div className="flex flex-col items-center justify-center flex-1 gap-4 py-32">
-              <div className="flex items-center gap-2">
-                <div className="pv-loading-dot" /><div className="pv-loading-dot" /><div className="pv-loading-dot" />
-              </div>
-              <p className="text-sm text-zinc-600">Loading preview…</p>
+              <DotsLoader />
+              <LoadingText text="Loading preview…" className="text-sm text-zinc-600" />
             </div>
           ) : viewMode === "Web-Preview" ? (
             <div className={`w-full flex flex-col items-center ${previewViewport === "desktop" ? "p-0" : "py-8 px-4"}`}>
@@ -1586,20 +1581,38 @@ function PreviewContent() {
 
         {/* Publish confirmation */}
         {showPublishDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-semibold text-white mb-2">Publish to live domain</h2>
+          <ModalShell isOpen onClose={() => setShowPublishDialog(false)} usePortal>
+            <ModalCard
+              title="Publish to live domain"
+              subtitle="Choose a subdomain and publish settings"
+              footer={
+                <div className="flex gap-2 w-full justify-end">
+                  <ModalButton
+                    label="Cancel"
+                    onClick={() => setShowPublishDialog(false)}
+                    variant="secondary"
+                    disabled={publishing || scheduling}
+                  />
+                  <ModalButton
+                    label={publishing || scheduling ? "Processing..." : "Confirm"}
+                    onClick={publishMode === "now" ? handlePublishConfirm : handleScheduleConfirm}
+                    variant="primary"
+                    disabled={publishing || scheduling}
+                  />
+                </div>
+              }
+            >
               {scheduleInfo && (
-                <p className="text-sm text-amber-400/90 mb-2">
+                <p className="mb-2 text-sm text-amber-400/90">
                   Already scheduled for {new Date(scheduleInfo.scheduledAt).toLocaleString()}. Setting a new date will replace it.
                 </p>
               )}
-              <p className="text-sm text-zinc-400 mb-4">
+              <p className="mb-4 text-sm text-zinc-400">
                 {publishDomainName.trim()
                   ? "Your site will be published at the subdomain URL below. Design your site in the editor first—what you see in Preview is what gets published."
                   : "Enter a subdomain to create your live site. Design your site in the editor first—what you see in Preview is what gets published."}
               </p>
-              <div className="space-y-2 mb-4">
+              <div className="mb-4 space-y-2">
                 <label className="block text-sm font-medium text-gray-300">
                   Live domain (subdomain) <span className="text-red-400">*</span>
                 </label>
@@ -1611,106 +1624,139 @@ function PreviewContent() {
                     setPublishDomainError("");
                   }}
                   placeholder="e.g. mystore"
-                  className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-medium text-white outline-none transition-all placeholder:text-zinc-500 focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500/30"
                   autoFocus
                 />
                 {publishDomainName.trim() && (
-                  <p className="text-xs text-emerald-400/90 mt-1">
+                  <p className="mt-1 text-xs text-emerald-400/90">
                     Your site will be live at: <span className="font-mono">{getSubdomainSiteUrl(publishDomainName.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || 'site', typeof window !== 'undefined' ? window.location.origin : null).replace(/^https?:\/\//, '')}</span>
                   </p>
                 )}
                 {publishDomainError && <p className="text-xs text-red-400">{publishDomainError}</p>}
               </div>
-              <div className="flex gap-2 mb-4 p-1 bg-[#0a0a0a] rounded-lg">
-                <button type="button" onClick={() => setPublishMode("now")} className={`flex-1 py-2 rounded-md text-sm font-medium ${publishMode === "now" ? "bg-blue-600 text-white" : "text-zinc-400"}`}>Publish now</button>
-                <button type="button" onClick={() => setPublishMode("schedule")} className={`flex-1 py-2 rounded-md text-sm font-medium ${publishMode === "schedule" ? "bg-blue-600 text-white" : "text-zinc-400"}`}>Schedule</button>
+              <div className="mb-4 flex gap-2 rounded-lg bg-[#0a0a0a] p-1">
+                <button
+                  type="button"
+                  onClick={() => setPublishMode("now")}
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${
+                    publishMode === "now"
+                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm"
+                      : "text-zinc-300 hover:text-white"
+                  }`}
+                >
+                  Publish now
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPublishMode("schedule")}
+                  className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/60 ${
+                    publishMode === "schedule"
+                      ? "bg-gradient-to-r from-violet-600 to-fuchsia-500 text-white shadow-sm"
+                      : "text-zinc-300 hover:text-white"
+                  }`}
+                >
+                  Schedule
+                </button>
               </div>
               {publishMode === "schedule" && (
-                <div className="space-y-2 mb-4">
-                  <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white" />
+                <div className="mb-4 space-y-2">
+                  <input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                    className="w-full rounded-[1.25rem] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm font-medium text-white outline-none transition-all focus:ring-4 focus:ring-violet-500/10 focus:border-violet-500/30"
+                  />
                 </div>
               )}
-              <div className="flex justify-end gap-3 mt-6">
-                <button type="button" onClick={() => setShowPublishDialog(false)} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
-                <button type="button" onClick={publishMode === "now" ? handlePublishConfirm : handleScheduleConfirm} disabled={publishing || scheduling} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg">{publishing || scheduling ? "Processing..." : "Confirm"}</button>
-              </div>
-            </div>
-          </div>
+            </ModalCard>
+          </ModalShell>
         )}
 
         {showPublishedSuccessModal && publishedSubdomain && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-semibold text-white mb-2">Your site is now live!</h2>
-              <p className="text-sm text-zinc-400 mb-2">Visit your published website:</p>
-              <p className="text-sm font-mono font-medium text-emerald-400 mb-5 break-all">
+          <ModalShell isOpen onClose={() => { setShowPublishedSuccessModal(false); setPublishedSubdomain(null); }} usePortal>
+            <ModalCard
+              title="Your site is now live"
+              subtitle="Visit the published website or keep editing"
+              footer={
+                <div className="flex gap-2 w-full justify-end">
+                  <ModalButton
+                    label="Keep editing"
+                    onClick={() => {
+                      setShowPublishedSuccessModal(false);
+                      setPublishedSubdomain(null);
+                    }}
+                    variant="secondary"
+                  />
+                  <ModalButton
+                    label="Visit live site"
+                    onClick={() => {
+                      const target = publishedSubdomain;
+                      setShowPublishedSuccessModal(false);
+                      setPublishedSubdomain(null);
+                      const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
+                      if (url !== '#') window.open(url, '_blank', 'noopener,noreferrer');
+                    }}
+                    variant="primary"
+                  />
+                </div>
+              }
+            >
+              <p className="mb-2 text-sm text-zinc-400">Visit your published website:</p>
+              <p className="mb-5 break-all font-mono text-sm font-medium text-emerald-400">
                 {typeof window !== 'undefined'
                   ? getSubdomainSiteUrl(publishedSubdomain, window.location.origin).replace(/^https?:\/\//, '')
                   : `localhost/sites/${publishedSubdomain}`}
               </p>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowPublishedSuccessModal(false);
-                    setPublishedSubdomain(null);
-                  }}
-                  className="px-4 py-2 text-sm font-medium text-gray-400 hover:text-white transition-colors"
-                >
-                  Keep editing
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    const target = publishedSubdomain;
-                    setShowPublishedSuccessModal(false);
-                    setPublishedSubdomain(null);
-                    const url = getSubdomainSiteUrl(target, typeof window !== 'undefined' ? window.location.origin : null);
-                    if (url !== '#') window.open(url, '_blank', 'noopener,noreferrer');
-                  }}
-                  className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Visit live site
-                </button>
-              </div>
-            </div>
-          </div>
+            </ModalCard>
+          </ModalShell>
         )}
 
         {/* Save Template Dialog */}
         {showSaveDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-[#1a1a1a] border border-white/10 rounded-xl p-6 w-full max-w-md">
-              <h2 className="text-xl font-semibold text-white mb-4">Save Template</h2>
+          <ModalShell isOpen onClose={() => setShowSaveDialog(false)} usePortal>
+            <ModalCard
+              title="Save template"
+              subtitle="Name and categorize this design"
+              footer={
+                <div className="flex gap-2 w-full justify-end">
+                  <ModalButton label="Cancel" onClick={() => setShowSaveDialog(false)} variant="secondary" />
+                  <ModalButton label={saving ? "Saving..." : "Save"} onClick={handleSaveTemplate} variant="primary" disabled={saving} />
+                </div>
+              }
+            >
               <div className="space-y-4">
-                <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white" placeholder="Template Name" />
-                <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white">
+                <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-white" placeholder="Template Name" />
+                <select value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)} className="w-full rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-white">
                   <option value="Landing Page">Landing Page</option>
                   <option value="E-commerce">E-commerce</option>
                   <option value="Blog">Blog</option>
                   <option value="Portfolio">Portfolio</option>
                 </select>
-                <textarea value={templateDescription} onChange={(e) => setTemplateDescription(e.target.value)} className="w-full px-3 py-2 bg-[#0a0a0a] border border-white/10 rounded-lg text-white resize-none" rows={3} placeholder="Description" />
+                <textarea value={templateDescription} onChange={(e) => setTemplateDescription(e.target.value)} className="w-full resize-none rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-white" rows={3} placeholder="Description" />
               </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button onClick={() => setShowSaveDialog(false)} className="px-4 py-2 text-sm text-gray-400">Cancel</button>
-                <button onClick={handleSaveTemplate} disabled={saving} className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg">{saving ? "Saving..." : "Save"}</button>
-              </div>
-            </div>
-          </div>
+            </ModalCard>
+          </ModalShell>
         )}
 
         {/* Permission Denied Modal */}
         {showPermissionModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <div className="w-full max-w-sm bg-[#111] border border-white/10 rounded-2xl p-6 text-center">
-              <Lock className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-white mb-2">Owner Access Required</h3>
-              <p className="text-sm text-gray-400 mb-6">Only the project owner can perform this action.</p>
-              <button onClick={() => setShowPermissionModal(false)} className="w-full py-2.5 bg-white/5 border border-white/10 rounded-xl text-white text-sm font-semibold">Got it</button>
-            </div>
-          </div>
+          <ModalShell isOpen onClose={() => setShowPermissionModal(false)} usePortal>
+            <ModalCard
+              title="Owner access required"
+              subtitle="Only the project owner can perform this action"
+              footer={
+                <div className="flex w-full justify-end">
+                  <ModalButton label="Got it" onClick={() => setShowPermissionModal(false)} variant="primary" />
+                </div>
+              }
+            >
+              <div className="text-center">
+                <Lock className="mx-auto mb-4 h-12 w-12 text-red-500" />
+                <p className="text-sm text-gray-400">Only the project owner can perform this action.</p>
+              </div>
+            </ModalCard>
+          </ModalShell>
         )}
 
 
@@ -1721,7 +1767,16 @@ function PreviewContent() {
 
 export default function PreviewPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-zinc-500">Loading...</div>}>
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center text-zinc-500">
+          <div className="flex flex-col items-center gap-3">
+            <Spinner sizePx={36} borderPx={3} className="animate-spin rounded-full border-white/20 border-t-white/80" />
+            <LoadingText text="Loading..." className="text-sm text-zinc-500" />
+          </div>
+        </div>
+      }
+    >
       <PreviewContent />
     </Suspense>
   );

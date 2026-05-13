@@ -5,7 +5,7 @@ import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
-import { TopPanel, type DevicePreset } from "./TopPanel";
+import { TopPanel } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
 import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
@@ -1473,7 +1473,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         // Ensure unique, sequential names
         const usedNames = new Set<string>();
         const pageTabs = (parsed.pages as Array<{ id: string; name?: string }>).map((p, idx) => {
-          let base = 'Page ';
+          const base = 'Page ';
           let num = idx + 1;
           let name = p.name && !usedNames.has(p.name) ? p.name : `${base}${num}`;
           // If name is duplicate, find next available
@@ -1955,8 +1955,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
       container.querySelector<HTMLElement>('[data-page-node="true"]');
 
-    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
-    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+    const worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+    const worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
 
     if (pageEl) {
       const contRect = container.getBoundingClientRect();
@@ -2746,8 +2746,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     let clearTimer: number | null = null;
 
     const toElement = (target: EventTarget | null): Element | null => {
-      if (target instanceof Element) return target;
-      if (target instanceof Node) return target.parentElement;
+      if (target instanceof Element) return target as Element;
+      if (target instanceof Node) return (target as Node).parentElement;
       return null;
     };
 
@@ -2826,11 +2826,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const confirmed = await showConfirm("Are you sure you want to delete your progress? This cannot be undone.");
     if (!confirmed) return;
 
-    console.log('🗑️ Deleting draft...');
     const result = await deleteDraft(projectId);
 
     if (result.success) {
-      console.log('✅ Draft deleted');
       safeSessionRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {

@@ -1,10 +1,70 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Templates Tab Content Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the templates tab view component that displays available
+ * design templates organized by industry categories and saved templates for
+ * users to browse and apply to their projects.
+ *
+ * The component provides:
+ * - Industry category filtering and selection
+ * - Pre-built template deck display with descriptions
+ * - Saved templates gallery showing user's saved template projects
+ * - Template search functionality
+ * - Apply template with project selection
+ * - Loading and applying states
+ * - Empty state handling
+ * - Theme-aware styling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays hero template deck with featured templates by industry
+ * - Shows industry cards for browsing templates by category
+ * - Renders saved templates grid with preview thumbnails
+ * - Allows applying templates to existing projects
+ * - Filters templates by search query
+ * - Shows loading state while applying template
+ * - Provides empty state when no templates available
+ * - Allows reassigning saved templates to different projects
+ * - Routes to design editor for pre-built templates
+ * - Adapts layout and colors based on theme
+ *
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * theme: DashboardTheme\n * - Current UI theme mode (light or dark).\n * - Determines component styling and colors.\n * - Values: 'light' | 'dark'\n * - REQUIRED\n *
+ * industries: readonly IndustryCard[]\n * - Array of industry categories for template organization.\n * - Each card contains a label for the industry.\n * - REQUIRED\n *
+ * getIndustryIcon: (label: string) => ReactNode\n * - Function to get icon for industry category.\n * - Takes industry label and returns React node.\n * - REQUIRED\n *
+ * projects: Project[]\n * - Array of user's projects for applying templates.\n * - REQUIRED\n *
+ * selectedProject: Project | null\n * - Currently selected project for template application.\n * - REQUIRED\n *
+ * searchQuery: string\n * - Search filter for template names.\n * - REQUIRED\n *
+ * applyingTemplateId: string | null\n * - ID of template currently being applied.\n * - Used for loading state.\n * - REQUIRED\n *
+ * onApplyTemplate: (templateProjectId: string) => Promise<void>\n * - Callback to apply selected template to project.\n * - Should handle API call for template application.\n * - REQUIRED\n *
+ * onOpenPrebuiltTemplate?: (folder: string, label: string) => void\n * - Optional callback when pre-built template is clicked.\n * - Routes to design editor with template context.\n *
+ * onSelectTargetProject?: (projectId: string) => void\n * - Optional callback when target project is changed.\n * - Allows reassigning template to different project.\n *
+ * Type Definitions:
+ * ----------------------------------------\n *
+ * DashboardTheme\n * - Union type for theme modes: 'light' | 'dark'\n *
+ * IndustryCard\n * - Simple card type with label for industry category.\n *
+ * PrebuiltTemplateCard\n * - Pre-built template card with folder, label, description, preview.\n *
+ * TemplateCard\n * - Saved template card with project details and metadata.\n *
+ * TemplatesTabContentProps\n * - Props interface for the component.\n *
+ * ============================================================================
+ */
+
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import type { Project } from '@/lib/api';
 import { listTemplateProjectEntries, type TemplateProjectRegistryEntry } from '@/lib/templateProjectRegistry';
 import { GROUPED_TEMPLATES } from '@/app/_templates';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { EmptyState } from '@/app/m_dashboard/components/ui/emptyState';
 import { DraftPreviewThumbnail } from '../../components/projects/DraftPreviewThumbnail';
 
 type DashboardTheme = 'light' | 'dark';
@@ -13,13 +73,20 @@ type IndustryCard = {
   label: string;
 };
 
+type PrebuiltTemplateCard = {
+  folder: string;
+  label: string;
+  description: string;
+  preview: ReactNode;
+};
+
 type TemplateCard = {
   projectId: string;
   title: string;
   category: string;
   description: string;
   savedAt: string;
-  project: Project | null;
+  project: Project;
 };
 
 type TemplatesTabContentProps = {
@@ -31,17 +98,219 @@ type TemplatesTabContentProps = {
   searchQuery: string;
   applyingTemplateId: string | null;
   onApplyTemplate: (templateProjectId: string) => Promise<void>;
+  /** Called when the user clicks a pre-built template card. Lets the parent route to the design editor with the right project context. */
+  onOpenPrebuiltTemplate?: (folder: string, label: string) => void;
+  /** Allow the saved-templates "Apply to" label to be reassigned to a different project from inside the dashboard. */
+  onSelectTargetProject?: (projectId: string) => void;
 };
+
+function HeroTemplateDeck({
+  theme,
+  prebuiltTemplates,
+  onOpenPrebuiltTemplate,
+}: {
+  theme: DashboardTheme;
+  prebuiltTemplates: PrebuiltTemplateCard[];
+  onOpenPrebuiltTemplate?: (folder: string, label: string) => void;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const featuredTemplates = prebuiltTemplates.slice(0, 3);
+
+  return (
+    <section className="relative w-full overflow-visible px-0">
+      <div className="mx-auto flex w-full max-w-none flex-col items-center gap-12 lg:flex-row lg:justify-between">
+        <div className="flex-1 space-y-6 text-center lg:text-left">
+          <h1
+            className={`text-5xl font-black tracking-tight md:text-6xl ${
+              theme === 'dark' ? 'text-white' : 'text-[#15093E]'
+            }`}
+          >
+            Use an existing <br />
+            <span className={theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}>template</span>
+          </h1>
+          <p
+            className={`max-w-md text-lg font-medium opacity-60 ${
+              theme === 'dark' ? 'rgba(255,255,255,0.72)' : 'rgba(30, 41, 59, 0.72)'
+            }`}
+          >
+            Jumpstart your project with professionally designed starter layouts and assets.
+          </p>
+
+          <div className="pt-4">
+            <button
+              type="button"
+              onClick={() => setIsExpanded((value) => !value)}
+              className={`
+              rounded-full px-10 py-3 text-base font-bold cursor-pointer
+              transition-all duration-300 ease-out
+              hover:-translate-y-1 hover:brightness-110 active:scale-95
+              text-white
+              ${theme === 'dark' ? 'hover:shadow-[0_12px_28px_rgba(255,206,0,0.55)]' : 'hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)]'}
+            `}
+            style={
+              theme === 'dark'
+                ? {
+                    background: '#FFCE00',
+                    color: '#120533',
+                    boxShadow: '0 8px 24px rgba(255, 206, 0, 0.42)',
+                  }
+                : {
+                    background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
+                    boxShadow: '0 8px 24px rgba(217,70,239,0.4)',
+                  }
+            }
+            >
+              {isExpanded ? 'Show Less' : 'Browse Templates'}
+            </button>
+          </div>
+        </div>
+
+        <div className="relative h-[540px] w-full max-w-[760px] flex-1 lg:h-[660px]">
+          {featuredTemplates.map((template, index) => {
+            const positions = [
+              'z-10 -rotate-12 -translate-x-22 translate-y-6 scale-90 opacity-40',
+              'z-30 rotate-0 translate-x-0 scale-100 opacity-100',
+              'z-10 rotate-12 translate-x-22 translate-y-6 scale-90 opacity-40',
+            ];
+
+            return (
+              <button
+                key={`${template.folder}-${template.label}`}
+                type="button"
+                onClick={() => onOpenPrebuiltTemplate?.(template.folder, template.label)}
+                disabled={!onOpenPrebuiltTemplate}
+                className={`absolute inset-0 m-auto aspect-[16/13] w-[520px] max-w-[92%] sm:w-[560px] md:w-[640px] overflow-hidden rounded-[3rem] border transition-all duration-700 ease-out hover:z-40 hover:scale-105 hover:-translate-y-4 hover:opacity-100 disabled:cursor-default ${
+                  positions[index]
+                } ${
+                  theme === 'dark'
+                    ? 'border-white/10 bg-[#15093E] shadow-2xl'
+                    : 'border-[#E8DAFF] bg-white shadow-xl'
+                }`}
+              >
+                <div className="h-full w-full scale-[1.18] -translate-y-3 p-3 sm:p-4">{template.preview}</div>
+                <div className="absolute inset-0 bg-linear-to-t from-[#15093E]/80 via-transparent to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6 text-left">
+                  <p
+                    className={`text-[10px] sm:text-[11px] font-black uppercase tracking-[0.18em] drop-shadow-[0_8px_18px_rgba(0,0,0,0.55)] ${
+                      theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#C4B5FD]'
+                    }`}
+                  >
+                    {template.folder}
+                  </p>
+                  <p
+                    className="mt-1 line-clamp-1 text-lg sm:text-xl font-extrabold text-white drop-shadow-[0_10px_22px_rgba(0,0,0,0.6)]"
+                  >
+                    {template.label}
+                  </p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        className={`transition-all duration-1000 ease-[cubic-bezier(0.23,1,0.32,1)] ${
+          isExpanded ? 'max-h-[5000px] opacity-100' : 'max-h-0 overflow-hidden opacity-0'
+        }`}
+      >
+        {/* Section Divider */}
+        <div className="mb-12 flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className={`text-[10px] font-black uppercase tracking-[0.4em] ${
+              theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'
+            }`}>
+              Library Catalog
+            </h3>
+            <p className={`text-sm font-medium opacity-50 ${theme === 'dark' ? 'text-white' : 'text-[#15093E]'}`}>
+              Select a base to begin your build
+            </p>
+          </div>
+          <div className={`hidden h-px flex-1 mx-10 md:block ${theme === 'dark' ? 'bg-white/10' : 'bg-[#15093E]/10'}`} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {prebuiltTemplates.map((template) => (
+            <button
+              key={`${template.folder}-grid-${template.label}`}
+              type="button"
+              onClick={() => onOpenPrebuiltTemplate?.(template.folder, template.label)}
+              className={`
+                group relative flex flex-col overflow-hidden rounded-[2rem] border transition-all duration-500
+                hover:-translate-y-2 hover:shadow-2xl
+                ${
+                  theme === 'dark'
+                    ? 'bg-[#15093E] border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.4)]'
+                    : 'bg-white border-[#E8DAFF] shadow-[0_15px_35px_rgba(139,92,246,0.1)]'
+                }
+              `}
+            >
+              {/* Top Image Container */}
+              <div className={`relative aspect-[16/10] w-full overflow-hidden border-b transition-colors duration-500 ${
+                theme === 'dark' ? 'bg-[#1c1146] border-white/5' : 'bg-[#FAF9FF] border-[#F0E8FF]'
+              }`}>
+                <div className="h-full w-full scale-90 transition-transform duration-700 group-hover:scale-95">
+                  {template.preview}
+                </div>
+
+                {/* Subtle Gradient to make the preview "pop" */}
+                <div className="absolute inset-0 bg-linear-to-tr from-[#15093E]/20 to-transparent pointer-events-none" />
+              </div>
+
+              {/* Bottom Content Container */}
+              <div className="flex flex-col p-6 text-left">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`h-1.5 w-1.5 rounded-full ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
+                  <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${
+                    theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#C4B5FD]'
+                  }`}>
+                    {template.folder}
+                  </p>
+                </div>
+
+                <h4 className={`text-base font-bold tracking-tight transition-colors ${
+                  theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#15093E]'
+                }`}>
+                  {template.label}
+                </h4>
+
+                {/* Details */}
+                <div className="mt-4 flex items-center justify-between transition-all duration-500">
+                  <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                    theme === 'dark' ? 'text-white/30' : 'text-[#15093E]/40'
+                  }`}>
+                    View Details
+                  </span>
+                  <div className={`h-8 w-8 flex items-center justify-center rounded-full ${
+                    theme === 'dark' ? 'bg-[#FFCE00] text-black' : 'bg-[#8B5CF6] text-white'
+                  }`}>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+    </section>
+  );
+}
 
 export function TemplatesTabContent({
   theme,
-  industries,
-  getIndustryIcon,
+  industries: _industries,
+  getIndustryIcon: _getIndustryIcon,
   projects,
   selectedProject,
   searchQuery,
   applyingTemplateId,
   onApplyTemplate,
+  onOpenPrebuiltTemplate,
+  onSelectTargetProject,
 }: TemplatesTabContentProps) {
   const [entries, setEntries] = useState<TemplateProjectRegistryEntry[]>([]);
   const [previewTemplate, setPreviewTemplate] = useState<TemplateCard | null>(null);
@@ -101,7 +370,7 @@ export function TemplatesTabContent({
       const bTime = new Date(b.savedAt || 0).getTime();
       return bTime - aTime;
     });
-  }, [entries, projects, selectedProject?.id]);
+  }, [entries, projects]);
 
   const normalizedSearch = searchQuery.trim().toLowerCase();
   const filteredTemplates = useMemo(() => {
@@ -116,7 +385,7 @@ export function TemplatesTabContent({
     });
   }, [savedTemplates, normalizedSearch]);
 
-  const prebuiltTemplates = useMemo(() => {
+  const prebuiltTemplates = useMemo<PrebuiltTemplateCard[]>(() => {
     return GROUPED_TEMPLATES.flatMap((group) =>
       group.items.map((item) => ({
         folder: group.folder,
@@ -142,281 +411,195 @@ export function TemplatesTabContent({
       exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.22, ease: 'easeOut' }}
     >
-      <section className="mx-auto w-full max-w-none pt-2 my-10">
-        <div className="mb-5 flex items-center justify-between">
-          <h3
-            className={`
-              uppercase text-xs sm:text-sm font-bold tracking-[0.18em] transition-colors duration-300
-              ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}
-            `}
-          >
-            Browse by Industry
-          </h3>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
-          {industries.map((industry) => {
-            const activeIcon = getIndustryIcon(industry.label);
-
-            return (
-              <button
-                key={industry.label}
-                type="button"
-                className={`
-                  group relative h-25 sm:h-27.5 w-full overflow-hidden rounded-4xl border transition-all duration-500 text-left
-                  ${theme === 'dark'
-                    ? 'border-[#272261]/50 bg-[#23164E] hover:border-[#B13BFF] hover:bg-[#2A1756]'
-                    : 'border-[#7C3AED]/10 bg-[#F8F7FF] hover:border-[#7C3AED]/30 hover:bg-[#F3F0FF] shadow-[0_10px_30px_-10px_rgba(124,58,237,0.08)]'
-                  }
-                  hover:-translate-y-1 active:scale-[0.98]
-                `}
-              >
-                <div
-                  className={`
-                    absolute -right-6 -top-10 h-[150%] w-[68%] rounded-full transition-all duration-700 group-hover:scale-110
-                    ${theme === 'dark'
-                      ? 'bg-[#1A0D45]'
-                      : 'bg-linear-to-br from-[#7C3AED]/20 via-[#A855F7]/40 to-[#F43F5E]/20 blur-xl opacity-80 group-hover:opacity-100'
-                    }
-                  `}
-                />
-
-                <div className="relative z-10 flex h-full w-full items-center px-6 sm:px-9">
-                  <span
-                    className={`
-                      flex-1 text-sm sm:text-base font-[1000] leading-snug tracking-tighter transition-all duration-300 pr-14 sm:pr-20
-                      ${theme === 'dark'
-                        ? 'text-white group-hover:text-white/90'
-                        : 'text-[#2E1065] group-hover:text-[#7C3AED]'
-                      }
-                    `}
-                  >
-                    {industry.label}
-                  </span>
-
-                  <div className="absolute right-4 sm:right-6 flex items-center justify-center">
-                    <div
-                      className={`
-                        relative flex h-14 w-14 items-center justify-center rounded-3xl border transition-all duration-500 sm:h-16 sm:w-16
-                        ${theme === 'dark'
-                          ? 'border-[#3C3161] bg-[#26194E] [box-shadow:inset_0_2px_10px_rgba(255,255,255,0.02)]'
-                          : 'border-white bg-white/50 backdrop-blur-xl shadow-[0_8px_16px_rgba(124,58,237,0.1)] group-hover:bg-white group-hover:scale-110 group-hover:border-[#7C3AED]/20'
-                        }
-                      `}
-                    >
-                      <svg
-                        className={`
-                          h-7 w-7 transition-all duration-500 group-hover:rotate-6
-                          ${theme === 'dark'
-                            ? 'text-white/70 group-hover:text-[#FFCE00]'
-                            : 'text-[#7C3AED] group-hover:text-[#4F46E5]'}
-                        `}
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2.5}
-                        viewBox="0 0 24 24"
-                      >
-                        {activeIcon}
-                      </svg>
-                    </div>
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="mx-auto w-full max-w-none pt-2">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h3
-            className={`
-              text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
-              ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}
-            `}
-          >
-            Your Templates
-          </h3>
-          <span className={`text-xs ${theme === 'dark' ? 'text-[#8C84C8]' : 'text-[#7C3AED]/70'}`}>
-            From assets and starter layouts
-          </span>
-        </div>
-
+      <div className="w-full">
         {prebuiltTemplates.length === 0 ? (
-          <div
-            className={`rounded-2xl border p-6 text-sm ${theme === 'dark'
-              ? 'border-[#2A2664] bg-[#161247] text-[#B7B2E0]'
-              : 'border-[#E5D7FF] bg-[#FAF6FF] text-[#4A2D84]'
-            }`}
-          >
-            No pre-built templates found.
-          </div>
+          <section className="relative w-full py-10">
+            <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_50%_0%,#8B5CF610,transparent_70%)]" />
+            <div
+              className={`rounded-[2rem] border p-12 text-center text-sm font-medium ${
+                theme === 'dark'
+                  ? 'border-[#2A2664] bg-[#161247] text-[#B7B2E0]'
+                  : 'border-[#E5D7FF] bg-[#FAF6FF] text-[#4A2D84]'
+              }`}
+            >
+              No pre-built templates found.
+            </div>
+          </section>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-            {prebuiltTemplates.map((template) => (
-              <article
-                key={`${template.folder}-${template.label}`}
-                className={`overflow-hidden rounded-3xl border shadow-[0_18px_50px_rgba(29,18,74,0.08)] ${theme === 'dark'
-                  ? 'border-[#2D2A67] bg-[#161447]'
-                  : 'border-[#E8DAFF] bg-white'
-                }`}
-              >
-                <div className="relative aspect-16/10 overflow-hidden bg-[#f8f5ff]">
-                  <div className="h-full w-full p-3">
-                    <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-black/5 bg-white/90 p-3 shadow-sm">
-                      <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className={`text-[10px] font-semibold uppercase tracking-[0.18em] ${theme === 'dark' ? 'text-[#938BD3]' : 'text-[#7B61B8]'}`}>
-                          {template.folder}
-                        </span>
-                        <span className="rounded-full bg-black/5 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.16em] text-black/60">
-                          Pre-built
-                        </span>
-                      </div>
-                      <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-black/5 bg-[#f8f5ff] p-2">
-                        <div className="h-full w-full scale-[0.9] origin-top-left">
-                          {template.preview}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 via-black/15 to-transparent p-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/90">{template.label}</p>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-2">
-                  <p className={`line-clamp-2 text-sm ${theme === 'dark' ? 'text-[#B9B4E9]' : 'text-[#5F46A5]'}`}>
-                    {template.description}
-                  </p>
-                  <p className={`text-xs ${theme === 'dark' ? 'text-[#8982C8]' : 'text-[#7A63B8]'}`}>
-                    Starter asset template
-                  </p>
-                </div>
-              </article>
-            ))}
-          </div>
+          <HeroTemplateDeck
+            theme={theme}
+            prebuiltTemplates={prebuiltTemplates}
+            onOpenPrebuiltTemplate={onOpenPrebuiltTemplate}
+          />
         )}
-      </section>
 
-      <section className="mx-auto w-full max-w-none pt-2">
-        <div className="mb-5 flex items-center justify-between gap-3">
-          <h3
-            className={`
-              text-xs sm:text-sm font-bold tracking-[0.18em] uppercase transition-colors duration-300
-              ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}
-            `}
-          >
-            Saved Templates
-          </h3>
-          <span className={`text-xs ${theme === 'dark' ? 'text-[#8C84C8]' : 'text-[#7C3AED]/70'}`}>
-            Apply to: {selectedProject?.title || 'Select a project in Your Designs first'}
-          </span>
+        <section className="mx-auto w-full max-w-none mt-20">
+        <div className="mb-12 flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className={`text-[10px] font-black uppercase tracking-[0.4em] ${
+              theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'
+            }`}>
+              Saved Templates
+            </h3>
+            <p className={`text-sm font-medium opacity-50 ${theme === 'dark' ? 'text-white' : 'text-[#15093E]'}`}>
+              Apply templates to your projects
+            </p>
+          </div>
+          <div className={`hidden h-px flex-1 mx-10 md:block ${theme === 'dark' ? 'bg-white/10' : 'bg-[#15093E]/10'}`} />
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-end gap-3">
+          <label className={`flex items-center gap-2 text-xs ${theme === 'dark' ? 'text-[#8C84C8]' : 'text-[#7C3AED]/70'}`}>
+            <span className="font-semibold uppercase tracking-widest text-[10px]">Apply to</span>
+            <select
+              value={selectedProject?.id ?? ''}
+              onChange={(e) => onSelectTargetProject?.(e.target.value)}
+              disabled={!onSelectTargetProject || projects.filter((project) => String(project.status || '').trim().toLowerCase() !== 'template').length === 0}
+              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold outline-none transition-colors disabled:opacity-50 ${theme === 'dark'
+                ? 'border-[#2A246B] bg-[#161247] text-white focus:border-[#7C3AED]'
+                : 'border-[#E5D7FF] bg-white text-[#16083D] focus:border-[#7C3AED]'
+              }`}
+            >
+              {!selectedProject && (
+                <option value="" disabled>
+                  Select a project…
+                </option>
+              )}
+              {projects
+                .filter((project) => String(project.status || '').trim().toLowerCase() !== 'template')
+                .map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.title || 'Untitled Project'}
+                  </option>
+                ))}
+            </select>
+          </label>
         </div>
 
         {filteredTemplates.length === 0 ? (
-          <div
-            className={`rounded-2xl border p-6 text-sm ${theme === 'dark'
-              ? 'border-[#2A2664] bg-[#161247] text-[#B7B2E0]'
-              : 'border-[#E5D7FF] bg-[#FAF6FF] text-[#4A2D84]'
-            }`}
-          >
-            No saved templates yet. Save one from builder preview to see it here.
-          </div>
+          normalizedSearch ? (
+            <EmptyState
+              tone={theme}
+              size="compact"
+              badgeText="No matches"
+              title={`No templates match "${searchQuery.trim()}"`}
+              description="Try a different keyword, or clear the search to see all saved templates."
+            />
+          ) : (
+            <EmptyState
+              tone={theme}
+              size="compact"
+              badgeText="Saved Templates"
+              title="No saved templates yet"
+              description="Save a template from the builder preview to see it here."
+            />
+          )
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredTemplates.map((template) => {
               const isApplying = applyingTemplateId === template.projectId;
               const hasThumbnail = Boolean(template.project?.thumbnail);
 
               return (
-                <article
+                <button
                   key={template.projectId}
-                  className={`group overflow-hidden rounded-3xl border shadow-[0_18px_50px_rgba(29,18,74,0.08)] transition-transform duration-300 hover:-translate-y-1 ${theme === 'dark'
-                    ? 'border-[#2D2A67] bg-[#161447] shadow-[0_18px_50px_rgba(0,0,0,0.24)]'
-                    : 'border-[#E8DAFF] bg-white'
-                  }`}
+                  type="button"
+                  onClick={() => setPreviewTemplate(template)}
+                  className={`
+                    group relative flex flex-col overflow-hidden rounded-[2rem] border transition-all duration-500
+                    hover:-translate-y-2 hover:shadow-2xl text-left
+                    ${
+                      theme === 'dark'
+                        ? 'bg-[#15093E] border-white/10 shadow-[0_15px_35px_rgba(0,0,0,0.4)]'
+                        : 'bg-white border-[#E8DAFF] shadow-[0_15px_35px_rgba(139,92,246,0.1)]'
+                    }
+                  `}
                 >
-                  <div className="relative aspect-16/10 overflow-hidden bg-[#f8f5ff]">
+                  {/* Top Image Container */}
+                  <div className={`relative aspect-[16/10] w-full overflow-hidden border-b transition-colors duration-500 ${
+                    theme === 'dark' ? 'bg-[#1c1146] border-white/5' : 'bg-[#FAF9FF] border-[#F0E8FF]'
+                  }`}>
                     {hasThumbnail ? (
                       <img
                         src={template.project?.thumbnail || ''}
                         alt={template.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                        className="h-full w-full scale-90 object-cover transition-transform duration-700 group-hover:scale-95"
                         loading="lazy"
                       />
                     ) : (
-                      <DraftPreviewThumbnail
-                        projectId={template.projectId}
-                        borderColor={theme === 'dark' ? 'rgba(146,139,221,0.28)' : 'rgba(124,58,237,0.18)'}
-                        bgColor={theme === 'dark' ? '#120F46' : '#F8F5FF'}
-                        className="h-full w-full"
-                      />
+                      <div className="h-full w-full scale-90 transition-transform duration-700 group-hover:scale-95">
+                        <DraftPreviewThumbnail
+                          projectId={template.projectId}
+                          borderColor={theme === 'dark' ? 'rgba(146,139,221,0.28)' : 'rgba(124,58,237,0.18)'}
+                          bgColor={theme === 'dark' ? '#120F46' : '#F8F5FF'}
+                          className="h-full w-full"
+                        />
+                      </div>
                     )}
-                    <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 via-black/15 to-transparent p-3">
-                      <div className="flex items-end justify-between gap-3">
-                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/90">{template.category}</p>
-                        <span className="rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/90 backdrop-blur-sm">
-                          Your Template
-                        </span>
+
+                    {/* Subtle Gradient to make the preview "pop" */}
+                    <div className="absolute inset-0 bg-linear-to-tr from-[#15093E]/20 to-transparent pointer-events-none" />
+                  </div>
+
+                  {/* Bottom Content Container */}
+                  <div className="flex flex-col p-6 text-left">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${theme === 'dark' ? 'bg-[#FFCE00]' : 'bg-[#8B5CF6]'}`} />
+                      <p className={`text-[9px] font-black uppercase tracking-[0.2em] ${
+                        theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#C4B5FD]'
+                      }`}>
+                        {template.category}
+                      </p>
+                    </div>
+
+                    <h4 className={`text-base font-bold tracking-tight transition-colors ${
+                      theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#15093E]'
+                    }`}>
+                      {template.title}
+                    </h4>
+
+                    <p className={`mt-1 text-xs line-clamp-1 ${
+                      theme === 'dark' ? 'text-white/50' : 'text-[#15093E]/50'
+                    }`}>
+                      {formatSavedAt(template.savedAt)}
+                    </p>
+
+                    {/* Details */}
+                    <div className="mt-4 flex items-center justify-between transition-all duration-500">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                        theme === 'dark' ? 'text-white/30' : 'text-[#15093E]/40'
+                      }`}>
+                        View Details
+                      </span>
+                      <div className={`h-8 w-8 flex items-center justify-center rounded-full ${
+                        theme === 'dark' ? 'bg-[#FFCE00] text-black' : 'bg-[#C4B5FD] text-black'
+                      }`}>
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                        </svg>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex h-full flex-col p-4">
-                    <div className="space-y-2">
-                      <h4 className={`text-lg font-extrabold leading-tight ${theme === 'dark' ? 'text-white' : 'text-[#16083D]'}`}>
-                        {template.title}
-                      </h4>
-                      <p className={`line-clamp-2 text-sm ${theme === 'dark' ? 'text-[#B9B4E9]' : 'text-[#5F46A5]'}`}>
-                        {template.description}
-                      </p>
-                      <p className={`text-xs ${theme === 'dark' ? 'text-[#8982C8]' : 'text-[#7A63B8]'}`}>
-                        {formatSavedAt(template.savedAt)}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setPreviewTemplate(template)}
-                        className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${theme === 'dark'
-                          ? 'bg-[#2A246B] text-white hover:bg-[#3A3388]'
-                          : 'bg-[#EFE5FF] text-[#4D2E9C] hover:bg-[#E4D3FF]'
-                        }`}
-                      >
-                        Preview
-                      </button>
-                      <button
-                        type="button"
-                        disabled={!selectedProject || isApplying}
-                        onClick={() => onApplyTemplate(template.projectId)}
-                        className={`flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${theme === 'dark'
-                          ? 'bg-[#FFCE00] text-[#21164E] hover:bg-[#FFD840]'
-                          : 'bg-[#7C3AED] text-white hover:bg-[#6D28D9]'
-                        }`}
-                      >
-                        {isApplying ? 'Applying...' : 'Apply'}
-                      </button>
-                    </div>
-                  </div>
-                </article>
+                </button>
               );
             })}
           </div>
         )}
-      </section>
+        </section>
+      </div>
 
-      {previewTemplate && (
-        <div
-          className="fixed inset-0 z-100 bg-black/70 p-4 md:p-8"
-          onClick={() => setPreviewTemplate(null)}
-        >
+      <ModalShell
+        isOpen={!!previewTemplate}
+        onClose={() => setPreviewTemplate(null)}
+        usePortal
+        className="fixed inset-0 z-9999 bg-black/70 backdrop-blur-sm p-4 md:p-8"
+      >
+        {previewTemplate && (
           <div
             className={`mx-auto h-full max-h-215 w-full max-w-6xl overflow-hidden rounded-2xl border ${theme === 'dark'
               ? 'border-[#2A256D] bg-[#121046]'
               : 'border-[#E7D8FF] bg-white'
             }`}
-            onClick={(event) => event.stopPropagation()}
           >
             <div className={`flex items-center justify-between border-b px-4 py-3 ${theme === 'dark' ? 'border-[#2A256D]' : 'border-[#EEE4FF]'}`}>
               <div>
@@ -466,8 +649,8 @@ export function TemplatesTabContent({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalShell>
     </motion.div>
   );
 }

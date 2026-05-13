@@ -1,4 +1,194 @@
 'use client';
+/**
+ * ============================================================================
+ * TabBar Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable animated TabBar component used for switching
+ * between content sections inside dashboards, panels, management pages,
+ * analytics views, or multi-section interfaces.
+ *
+ * The component provides:
+ * - Reusable tab navigation
+ * - Animated active tab indicator
+ * - Theme-aware styling
+ * - Generic TypeScript support
+ * - Smooth Framer Motion transitions
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays selectable tab labels
+ * - Highlights the currently active tab
+ * - Animates underline transitions between tabs
+ * - Supports dark and light themes
+ * - Allows parent-controlled tab state
+ * - Provides reusable section navigation UI
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * TabBarTheme
+ * ----------------------------------------------------------------------------
+ * Defines available visual theme modes.
+ *
+ * Supported values:
+ * - 'light'
+ * - 'dark'
+ *
+ * ----------------------------------------------------------------------------
+ * TabBarItem<T>
+ * ----------------------------------------------------------------------------
+ *
+ * Represents a single tab entry.
+ *
+ * Properties:
+ *
+ * id: T
+ * - Unique tab identifier
+ * - Used for active state matching
+ *
+ * label: string
+ * - Display text shown in the tab
+ *
+ * ----------------------------------------------------------------------------
+ * TabBarProps<T>
+ * ----------------------------------------------------------------------------
+ *
+ * tabs: readonly TabBarItem<T>[]
+ * ----------------------------------------------------------------------------
+ * Ordered list of tabs displayed in the tab bar.
+ *
+ * REQUIRED
+ *
+ * ----------------------------------------------------------------------------
+ * activeTab: T
+ * ----------------------------------------------------------------------------
+ * Currently selected tab identifier.
+ *
+ * REQUIRED
+ *
+ * ----------------------------------------------------------------------------
+ * onTabChange: (tabId: T) => void
+ * ----------------------------------------------------------------------------
+ * Callback triggered when a tab is selected.
+ *
+ * Returns:
+ * - Selected tab id
+ *
+ * REQUIRED
+ *
+ * ----------------------------------------------------------------------------
+ * theme?: TabBarTheme
+ * ----------------------------------------------------------------------------
+ * Controls tab styling appearance.
+ *
+ * Available values:
+ * - 'light'
+ * - 'dark'
+ *
+ * Default:
+ * - 'light'
+ *
+ * ----------------------------------------------------------------------------
+ * className?: string
+ * ----------------------------------------------------------------------------
+ * Additional wrapper class names.
+ *
+ * Useful for:
+ * - Margin spacing
+ * - Layout overrides
+ * - Positioning
+ *
+ * ----------------------------------------------------------------------------
+ * underlineLayoutId?: string
+ * ----------------------------------------------------------------------------
+ * Framer Motion layoutId used for underline animation scoping.
+ *
+ * Useful when:
+ * - Multiple TabBar components exist on the same page
+ * - Preventing animation conflicts
+ *
+ * Default:
+ * - 'tabbar-underline'
+ *
+ * ----------------------------------------------------------------------------
+ * Generic Type Support:
+ * ----------------------------------------------------------------------------
+ *
+ * This component uses TypeScript generics:
+ *
+ * <T extends string>
+ *
+ * Benefits:
+ * - Strongly typed tab ids
+ * - Safer active state handling
+ * - Better autocomplete support
+ *
+ * Example:
+ *
+ * type DashboardTab =
+ *   | 'overview'
+ *   | 'analytics'
+ *   | 'settings';
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Example:
+ *
+ * const tabs = [
+ *   { id: 'overview', label: 'Overview' },
+ *   { id: 'analytics', label: 'Analytics' },
+ *   { id: 'settings', label: 'Settings' },
+ * ];
+ *
+ * const [activeTab, setActiveTab] = useState('overview');
+ *
+ * <TabBar
+ *   tabs={tabs}
+ *   activeTab={activeTab}
+ *   onTabChange={setActiveTab}
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Dark Theme:
+ * ----------------------------------------------------------------------------
+ *
+ * <TabBar
+ *   tabs={tabs}
+ *   activeTab={activeTab}
+ *   onTabChange={setActiveTab}
+ *   theme="dark"
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Typed Tabs:
+ * ----------------------------------------------------------------------------
+ *
+ * type ProjectTab =
+ *   | 'products'
+ *   | 'inventory'
+ *   | 'orders';
+ *
+ * const tabs: TabBarItem<ProjectTab>[] = [
+ *   { id: 'products', label: 'Products' },
+ *   { id: 'inventory', label: 'Inventory' },
+ *   { id: 'orders', label: 'Orders' },
+ * ];
+ *
+ * <TabBar<ProjectTab>
+ *   tabs={tabs}
+ *   activeTab={activeTab}
+ *   onTabChange={setActiveTab}
+ * />
+ *
+ * ============================================================================
+ */
 
 import { motion } from 'framer-motion';
 
@@ -24,17 +214,6 @@ export type TabBarProps<T extends string = string> = {
   underlineLayoutId?: string;
 };
 
-/**
- * A reusable tab bar widget that renders selectable labels with an animated underline indicator.
- *
- * Parameters:
- * - `tabs`: Ordered tab entries rendered as selectable buttons.
- * - `activeTab`: Currently selected tab id.
- * - `onTabChange`: Callback triggered when a tab is selected.
- * - `theme`: Optional visual mode (`light` or `dark`) used for tab colors.
- * - `className`: Optional wrapper class names for spacing and layout overrides.
- * - `underlineLayoutId`: Optional Framer Motion layout id for underline animation scoping.
- */
 export function TabBar<T extends string = string>({
   tabs,
   activeTab,

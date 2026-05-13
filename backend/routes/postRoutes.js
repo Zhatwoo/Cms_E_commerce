@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAll, getOne, create, update, delete: deletePost } = require('../controllers/postController');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 
 router.get('/', getAll);
 router.get('/:idOrSlug', getOne);

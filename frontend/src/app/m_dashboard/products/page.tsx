@@ -1,13 +1,110 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Products Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file is the main products inventory management page where users can
+ * view, create, edit, and delete products for their e-commerce store with
+ * support for variants, pricing, stock management, and image uploads.
+ *
+ * The component provides:
+ * - Product listing with search, filtering, and pagination
+ * - Tile and list view modes for products
+ * - Product CRUD operations (create, read, update, delete)
+ * - Variant management with stock and price overrides
+ * - Image upload and management
+ * - Status filtering (active, inactive, draft)
+ * - Category and subcategory filtering
+ * - Real-time product statistics
+ * - Theme-aware styling throughout
+ * - Product detail viewing modal
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Fetches and displays paginated product list
+ * - Shows product statistics cards (active/inactive count)
+ * - Provides search bar for filtering by name or SKU
+ * - Filters products by category, subcategory, and status
+ * - Supports tile and list view modes for displaying products
+ * - Handles pagination with configurable items per page
+ * - Opens add product modal for creating new products
+ * - Opens edit product modal for modifying existing products
+ * - Allows viewing detailed product information
+ * - Handles product deletion with confirmation
+ * - Manages variant configuration including stock and pricing
+ * - Handles image uploads to Firebase storage
+ * - Auto-generates SKUs for new products
+ * - Calculates variant combinations and prices
+ * - Shows empty states for no products or no search matches
+ * - Displays toast notifications for product operations
+ * - Refreshes product list on focus/visibility changes
+ *
+ * Props / Parameters:
+ * - userName?: string - For future user context
+ *
+ * State Management:
+ *
+ * - products: Array of products fetched from API
+ * - searchTerm: Current search filter text
+ * - selectedCategory: Currently selected category filter
+ * - statusFilter: Currently selected status filter
+ * - viewMode: Current view mode (tile or list)
+ * - currentPage: Current pagination page
+ * - perPage: Number of items per page
+ * - showAddModal: Whether add product modal is open
+ * - editingProduct: Product being edited (if any)
+ * - viewingProduct: Product being viewed (if any)
+ * - openMenuProductId: Currently open product action menu
+ * - productPopup: Toast notification state
+ *
+ * Key Functions:
+ *
+ * handleSaveProduct: Saves new or edited product to API
+ * handleDelete: Deletes product with confirmation
+ * handleEdit: Opens edit modal for product
+ * handleView: Opens detail view for product
+ * toDashboardProduct: Transforms API product to dashboard format
+ * normalizeImageSource: Validates and normalizes image URLs
+ * formatProductPrice: Formats price with currency
+ * getVariantGroups: Extracts valid variant groups
+ * getLowStockThreshold: Gets stock threshold for product
+ * isLowStock: Checks if product is low on stock
+ *
+ * Context Dependencies:
+ *
+ * - useTheme: For theme colors and styling
+ * - useAlert: For confirmation dialogs and alerts
+ * - useProject: For selected project context
+ *
+ * Type Definitions:
+ *
+ * Product
+ * - Product data structure with all fields
+ *
+ * ProductUpsertPayload
+ * - Payload structure for create/update operations
+ *
+ * ProductStatTile
+ * - Statistics card configuration
+ *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { createPortal } from 'react-dom';
 import { AlertTriangle, CheckCircle, LucideIcon } from 'lucide-react';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
+import { FeedbackMessage } from '../components/ui/feedbackMessage';
 import { type Product, type ProductVariant } from '../lib/productsData';
-import { createProduct, deleteProduct, listProducts, updateProduct, type ApiProduct } from '@/lib/api';
+import { createProduct, deleteProduct, updateProduct, type ApiProduct } from '@/lib/api';
+import { useProducts } from './hooks/useProducts';
 import { SearchBar } from '../components/ui/searchbar';
 import { EmptyState, type EmptyStateTone } from '../components/ui/emptyState';
 import ProductAddModal from './components/productAddModal';
@@ -483,8 +580,21 @@ export default function ProductsPage() {
   const addProductHelperMessage = selectedProjectId && !selectedSubdomain
     ? "This website isn't published yet — you can still add products now."
     : null;
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
+  const handleProductLoadError = useCallback(
+    (msg: string) => showAlert(msg, 'error'),
+    [showAlert]
+  );
+  const {
+    products,
+    loading: loadingProducts,
+    reload: loadProducts,
+  } = useProducts<Product>({
+    enabled: canAddProducts,
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+    transform: toDashboardProduct,
+    onError: handleProductLoadError,
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
@@ -502,29 +612,9 @@ export default function ProductsPage() {
     message: '',
     tone: 'success',
   });
-  const productPopupTimerRef = useRef<number | null>(null);
 
   const showProductPopup = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
-    if (productPopupTimerRef.current) {
-      window.clearTimeout(productPopupTimerRef.current);
-    }
-
     setProductPopup({ open: true, message, tone });
-
-    const popupDuration = tone === 'success' ? 1500 : 3000;
-
-    productPopupTimerRef.current = window.setTimeout(() => {
-      setProductPopup((prev) => ({ ...prev, open: false }));
-      productPopupTimerRef.current = null;
-    }, popupDuration);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (productPopupTimerRef.current) {
-        window.clearTimeout(productPopupTimerRef.current);
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -550,43 +640,6 @@ export default function ProductsPage() {
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [openMenuProductId]);
-
-  const loadProducts = useCallback(async () => {
-    if (projectLoading) {
-      setLoadingProducts(true);
-      return;
-    }
-    setLoadingProducts(true);
-    if (!canAddProducts) {
-      setProducts([]);
-      setLoadingProducts(false);
-      return;
-    }
-    try {
-      const res = await listProducts(selectedSubdomain ? {
-        subdomain: selectedSubdomain,
-        page: 1,
-        limit: 500,
-      } : {
-        page: 1,
-        limit: 500,
-      });
-      if (res?.success && Array.isArray(res.items)) {
-        setProducts(res.items.map(toDashboardProduct));
-      } else {
-        setProducts([]);
-      }
-    } catch (error) {
-      setProducts([]);
-      showAlert(error instanceof Error ? error.message : 'Failed to load products', 'error');
-    } finally {
-      setLoadingProducts(false);
-    }
-  }, [projectLoading, canAddProducts, selectedSubdomain, showAlert]);
-
-  useEffect(() => {
-    void loadProducts();
-  }, [loadProducts]);
 
   const handleRefreshOnFocus = useCallback(() => {
     if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
@@ -832,43 +885,13 @@ export default function ProductsPage() {
 
   return (
     <div className="dashboard-landing-light space-y-6">
-      {typeof document !== 'undefined' && createPortal(
-        <AnimatePresence>
-          {productPopup.open && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-[2147483000] flex items-center justify-center p-4"
-              style={{ backgroundColor: 'rgba(10, 8, 28, 0.6)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
-            >
-              <motion.div
-                initial={{ opacity: 0, y: 12, scale: 0.98 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 8, scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-                className="w-full max-w-[250px] rounded-[14px] border px-4 py-3 shadow-xl"
-                style={{
-                  backgroundColor: '#181a59',
-                  borderColor: productPopup.tone === 'success' ? 'rgba(74,222,128,0.25)' : 'rgba(239,68,68,0.35)',
-                  boxShadow: '0 10px 28px rgba(0,0,0,0.5)',
-                }}
-              >
-                <p className="text-center" style={{ color: '#ffffff', fontSize: 'clamp(12px, 1.4vw, 16px)', fontWeight: 700, letterSpacing: -0.1, lineHeight: 1.25 }}>
-                  {productPopup.message}
-                </p>
-                <div className="mt-2 flex justify-center">
-                  {productPopup.tone === 'success'
-                    ? <CheckCircle className="w-6 h-6" style={{ color: '#22c55e' }} />
-                    : <AlertTriangle className="w-6 h-6" style={{ color: '#ef4444' }} />}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
+      <FeedbackMessage
+        open={productPopup.open}
+        tone={productPopup.tone}
+        message={productPopup.message}
+        variant="toast"
+        onClose={() => setProductPopup((prev) => ({ ...prev, open: false }))}
+      />
 
       <section className="max-w-[1090px] mx-auto pt-6 pb-2">
 
@@ -881,7 +904,7 @@ export default function ProductsPage() {
           >
             My{' '}
             <span
-              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Products
@@ -967,22 +990,23 @@ export default function ProductsPage() {
             </div>
           </div>
 
-          <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
-
           {filteredProducts.length > 0 ? (
-            <ProductListView
-              products={paginatedProducts}
-              viewMode={viewMode}
-              colors={colors}
-              theme={theme}
-              openMenuProductId={openMenuProductId}
-              onView={handleView}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
-              onCloseMenu={() => setOpenMenuProductId(null)}
-              onSaveProduct={handleSaveProduct}
-            />
+            <>
+              <ProductListView
+                products={paginatedProducts}
+                viewMode={viewMode}
+                colors={colors}
+                theme={theme}
+                openMenuProductId={openMenuProductId}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
+                onCloseMenu={() => setOpenMenuProductId(null)}
+                onSaveProduct={handleSaveProduct}
+              />
+              <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </>
           ) : (
             <EmptyStates
               variant="no-results"
@@ -991,6 +1015,7 @@ export default function ProductsPage() {
               onClearFilters={() => {
                 setSearchTerm('');
                 setSelectedCategory('all');
+                setStatusFilter('all');
                 setCurrentPage(1);
               }}
               theme={theme}
