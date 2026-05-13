@@ -518,8 +518,8 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                 )}
             </AnimatePresence>
 
-            <div className="flex w-full items-center justify-between gap-4">
-                <div className="flex flex-1 items-center gap-3">
+            <div className="admin-dashboard-panel flex w-full items-center justify-between gap-4 rounded-[28px] px-4 py-3 sm:px-5 lg:px-6">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
                     {onMenuClick && (
                         <motion.button
                             whileTap={{ scale: 0.94 }}
@@ -533,7 +533,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                         </motion.button>
                     )}
 
-                    <div ref={searchContainerRef} className="relative w-full max-w-[23rem] sm:max-w-[24rem]">
+                    <div ref={searchContainerRef} className="relative w-full max-w-[24rem] sm:max-w-[28rem]">
                         <div className="relative">
                             <input
                                 type="text"
@@ -545,7 +545,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                                 }}
                                 onKeyDown={(event) => {
                                     if (event.key === 'Enter' && searchResults.length > 0) {
-                                        event.preventDefault();
+                                        event.preventDefault(); 
                                         handleSearchNavigate(searchResults[0].href);
                                     }
                                 }}
@@ -558,7 +558,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                             </div>
                         </div>
 
-                        {isSearchOpen && (
+                        {isSearchOpen && ( 
                             <div className="admin-dashboard-panel absolute left-0 right-0 top-[calc(100%+0.55rem)] max-h-[21rem] overflow-y-auto rounded-2xl border border-[rgba(177,59,255,0.24)] bg-[#F5F4FF] p-2 shadow-[0_12px_30px_rgba(123,78,192,0.18)]">
                                 {normalize(query).length < 2 ? (
                                     <p className="px-3 py-2 text-xs text-[#7C7393]">Type at least 2 characters to search all admin content.</p>
@@ -590,9 +590,7 @@ export function AdminHeader({ onMenuClick }: AdminHeaderProps) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-
-
+                <div className="flex shrink-0 items-center gap-3">
                     <div ref={notificationsRef} className="relative">
                         <motion.button
                             whileTap={{ scale: 0.94 }}

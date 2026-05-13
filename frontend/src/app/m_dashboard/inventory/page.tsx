@@ -6,7 +6,6 @@ import {
   Package,
   AlertTriangle,
   TrendingUp,
-  ArrowDownUp,
   CheckCircle,
   Filter,
   Plus,
@@ -30,11 +29,14 @@ import {
 import { useAlert } from '../components/context/alert-context';
 import { useProject } from '../components/context/project-context';
 import { useTheme } from '../components/context/theme-context';
+import { EmptyState } from '../components/ui/emptyState';
+import { CustomDropdown } from '../components/ui/customDropdown';
 import { SearchBar } from '../components/ui/searchbar';
+import { StatsAnalytics, type StatCardProps } from '../components/ui/statsAnalytics';
+import { TabBar, type TabBarItem } from '../components/ui/tabbar';
 import { type Product, type ProductVariant } from '../lib/productsData';
 import ProductAddModal from '../products/components/productAddModal';
 import { AddProductButton } from '../products/components/button';
-import { ProductsDropdown } from '../products/components/productsDropdown';
 import { ImportExportButtons, handleExportData, parseCsvToRows } from './components/import_export';
 import { InventoryTable } from './components/inventoryTable';
 
@@ -77,6 +79,13 @@ type InventoryRow = ApiProduct & {
   _variantKey?: string;
   _variantLabel?: string;
 };
+
+type InventoryContentTab = 'inventory' | 'movements';
+
+const INVENTORY_CONTENT_TABS: readonly TabBarItem<InventoryContentTab>[] = [
+  { id: 'inventory', label: 'INVENTORY' },
+  { id: 'movements', label: 'RECENT MOVEMENTS' },
+];
 
 type ImportPopupState = { open: boolean; message: string; tone: 'success' | 'error' };
 
@@ -220,7 +229,7 @@ const Card = ({ children, style, className = '' }: { children: React.ReactNode; 
     <div
       className={`${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'} ${className}`}
       style={{
-        backgroundColor: theme === 'dark' ? T.card : undefined,
+        background: theme === 'dark' ? T.card : undefined,
         border: theme === 'dark' ? `1px solid ${T.cardBorder}` : undefined,
         borderRadius: T.radius,
         ...style
@@ -233,43 +242,48 @@ const Card = ({ children, style, className = '' }: { children: React.ReactNode; 
 
 const GhostBtn = ({
   onClick, disabled, children, title, style,
-}: { onClick?: () => void; disabled?: boolean; children: React.ReactNode; title?: string; style?: React.CSSProperties }) => (
-  <button
-    type="button" onClick={onClick} disabled={disabled} title={title}
-    style={{
-      background: 'rgba(255,255,255,0.05)', border: `1px solid ${T.cardBorder}`,
-      borderRadius: 8, color: T.textSub, fontSize: 13,
-      cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
-      display: 'inline-flex', alignItems: 'center', gap: 6,
-      padding: '7px 14px', transition: 'opacity 0.15s', ...style,
-    }}
-  >{children}</button>
-);
-
-// ENHANCED: pill now has a subtle border for better legibility
-const StatusPill = ({ stock, lowThreshold }: { stock: number; lowThreshold: number }) => {
+}: { onClick?: () => void; disabled?: boolean; children: React.ReactNode; title?: string; style?: React.CSSProperties }) => {
   const { theme } = useTheme();
-  const outOfStock = stock <= 0;
-  const lowStock = !outOfStock && stock < lowThreshold;
-  
-  let label = 'In Stock';
-  let className = '';
-  
-  if (outOfStock) {
-    label = 'Out of Stock';
-    className = theme === 'dark' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-rose-50 text-rose-600';
-  } else if (lowStock) {
-    label = 'Low Stock';
-    className = theme === 'dark' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-amber-50 text-amber-600';
-  } else {
-    label = 'In Stock';
-    className = theme === 'dark' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-emerald-50 text-emerald-600';
-  }
+  const isDark = theme === 'dark';
 
   return (
-    <span className={`text-[10px] font-black uppercase px-2.5 py-1 rounded-lg ${className}`}>
-      {label}
-    </span>
+    <button
+      type="button" onClick={onClick} disabled={disabled} title={title}
+      onMouseEnter={(e) => {
+        if (disabled) return;
+        const target = e.currentTarget as HTMLButtonElement;
+        if (isDark) {
+          target.style.background = 'rgba(124,58,237,0.22)';
+          target.style.borderColor = '#7c3aed';
+          target.style.color = '#ffffff';
+          target.style.boxShadow = '0 10px 24px rgba(124,58,237,0.28)';
+        } else {
+          target.style.background = 'rgba(124,58,237,0.10)';
+          target.style.borderColor = 'rgba(124,58,237,0.38)';
+          target.style.color = '#6d28d9';
+          target.style.boxShadow = '0 8px 18px rgba(124,58,237,0.14)';
+        }
+        target.style.transform = 'translateY(-1px)';
+      }}
+      onMouseLeave={(e) => {
+        const target = e.currentTarget as HTMLButtonElement;
+        target.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'transparent';
+        target.style.borderColor = isDark ? T.cardBorder : 'rgba(20,3,74,0.08)';
+        target.style.color = isDark ? T.textSub : 'rgba(20,3,74,0.58)';
+        target.style.transform = 'translateY(0)';
+        target.style.boxShadow = 'none';
+      }}
+      style={{
+        background: isDark ? 'rgba(255,255,255,0.05)' : 'transparent',
+        border: isDark ? `1px solid ${T.cardBorder}` : '1px solid rgba(20,3,74,0.08)',
+        borderRadius: 8,
+        color: isDark ? T.textSub : 'rgba(20,3,74,0.58)',
+        fontSize: 13,
+        cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1,
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '7px 14px', transition: 'opacity 0.15s, background-color 0.18s, border-color 0.18s, color 0.18s, transform 0.18s, box-shadow 0.18s', ...style,
+      }}
+    >{children}</button>
   );
 };
 
@@ -328,14 +342,15 @@ const ModalBackdrop = ({ onClose, children }: { onClose: () => void; children: R
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function InventoryPage() {
   const { theme, colors } = useTheme();
+  const isDark = theme === 'dark';
   const { selectedProject, loading: projectLoading } = useProject();
   const { showAlert, showConfirm } = useAlert();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeContentTab, setActiveContentTab] = useState<InventoryContentTab>('inventory');
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
-  const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [items, setItems] = useState<InventoryRow[]>([]);
   const [summary, setSummary] = useState<InventorySummary | null>(null);
   const [movements, setMovements] = useState<InventoryMovement[]>([]);
@@ -660,9 +675,9 @@ export default function InventoryPage() {
     [items.length, categoryOptions, subcategoryCounts]
   );
 
-  const selectedCategoryLabel = useMemo(
-    () => categoryFilterOptions.find((option) => option.value === categoryFilter)?.label ?? 'All',
-    [categoryFilter, categoryFilterOptions]
+  const categoryDropdownOptions = useMemo(
+    () => categoryFilterOptions.map((option) => ({ id: option.value, label: option.label })),
+    [categoryFilterOptions]
   );
 
   const inventoryRows = useMemo(() => expandInventoryRows(items), [items]);
@@ -1101,7 +1116,7 @@ export default function InventoryPage() {
   }, [loadData, showImportPopup, selectedSubdomain]);
 
   // ─── Config ─────────────────────────────────────────────────────────────────
-  const statCards = [
+  const statCards: StatCardProps[] = [
     { id: 'total', label: 'TOTAL PRODUCTS', icon: Package, accent: '#86a8ff', value: summary?.totalProducts ?? 0 },
     { id: 'low', label: 'LOW STOCK', icon: AlertTriangle, accent: '#b178ff', value: summary?.lowStock ?? 0 },
     { id: 'out', label: 'OUT OF STOCK', icon: Filter, accent: '#ff4f8c', value: summary?.outOfStock ?? 0 },
@@ -1260,6 +1275,91 @@ export default function InventoryPage() {
     );
   };
 
+  const RecentMovementTableRow = ({ m, index, isLast }: { m: InventoryMovement; index: number; isLast: boolean }) => {
+    const kind = String(m.type || '').toUpperCase();
+    const quantityValue = Number(m.quantity);
+    const safeQuantity = Number.isFinite(quantityValue) ? Math.abs(quantityValue) : 0;
+    const color = kind === 'IN' ? T.green : kind === 'OUT' ? T.red : '#a5b4fc';
+    const quantityText = kind === 'IN' ? `+${safeQuantity}` : kind === 'OUT' ? `-${safeQuantity}` : `${safeQuantity}`;
+    const noteText = String(m.notes || 'Inventory movement');
+    const statusTransitionMatch = noteText.match(/^Product status changed from\s+(active|inactive)\s*(?:->|→)\s*(active|inactive)$/i);
+    const statusSingleMatch = noteText.match(/^Product status changed to\s+(active|inactive)$/i);
+    const fromStatus = statusTransitionMatch?.[1]?.toLowerCase();
+    const toStatus = statusTransitionMatch?.[2]?.toLowerCase() || statusSingleMatch?.[1]?.toLowerCase();
+    const statusWordColor = (status?: string) => (status === 'active' ? T.green : status === 'inactive' ? T.red : T.text);
+    const rowBackground = isDark ? 'transparent' : '#FFFFFF';
+    const rowHoverBackground = isDark ? 'rgba(255,255,255,0.03)' : '#F8F7FF';
+    const rowDividerColor = isDark ? 'rgba(148,163,184,0.12)' : 'rgba(20,3,74,0.08)';
+
+    return (
+      <motion.tr
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: index * 0.04, duration: 0.25 }}
+        className="group"
+        style={{
+          background: rowBackground,
+          borderBottom: isLast ? 'none' : `1px solid ${rowDividerColor}`,
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLTableRowElement).style.background = rowHoverBackground;
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLTableRowElement).style.background = rowBackground;
+        }}
+      >
+        <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
+          <div className="flex w-full justify-center">
+            <MovTypeBadge type={m.type || ''} />
+          </div>
+        </td>
+
+        <td className="px-5 py-4 align-middle text-center">
+          <div className="min-w-0 text-center">
+            <div className="text-sm font-semibold truncate text-center" style={{ color: T.text }}>
+              {m.productName || 'Product'}
+            </div>
+            <div className="mt-0.5 text-[11px] uppercase tracking-[0.08em] text-center" style={{ color: T.textMuted }}>
+              {m.productSku || 'No SKU'}
+            </div>
+          </div>
+        </td>
+
+        <td className="px-5 py-4 align-middle text-center">
+          <div className="min-w-0 text-center text-sm" style={{ color: T.textMuted }}>
+            {statusTransitionMatch ? (
+              <span className="inline-flex flex-wrap items-center gap-1.5">
+                Product status changed from{' '}
+                <span style={{ color: statusWordColor(fromStatus), fontWeight: 800, textTransform: 'uppercase' }}>{fromStatus}</span>
+                <span style={{ opacity: 0.45 }}>→</span>
+                <span style={{ color: statusWordColor(toStatus), fontWeight: 800, textTransform: 'uppercase' }}>{toStatus}</span>
+              </span>
+            ) : statusSingleMatch ? (
+              <span className="inline-flex flex-wrap items-center gap-1.5">
+                Product status changed to{' '}
+                <span style={{ color: statusWordColor(toStatus), fontWeight: 800, textTransform: 'uppercase' }}>{toStatus}</span>
+              </span>
+            ) : (
+              <span className="wrap-break-word">{noteText}</span>
+            )}
+          </div>
+        </td>
+
+        <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
+          <div className="inline-flex w-full items-center justify-center text-sm font-bold tabular-nums" style={{ color, minWidth: 24 }}>
+            {quantityText}
+          </div>
+        </td>
+
+        <td className="px-5 py-4 align-middle whitespace-nowrap text-center">
+          <div className="text-sm text-center" style={{ color: T.textMuted }}>
+            {m.createdAt ? new Date(m.createdAt).toLocaleString() : '--'}
+          </div>
+        </td>
+      </motion.tr>
+    );
+  };
+
   return (
     <div
       className="dashboard-landing-light"
@@ -1322,25 +1422,28 @@ export default function InventoryPage() {
         {/* ── Title (original) ────────────────────────────────────────────── */}
         <div style={{ textAlign: 'center', marginBottom: 26 }}>
           <h1
-            style={{
-              fontSize: 'clamp(34px, 5vw, 56px)',
-              fontWeight: 800,
-              margin: 0,
-              letterSpacing: -1.8,
-              lineHeight: 1.2,
-            }}
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
+            style={{ color: colors.text.primary, margin: 0 }}
           >
-            <span style={{ color: 'var(--dashboard-light-text, #ffffff)' }}>My </span>
+            <span>My </span>
             <span
-              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Inventory
             </span>
           </h1>
-          <p style={{ color: 'var(--dashboard-light-muted, rgba(219,212,255,0.45))', fontSize: 14, marginTop: 8 }}>
-            Track stock levels, movements, and alerts across your catalog.
-          </p>
+          
+        </div>
+
+        <div className="mb-6 flex justify-center">
+          <TabBar<InventoryContentTab>
+            tabs={INVENTORY_CONTENT_TABS}
+            activeTab={activeContentTab}
+            onTabChange={setActiveContentTab}
+            theme={theme as 'light' | 'dark'}
+            underlineLayoutId="inventory-content-tab-underline"
+          />
         </div>
 
         {/* ── Search bar (original) ───────────────────────────────────────── */}
@@ -1349,168 +1452,196 @@ export default function InventoryPage() {
           onChange={setSearch}
           theme={theme}
           placeholder="Search templates, designs, or actions"
-          className="mb-7 max-w-[860px] mx-auto"
+          className="mb-7 max-w-215 mx-auto"
         />
 
-        {/* ── Toolbar (original layout) ───────────────────────────────────── */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <ProductsDropdown
-              selectedCategory={categoryFilter}
-              onCategoryChange={setCategoryFilter}
-              filterOptions={categoryFilterOptions}
-              showMenu={showCategoryFilterMenu}
-              onMenuToggle={setShowCategoryFilterMenu}
-            />
-            <AddProductButton
-              onClick={() => setShowAddModal(true)}
-              disabled={false}
-              title="Add Product"
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-            <ImportExportButtons
-              theme={theme}
-              search={search}
-              selectedSubdomain={selectedSubdomain}
-              importing={importing}
-              exporting={exporting}
-              onImportComplete={(result, success) => {
-                if (success) {
-                  showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success');
-                } else if (result.errors && result.errors.length > 0) {
-                  const s = result.errors.slice(0, 2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
-                  showImportPopup(`Import completed with errors. ${s}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`, 'error');
-                } else {
-                  showImportPopup('Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".', 'error');
-                }
-              }}
-              onExportClick={handleExport}
-              T={T}
-            />
-          </div>
+        {/* ── Stat cards (reused shared component) ─────────────────────────── */}
+        <div className="mb-6">
+          <StatsAnalytics
+            cards={statCards}
+            gridCols="grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+            gap="gap-3"
+          />
         </div>
 
-        {/* ── Stat cards (premium UI) ───────────────────────────────────────── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 24 }}>
-          {statCards.map((card, i) => {
-            const Icon = card.icon;
-            return (
-              <motion.div
-                key={card.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1, ease: [0.23, 1, 0.32, 1] }}
-                className={`relative overflow-hidden rounded-[24px] border transition-all duration-500 hover:shadow-xl ${theme === 'light' ? 'admin-dashboard-panel border-0' : ''}`}
-                style={{
-                  backgroundColor: theme === 'dark' ? T.card : undefined,
-                  borderColor: theme === 'dark' ? `${card.accent}25` : undefined,
-                  minHeight: 100,
-                  padding: '20px 24px',
-                  boxShadow: theme === 'dark' ? '0 4px 20px -12px rgba(0,0,0,0.5)' : '0 4px 20px -12px rgba(0,0,0,0.1)'
-                }}
-              >
-                <div
-                  className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.05] blur-2xl rounded-full"
-                  style={{ backgroundColor: card.accent }}
+        {activeContentTab === 'inventory' && (
+          <>
+            {/* ── Toolbar (original layout) ───────────────────────────────────── */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                <CustomDropdown
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  options={categoryDropdownOptions}
+                  title="Category"
                 />
+                <AddProductButton
+                  onClick={() => setShowAddModal(true)}
+                  disabled={false}
+                  title="Add Product"
+                />
+              </div>
 
-                <div className="flex items-center gap-5">
-                  <div
-                    className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl"
-                    style={{
-                      backgroundColor: `${card.accent}10`,
-                      border: `1px solid ${card.accent}20`
-                    }}
-                  >
-                    <Icon className="w-6 h-6" style={{ color: card.accent }} />
-                  </div>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <ImportExportButtons
+                  theme={theme}
+                  search={search}
+                  selectedSubdomain={selectedSubdomain}
+                  importing={importing}
+                  exporting={exporting}
+                  onImportComplete={(result, success) => {
+                    if (success) {
+                      showImportPopup(result.message ?? `Import successful. Updated ${result.updated ?? 0} product(s).`, 'success');
+                    } else if (result.errors && result.errors.length > 0) {
+                      const s = result.errors.slice(0, 2).map((e) => `Row ${e.row} (${e.sku}): ${e.message}`).join(' | ');
+                      showImportPopup(`Import completed with errors. ${s}${result.errors.length > 2 ? ` | +${result.errors.length - 2} more` : ''}`, 'error');
+                    } else {
+                      showImportPopup('Import failed: No valid rows in CSV. Use header "sku" and optionally "onHandStock", "reservedStock", "lowStockThreshold".', 'error');
+                    }
+                  }}
+                  onExportClick={handleExport}
+                  T={T}
+                />
+              </div>
+            </div>
 
-                  <div className="flex flex-col">
-                    <span
-                      className="text-[10px] font-black uppercase tracking-[0.2em] mb-1 opacity-60"
-                      style={{
-                        color: T.textMuted,
-                        fontFamily: 'var(--font-outfit), sans-serif',
-                      }}
-                    >
-                      {card.label}
-                    </span>
-                    <div className="flex items-baseline">
-                      <span
-                        className="text-2xl font-black leading-none"
-                        style={{
-                          color: T.text,
-                          letterSpacing: '-1px',
-                          fontFamily: 'var(--font-outfit), sans-serif',
-                        }}
-                      >
-                        {typeof card.value === 'number' ? String(card.value) : card.value}
-                      </span>
-                    </div>
+            {/* ── Product table (original layout + skeleton loading) ───────────── */}
+            <InventoryTable
+              theme={theme}
+              loading={loading}
+              error={error}
+              filteredItems={filteredItems}
+              editingStockId={editingStockId}
+              editingStockValue={editingStockValue}
+              savingStockId={savingStockId}
+              openStatusMenuRowId={openStatusMenuRowId}
+              updatingProductStatusId={updatingProductStatusId}
+              T={T}
+              onStartInlineStockEdit={startInlineStockEdit}
+              onEditingStockChange={setEditingStockValue}
+              onSaveInlineEdit={saveInlineStockEdit}
+              onCancelInlineEdit={cancelInlineStockEdit}
+              onStatusMenuToggle={setOpenStatusMenuRowId}
+              onUpdateProductStatus={updateProductStatus}
+              getStockNumbers={getStockNumbers}
+            />
+          </>
+        )}
+
+        {activeContentTab === 'movements' && (
+          <div style={{ padding: 0, borderRadius: 24, background: 'transparent', border: 'none', boxShadow: 'none' }}>
+            <div className="w-full max-w-272.5 mx-auto" style={{ paddingTop: 22 }}>
+              <div className="flex justify-between items-end mb-8">
+  <div className="flex flex-col gap-1">
+    {/* 1. The Micro-Label (The "Audit Trail" context) */}
+    <span 
+      className={`
+        text-[9px] font-black uppercase tracking-[0.4em] opacity-40
+        [font-family:var(--font-outfit),sans-serif]
+        ${theme === 'dark' ? 'text-white' : 'text-[#14034A]'}
+      `}
+    >
+      Registry Log
+    </span>
+
+    {/* 2. The Main Editorial Title */}
+    <h3
+      className={`
+        text-xl sm:text-2xl font-black tracking-tighter leading-tight
+        transition-colors duration-300 [font-family:var(--font-outfit),sans-serif]
+        ${theme === 'dark' ? 'text-[#FFCE00]' : 'text-[#8B5CF6]'}
+      `}
+    >
+      Stock Movements
+    </h3>
+
+    {/* 3. The Minimalist Description */}
+    <p 
+      style={{ 
+        color: T.textMuted, 
+        fontSize: 12, 
+        fontWeight: 500,
+        opacity: 0.7,
+        fontFamily: 'var(--font-outfit), sans-serif',
+        letterSpacing: '-0.01em' 
+      }}
+    >
+      Audit trail of all inventory changes.
+    </p>
+  </div>
+
+  {/* 4. The Premium Ghost Button */}
+  <GhostBtn 
+    onClick={openAllMovementsModal} 
+    disabled={loading} 
+    style={{ 
+      fontSize: 10, 
+      fontWeight: 800,
+      textTransform: 'uppercase',
+      letterSpacing: '0.2em',
+      padding: '10px 18px',
+      borderRadius: '14px',
+      border: theme === 'dark' ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(20,3,74,0.08)',
+      background: 'transparent',
+      fontFamily: 'var(--font-outfit), sans-serif'
+    }}
+  >
+    See All
+  </GhostBtn>
+</div>
+
+              {loading ? (
+                <div style={{ padding: '32px 0', textAlign: 'center', color: T.textMuted, fontSize: 14, fontFamily: 'var(--font-outfit), sans-serif' }}>Loading…</div>
+              ) : movements.length === 0 ? (
+                <EmptyState
+                  badgeText="Movements"
+                  title="No stock movements yet"
+                  description="Audit trail of inventory changes will appear here once stock is adjusted."
+                  tone={theme === 'dark' ? 'dark' : 'light'}
+                  size="compact"
+                  className="py-10 px-0"
+                />
+              ) : (
+                <div
+                  className="overflow-hidden rounded-3xl border"
+                  style={{
+                    background: isDark ? 'linear-gradient(180deg, rgba(24,32,88,0.5), rgba(14,18,58,0.68))' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(148,163,184,0.18)' : 'rgba(20,3,74,0.08)',
+                    boxShadow: isDark ? '0 12px 30px rgba(7,10,34,0.18)' : '0 8px 24px rgba(21,9,62,0.06)',
+                  }}
+                >
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="w-full min-w-245 border-collapse [font-family:var(--font-outfit),sans-serif]">
+                    <colgroup>
+                      <col style={{ width: '14%' }} />
+                      <col style={{ width: '22%' }} />
+                      <col style={{ width: '40%' }} />
+                      <col style={{ width: '12%' }} />
+                      <col style={{ width: '12%' }} />
+                    </colgroup>
+                    <thead>
+                      <tr style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 800, letterSpacing: '0.15em', textTransform: 'uppercase' }}>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Type</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Product</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Metadata</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Quantity</th>
+                        <th className="sticky top-0 z-10 px-5 py-4 text-center" style={{ background: isDark ? '#1E1B4B' : '#803BED' }}>Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movements.map((m, index) => {
+                        const movementId = String(m.id || '').trim();
+                        const movementKey = movementId || `recent-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
+                        return <RecentMovementTableRow key={movementKey} m={m} index={index} isLast={index === movements.length - 1} />;
+                      })}
+                    </tbody>
+                    </table>
                   </div>
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* ── Product table (original layout + skeleton loading) ───────────── */}
-        <InventoryTable
-          theme={theme}
-          loading={loading}
-          error={error}
-          filteredItems={filteredItems}
-          editingStockId={editingStockId}
-          editingStockValue={editingStockValue}
-          savingStockId={savingStockId}
-          openStatusMenuRowId={openStatusMenuRowId}
-          updatingProductStatusId={updatingProductStatusId}
-          T={T}
-          onStartInlineStockEdit={startInlineStockEdit}
-          onEditingStockChange={setEditingStockValue}
-          onSaveInlineEdit={saveInlineStockEdit}
-          onCancelInlineEdit={cancelInlineStockEdit}
-          onStatusMenuToggle={setOpenStatusMenuRowId}
-          onUpdateProductStatus={updateProductStatus}
-          getStockNumbers={getStockNumbers}
-          StatusPill={StatusPill}
-        />
-
-        {/* ── Recent movements (original layout) ─────────────────────────── */}
-        <Card style={{ padding: '22px', borderRadius: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <div>
-              <h3 style={{ color: T.textSub, fontSize: 13, fontWeight: 600, letterSpacing: 0.5, margin: 0 }}>Recent Stock Movements</h3>
-              <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3 }}>Audit trail of all inventory changes.</p>
+              )}
             </div>
-            <GhostBtn onClick={openAllMovementsModal} disabled={loading} style={{ fontSize: 12, padding: '5px 12px' }}>See All</GhostBtn>
           </div>
-
-          {loading ? (
-            <div style={{ padding: '32px 0', textAlign: 'center', color: T.textMuted, fontSize: 14 }}>Loading…</div>
-          ) : movements.length === 0 ? (
-            <div style={{ padding: '40px 0', textAlign: 'center', color: T.textMuted, fontSize: 13 }}>
-              <ArrowDownUp size={28} color={T.textMuted} style={{ margin: '0 auto 10px', display: 'block' }} />
-              No stock movements recorded yet.
-            </div>
-          ) : (
-            <div
-              style={{
-                maxHeight: INVENTORY_ROW_HEIGHT_PX * RECENT_MOVEMENTS_VISIBLE_ROWS,
-                overflowY: 'auto',
-                paddingRight: 4,
-              }}
-            >
-              {movements.map((m, index) => {
-                const movementId = String(m.id || '').trim();
-                const movementKey = movementId || `recent-${m.productId || 'product'}-${m.createdAt || 'time'}-${index}`;
-                return <MovementRow key={movementKey} m={m} />;
-              })}
-            </div>
-          )}
-        </Card>
+        )}
       </div>
 
       {/* ── Modals ─────────────────────────────────────────────────────────── */}
@@ -1529,8 +1660,8 @@ export default function InventoryPage() {
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
               }}>
                 <div>
-                  <h3 style={{ color: T.text, fontWeight: 700, margin: 0 }}>All Stock Movements</h3>
-                  <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3 }}>Complete movement history (latest first)</p>
+                  <h3 style={{ color: T.text, fontWeight: 700, margin: 0, fontFamily: 'var(--font-outfit), sans-serif' }}>All Stock Movements</h3>
+                  <p style={{ color: T.textMuted, fontSize: 12, marginTop: 3, fontFamily: 'var(--font-outfit), sans-serif' }}>Complete movement history (latest first)</p>
                 </div>
                 <button
                   type="button"
@@ -1596,11 +1727,18 @@ export default function InventoryPage() {
                   )}
                 </div>
                 {loadingAllMovements ? (
-                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32 }}>Loading…</div>
+                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32, fontFamily: 'var(--font-outfit), sans-serif' }}>Loading…</div>
                 ) : allMovementsError ? (
-                  <div style={{ textAlign: 'center', color: T.red, padding: 32 }}>{allMovementsError}</div>
+                  <div style={{ textAlign: 'center', color: T.red, padding: 32, fontFamily: 'var(--font-outfit), sans-serif' }}>{allMovementsError}</div>
                 ) : allMovements.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: T.textMuted, padding: 32 }}>No movements recorded.</div>
+                  <EmptyState
+                    badgeText="Movements"
+                    title="No movements recorded"
+                    description="This log will populate as inventory changes are made."
+                    tone={theme === 'dark' ? 'dark' : 'light'}
+                    size="compact"
+                    className="py-10 px-0"
+                  />
                 ) : (
                   allMovements.map((m, index) => {
                     const movementId = String(m.id || '').trim();

@@ -99,54 +99,11 @@ export const SectionSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <div className="flex items-center gap-1 bg-[var(--builder-surface-2)] rounded-[10px] border border-[var(--builder-border)] p-0.5 mb-3">
-          <button
-            type="button"
-            onClick={() => {
-              typedSetProp((props) => {
-                props.isFreeform = true;
-                props.display = "block";
-              });
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform !== false
-              ? "bg-[var(--builder-surface-3)] text-[var(--builder-text)]"
-              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
-              }`}
-            title="Freeform (Figma canvas-like)"
-          >
-            Freeform
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              typedSetProp((props) => {
-                props.isFreeform = false;
-                if (!props.display || props.display === "block" || props.display === "none") {
-                  props.display = "flex";
-                }
-              });
-            }}
-            className={`px-3 py-1.5 rounded-lg text-xs flex-1 transition-colors ${isFreeform === false
-              ? "bg-[var(--builder-accent)] text-black"
-              : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)]"
-              }`}
-            title="Auto Layout (Flex)"
-          >
-            Auto
-          </button>
-        </div>
-
-        {isFreeform === false ? null : (
-          <div className="text-[11px] text-[var(--builder-text-muted)] leading-relaxed mb-3">
-            Auto Layout is disabled in Freeform mode. Switch to{" "}
-            <span className="text-[var(--builder-text)]">Auto</span> to enable alignment and distribution.
-          </div>
-        )}
-
         <LayoutLayerGroup
           nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}

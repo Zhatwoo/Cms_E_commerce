@@ -5,6 +5,42 @@ import { useStorefront } from './StorefrontContext';
 import { CheckoutModal } from '@/app/sites/_storefront/CheckoutModal';
 import { createPublishedOrder, createPaymentIntent, createStripePaymentIntent } from '@/lib/api';
 
+function QuantityInput({ item, updateQuantity }: { item: any, updateQuantity: (id: string, qty: number) => void }) {
+  const [localValue, setLocalValue] = useState(item.quantity.toString());
+
+  useEffect(() => {
+    setLocalValue(item.quantity.toString());
+  }, [item.quantity]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalValue(val);
+    const num = parseInt(val);
+    if (!isNaN(num) && num >= 1) {
+      updateQuantity(item.id, num);
+    }
+  };
+
+  const handleBlur = () => {
+    const num = parseInt(localValue);
+    if (isNaN(num) || num < 1) {
+      setLocalValue(item.quantity.toString());
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      min="1"
+      value={localValue}
+      onChange={handleChange}
+      onBlur={handleBlur}
+      className="w-8 h-7 text-xs font-medium text-zinc-900 text-center bg-transparent focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+      aria-label={`Quantity of ${item.name}`}
+    />
+  );
+}
+
 export function CartDrawer() {
   const {
     subdomain,
@@ -212,33 +248,35 @@ export function CartDrawer() {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/50 z-40"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity duration-300"
         aria-hidden
         onClick={closeCart}
       />
       <div
-        className="fixed top-0 right-0 bottom-0 w-full max-w-sm bg-white shadow-xl z-50 flex flex-col"
+        className="fixed top-0 right-0 bottom-0 w-full max-w-sm bg-white z-50 flex flex-col transition-transform duration-300 ease-out border-l border-zinc-200"
         role="dialog"
         aria-label="Shopping cart"
       >
-        <div className="flex items-center justify-between p-4 border-b border-zinc-200">
-          <h2 className="text-lg font-semibold text-zinc-900">
-            Cart {cartCount > 0 && `(${cartCount})`}
+        <div className="flex items-center justify-between p-5 border-b border-zinc-100">
+          <h2 className="text-base font-medium text-zinc-900">
+            Shopping Cart ({cartCount})
           </h2>
           <button
             type="button"
             onClick={closeCart}
-            className="p-2 rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+            className="p-1 text-zinc-400 hover:text-zinc-600 transition-colors"
             aria-label="Close cart"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-5">
           {cart.length === 0 ? (
-            <p className="text-zinc-500 text-sm">Your cart is empty.</p>
+            <div className="h-full flex flex-col items-center justify-center text-center">
+              <p className="text-zinc-400 text-sm">Your cart is empty</p>
+            </div>
           ) : (
             <>
               <div className="mb-3 flex items-center justify-between gap-2">
@@ -257,84 +295,103 @@ export function CartDrawer() {
                   disabled={selectedItems.length === 0}
                   className="text-xs text-red-600 hover:underline disabled:opacity-40 disabled:no-underline"
                 >
-                  Remove selected
+                  Clear
                 </button>
               </div>
 
-              <ul className="space-y-4">
+              <div className="flex flex-col">
               {cart.map((item) => (
-                <li key={item.id} className="flex gap-3 border-b border-zinc-100 pb-4">
-                  <label className="pt-1">
+                <li key={item.id} className="flex gap-4 py-4 border-b border-zinc-100 last:border-0 group">
+                  <div className="pt-0.5">
                     <input
                       type="checkbox"
                       checked={!!selectedById[item.id]}
                       onChange={(e) => toggleItem(item.id, e.target.checked)}
-                      className="h-4 w-4 rounded border-zinc-300 text-emerald-600"
+                      className="h-4 w-4 rounded border-zinc-300 text-black focus:ring-black cursor-pointer"
                       aria-label={`Select ${item.name}`}
                     />
-                  </label>
-                  {item.image ? (
-                    <img
-                      src={item.image}
-                      alt=""
-                      className="w-14 h-14 rounded object-cover bg-zinc-100"
-                    />
-                  ) : (
-                    <div className="w-14 h-14 rounded bg-zinc-200 flex-shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-zinc-900 truncate">{item.name}</p>
-                    <p className="text-sm text-zinc-600">₱{item.price.toFixed(2)}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                        disabled={item.quantity <= 1}
-                        className="w-7 h-7 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-50 text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                        aria-label={`Decrease quantity of ${item.name}`}
-                      >
-                        −
-                      </button>
-                      <span className="text-sm w-6 text-black text-center">{item.quantity}</span>
-                      <button
-                        type="button"
-                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                        className="w-7 h-7 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-50 text-sm"
-                      >
-                        +
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeFromCart(item.id)}
-                        className="ml-2 h-7 w-7 rounded-md border border-red-200 text-red-600 hover:bg-red-50 flex items-center justify-center"
-                        aria-label={`Remove ${item.name} from cart`}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-1 12a2 2 0 01-2 2H8a2 2 0 01-2-2L5 7m3 0V5a2 2 0 012-2h4a2 2 0 012 2v2m-9 0h10" />
-                        </svg>
-                      </button>
+                  </div>
+                  
+                  <div className="w-16 h-16 flex-shrink-0">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt=""
+                        className="w-full h-full object-cover bg-zinc-50 border border-zinc-100"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-100 border border-zinc-200" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <div>
+                      <div className="flex justify-between items-start">
+                        <h4 className="text-sm font-medium text-zinc-900 truncate pr-4">{item.name}</h4>
+                        <button
+                          type="button"
+                          onClick={() => removeFromCart(item.id)}
+                          className="text-zinc-300 hover:text-zinc-600 transition-colors"
+                          aria-label={`Remove ${item.name}`}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-0.5">₱{item.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center border border-zinc-200 rounded">
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                          className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-700 disabled:opacity-20 transition-all"
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        
+                        <QuantityInput
+                          item={item}
+                          updateQuantity={updateQuantity}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                          className="w-7 h-7 flex items-center justify-center text-zinc-500 hover:text-zinc-700 transition-all"
+                          aria-label="Increase"
+                        >
+                          +
+                        </button>
+                      </div>
+                      
+                      <p className="text-sm font-medium text-zinc-900">₱{(item.price * item.quantity).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                     </div>
                   </div>
                 </li>
               ))}
-              </ul>
+              </div>
             </>
           )}
         </div>
         {cart.length > 0 && (
-          <div className="p-4 border-t border-zinc-200">
-            <p className="text-xl text-black font-bold mb-2">
-              Total: ₱
-              {cart
-                .reduce((sum, i) => sum + i.price * i.quantity, 0)
-                .toFixed(2)}
-            </p>
-            <p className="text-xs text-zinc-500 mb-2">{selectedCount} selected item{selectedCount === 1 ? '' : 's'}</p>
+          <div className="p-5 bg-zinc-50 border-t border-zinc-200">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-sm text-zinc-500 font-medium">Total</span>
+              <span className="text-lg font-bold text-zinc-900">
+                ₱{selectedTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            
             <button
               type="button"
               onClick={() => setCheckoutOpen(true)}
               disabled={selectedItems.length === 0}
-              className="w-full rounded-md bg-emerald-500 py-2.5 text-sm font-medium text-white hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-12 bg-black text-white text-sm font-medium hover:bg-zinc-800 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
             >
               Checkout
             </button>
@@ -355,9 +412,9 @@ export function CartDrawer() {
           <div className="fixed inset-0 z-[80] bg-black/50" aria-hidden onClick={() => setConfirmDeleteIds(null)} />
           <div className="fixed inset-0 z-[90] flex items-center justify-center p-4" role="dialog" aria-label="Confirm remove items">
             <div className="w-full max-w-sm rounded-xl bg-white border border-zinc-200 shadow-2xl p-5">
-              <h3 className="text-lg font-semibold text-zinc-900">Remove selected products?</h3>
+              <h3 className="text-lg font-semibold text-zinc-900">Clear selected products?</h3>
               <p className="mt-2 text-sm text-zinc-600">
-                You are about to remove {confirmDeleteIds.length} products from your cart.
+                You are about to clear {confirmDeleteIds.length} products from your cart.
               </p>
               <div className="mt-5 flex items-center justify-end gap-2">
                 <button

@@ -7,6 +7,8 @@ import { useDesignProject } from "../../_context/DesignProjectContext";
 import { ProductSliderSettings } from "./ProductSliderSettings";
 import { ProductImageOverlays } from "../productOverlays";
 
+export type ProductSliderSourceMode = "auto" | "manual";
+
 export interface ProductSliderProps {
   position?: string;
   top?: string;
@@ -14,6 +16,10 @@ export interface ProductSliderProps {
   right?: string;
   bottom?: string;
   zIndex?: number;
+
+  // Product source
+  productSourceMode?: ProductSliderSourceMode;
+  selectedProductIds?: string[];
 
   // General
   showTitle?: boolean;
@@ -35,6 +41,7 @@ export interface ProductSliderProps {
   cardBorderRadius?: number;
   cardBackground?: string;
   cardBorderColor?: string;
+  cardAlign?: "left" | "center" | "right";
 
   // Product card display toggles
   showProductName?: boolean;
@@ -65,6 +72,8 @@ export const ProductSlider = ({
   right,
   bottom,
   zIndex,
+  productSourceMode = "auto",
+  selectedProductIds = [],
   showTitle = true,
   title = "Our Products",
   titleFontSize = 28,
@@ -96,6 +105,7 @@ export const ProductSlider = ({
   buttonTextColor = "#ffffff",
   buttonBorderRadius = 6,
   showQuickView = false,
+  cardAlign = "left",
 }: ProductSliderProps) => {
   const { id, connectors: { connect, drag } } = useNode();
   const { enabled } = useEditor((s) => ({ enabled: s.options.enabled }));
@@ -118,9 +128,34 @@ export const ProductSlider = ({
     return () => ro.disconnect();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    listProducts({ subdomain: projectSubdomain ?? undefined, status: "active", limit: 500 })
+      .then((res) => { if (!cancelled) setProducts(res.items ?? []); })
+      .catch(() => { if (!cancelled) setProducts([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [projectSubdomain]);
+
+  const displayedProducts = React.useMemo(() => {
+    if (productSourceMode !== "manual") return products;
+
+    const selectedIds = (Array.isArray(selectedProductIds) ? selectedProductIds : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean);
+
+    if (selectedIds.length === 0) return [];
+
+    const productById = new Map(products.map((product) => [String(product.id), product]));
+    return selectedIds
+      .map((id) => productById.get(id))
+      .filter((product): product is ApiProduct => Boolean(product));
+  }, [productSourceMode, products, selectedProductIds]);
+
   // Responsive card count & width: fills full inner width at every breakpoint
-  const responsiveCardWidth = (() => {
-    if (containerWidth <= 0) return cardWidth;
+  const { responsiveCardWidth, shouldCenter } = (() => {
+    if (containerWidth <= 0) return { responsiveCardWidth: cardWidth, shouldCenter: false };
     // containerWidth = offsetWidth (full element width including padding)
     // inner = content area after subtracting left+right padding
     const inner = Math.max(0, containerWidth - paddingLeft - paddingRight);
@@ -130,8 +165,16 @@ export const ProductSlider = ({
     else if (inner <= 1024) targetCount = 3;   // tablet landscape
     else if (inner <= 1440) targetCount = 4;   // laptop
     else                    targetCount = 5;   // desktop 1920+
-    const visibleCount = Math.max(1, Math.min(targetCount, products.length || targetCount));
-    return Math.floor((inner - gap * (visibleCount - 1)) / visibleCount);
+    const visibleCount = Math.max(1, Math.min(targetCount, displayedProducts.length || targetCount));
+    const widthPerCard = Math.floor((inner - gap * (targetCount - 1)) / targetCount);
+    
+    // Cap card width so they don't get too giant on huge screens/low product counts
+    const finalCardWidth = Math.min(widthPerCard, 420);
+    
+    return {
+      responsiveCardWidth: finalCardWidth,
+      shouldCenter: cardAlign === "center" || (cardAlign !== "right" && displayedProducts.length < targetCount)
+    };
   })();
 
   // Scale image height proportionally with card width (maintain ~1:1.1 aspect ratio)
@@ -139,17 +182,23 @@ export const ProductSlider = ({
     ? imageHeight
     : Math.round(responsiveCardWidth * (imageHeight / Math.max(cardWidth, 1)));
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    listProducts({ subdomain: projectSubdomain ?? undefined, status: "active" })
-      .then((res) => { if (!cancelled) setProducts(res.items ?? []); })
-      .catch(() => { if (!cancelled) setProducts([]); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
-  }, [projectSubdomain]);
+  const {
+    position: nodePosition,
+    top: nodeTop,
+    left: nodeLeft,
+    right: nodeRight,
+    bottom: nodeBottom,
+    zIndex: nodeZIndex,
+  } = useNode((node) => ({
+    position: node.data.props.position,
+    top: node.data.props.top,
+    left: node.data.props.left,
+    right: node.data.props.right,
+    bottom: node.data.props.bottom,
+    zIndex: node.data.props.zIndex,
+  }));
 
-  const isEmpty = !loading && products.length === 0;
+  const isEmpty = !loading && displayedProducts.length === 0;
 
   const isFluidWidth = typeof width === "string" && width.trim().endsWith("%");
 
@@ -169,14 +218,18 @@ export const ProductSlider = ({
         paddingLeft,
         paddingRight,
         boxSizing: "border-box",
-        position: position as React.CSSProperties["position"],
-        top: top ?? undefined,
-        left: left ?? undefined,
-        right: right ?? undefined,
-        bottom: bottom ?? undefined,
-        zIndex: zIndex ?? undefined,
+        position: (nodePosition || position) as React.CSSProperties["position"],
+        top: nodeTop ?? top ?? undefined,
+        left: nodeLeft ?? left ?? undefined,
+        right: nodeRight ?? right ?? undefined,
+        bottom: nodeBottom ?? bottom ?? undefined,
+        zIndex: (nodeZIndex || zIndex) ?? undefined,
       }}
     >
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
       {/* Title */}
       {showTitle && (
         <h2 style={{ fontSize: titleFontSize, fontWeight: 700, color: titleColor, textAlign: titleAlign, marginBottom: gap, marginTop: 0, paddingLeft: 24, paddingRight: 24 }}>
@@ -196,14 +249,34 @@ export const ProductSlider = ({
       {/* Empty state */}
       {!loading && isEmpty && enabled && (
         <div style={{ border: "2px dashed #d1d5db", borderRadius: 8, padding: 32, textAlign: "center", color: "#9ca3af", fontSize: 14 }}>
-          No active products found. Add products in your dashboard to see them here.
+          {productSourceMode === "manual"
+            ? (selectedProductIds.length > 0
+              ? "Selected products are not active or no longer available."
+              : "No products selected yet. Open Product Slider settings and add products to display.")
+            : "No active products found. Add products in your dashboard to see them here."}
         </div>
       )}
 
       {/* Slider */}
       {!loading && !isEmpty && (
-        <div style={{ display: "flex", gap, overflowX: "hidden", paddingBottom: 4, flexWrap: "nowrap" }}>
-          {products.map((product) => {
+        <div 
+          className="hide-scrollbar"
+          style={{ 
+            display: "flex", 
+            gap, 
+            overflowX: "auto", 
+            justifyContent: shouldCenter ? "center" : "flex-start",
+            paddingBottom: 16, 
+            paddingLeft: paddingLeft || 24,
+            paddingRight: paddingRight || 24,
+            flexWrap: "nowrap",
+            scrollBehavior: "smooth",
+            WebkitOverflowScrolling: "touch",
+            marginLeft: -(paddingLeft || 0),
+            marginRight: -(paddingRight || 0),
+          }}
+        >
+          {displayedProducts.map((product) => {
             const image = product.images?.[0] ?? "";
             const price = product.finalPrice ?? product.price ?? 0;
             const compareAt = product.compareAtPrice;
@@ -294,6 +367,8 @@ ProductSlider.craft = {
   displayName: "Product Slider",
   props: {
     position: "relative", top: "auto", left: "auto", right: "auto", bottom: "auto",
+    productSourceMode: "auto",
+    selectedProductIds: [],
     showTitle: true, title: "Our Products", titleFontSize: 28, titleColor: "#111827", titleAlign: "center",
     background: "#f9fafb", width: "100%",
     paddingTop: 48, paddingBottom: 48, paddingLeft: 0, paddingRight: 0,

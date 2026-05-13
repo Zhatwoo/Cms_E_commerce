@@ -853,7 +853,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full pl-12 pr-4 py-2.5 bg-white text-[#7E4FB4] text-[0.98rem] rounded-[12px] border border-[#E2C7FF] shadow-[0_2px_8px_rgba(177,59,255,0.15)] focus:outline-none focus:ring-2 focus:ring-[#B13BFF]/30"
               />
-              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#FFB800] flex items-center justify-center pointer-events-none">
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#B13BFF] flex items-center justify-center pointer-events-none">
                 <SearchIcon />
               </div>
             </div>
@@ -871,7 +871,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                     selection.selectAll(sortedVisibleWebsites.map((w) => `${w.userId}::${w.id}`));
                   }
                 }}
-                className="px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"
+                className="px-3 py-1.5 text-sm font-bold text-[#471396] bg-[#F1E6FF] rounded-lg hover:bg-[#EBDDFF] transition-colors"
               >
                 {allVisibleSelected ? 'Unselect All' : 'Select All'}
               </button>
@@ -880,14 +880,14 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                   <button
                     type="button"
                     onClick={confirmBulkSuspend}
-                    className="px-3 py-1.5 text-sm font-medium text-amber-700 bg-amber-50 rounded-lg hover:bg-amber-100"
+                    className="px-3 py-1.5 text-sm font-bold text-[#471396] bg-[#F1E6FF] rounded-lg hover:bg-[#EBDDFF] transition-colors"
                   >
                     {allSelectedSuspended ? 'Unsuspend' : 'Suspend'}
                   </button>
                   <button
                     type="button"
                     onClick={confirmBulkDelete}
-                    className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+                    className="px-3 py-1.5 text-sm font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                   >
                     Delete
                   </button>
@@ -896,7 +896,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                 <button
                   type="button"
                   onClick={confirmBulkDelete}
-                  className="px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 rounded-lg hover:bg-red-100"
+                  className="px-3 py-1.5 text-sm font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                 >
                   Delete
                 </button>
@@ -977,7 +977,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                            </div>
                          )}
                          {healthStatus === 'slow' && (
-                           <div className="flex items-center gap-1.5 text-amber-600 font-black uppercase text-[10px] tracking-widest">
+                           <div className="flex items-center gap-1.5 text-red-400 font-black uppercase text-[10px] tracking-widest">
                              <AlertTriangle className="h-3.5 w-3.5" /> Slow Resp
                            </div>
                          )}
@@ -1027,7 +1027,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                               type="button"
                               onClick={() => confirmTakeDown(w)}
                               disabled={busy}
-                              className="p-1.5 h-8 w-8 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 transition-all flex items-center justify-center border border-amber-200 disabled:opacity-50"
+                              className="p-1.5 h-8 w-8 rounded-lg bg-[#f5f4ff] text-[#B13BFF] hover:bg-[#ebdfff] transition-all flex items-center justify-center border border-[#e2c7ff] disabled:opacity-50"
                             >
                               <LockIcon />
                             </button>
@@ -1074,7 +1074,7 @@ function DomainManagementContent({ onManage }: DomainManagementContentProps) {
                     disabled={loading || sortedVisibleWebsites.length === 0}
                     className={`min-w-8 px-2 py-1.5 text-sm rounded-md border transition-colors ${
                       currentPage === item
-                        ? 'bg-[#FFCC00] text-[#47266D] border-[#FFCC00] font-semibold'
+                        ? 'bg-[#B13BFF] text-white border-[#B13BFF] font-black shadow-lg shadow-purple-200 scale-105'
                         : 'border-transparent text-[#9A8CB4] hover:bg-[#F1E6FF]'
                     } disabled:opacity-40 disabled:cursor-not-allowed`}
                   >

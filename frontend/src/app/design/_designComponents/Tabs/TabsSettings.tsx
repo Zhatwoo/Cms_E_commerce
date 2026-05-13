@@ -3,7 +3,7 @@ import { useNode } from "@craftjs/core";
 import { DesignSection } from "../../_components/rightPanel/settings/DesignSection";
 import { SizePositionGroup } from "../../_components/rightPanel/settings/SizePositionGroup";
 import { AppearanceGroup } from "../../_components/rightPanel/settings/AppearanceGroup";
-import { PositionGroup } from "../../_components/rightPanel/settings/PositionGroup";
+import { LayoutLayerGroup } from "../../_components/rightPanel/settings/LayoutLayerGroup";
 import { EffectsGroup } from "../../_components/rightPanel/settings/EffectsGroup";
 import { TypographyGroup } from "../../_components/rightPanel/settings/TypographyGroup";
 import { ColorPicker } from "../../_components/rightPanel/settings/inputs/ColorPicker";
@@ -14,6 +14,7 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const TabsSettings = () => {
   const {
+    id,
     tabs,
     activeTabId,
     tabHeaderBackgroundColor,
@@ -28,13 +29,14 @@ export const TabsSettings = () => {
     backgroundImage, backgroundSize, backgroundPosition, backgroundRepeat, backgroundOverlay,
     borderRadius, radiusTopLeft, radiusTopRight, radiusBottomRight, radiusBottomLeft,
     borderColor, borderWidth, borderStyle, strokePlacement,
-    position, display, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
+    position, display, isFreeform, alignSelf, zIndex, top, right, bottom, left, editorVisibility,
     boxShadow, opacity, overflow, cursor,
     fontSize, fontWeight, fontFamily, fontStyle, lineHeight, letterSpacing, textAlign, textTransform, textDecoration,
-    node, // <-- add this
+    node,
     actions: { setProp }
   } = useNode(node => ({
-    node, // <-- and this
+    id: node.id,
+    node,
     tabs: node.data.props.tabs || [],
     activeTabId: node.data.props.activeTabId,
     tabHeaderBackgroundColor: node.data.props.tabHeaderBackgroundColor,
@@ -69,6 +71,7 @@ export const TabsSettings = () => {
     strokePlacement: node.data.props.strokePlacement,
     position: node.data.props.position,
     display: node.data.props.display,
+    isFreeform: node.data.props.isFreeform,
     alignSelf: node.data.props.alignSelf,
     zIndex: node.data.props.zIndex,
     top: node.data.props.top,
@@ -117,15 +120,6 @@ export const TabsSettings = () => {
       const idx = props.tabs.findIndex(t => t.id === id);
       if (idx !== -1) {
         props.tabs[idx].title = newTitle;
-      }
-    });
-  };
-
-  const handleContentChange = (id: string, newContent: React.ReactNode | string) => {
-    typedSetProp(props => {
-      const idx = props.tabs.findIndex(t => t.id === id);
-      if (idx !== -1) {
-        props.tabs[idx].content = typeof newContent === 'string' ? newContent : String(newContent);
       }
     });
   };
@@ -267,9 +261,11 @@ export const TabsSettings = () => {
       </DesignSection>
 
       <DesignSection title="Layout & Layer" defaultOpen={false}>
-        <PositionGroup
+        <LayoutLayerGroup
+          nodeId={id}
           position={position}
           display={display}
+          isFreeform={isFreeform}
           alignSelf={alignSelf}
           zIndex={zIndex}
           top={top}
@@ -277,7 +273,7 @@ export const TabsSettings = () => {
           bottom={bottom}
           left={left}
           editorVisibility={editorVisibility}
-          setProp={typedSetProp}
+          setProp={typedSetProp as any}
         />
       </DesignSection>
 
@@ -319,15 +315,15 @@ export const TabsSettings = () => {
 
       <DesignSection title="Typography" defaultOpen={false}>
         <TypographyGroup
-          fontSize={node.data.props.fontSize}
-          fontWeight={node.data.props.fontWeight}
-          fontFamily={node.data.props.fontFamily}
-          fontStyle={node.data.props.fontStyle}
-          lineHeight={node.data.props.lineHeight}
-          letterSpacing={node.data.props.letterSpacing}
-          textAlign={node.data.props.textAlign}
-          textTransform={node.data.props.textTransform}
-          textDecoration={node.data.props.textDecoration}
+          fontSize={fontSize}
+          fontWeight={fontWeight}
+          fontFamily={fontFamily}
+          fontStyle={fontStyle}
+          lineHeight={lineHeight}
+          letterSpacing={letterSpacing}
+          textAlign={textAlign}
+          textTransform={textTransform}
+          textDecoration={textDecoration}
           color={activeTabTextColor || "#000000"}
           setProp={(cb) => setProp((props: any) => {
             const fake: TypographyProps = {

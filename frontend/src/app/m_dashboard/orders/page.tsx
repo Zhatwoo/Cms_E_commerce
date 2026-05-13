@@ -1,9 +1,15 @@
 'use client';
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
 import { useProject } from '../components/context/project-context';
+import { TabBar, type TabBarItem } from '../components/ui/tabbar';
+import { SearchBar } from '../components/ui/searchbar';
+import { Pagination } from '../components/ui/Pagination';
+import { ViewModeToggle } from '../components/buttons/viewModeToggle';
+import { EmptyState } from '../components/ui/emptyState';
 import { listMyPublishedOrders, updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
+import { CustomDropdown } from '../components/ui/customDropdown';
 
 type OrderStatus = 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
 const ORDER_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Paid', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
@@ -41,11 +47,11 @@ function resolvePaymentMode(order: ApiPublishedOrder): PaymentMode {
 type CheckoutTab = 'all' | 'pending' | 'transit' | 'completed';
 type ViewMode = 'list' | 'grid';
 
-const CHECKOUT_TABS: { id: CheckoutTab; label: string }[] = [
-  { id: 'all', label: 'All Checkouts' },
-  { id: 'pending', label: 'Pending' },
-  { id: 'transit', label: 'In Transit' },
-  { id: 'completed', label: 'Completed' },
+const CHECKOUT_TABS: readonly TabBarItem<CheckoutTab>[] = [
+  { id: 'all', label: 'ALL CHECKOUTS' },
+  { id: 'pending', label: 'PENDING' },
+  { id: 'transit', label: 'IN TRANSIT' },
+  { id: 'completed', label: 'COMPLETED' },
 ];
 
 const ORDER_CATEGORIES = [
@@ -168,10 +174,6 @@ export default function OrdersPage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<OrderStatus>('Pending');
-  const tabRefs = useRef<Record<CheckoutTab, HTMLButtonElement | null>>({
-    all: null, pending: null, transit: null, completed: null,
-  });
-  const [tabIndicator, setTabIndicator] = useState({ left: 0, width: 0, ready: false });
 
   const loadOrders = useCallback(async () => {
     if (projectLoading) { setLoading(true); return; }
@@ -256,18 +258,6 @@ export default function OrdersPage() {
     setEditingOrderId(null);
   }, [activeTab, search, viewMode, categoryFilter]);
 
-  const updateTabIndicator = useCallback(() => {
-    const el = tabRefs.current[activeTab];
-    if (!el) return;
-    setTabIndicator({ left: el.offsetLeft, width: el.offsetWidth, ready: true });
-  }, [activeTab]);
-
-  useLayoutEffect(() => { updateTabIndicator(); }, [updateTabIndicator, activeTab]);
-  useEffect(() => {
-    window.addEventListener('resize', updateTabIndicator);
-    return () => window.removeEventListener('resize', updateTabIndicator);
-  }, [updateTabIndicator]);
-
   const actionButtonClass = 'h-8 min-w-8 px-2 rounded-md border inline-flex items-center justify-center transition-opacity disabled:opacity-60';
 
   const renderIcon = (type: 'eye' | 'check' | 'close') => {
@@ -289,152 +279,78 @@ export default function OrdersPage() {
   };
 
   return (
-    <div className="dashboard-landing-light relative mx-auto w-full max-w-[1320px] px-0.5 sm:px-1 [font-family:var(--font-outfit),sans-serif]">
+    <div className="dashboard-landing-light relative min-h-[calc(100vh-176px)] px-3 py-3 sm:px-5 sm:py-4 lg:px-25 [font-family:var(--font-outfit),sans-serif]">
 
       {/* ── Header ── */}
-      <section className="relative z-10 mb-6 sm:mb-7 text-center">
-        <h1 className="text-[44px] sm:text-[58px] lg:text-[76px] 2xl:text-[84px] font-extrabold leading-[1.15] tracking-tight">
-          <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#1E1B4B]'}`}>Customer </span>
-          <span
-            className={`block text-transparent bg-clip-text bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
-            style={{
-              backgroundImage: theme === 'dark'
-                ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)'
-                : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
-              textShadow: theme === 'dark' ? 'unset' : '0 1px 2px rgba(0,0,0,0.1)',
-              paddingBottom: '0.1em',
-              marginBottom: '-0.1em'
-            }}
+      <section className="max-w-[1090px] mx-auto pt-6 pb-2">
+        <div className="text-center">
+          <h1
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
+            style={{ color: colors.text.primary }}
           >
-            Checkouts
-          </span>
-        </h1>
+            <span className={theme === 'dark' ? 'text-white' : 'text-[#120533]'}>Track your buyer</span>
+            <br />
+            <span
+              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
+            >
+              order flow
+            </span>
+          </h1>
+        </div>
 
         {/* Tabs */}
-        <div className="mt-5 sm:mt-6 flex justify-center">
-          <div className="relative inline-flex items-center gap-x-4 max-[390px]:gap-x-3 md:gap-x-10">
-            {CHECKOUT_TABS.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  ref={(el) => { tabRefs.current[tab.id] = el; }}
-                  onClick={() => setActiveTab(tab.id)}
-                  className="relative whitespace-nowrap px-1 pb-2 text-[9px] max-[390px]:text-[9px] sm:text-[10px] lg:text-[11px] font-bold uppercase tracking-[0.12em] sm:tracking-[0.14em] [font-family:var(--font-outfit),sans-serif] transition-colors duration-200"
-                  style={{ color: isActive ? (theme === 'light' ? '#000000' : colors.accent.yellow) : colors.text.muted }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-            <span
-              className="pointer-events-none absolute bottom-[-3px] h-[3px] rounded-full transition-all duration-300 ease-out"
-              style={{
-                left: tabIndicator.left, width: tabIndicator.width,
-                opacity: tabIndicator.ready ? 1 : 0,
-                background: theme === 'dark' ? 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #ffcc00 100%)' : 'linear-gradient(90deg, #7c3aed 0%, #d946ef 50%, #f5a213 100%)',
-                boxShadow: theme === 'dark' ? '0 0 12px rgba(177, 59, 255, 0.35)' : '0 0 12px rgba(139, 92, 246, 0.35)',
-              }}
-            />
-          </div>
+        <div className="mt-7 sm:mt-8 flex justify-center">
+          <TabBar<CheckoutTab>
+            tabs={CHECKOUT_TABS}
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            theme={theme as 'light' | 'dark'}
+            underlineLayoutId="orders-checkout-tab-underline"
+          />
         </div>
 
         {/* Search */}
-        <div className={`m-dashboard-search-shadow mx-auto mt-7 sm:mt-8 max-w-[860px] rounded-2xl border px-5 py-3.5 flex items-center gap-3 ${theme === 'dark' ? 'bg-[#141446] border-[#1F1F51] [box-shadow:inset_0_0_0_1px_rgba(255,255,255,0.03),0_10px_40px_rgba(16,11,62,0.45)]' : 'bg-white/80 border-[#E2E8F0] shadow-sm backdrop-blur-md focus-within:border-[#8B5CF6] transition-colors'}`}>
-          <svg 
-            viewBox="0 0 20 20" 
-            className={`h-4 w-4 shrink-0 transition-all duration-300 ${theme === 'dark' ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' : 'text-[#8B5CF6]'}`} 
-            fill="none"
-          >
-            <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="8.75" cy="8.75" r="5.75" stroke="currentColor" strokeWidth="2" />
-          </svg>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search templates, designs, or actions"
-            className={`w-full bg-transparent text-sm outline-none ${theme === 'dark' ? 'text-white placeholder:text-[#6F70A8]' : 'text-[#120533] placeholder:text-[#8a86a3]'}`}
-          />
-        </div>
+        <SearchBar
+          value={search}
+          onChange={setSearch}
+          theme={theme as 'light' | 'dark'}
+          placeholder="Search templates, designs, or actions"
+          className="mx-auto mt-7 sm:mt-8 max-w-[860px]"
+        />
       </section>
 
       {/* ── Controls ── */}
-      <section className="relative z-10 mb-4 sm:mb-5 grid grid-cols-1 md:grid-cols-[180px_auto_180px] items-center gap-2.5 sm:gap-3">
+      <section className="relative z-10 mt-7 sm:mt-8 mb-4 sm:mb-5 flex flex-col gap-2.5 sm:gap-3 md:flex-row md:items-center md:justify-between">
         {/* Category filter */}
-        <div className="justify-self-center md:justify-self-start w-full md:w-auto">
-          <div className="relative w-full md:w-[178px]">
-            <select
-              value={categoryFilter}
-              onChange={(e) => setCategoryFilter(e.target.value)}
-              className={`h-12 w-full appearance-none rounded-2xl border pl-6 pr-10 text-[12px] font-semibold leading-none ${theme === 'dark' ? '' : 'admin-dashboard-panel border-0'}`}
-              style={{
-                borderColor: theme === 'dark' ? colors.border.faint : undefined,
-                backgroundColor: theme === 'dark' ? colors.bg.card : undefined,
-                color: colors.text.primary
-              }}
-            >
-              <option value="all">Category</option>
-              {ORDER_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>{c.label}</option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2" style={{ color: colors.text.secondary }}>
-              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 9l6 6 6-6" />
-              </svg>
-            </span>
-          </div>
+        <div className="w-full md:w-auto md:flex-none">
+          <CustomDropdown
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            options={ORDER_CATEGORIES}
+            title="Category"
+          />
         </div>
 
         {/* Pagination */}
-        <div className="justify-self-center flex items-center gap-1 sm:gap-2 text-xs" style={{ color: colors.text.secondary }}>
-          <button type="button" onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px] flex items-center justify-center ${theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}`}
-            style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'transparent' : undefined }} aria-label="Previous page">‹</button>
-          {paginationItems.map((item, idx) => {
-            if (item === 'ellipsis') return <span key={`ellipsis-${idx}`} className="px-0.5 text-[10px] sm:text-[11px]" style={{ color: colors.text.muted }}>...</span>;
-            const val = item as number;
-            const active = currentPage === val;
-            return (
-              <button key={val} type="button" onClick={() => setPage(val)}
-                className="h-6 min-w-6 sm:h-7 sm:min-w-7 px-1 max-[390px]:px-0.5 sm:px-2 rounded-full text-[10px] sm:text-[11px]"
-                style={{ backgroundColor: active ? `${colors.text.muted}55` : 'transparent', color: active ? colors.text.primary : colors.text.secondary }}>
-                {val}
-              </button>
-            );
-          })}
-          <button type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full border text-[12px] flex items-center justify-center ${theme === 'dark' ? '' : 'admin-dashboard-panel-soft border-0'}`}
-            style={{ borderColor: colors.border.faint, backgroundColor: theme === 'dark' ? 'transparent' : undefined }} aria-label="Next page">›</button>
-        </div>
+        {/* <Pagination
+          theme={theme as 'light' | 'dark'}
+          colors={colors}
+          paginationItems={paginationItems}
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={(value) => setPage(value)}
+          onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+          onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+        /> */}
 
         {/* View toggle */}
-        <div className="justify-self-center md:justify-self-end flex items-center gap-2">
-          {(['list', 'grid'] as ViewMode[]).map((mode) => {
-            const isActive = viewMode === mode;
-            return (
-              <button 
-                key={mode} 
-                type="button" 
-                onClick={() => setViewMode(mode)}
-                className={`h-9 w-9 sm:h-10 sm:w-10 rounded-xl border inline-flex items-center justify-center transition-all duration-300 ${isActive ? 'shadow-md scale-105' : 'hover:scale-105 opacity-70'}`}
-                style={{ 
-                  borderColor: isActive ? 'transparent' : colors.border.faint, 
-                  backgroundColor: isActive 
-                    ? (theme === 'light' ? '#14034A' : colors.accent.purple) 
-                    : (theme === 'light' ? '#FFFFFF' : colors.bg.card), 
-                  color: isActive ? '#FFFFFF' : (theme === 'light' ? '#14034A' : colors.text.primary) 
-                }}
-                aria-label={`${mode} view`}
-              >
-                {mode === 'list'
-                  ? <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" strokeLinecap="round" /></svg>
-                  : <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><rect x="4" y="4" width="6" height="6" rx="1.5" /><rect x="14" y="4" width="6" height="6" rx="1.5" /><rect x="4" y="14" width="6" height="6" rx="1.5" /><rect x="14" y="14" width="6" height="6" rx="1.5" /></svg>
-                }
-              </button>
-            );
-          })}
+        <div className="w-full md:w-auto md:flex-none md:ml-auto">
+          <ViewModeToggle
+            value={viewMode}
+            onChange={setViewMode}
+            theme={theme as 'light' | 'dark'}
+          />
         </div>
       </section>
 
@@ -444,7 +360,13 @@ export default function OrdersPage() {
       ) : error ? (
         <div className="py-14 text-center text-sm" style={{ color: colors.status.error }}>{error}</div>
       ) : pagedOrders.length === 0 ? (
-        <div className="py-14 text-center text-sm" style={{ color: colors.text.muted }}>No checkouts found for the selected filters.</div>
+        <EmptyState
+          tone={theme === 'dark' ? 'dark' : 'light'}
+          badgeText="No Checkouts"
+          title="No Orders Yet"
+          description="No checkouts found for the selected filters. Try changing your search or category."
+          className="pt-6 pb-2"
+        />
       ) : viewMode === 'list' ? (
 
         /* ══════════════════════════════════════════════════════

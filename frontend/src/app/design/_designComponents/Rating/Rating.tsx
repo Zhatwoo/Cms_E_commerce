@@ -74,12 +74,14 @@ export const Rating = ({
   flipVertical = false,
   cursor = "default",
   overflow = "visible",
+  isFreeform,
 }: RatingProps) => {
-  const { connectors: { connect, drag }, actions } = useNode();
+  const { id, connectors: { connect, drag }, actions } = useNode();
   const [hoverValue, setHoverValue] = React.useState<number | null>(null);
 
-  const effectiveDisplay =
-    editorVisibility === "hide"
+  const effectiveDisplay = isFreeform
+    ? "block"
+    : editorVisibility === "hide"
       ? "none"
       : editorVisibility === "show" && display === "none"
         ? "inline-flex"
@@ -118,6 +120,7 @@ export const Rating = ({
   return (
     <div
       ref={(ref) => { if (ref) connect(drag(ref)); }}
+      data-node-id={id}
       data-fluid-space="true"
       className={`inline-flex ${customClassName}`}
       style={{

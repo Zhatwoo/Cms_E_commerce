@@ -12,15 +12,16 @@ import { SearchBar } from '../components/ui/searchbar';
 import { EmptyState, type EmptyStateTone } from '../components/ui/emptyState';
 import ProductAddModal from './components/productAddModal';
 import ProductEditModal from './components/productEditModal';
-import { ProductsDropdown } from './components/productsDropdown';
+import { CustomDropdown } from '../components/ui/customDropdown';
 import { ProductCard } from './components/productContainer';
 import { ProductDetailsModal } from './components/viewProductDetails';
 import { PaginationControls } from './components/paginationControls';
 import { ProductListView } from './components/productListView';
 import { AddProductButton } from './components/button';
-import { StatusFilterButton, ViewModeToggleButton } from './components/subbuttons';
+import { StatusFilterButton } from './components/subbuttons';
+import { ViewModeToggle } from '../components/buttons/viewModeToggle';
 
-type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain'>;
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain' | 'projectId'>;
 const DEFAULT_LOW_STOCK_THRESHOLD = 5;
 
 type ProductPopupState = {
@@ -226,6 +227,27 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
+function normalizeImageSource(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const repaired = raw
+    .replace(/ImageProducts_img%2F/gi, 'Products_img%2F')
+    .replace(/ImageProducts_img\//gi, 'Products_img/');
+
+  if (isImageSource(repaired)) return repaired;
+
+  const bucket = String(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  const looksLikeStoragePath = /^Products_img(?:\/|%2F)/i.test(repaired);
+  if (!bucket || !looksLikeStoragePath) return '';
+
+  const [pathPartRaw, queryRaw = ''] = repaired.split('?');
+  const pathPart = pathPartRaw.includes('%2F') ? pathPartRaw : encodeURIComponent(pathPartRaw);
+  const query = queryRaw.trim();
+  const suffix = query ? `?${query}` : '?alt=media';
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${pathPart}${suffix}`;
+}
+
 function getVariantGroups(product: Product): ProductVariant[] {
   return Array.isArray(product.variants)
     ? product.variants.filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
@@ -339,9 +361,13 @@ function toDashboardProduct(product: ApiProduct): Product {
     ?? productRecord.specifications?.sub_category
     ?? ''
   ).trim();
-  const images = Array.isArray(product.images)
-    ? product.images.filter((img): img is string => typeof img === 'string' && img.trim().length > 0)
-    : [];
+  const imageCandidates: unknown[] = Array.isArray(product.images) ? product.images : [];
+  if (typeof (product as { image?: unknown }).image === 'string') {
+    imageCandidates.push((product as { image?: string }).image);
+  }
+  const images = imageCandidates
+    .map((img) => normalizeImageSource(img))
+    .filter((img, index, arr): img is string => Boolean(img) && arr.indexOf(img) === index);
   const variants: ProductVariant[] = Array.isArray(product.variants)
     ? product.variants
       .map((variant): ProductVariant => ({
@@ -406,9 +432,9 @@ function toDashboardProduct(product: ApiProduct): Product {
       return acc;
     }, {})
     : {};
-  const normalizedStock = typeof product.onHandStock === 'number'
-    ? product.onHandStock
-    : (typeof product.stock === 'number' ? product.stock : 0);
+    const normalizedStock = typeof product.onHandStock === 'number'
+      ? product.onHandStock
+      : (typeof product.stock === 'number' ? product.stock : 0);
 
   return {
     id: product.id,
@@ -433,7 +459,7 @@ function toDashboardProduct(product: ApiProduct): Product {
     stock: normalizedStock,
     lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
     status: toDashboardStatus(product.status),
-    image: images[0] || '[product]',
+    image: images.length > 0 ? images[0] : '[product]',
     images,
     createdAt: product.createdAt || new Date().toISOString(),
     sales: 0,
@@ -448,19 +474,21 @@ function normalizeSubdomain(value?: string | null): string {
 export default function ProductsPage() {
   const { colors, theme } = useTheme();
   const { showConfirm, showAlert } = useAlert();
-  const { selectedProject, loading: projectLoading } = useProject();
+  const { selectedProject, selectedProjectId, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
-  const blockedAddProductMessage = !selectedSubdomain
-    ? 'Set a subdomain for this website first to manage products.'
+  const blockedAddProductMessage = !selectedProjectId
+    ? 'Select a website project first to manage products.'
     : null;
-  const canAddProducts = Boolean(selectedSubdomain);
+  const canAddProducts = Boolean(selectedProjectId) && !projectLoading;
+  const addProductHelperMessage = selectedProjectId && !selectedSubdomain
+    ? "This website isn't published yet — you can still add products now."
+    : null;
   const [products, setProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'tile' | 'list'>('tile');
-  const [showCategoryFilterMenu, setShowCategoryFilterMenu] = useState(false);
   const [showStatusFilterMenu, setShowStatusFilterMenu] = useState(false);
   const statusMenuRef = useRef<HTMLDivElement | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -500,17 +528,16 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
-    if (!showStatusFilterMenu && !showCategoryFilterMenu) return;
+    if (!showStatusFilterMenu) return;
     const onMouseDown = (event: MouseEvent) => {
       const target = event.target as Node | null;
       if (!target) return;
       if (statusMenuRef.current?.contains(target)) return;
-      setShowCategoryFilterMenu(false);
       setShowStatusFilterMenu(false);
     };
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
-  }, [showStatusFilterMenu, showCategoryFilterMenu]);
+  }, [showStatusFilterMenu]);
 
   useEffect(() => {
     if (!openMenuProductId) return;
@@ -536,8 +563,11 @@ export default function ProductsPage() {
       return;
     }
     try {
-      const res = await listProducts({
+      const res = await listProducts(selectedSubdomain ? {
         subdomain: selectedSubdomain,
+        page: 1,
+        limit: 500,
+      } : {
         page: 1,
         limit: 500,
       });
@@ -737,16 +767,24 @@ export default function ProductsPage() {
         images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
       };
 
-      if (editingProduct) {
-        await updateProduct(editingProduct.id, payload);
+      const providedId = typeof (productData as { id?: unknown })?.id === 'string'
+        ? String((productData as { id?: unknown }).id)
+        : undefined;
+      const providedIdMatchesExisting = !!providedId && products.some((p) => p.id === providedId);
+      const targetProductId =
+        (editingProduct && typeof editingProduct.id === 'string' ? editingProduct.id : undefined) ||
+        (providedIdMatchesExisting ? providedId : undefined);
+
+      if (targetProductId) {
+        await updateProduct(targetProductId, payload);
         successMessage = 'Product updated successfully!';
       } else {
-        if (!selectedSubdomain) {
-          showAlert('Set a subdomain for this website first to manage products.', 'error');
+        if (!selectedSubdomain && !selectedProjectId) {
+          showAlert('Select a website project first to manage products.', 'error');
           return false;
         }
         await createProduct({
-          subdomain: selectedSubdomain,
+          ...(selectedSubdomain ? { subdomain: selectedSubdomain } : { projectId: selectedProjectId || undefined }),
           ...payload,
           slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
         });
@@ -864,8 +902,10 @@ export default function ProductsPage() {
           className="mt-6 mb-7 max-w-[860px] mx-auto"
         />
 
-        {blockedAddProductMessage && (
-          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>{blockedAddProductMessage}</p>
+        {(blockedAddProductMessage || addProductHelperMessage) && (
+          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>
+            {blockedAddProductMessage || addProductHelperMessage}
+          </p>
         )}
 
         <div className="w-full grid grid-cols-2 gap-[10px]">
@@ -884,21 +924,21 @@ export default function ProductsPage() {
           <div id="inventory-section" className="max-w-[1090px] mx-auto mb-5">
             <div className="flex items-center justify-between gap-[10px] flex-wrap">
               <div className="flex items-center gap-2 justify-start">
-                <ProductsDropdown
-                  selectedCategory={selectedCategory}
-                  onCategoryChange={(category) => {
+                <CustomDropdown
+                  value={selectedCategory}
+                  onChange={(category) => {
                     setSelectedCategory(category);
                     setCurrentPage(1);
                   }}
-                  filterOptions={filterOptions}
-                  showMenu={showCategoryFilterMenu}
-                  onMenuToggle={setShowCategoryFilterMenu}
+                  options={filterOptions.map((option) => ({ id: option.value, label: option.label }))}
+                  title="Category"
+                  className="md:w-40 lg:w-45"
                 />
 
                 <AddProductButton
                   onClick={() => setShowAddModal(true)}
                   disabled={!canAddProducts}
-                  title={blockedAddProductMessage || 'Add product'}
+                  title={blockedAddProductMessage || addProductHelperMessage || 'Add product'}
                 />
               </div>
 
@@ -918,11 +958,10 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                <ViewModeToggleButton
-                  viewMode={viewMode}
-                  onToggle={() => setViewMode((prev) => (prev === 'tile' ? 'list' : 'tile'))}
-                  theme={theme}
-                  colors={colors}
+                <ViewModeToggle
+                  value={viewMode === 'tile' ? 'grid' : 'list'}
+                  onChange={(mode) => setViewMode(mode === 'grid' ? 'tile' : 'list')}
+                  theme={theme as 'light' | 'dark'}
                 />
               </div>
             </div>
@@ -978,6 +1017,19 @@ export default function ProductsPage() {
         uploadSubdomain={selectedSubdomain}
         projectIndustry={selectedProject?.industry || null}
       />
+
+      <AnimatePresence>
+        {editingProduct && (
+          <ProductEditModal
+            isOpen={true}
+            onClose={() => setEditingProduct(undefined)}
+            onSave={handleSaveProduct}
+            editingProduct={editingProduct}
+            uploadSubdomain={selectedSubdomain}
+            projectIndustry={selectedProject?.industry || null}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {viewingProduct && (

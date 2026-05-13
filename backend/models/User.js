@@ -476,6 +476,62 @@ class User {
 
   }
 
+  /** Get active clients statistics only (for analytics dashboard). */
+  static async getActiveClientsStats() {
+    const threeMinsAgo = new Date(Date.now() - 3 * 60 * 1000);
+    
+    try {
+      const collRef = db.collection('user').doc('roles').collection('client');
+      const snap = await collRef.get();
+      
+      const docs = snap.docs.map(d => {
+        const data = d.data();
+        let lastSeenDate = null;
+        if (data.last_seen) {
+          lastSeenDate = data.last_seen.toDate ? data.last_seen.toDate() : new Date(data.last_seen);
+        }
+        return { 
+          ...data, 
+          id: d.id, 
+          last_seen_date: lastSeenDate,
+          status_lower: (data.status || '').toLowerCase(),
+          is_active: data.is_active
+        };
+      });
+
+      // isClientActive logic: status is 'published' or 'active' (case-insensitive) OR isActive === true
+      const activeClients = docs.filter(u => {
+        const statusMatch = u.status_lower === 'published' || u.status_lower === 'active';
+        return statusMatch || u.is_active === true;
+      });
+
+      // isUserOnline logic: (isOnline === true) OR (lastSeen within 3 minutes)
+      const onlineClients = activeClients.filter(u => {
+        if (u.is_online === true) return true;
+        if (u.is_online === false) return false;
+        // Check if last_seen is within 3 minutes
+        return u.last_seen_date && u.last_seen_date > threeMinsAgo;
+      });
+
+      const byPlan = {
+        free: docs.filter(u => (u.subscription_plan || u.subscriptionPlan || 'free') === 'free').length,
+        basic: docs.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'basic').length,
+        pro: docs.filter(u => (u.subscription_plan || u.subscriptionPlan) === 'pro').length
+      };
+
+      return {
+        total: docs.length,
+        active: activeClients.length,
+        online: onlineClients.length,
+        byPlan,
+        lastUpdated: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error in getActiveClientsStats:', error);
+      return { total: 0, active: 0, online: 0, byPlan: { free: 0, basic: 0, pro: 0 } };
+    }
+  }
+
   /** Signups trend across all roles. Returns { signups: counts, labels, period }. */
   static async getSignupsOverTime(period = '7days') {
     const now = new Date();

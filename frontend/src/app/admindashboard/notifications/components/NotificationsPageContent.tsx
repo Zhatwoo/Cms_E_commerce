@@ -30,6 +30,7 @@ import {
 } from "@/lib/notifications";
 import { formatToPHTime } from "@/lib/dateUtils";
 import { useAdminLoading } from "../../components/LoadingProvider";
+import { AdminPageHero } from "../../components/AdminPageHero";
 
 const AdminSidebar = dynamic(() => import('../../components/sidebar'), { ssr: false }) as any;
 const AdminHeader = dynamic(() => import('../../components/header'), { ssr: false }) as any;
@@ -114,7 +115,7 @@ export default function NotificationsPageContent() {
   };
 
   const getIcon = (type: string, read: boolean) => {
-    const color = read ? 'text-[#94a3b8]' : 'text-[#b13bff]';
+    const color = read ? 'text-[#A48ABF]' : 'text-[#b13bff]';
     switch (type) {
       case 'success': return <CheckCircle size={20} className={color} />;
       case 'warning': return <AlertTriangle size={20} className={color} />;
@@ -150,17 +151,16 @@ export default function NotificationsPageContent() {
         <AdminHeader onMenuClick={() => setSidebarOpen(true)} />
         
         <main className="flex-1 min-h-0 overflow-y-auto">
-          <div className="space-y-8 p-8 max-w-7xl mx-auto">
-            
-            <div>
-              <h1 className="text-3xl font-bold text-[#4a1a8a] mb-2">Notification Center</h1>
-              <p className="text-[#7a6aa0] font-medium text-sm">Keep track of your system alerts and administrative messages.</p>
-            </div>
+          <div className="mx-auto w-full max-w-[90rem] space-y-8 p-8 lg:p-10">
+            <AdminPageHero
+              title="Notification Center"
+              subtitle="Keep track of your system alerts and administrative messages."
+            />
 
             <div className="grid grid-cols-12 gap-8">
               
               <div className="col-span-12 lg:col-span-3">
-                <div className="admin-dashboard-panel space-y-2 rounded-[28px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-5 shadow-[0_8px_20px_rgba(123,78,192,0.1)]">
+                <div className="admin-dashboard-panel space-y-2 rounded-[28px] border border-[rgba(177,59,255,0.16)] bg-white p-5 shadow-[0_12px_28px_rgba(123,78,192,0.1)]">
                   {[
                     { label: "Inbox", icon: Inbox, filter: "all" as const },
                     { label: "Unread", icon: Bell, filter: "unread" as const },
@@ -206,7 +206,7 @@ export default function NotificationsPageContent() {
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.45 }}
-                  className="admin-dashboard-panel relative space-y-8 rounded-[36px] border border-[rgba(177,59,255,0.22)] bg-[#F5F4FF] p-8 shadow-[0_12px_36px_rgba(123,78,192,0.15)] overflow-hidden"
+                  className="admin-dashboard-panel relative space-y-8 rounded-[36px] border border-[rgba(177,59,255,0.16)] bg-white p-8 shadow-[0_14px_36px_rgba(123,78,192,0.12)] overflow-hidden"
                 >
                   <Bell className="absolute -right-8 -top-8 text-[#471396] opacity-[0.03]" size={180} />
 
@@ -227,7 +227,7 @@ export default function NotificationsPageContent() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center p-1.5 rounded-2xl bg-[rgba(177,59,255,0.06)] border border-[rgba(177,59,255,0.08)] shadow-inner">
+                    <div className="flex items-center rounded-2xl border border-[rgba(177,59,255,0.12)] bg-white p-1.5 shadow-[0_6px_16px_rgba(123,78,192,0.05)]">
                       {(['all', 'unread', 'read'] as const).map((t) => (
                         <button
                           key={t}
@@ -312,7 +312,7 @@ export default function NotificationsPageContent() {
                         ))}
                       </AnimatePresence>
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-20 rounded-[32px] border-2 border-dashed border-[rgba(166,61,255,0.1)] bg-white/20">
+                      <div className="flex flex-col items-center justify-center rounded-[32px] border-2 border-dashed border-[rgba(166,61,255,0.12)] bg-white/80 py-20">
                         <Inbox size={48} className="text-[#9CA3AF] mb-4 opacity-30" />
                         <p className="text-xs font-black text-[#9CA3AF] uppercase tracking-[0.3em]">No notifications found</p>
                       </div>

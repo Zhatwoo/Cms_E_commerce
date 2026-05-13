@@ -33,7 +33,7 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
     };
 
     if (!['GET', 'HEAD'].includes(method)) {
-      init.body = await request.text();
+      init.body = await request.arrayBuffer();
     }
 
     const res = await fetch(`${target}${search}`, init).catch(async (err) => {

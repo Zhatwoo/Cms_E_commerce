@@ -64,6 +64,7 @@ export const Badge = ({
 	customClassName = "",
 	textDecoration = "none",
 	editorVisibility = "auto",
+	isFreeform,
 	children,
 }: BadgeProps) => {
 	const {
@@ -132,8 +133,9 @@ export const Badge = ({
 	const resolvedText = typeof text === "string" ? text : "Badge";
 	const resolvedLineHeight = typeof lineHeight === "number" ? lineHeight : (lineHeight || 1.2);
 	const resolvedLetterSpacing = typeof letterSpacing === "number" ? `${letterSpacing}px` : letterSpacing;
-	const effectiveDisplay =
-		editorVisibility === "hide"
+	const effectiveDisplay = isFreeform
+		? "block"
+		: editorVisibility === "hide"
 			? "none"
 			: editorVisibility === "show" && display === "none"
 				? "flex"
@@ -390,6 +392,9 @@ export const BadgeDefaultProps: Partial<BadgeProps> = {
 	opacity: 1,
 	overflow: "hidden",
 	rotation: 0,
+	alignSelf: "auto",
+	isFreeform: false,
+	position: "relative",
 };
 
 Badge.craft = {

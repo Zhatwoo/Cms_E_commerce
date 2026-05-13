@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import {
   selectedToIds,
+  selectedToLeafIds,
   getClipboard,
   copySelection,
   pasteClipboard,
@@ -29,6 +30,7 @@ import {
   duplicateNodes,
   groupSelection,
   ungroupSelection,
+  deleteNodesPreservingCanvasScroll,
 } from "../_lib/canvasActions";
 import { Container } from "../_designComponents/Container/Container";
 import { useDesignProject } from "../_context/DesignProjectContext";
@@ -228,7 +230,7 @@ export function CanvasContextMenu() {
   }
 
   const state = query.getState();
-  const selectedIds = selectedToIds(state.events.selected);
+  const selectedIds = selectedToLeafIds(state.events.selected, state.nodes);
   // Use menu.nodeId as fallback when right-click selects a node but selection hasn't propagated yet
   const effectiveIds = selectedIds.length > 0
     ? selectedIds
@@ -488,7 +490,7 @@ export function CanvasContextMenu() {
   const handleDelete = () => {
     if (!deletable) return;
     try {
-      (actions as any).delete(effectiveIds.length === 1 ? effectiveIds[0]! : effectiveIds);
+      deleteNodesPreservingCanvasScroll(actions as any, effectiveIds.length === 1 ? effectiveIds[0]! : effectiveIds);
       (actions as any).selectNode(undefined);
     } catch { /* ignore */ }
     close();

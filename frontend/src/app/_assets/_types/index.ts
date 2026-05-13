@@ -4,6 +4,7 @@ export type TemplateCategory =
   | "header"
   | "hero"
   | "content"
+  | "landing"
   | "footer"
   | "form"
   | "card"

@@ -87,11 +87,11 @@ const SquareEditor = ({
   resolvedBottomLeft: number;
   position: React.CSSProperties["position"];
   display: React.CSSProperties["display"];
-  zIndex: number;
-  top: React.CSSProperties["top"];
-  right: React.CSSProperties["right"];
-  bottom: React.CSSProperties["bottom"];
-  left: React.CSSProperties["left"];
+  zIndex?: number;
+  top?: string;
+  right?: string;
+  bottom?: string;
+  left?: string;
   rotation: number;
   boxShadow: string;
   opacity: number;
@@ -120,15 +120,17 @@ const SquareEditor = ({
         minHeight: h,
         position,
         display,
-        zIndex: zIndex !== 0 ? zIndex : undefined,
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: zIndex !== undefined ? zIndex : undefined,
         top: position !== "static" ? top : undefined,
         right: position !== "static" ? right : undefined,
         bottom: position !== "static" ? bottom : undefined,
         left: position !== "static" ? left : undefined,
+        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
+        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
         transform: rotation ? `rotate(${rotation}deg)` : undefined,
         transformOrigin: "center center",
-        alignItems: "center",
-        justifyContent: "center",
         backgroundColor: fillColor,
         backgroundImage: backgroundImage
           ? backgroundOverlay
@@ -146,8 +148,6 @@ const SquareEditor = ({
         opacity,
         overflow: effectiveOverflow,
         cursor,
-        padding: `${pt}px ${pr}px ${pb}px ${pl}px`,
-        margin: `${mt}px ${mr}px ${mb}px ${ml}px`,
       }}
       className="hover:outline hover:outline-blue-500"
     >
@@ -167,16 +167,6 @@ export const Square = (props: SquareProps) => {
     backgroundPosition = "center",
     backgroundRepeat = "no-repeat",
     backgroundOverlay = "",
-    margin = 0,
-    marginTop,
-    marginRight,
-    marginBottom,
-    marginLeft,
-    padding = 0,
-    paddingTop = 0,
-    paddingRight = 0,
-    paddingBottom = 0,
-    paddingLeft = 0,
     borderColor = "transparent",
     borderWidth = 0,
     borderStyle = "solid",
@@ -186,18 +176,26 @@ export const Square = (props: SquareProps) => {
     radiusTopRight,
     radiusBottomRight,
     radiusBottomLeft,
-    position = "relative",
-    display = "flex",
-    zIndex = 0,
-    top = "auto",
-    right = "auto",
-    bottom = "auto",
-    left = "auto",
     rotation = 0,
     boxShadow = "none",
     opacity = 1,
     overflow = "visible",
     cursor = "default",
+    position = "absolute",
+    display = "flex",
+    zIndex = 0,
+    top,
+    right,
+    bottom,
+    left,
+    pt = 0,
+    pr = 0,
+    pb = 0,
+    pl = 0,
+    mt = 0,
+    mr = 0,
+    mb = 0,
+    ml = 0,
     children,
     isPreview,
   } = props;
@@ -205,16 +203,6 @@ export const Square = (props: SquareProps) => {
   const w = typeof width === "number" ? `${width}px` : (width || "200px");
   const h = typeof height === "number" ? `${height}px` : (height || "200px");
   const fillColor = background || color;
-  const m = typeof margin === "number" ? margin : 0;
-  const mt = marginTop ?? m;
-  const mr = marginRight ?? m;
-  const mb = marginBottom ?? m;
-  const ml = marginLeft ?? m;
-  const p = typeof padding === "number" ? padding : 0;
-  const pt = paddingTop ?? p;
-  const pr = paddingRight ?? p;
-  const pb = paddingBottom ?? p;
-  const pl = paddingLeft ?? p;
   const uniformRadius = typeof borderRadius === "number" ? borderRadius : 0;
   const resolvedTopLeft = radiusTopLeft ?? uniformRadius;
   const resolvedTopRight = radiusTopRight ?? uniformRadius;
@@ -250,6 +238,11 @@ export const Square = (props: SquareProps) => {
     resolvedTopRight={resolvedTopRight}
     resolvedBottomRight={resolvedBottomRight}
     resolvedBottomLeft={resolvedBottomLeft}
+    rotation={rotation}
+    boxShadow={boxShadow}
+    opacity={opacity}
+    effectiveOverflow={effectiveOverflow}
+    cursor={cursor}
     position={position}
     display={display}
     zIndex={zIndex}
@@ -257,11 +250,6 @@ export const Square = (props: SquareProps) => {
     right={right}
     bottom={bottom}
     left={left}
-    rotation={rotation}
-    boxShadow={boxShadow}
-    opacity={opacity}
-    effectiveOverflow={effectiveOverflow}
-    cursor={cursor}
     pt={pt}
     pr={pr}
     pb={pb}
@@ -293,6 +281,17 @@ export const SquareDefaultProps: Partial<SquareProps> = {
   opacity: 1,
   overflow: "hidden",
   cursor: "default",
+  position: "absolute",
+  display: "flex",
+  zIndex: 0,
+  pt: 0,
+  pr: 0,
+  pb: 0,
+  pl: 0,
+  mt: 0,
+  mr: 0,
+  mb: 0,
+  ml: 0,
 };
 
 Square.craft = {
@@ -307,3 +306,4 @@ Square.craft = {
   },
   canvas: true,
 };
+

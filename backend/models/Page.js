@@ -132,7 +132,8 @@ module.exports = {
   saveDraft,
   savePageData,
   getPageData,
-  deletePageData
+  deletePageData,
+  getAllPageData
 };
 
 // --- New Path Logic for User/Project/Page ---
@@ -188,4 +189,27 @@ async function getPageData(userId, projectId, pageId) {
 async function deletePageData(userId, projectId, pageId) {
   const ref = getProjectPageRef(userId, projectId, pageId);
   await ref.delete();
+}
+
+// Get all pages for a project
+async function getAllPageData(userId, projectId) {
+  const pagesRef = db.collection('user').doc('roles').collection('client').doc(userId)
+    .collection('projects').doc(projectId)
+    .collection('pages');
+  
+  const snap = await pagesRef.get();
+  
+  if (snap.empty) return [];
+  
+  const pages = snap.docs.map(doc => {
+    const data = docToObject(doc);
+    const content = data.page || data.content;
+    return {
+      id: doc.id,
+      ...data,
+      content: content
+    };
+  });
+  
+  return pages;
 }

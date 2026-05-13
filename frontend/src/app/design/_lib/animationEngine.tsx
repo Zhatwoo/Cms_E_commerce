@@ -607,7 +607,7 @@ function useGsapScrollEffect(
       const mode = config.freeMove?.mode ?? "relative";
       const capturedOrigin = config.freeMove?.origin;
       const normalized = config.freeMove?.normalized === true;
-      const legacyScaleCompensation = normalized ? 1 : (1 / getEffectiveZoom(el));
+      const legacyScaleCompensation = 1;
 
       if (Array.isArray(direct) && direct.length >= 2) {
         const normalized = [...direct]

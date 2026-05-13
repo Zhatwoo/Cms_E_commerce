@@ -2,7 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { type Product } from '@/lib/productsData';
+import { type Product } from '../../lib/productsData';
 
 type ThemeColors = {
   [key: string]: any;
@@ -18,6 +18,27 @@ function isImageSource(value: string): boolean {
   return false;
 }
 
+function normalizeImageSource(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const repaired = raw
+    .replace(/ImageProducts_img%2F/gi, 'Products_img%2F')
+    .replace(/ImageProducts_img\//gi, 'Products_img/');
+
+  if (isImageSource(repaired)) return repaired;
+
+  const bucket = String(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  const looksLikeStoragePath = /^Products_img(?:\/|%2F)/i.test(repaired);
+  if (!bucket || !looksLikeStoragePath) return '';
+
+  const [pathPartRaw, queryRaw = ''] = repaired.split('?');
+  const pathPart = pathPartRaw.includes('%2F') ? pathPartRaw : encodeURIComponent(pathPartRaw);
+  const query = queryRaw.trim();
+  const suffix = query ? `?${query}` : '?alt=media';
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${pathPart}${suffix}`;
+}
+
 function getVariantOptionImages(product: Product): string[] {
   const seen = new Set<string>();
   const images: string[] = [];
@@ -28,7 +49,7 @@ function getVariantOptionImages(product: Product): string[] {
 
   for (const variant of variantGroups) {
     for (const option of variant.options) {
-      const image = String(option?.image || '').trim();
+      const image = normalizeImageSource(option?.image);
       if (!isImageSource(image) || seen.has(image)) continue;
       seen.add(image);
       images.push(image);
@@ -84,7 +105,9 @@ export function ProductDetailsModal({
   const baseGallery = (Array.isArray(product.images) && product.images.length > 0
     ? product.images
     : [product.image]
-  ).filter((img) => isImageSource(String(img || '')));
+  )
+    .map((img) => normalizeImageSource(img))
+    .filter((img) => isImageSource(img));
   const variantGallery = getVariantOptionImages(product);
   const gallery = Array.from(new Set([...baseGallery, ...variantGallery]));
 
@@ -115,8 +138,8 @@ export function ProductDetailsModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[2147483000]"
-      style={{ backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
+      className="fixed inset-0"
+      style={{ zIndex: 2147483000, backgroundColor: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)' }}
       onClick={onClose}
     >
       <div className="absolute inset-0 flex items-center justify-center p-4 md:p-8">

@@ -150,10 +150,10 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
 
   const statusTone =
     saveStatus === "saving"
-      ? "text-yellow-300 border-yellow-400/30 bg-yellow-500/10"
+      ? "text-[var(--builder-status-saving)] border-yellow-400/30 bg-yellow-500/10"
       : saveStatus === "saved"
-        ? "text-green-300 border-green-400/30 bg-green-500/10"
-        : "text-red-300 border-red-400/30 bg-red-500/10";
+        ? "text-[var(--builder-status-saved)] border-green-400/30 bg-green-500/10"
+        : "text-[var(--builder-status-error)] border-red-400/30 bg-red-500/10";
 
   const statusLabel =
     saveStatus === "saving"
@@ -210,7 +210,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               type="button"
               onClick={() => setShowSelectionMenu(!showSelectionMenu)}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "move" || activeTool === "hand"
-                ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                ? "bg-blue-500/20 text-[var(--builder-active-text)] shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
                 : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
                 }`}
             >
@@ -238,7 +238,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     setShowSelectionMenu(false);
                   }}
                   className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${activeTool === tool.type
-                    ? "bg-blue-500/10 text-blue-400 font-bold"
+                    ? "bg-blue-500/10 text-[var(--builder-active-text)] font-bold"
                     : (permission === "viewer" && tool.type === "move")
                       ? "text-[var(--builder-text-faint)] cursor-not-allowed"
                       : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
@@ -260,7 +260,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
             onClick={() => onToolChange("text")}
             disabled={permission === "viewer"}
             className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "text"
-              ? "bg-blue-500/25 text-blue-300"
+              ? "bg-blue-500/25 text-[var(--builder-active-text)]"
               : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)]"
               } ${permission === "viewer" ? "opacity-40 cursor-not-allowed" : ""}`}
           >
@@ -282,7 +282,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               }}
               disabled={permission === "viewer"}
               className={`h-9 flex items-center gap-1.5 px-2.5 rounded-lg transition-all ${activeTool === "shape"
-                ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                ? "bg-blue-500/20 text-[var(--builder-active-text)] shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
                 : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
                 } ${permission === "viewer" ? "opacity-40 cursor-not-allowed" : ""}`}
             >
@@ -302,7 +302,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     setShowShapesMenu(false);
                   }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs transition-colors ${activeShape === s.type && activeTool === "shape"
-                    ? "bg-blue-500/20 text-blue-300"
+                    ? "bg-blue-500/20 text-[var(--builder-active-text)]"
                     : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
                     }`}
                 >
@@ -324,7 +324,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               }
             }}
             className={`h-9 w-9 grid place-items-center rounded-lg transition-colors ${activeTool === "comment"
-              ? "bg-amber-500/25 text-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.1)] border border-amber-500/20"
+              ? "bg-amber-500/20 text-[var(--builder-accent)] shadow-[0_0_15px_rgba(245,158,11,0.1)] border border-amber-500/20"
               : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
               }`}
           >
@@ -361,7 +361,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
               type="button"
               onClick={() => setShowViewMenu(!showViewMenu)}
               className={`flex items-center gap-1.5 px-3 h-9 rounded-lg transition-all ${showViewMenu || is100
-                ? "bg-blue-500/20 text-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
+                ? "bg-blue-500/20 text-[var(--builder-active-text)] shadow-[0_0_15px_rgba(59,130,246,0.1)] border border-blue-500/20"
                 : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-2)] border border-transparent"
                 }`}
             >
@@ -383,7 +383,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
                     onScaleChange?.(zoom);
                     setShowViewMenu(false);
                   }}
-                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${Math.abs(scale - zoom) < 0.01 ? "bg-blue-500/20 text-blue-300 font-bold" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"}`}
+                  className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${Math.abs(scale - zoom) < 0.01 ? "bg-blue-500/20 text-[var(--builder-active-text)] font-bold" : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"}`}
                 >
                   <span>{Math.round(zoom * 100)}%</span>
                 </button>
@@ -437,7 +437,7 @@ export const BottomPanel: React.FC<BottomPanelProps> = ({
           </span>
         )}
         {permission === "viewer" && (
-          <span className="pointer-events-auto rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] text-red-400 backdrop-blur-sm font-bold animate-pulse">
+          <span className="pointer-events-auto rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1 text-[10px] text-[var(--builder-status-error)] backdrop-blur-sm font-bold animate-pulse">
             View-only Mode: Access Restricted
           </span>
         )}
