@@ -1,5 +1,42 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Orders Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the main orders management page where users can view and manage
+ * customer orders with filtering, searching, pagination, and status updates.
+ *
+ * The component provides:
+ * - Order list with search and filtering
+ * - Status-based filtering (pending/transit/completed)
+ * - Payment method tracking and display
+ * - Tile and list view modes
+ * - Pagination with configurable per-page count
+ * - Order status updates
+ * - Order details viewing
+ * - Theme-aware styling
+ * - Real-time order data fetching
+ * - Visual status indicators
+ *
+ * What this Component Does:
+ * - Fetches published orders from API
+ * - Displays orders in list or grid view
+ * - Filters orders by status (pending/transit/completed)
+ * - Searches orders by ID, buyer name, or email
+ * - Shows payment method with icons
+ * - Allows updating order status
+ * - Provides pagination navigation
+ * - Shows order details on row click
+ * - Handles loading and error states
+ * - Formats order IDs and timestamps
+ * - Displays buyer information
+ *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
 import { useProject } from '../components/context/project-context';

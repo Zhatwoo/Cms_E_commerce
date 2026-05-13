@@ -1,4 +1,49 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Inventory Table Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component renders the inventory table with inline stock editing,
+ * status filtering, and product information display.
+ *
+ * The component provides:
+ * - Inventory table with columns (product, SKU, category, stock levels)
+ * - Inline stock quantity editor
+ * - Status badge display
+ * - Status menu for bulk updates
+ * - Loading states during saves
+ * - Theme-aware styling
+ * - Empty state handling
+ * - Column sorting headers
+ * - Scrollable table layout
+ *
+ * What this Component Does:
+ * - Renders product inventory data in table
+ * - Shows on-hand and reserved stock
+ * - Allows editing stock quantities inline
+ * - Provides status menu for updates
+ * - Shows loading indicators during saves
+ * - Displays error states
+ * - Handles edit cancellation
+ * - Shows product thumbnails
+ * - Formats numeric values
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * filteredItems: InventoryRow[]
+ * - Items to display in table
+ *
+ * editing/saving state props for inline editing
+ *
+ * Callback props for edit/save/cancel/status operations
+ *
+ * ============================================================================
+ */
+
 import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';

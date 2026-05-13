@@ -1,5 +1,39 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Domain List Row Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component renders a domain as a table row in list view with domain
+ * information, status, and action links.
+ *
+ * The component provides:
+ * - Domain/subdomain name display
+ * - Publish status badge
+ * - Project preview thumbnail
+ * - External link to visit site
+ * - Copy URL functionality
+ * - Download preview option
+ * - Action links and buttons
+ * - Theme-aware styling
+ * - Click handling for row selection
+ *
+ * What this Component Does:
+ * - Displays domain in list row format
+ * - Shows domain name and status
+ * - Displays project thumbnail
+ * - Provides visit site link
+ * - Allows copying URL
+ * - Allows downloading preview
+ * - Formats domain URL
+ * - Handles row click selection
+ * - Adapts styling based on theme
+ *
+ * ============================================================================
+ */
+
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { type MouseEvent, type ReactNode } from 'react';

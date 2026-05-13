@@ -1,3 +1,12 @@
+/**\n * ============================================================================\n * Create Project Form Component\n * ============================================================================\n *
+ * Purpose of this File:\n * ----------------------------------------------------------------------------\n * This file contains a comprehensive form component for creating new projects
+ * in the dashboard with project name, subdomain, and industry selection.
+ *
+ * The component provides:\n * - Form input fields for project configuration\n * - Industry category dropdown selection\n * - Subdomain validation and normalization\n * - Plan limit validation\n * - Theme-aware styling\n * - Error handling and display\n * - Loading state for form submission\n *\n * ----------------------------------------------------------------------------\n * What this Component Does:\n * ----------------------------------------------------------------------------\n * - Renders form with project name and subdomain fields\n * - Displays industry category dropdown\n * - Validates subdomain format and uniqueness\n * - Normalizes subdomain input (lowercase, alphanumeric, hyphens)\n * - Checks project plan limits before creation\n * - Calls createProject API on form submission\n * - Redirects to design editor after successful creation\n * - Shows loading state during submission\n * - Provides cancel action to return to projects list\n * - Calls optional onCreated callback with new project\n *\n * Props / Parameters:\n * ----------------------------------------------------------------------------\n *\n * cancelHref?: string\n * - Route to navigate to when user clicks cancel.\n * - Default: '/m_dashboard/projects'\n *
+ * onCreated?: (project: Project) => void\n * - Optional callback fired with created project.\n * - Called before redirecting to design editor.\n *
+ * Context Dependencies:\n * - useTheme: For theme styling\n * - useRouter: For navigation after creation\n * - useAuth: For current user context\n *
+ * ============================================================================\n */
+
 "use client";
 
 import React, { useCallback, useState } from "react";

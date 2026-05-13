@@ -1,10 +1,92 @@
-/*
-Etong auth-context.tsx na to ginawa lang to para global na yung pag tawag ng auth ni user di na per page
-para isahang tawag lang and di maabuso yung token
-*/
-
-
 'use client';
+
+/**
+ * ============================================================================
+ * Auth Context
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file provides a global authentication context for the application,
+ * enabling centralized user state management and authentication operations.
+ *
+ * The context provides:
+ * - Global user state management
+ * - Single API call for user authentication
+ * - User refresh/refetch functionality
+ * - User state setter for updates
+ * - Loading state tracking
+ *
+ * ----------------------------------------------------------------------------
+ * What this Context Does:
+ * ----------------------------------------------------------------------------
+ * - Wraps the application with user authentication state
+ * - Fetches current user data on mount using getMe() API
+ * - Stores user data in global context for easy access
+ * - Provides loading state for authentication checks
+ * - Allows manual user refresh via refreshUser()
+ * - Provides setUser() for updating user state
+ * - Prevents excessive API calls by centralizing user fetch
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters (AuthProvider):
+ * ----------------------------------------------------------------------------
+ *
+ * children: React.ReactNode
+ * - React components to be wrapped by the auth provider.
+ * - REQUIRED
+ *
+ * Context Values:
+ *
+ * user: User | null
+ * - Currently authenticated user object.
+ * - null if user is not authenticated.
+ *
+ * loading: boolean
+ * - Whether authentication is being checked.
+ * - true during initial fetch.
+ *
+ * refreshUser: () => Promise<void>
+ * - Manually refresh/refetch user data from API.
+ * - Useful for updating after user changes.
+ *
+ * setUser: (user: User | null) => void
+ * - Update user state manually.
+ * - Allows forcing a specific user state.
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * User
+ * - User object type from API.
+ * - Contains user information and metadata.
+ *
+ * AuthContextType
+ * - Context type definition with user, loading, and callbacks.
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * 1. Wrap application with AuthProvider:
+ *
+ * <AuthProvider>
+ *   <YourApp />
+ * </AuthProvider>
+ *
+ * 2. Use in components:
+ *
+ * const { user, loading, refreshUser } = useAuth();
+ *
+ * if (loading) return <div>Loading...</div>;
+ * if (!user) return <div>Not authenticated</div>;
+ *
+ * return <div>Welcome, {user.name}</div>;
+ *
+ * ============================================================================
+ */
+
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getMe, setStoredUser, type User } from '@/lib/api';
 
@@ -50,12 +132,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     useEffect(() => {
         if (!user) return;
-        
+
         // Presence Heartbeat: silently keep lastSeen updated every 60s
         const heartbeat = setInterval(() => {
             getMe().catch(() => {});
         }, 60000);
-        
+
         return () => clearInterval(heartbeat);
     }, [user]);
 

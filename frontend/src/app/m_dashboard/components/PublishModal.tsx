@@ -1,5 +1,40 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Publish Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a modal component for publishing projects to a subdomain
+ * or scheduling future publications with flexible scheduling options.
+ *
+ * The component provides:
+ * - Immediate and scheduled publishing modes
+ * - Subdomain configuration and validation
+ * - Project selection (optional, for domain flows)
+ * - Publish scheduling with date/time selection
+ * - Success callback with subdomain confirmation
+ * - Theme-aware styling
+ * - Input validation and error messages
+ * - Loading state handling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:\n * - Opens modal for project publishing options\n * - Allows choosing between immediate or scheduled publish\n * - Configures subdomain for published site\n * - Validates subdomain format and availability\n * - Shows project switcher when multiple projects provided\n * - Handles date/time picker for scheduled publishes\n * - Calls publishProject or schedulePublish API\n * - Executes onSuccess callback with published subdomain\n * - Closes modal on cancellation\n * - Adapts styling based on light/dark theme\n *
+ * Props / Parameters:\n * ----------------------------------------------------------------------------\n *
+ * open: boolean\n * - Controls modal visibility.\n * - REQUIRED\n *
+ * onClose: () => void\n * - Callback when modal is closed.\n * - REQUIRED\n *
+ * onSuccess: (subdomain: string) => void\n * - Callback when publishing succeeds.\n * - Called with the published subdomain.\n * - REQUIRED\n *
+ * projectId: string\n * - ID of the project being published.\n * - REQUIRED\n *
+ * projectTitle: string\n * - Title of the project being published.\n * - Used for default subdomain generation.\n * - REQUIRED\n *
+ * existingSubdomain?: string | null\n * - Current published subdomain if already published.\n * - Used to populate initial value.\n *
+ * projects?: Array<{ id: string; title: string; subdomain?: string | null }>\n * - Array of projects for project selector.\n * - Only shown if length > 1.\n *
+ * onProjectChange?: (projectId: string) => void\n * - Callback when selected project changes.\n * - Only called if project selector is shown.\n *
+ * Context Dependencies:\n * - useTheme: For theme styling\n *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import { useTheme } from './context/theme-context';
 import { publishProject, schedulePublish } from '@/lib/api';

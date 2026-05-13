@@ -1,6 +1,43 @@
-// wala header lang, laman lang neto is yung user name, profile, notif, dito ren pala nilagay yung theme toggle
-
 'use client';
+
+/**
+ * ============================================================================
+ * Dashboard Header Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the main header/navigation bar component for the dashboard,
+ * displaying user information, notifications, theme toggle, and profile access.
+ *
+ * The component provides:
+ * - User profile display with name and avatar
+ * - Theme toggle (light/dark mode switching)
+ * - Notification bell with dropdown menu
+ * - Project switcher pill for quick project selection
+ * - Settings menu with logout option
+ * - Notification timestamp formatting
+ * - Responsive design for mobile and desktop
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays current user's name and email
+ * - Renders theme toggle button (sun/moon icons)
+ * - Shows notification bell with unread count
+ * - Displays notification list with timestamps
+ * - Provides project switching dropdown
+ * - Includes settings menu with logout
+ * - Fetches and displays user notifications
+ * - Formats timestamps in Philippine time
+ * - Handles theme switching with context
+ * - Manages logout operations
+ *
+ * Props / Parameters:\n * - None (uses context hooks internally)\n *
+ * Context Dependencies:\n * - useTheme: For theme state and toggling\n * - useAuth: For user data and logout\n * - useAlert: For confirmation alerts\n * - useProject: For project switching\n *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';

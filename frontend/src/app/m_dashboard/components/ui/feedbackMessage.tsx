@@ -1,5 +1,173 @@
 'use client';
 
+/**
+ * ============================================================================
+ * FeedbackMessage Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable feedback/notification component system
+ * used for displaying:
+ *
+ * - Success messages
+ * - Error alerts
+ * - Warning notifications
+ * - Informational messages
+ *
+ * The component supports two display variants:
+ * - Toast notifications
+ * - Modal dialogs
+ *
+ * It also supports:
+ * - Auto-dismiss behavior
+ * - Theme-aware styling
+ * - Animated transitions
+ * - Portal rendering
+ * - Custom footer actions
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays feedback messages to the user
+ * - Shows contextual icons depending on message tone
+ * - Automatically closes toast notifications after a delay
+ * - Renders notifications above all UI layers using portals
+ * - Supports both modal and toast layouts
+ * - Adapts to dark/light theme automatically
+ * - Prevents background interaction in modal mode
+ *
+ * ----------------------------------------------------------------------------
+ * Feedback Tones:
+ * ----------------------------------------------------------------------------
+ *
+ * success
+ * - Green styling
+ * - Used for completed actions
+ *
+ * error
+ * - Red styling
+ * - Used for failed actions/errors
+ *
+ * warning
+ * - Orange styling
+ * - Used for risky actions or warnings
+ *
+ * info
+ * - Blue styling
+ * - Used for informational notices
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * FeedbackTone
+ * - Determines feedback style and icon.
+ *
+ * Available values:
+ *   'success'
+ *   'error'
+ *   'warning'
+ *   'info'
+ *
+ * ThemeMode
+ * - Internal helper type for theme tracking.
+ *
+ * Available values:
+ *   'light'
+ *   'dark'
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * open: boolean
+ * - Controls component visibility.
+ * - REQUIRED
+ *
+ * message: string
+ * - Main feedback message text.
+ * - REQUIRED
+ *
+ * tone: FeedbackTone
+ * - Determines icon and color styling.
+ * - REQUIRED
+ *
+ * title?: string
+ * - Optional message heading/title.
+ *
+ * variant?: 'toast' | 'modal'
+ * - Determines feedback layout type.
+ * - Default: 'toast'
+ *
+ * onClose?: () => void
+ * - Callback triggered when message closes.
+ *
+ * onBackdropClick?: () => void
+ * - Custom handler when clicking modal backdrop.
+ *
+ * footer?: React.ReactNode
+ * - Optional custom modal footer content.
+ *
+ * autoCloseMs?: number
+ * - Custom toast auto-dismiss duration in milliseconds.
+ *
+ * ----------------------------------------------------------------------------
+ * Default Auto-Close Durations:
+ * ----------------------------------------------------------------------------
+ *
+ * success -> 1800ms
+ * error   -> 3000ms
+ * warning -> 2600ms
+ * info    -> 2200ms
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Toast Example:
+ *
+ * <FeedbackMessage
+ *   open={showToast}
+ *   message="Product created successfully."
+ *   tone="success"
+ *   onClose={() => setShowToast(false)}
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Modal Example:
+ * ----------------------------------------------------------------------------
+ *
+ * <FeedbackMessage
+ *   open={showModal}
+ *   variant="modal"
+ *   title="Delete Confirmation"
+ *   message="Are you sure you want to delete this item?"
+ *   tone="warning"
+ *   onClose={() => setShowModal(false)}
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Custom Footer:
+ * ----------------------------------------------------------------------------
+ *
+ * <FeedbackMessage
+ *   open={showError}
+ *   variant="modal"
+ *   title="Upload Failed"
+ *   message="Something went wrong during upload."
+ *   tone="error"
+ *   footer={
+ *     <div className="flex gap-2">
+ *       <button onClick={retryUpload}>Retry</button>
+ *       <button onClick={() => setShowError(false)}>Cancel</button>
+ *     </div>
+ *   }
+ * />
+ *
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';

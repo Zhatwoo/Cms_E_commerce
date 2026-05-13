@@ -1,5 +1,41 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Status Badge Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains helper functions and a badge component for displaying
+ * product status with appropriate colors and styling.
+ *
+ * The component provides:
+ * - Status-specific color schemes
+ * - Human-readable status labels
+ * - Compact badge display format
+ * - Support for active, inactive, and draft statuses
+ * - Theme-aware styling
+ * - Pill-shaped badge styling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders color-coded status badge
+ * - Maps status to appropriate styling
+ * - Displays status label in uppercase
+ * - Provides style objects for different statuses
+ * - Generates human-readable status text
+ * - Shows visual indicators for product state
+ *
+ * Functions:
+ *
+ * getStatusStyle(status: StatusType)\n * - Returns style object with colors for status.\n *
+ * getStatusLabel(status: StatusType)\n * - Returns human-readable status label.\n *
+ * StatusBadge Component\n * - Renders the visual badge.\n *
+ * ============================================================================
+ */
+
 export type StatusType = 'active' | 'inactive' | 'draft';
 
 /**

@@ -1,4 +1,46 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Settings Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the main settings page where users can manage their profile,
+ * notifications, security, and billing information with organized tabs.
+ *
+ * The component provides:
+ * - Tabbed settings interface (general/notifications/security/billing)
+ * - User profile editing (name, email, username, bio, website)
+ * - Avatar upload and management
+ * - Theme toggle (light/dark mode)
+ * - Email notification preferences
+ * - Password management
+ * - Security settings
+ * - Payment method management
+ * - Bank account linking (Union Bank, PayPal)
+ * - Billing information display
+ * - Form validation and feedback messages
+ * - Theme-aware styling
+ *
+ * What this Component Does:
+ * - Fetches user profile information on mount
+ * - Manages general profile form state
+ * - Handles avatar upload to Firebase
+ * - Manages notification preferences
+ * - Handles password changes
+ * - Manages security settings
+ * - Displays payment methods
+ * - Links/unlinks bank accounts
+ * - Provides real-time form validation
+ * - Shows success/error feedback
+ * - Supports theme toggling
+ * - Tab-based section navigation
+ * - Handles loading states
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -485,7 +527,7 @@ export default function SettingsPage() {
                     >
                         Settings
                     </span>
-                </motion.h1>    
+                </motion.h1>
             </section>
 
             <div className="max-w-6xl mx-auto px-4">
@@ -505,22 +547,22 @@ export default function SettingsPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={`backdrop-blur-2xl rounded-[3rem] border overflow-hidden transition-colors duration-700 ${
-                            isDark 
-                                ? "bg-[#120533]/40 border-white/5" 
+                            isDark
+                                ? "bg-[#120533]/40 border-white/5"
                                 : "bg-white/70 border-white/50"
                         }`}
-                        style={{ 
-                            boxShadow: isDark 
-                                ? '0 40px 100px -20px rgba(0,0,0,0.5)' 
-                                : '0 40px 100px -20px rgba(0,0,0,0.03)' 
+                        style={{
+                            boxShadow: isDark
+                                ? '0 40px 100px -20px rgba(0,0,0,0.5)'
+                                : '0 40px 100px -20px rgba(0,0,0,0.03)'
                         }}
                     >
                         {/* Consistent Header Strip */}
                         <div
                     className="px-12 py-6 flex items-center justify-between"
-                    style={{ 
-                        background: isDark 
-                            ? 'linear-gradient(to right, #4C1D95, #1E1B4B)' 
+                    style={{
+                        background: isDark
+                            ? 'linear-gradient(to right, #4C1D95, #1E1B4B)'
                             : 'linear-gradient(to right, #803BED, #D946EF)',
                         borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
                     }}
@@ -528,7 +570,7 @@ export default function SettingsPage() {
                     <h2 className="text-white font-black uppercase tracking-[0.3em] text-[10px] opacity-90">
                         Configuration / {SETTINGS_TABS.find((t) => t.id === activeTab)?.label}
                     </h2>
-                    
+
                     <div className="relative">
                         <div className={`w-2 h-2 rounded-full animate-pulse ${
                             isDark ? "bg-[#FFCC00]" : "bg-white/40"
@@ -545,8 +587,8 @@ export default function SettingsPage() {
                     </motion.div>
                 </main>
             </div>
-            
-            <AddCardModal 
+
+            <AddCardModal
                 isOpen={isAddCardModalOpen}
                 onClose={() => setIsAddCardModalOpen(false)}
                 onSuccess={handleAddCardSuccess}

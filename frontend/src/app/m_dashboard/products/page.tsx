@@ -1,4 +1,100 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Products Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file is the main products inventory management page where users can
+ * view, create, edit, and delete products for their e-commerce store with
+ * support for variants, pricing, stock management, and image uploads.
+ *
+ * The component provides:
+ * - Product listing with search, filtering, and pagination
+ * - Tile and list view modes for products
+ * - Product CRUD operations (create, read, update, delete)
+ * - Variant management with stock and price overrides
+ * - Image upload and management
+ * - Status filtering (active, inactive, draft)
+ * - Category and subcategory filtering
+ * - Real-time product statistics
+ * - Theme-aware styling throughout
+ * - Product detail viewing modal
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Fetches and displays paginated product list
+ * - Shows product statistics cards (active/inactive count)
+ * - Provides search bar for filtering by name or SKU
+ * - Filters products by category, subcategory, and status
+ * - Supports tile and list view modes for displaying products
+ * - Handles pagination with configurable items per page
+ * - Opens add product modal for creating new products
+ * - Opens edit product modal for modifying existing products
+ * - Allows viewing detailed product information
+ * - Handles product deletion with confirmation
+ * - Manages variant configuration including stock and pricing
+ * - Handles image uploads to Firebase storage
+ * - Auto-generates SKUs for new products
+ * - Calculates variant combinations and prices
+ * - Shows empty states for no products or no search matches
+ * - Displays toast notifications for product operations
+ * - Refreshes product list on focus/visibility changes
+ *
+ * Props / Parameters:
+ * - userName?: string - For future user context
+ *
+ * State Management:
+ *
+ * - products: Array of products fetched from API
+ * - searchTerm: Current search filter text
+ * - selectedCategory: Currently selected category filter
+ * - statusFilter: Currently selected status filter
+ * - viewMode: Current view mode (tile or list)
+ * - currentPage: Current pagination page
+ * - perPage: Number of items per page
+ * - showAddModal: Whether add product modal is open
+ * - editingProduct: Product being edited (if any)
+ * - viewingProduct: Product being viewed (if any)
+ * - openMenuProductId: Currently open product action menu
+ * - productPopup: Toast notification state
+ *
+ * Key Functions:
+ *
+ * handleSaveProduct: Saves new or edited product to API
+ * handleDelete: Deletes product with confirmation
+ * handleEdit: Opens edit modal for product
+ * handleView: Opens detail view for product
+ * toDashboardProduct: Transforms API product to dashboard format
+ * normalizeImageSource: Validates and normalizes image URLs
+ * formatProductPrice: Formats price with currency
+ * getVariantGroups: Extracts valid variant groups
+ * getLowStockThreshold: Gets stock threshold for product
+ * isLowStock: Checks if product is low on stock
+ *
+ * Context Dependencies:
+ *
+ * - useTheme: For theme colors and styling
+ * - useAlert: For confirmation dialogs and alerts
+ * - useProject: For selected project context
+ *
+ * Type Definitions:
+ *
+ * Product
+ * - Product data structure with all fields
+ *
+ * ProductUpsertPayload
+ * - Payload structure for create/update operations
+ *
+ * ProductStatTile
+ * - Statistics card configuration
+ *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle, LucideIcon } from 'lucide-react';

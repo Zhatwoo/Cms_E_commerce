@@ -1,4 +1,43 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Inventory Import/Export Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component provides CSV import and export functionality for inventory
+ * management with file handling and data transformation.
+ *
+ * The component provides:
+ * - Export inventory to CSV file
+ * - Import CSV file for bulk inventory updates
+ * - CSV parsing with proper handling of quoted values
+ * - Data validation during import
+ * - Progress feedback
+ * - Error handling
+ *
+ * What this Component Does:
+ * - Exports product data to CSV format
+ * - Handles quoted CSV values correctly
+ * - Parses CSV import files
+ * - Validates import data
+ * - Transforms CSV data to API format
+ * - Triggers download of exported CSV
+ * - Handles file selection
+ * - Provides import feedback
+ *
+ * Functions:
+ *
+ * productsToCsv: Converts products array to CSV string
+ * parseCsvLine: Parses single CSV line handling quotes
+ * parseInventoryCsv: Full CSV parsing with validation
+ * ExportButton: Render button for exporting inventory
+ * ImportButton: Render button and handler for importing
+ *
+ * ============================================================================
+ */
+
 import React, { useRef, useCallback } from 'react';
 import { Upload, Download } from 'lucide-react';
 import { listInventory, importInventoryCsv, type ApiProduct, type ImportInventoryRow } from '@/lib/api';

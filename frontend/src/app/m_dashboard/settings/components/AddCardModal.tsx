@@ -1,5 +1,51 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Add Payment Card Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component provides a Stripe card element modal for adding new
+ * payment cards to a user's account.
+ *
+ * The component provides:
+ * - Stripe card element for secure card input
+ * - Cardholder name input field
+ * - Setup intent creation
+ * - Card validation
+ * - Loading states during processing
+ * - Error handling and display
+ * - Success feedback
+ * - Theme-aware styling
+ * - Modal shell wrapper
+ *
+ * What this Component Does:
+ * - Renders Stripe card element
+ * - Collects cardholder name
+ * - Creates Stripe setup intent
+ * - Validates card information
+ * - Sends card token to Stripe
+ * - Stores card in user's profile
+ * - Shows loading during processing
+ * - Displays error messages
+ * - Closes modal on success
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * isOpen: boolean
+ * - Controls modal visibility
+ *
+ * onClose: () => void
+ * - Callback when modal closes
+ *
+ * onCardAdded?: () => void
+ * - Callback on successful card add
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
@@ -34,15 +80,15 @@ const CARD_ELEMENT_OPTIONS = {
   },
 };
 
-function CardForm({ 
-  onSuccess, 
-  onCancel, 
-  clientSecret, 
+function CardForm({
+  onSuccess,
+  onCancel,
+  clientSecret,
   paymentMethods,
   onFormSubmit,
-}: { 
-  onSuccess: (methods: any[]) => void; 
-  onCancel: () => void; 
+}: {
+  onSuccess: (methods: any[]) => void;
+  onCancel: () => void;
   clientSecret: string;
   paymentMethods: any[];
   onFormSubmit: (handler: () => Promise<void>) => void;
@@ -101,7 +147,7 @@ function CardForm({
       };
 
       const updatedMethods = [...paymentMethods, newCard];
-      
+
       try {
         await updateProfile({ paymentMethods: updatedMethods });
         onSuccess(updatedMethods);
@@ -127,7 +173,7 @@ function CardForm({
         <p className="text-xs font-black uppercase tracking-[0.15em] mb-2" style={{ color: labelColor }}>
           Card Details
         </p>
-        <div 
+        <div
           className="p-4 rounded-lg border shadow-sm focus-within:ring-2 focus-within:ring-blue-500 transition-all"
           style={{ backgroundColor: inputBgColor, borderColor: inputBorderColor }}
         >
@@ -149,13 +195,13 @@ function CardForm({
   );
 }
 
-export function AddCardModal({ 
-  isOpen, 
-  onClose, 
+export function AddCardModal({
+  isOpen,
+  onClose,
   onSuccess,
   paymentMethods
-}: { 
-  isOpen: boolean; 
+}: {
+  isOpen: boolean;
   onClose: () => void;
   onSuccess: (methods: any[]) => void;
   paymentMethods: any[];
@@ -183,7 +229,7 @@ export function AddCardModal({
             throw new Error('Stripe Public Key is missing in backend configuration.');
           }
           setStripePromise(loadStripe(keyRes.publicKey));
-          
+
           if (!secretRes.success || !secretRes.clientSecret) {
             throw new Error('Failed to create setup intent.');
           }
@@ -226,7 +272,7 @@ export function AddCardModal({
           </div>
         </ModalCard>
       ) : error && !clientSecret ? (
-        <ModalCard 
+        <ModalCard
           title="Gateway error"
           subtitle="Unable to load Stripe configuration"
           footer={
@@ -245,7 +291,7 @@ export function AddCardModal({
           </div>
         </ModalCard>
       ) : clientSecret && stripePromise ? (
-        <ModalCard 
+        <ModalCard
           title="Add new card"
           subtitle="Securely store a payment method for future purchases"
           footer={
@@ -268,10 +314,10 @@ export function AddCardModal({
         >
           <div>
             <Elements stripe={stripePromise}>
-              <CardForm 
-                onSuccess={onSuccess} 
-                onCancel={onClose} 
-                clientSecret={clientSecret} 
+              <CardForm
+                onSuccess={onSuccess}
+                onCancel={onClose}
+                clientSecret={clientSecret}
                 paymentMethods={paymentMethods}
                 onFormSubmit={registerSubmitHandler}
               />

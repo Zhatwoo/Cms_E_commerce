@@ -1,5 +1,90 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Project Context
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file provides a global project context for managing the current user's
+ * projects and project selection state across the entire dashboard application.
+ *
+ * The context provides:
+ * - Project list management and fetching
+ * - Current project selection tracking
+ * - Project persistence in local storage
+ * - Hydration-aware state management
+ * - Loading state for async operations
+ *
+ * ----------------------------------------------------------------------------
+ * What this Context Does:
+ * ----------------------------------------------------------------------------
+ * - Fetches and manages list of user's projects
+ * - Tracks currently selected project ID and details
+ * - Persists project selection in local storage per user
+ * - Handles hydration of persisted project selection
+ * - Provides refresh function to update project list
+ * - Allows switching between projects
+ * - Updates backend when project selection changes
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters (ProjectProvider):
+ * ----------------------------------------------------------------------------
+ *
+ * children: React.ReactNode
+ * - React components to be wrapped by the project provider.
+ * - REQUIRED
+ *
+ * Context Values:
+ *
+ * projects: Project[]
+ * - Array of all projects for the current user.
+ * - Empty array if no projects exist.
+ *
+ * loading: boolean
+ * - Whether projects are being fetched.
+ * - true during initial load.
+ *
+ * selectedProjectId: string | null
+ * - ID of the currently selected project.
+ * - null if no project is selected.
+ *
+ * selectedProject: Project | null
+ * - Full project object of the selected project.
+ * - null if no project is selected.
+ *
+ * setSelectedProjectId: (id: string | null) => void
+ * - Change the currently selected project.
+ * - Updates state and persists to local storage.
+ *
+ * refreshProjects: (silent?: boolean) => Promise<void>\n * - Refetch projects from API.\n * - Optional silent parameter to skip loading state.
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * Project
+ * - Project object type from API.
+ *
+ * ProjectContextType
+ * - Context type with projects, selection, and callbacks.
+ *
+ * ProviderProps
+ * - Props for ProjectProvider component.
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * 1. Wrap with ProjectProvider:\n *
+ * <ProjectProvider>\n *   <YourApp />\n * </ProjectProvider>\n *
+ * 2. Use in components:\n *
+ * const { projects, selectedProject, setSelectedProjectId } = useProject();\n *
+ * return (\n *   <select onChange={(e) => setSelectedProjectId(e.target.value)}>\n *     {projects.map(p => (\n *       <option key={p.id} value={p.id}>{p.title}</option>\n *     ))}\n *   </select>\n * );\n *
+ * ============================================================================
+ */
+
 import React, {
   createContext,
   useCallback,
@@ -25,9 +110,9 @@ const ProjectContext = createContext<ProjectContextType>({
   loading: true,
   selectedProjectId: null,
   selectedProject: null,
-   
+
   setSelectedProjectId: () => {},
-   
+
   refreshProjects: async () => {},
 });
 

@@ -1,5 +1,42 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Project Switch Pill Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a pill-shaped dropdown button component that allows users
+ * to quickly view and switch between their projects in the dashboard header.
+ *
+ * The component provides:
+ * - Compact project selector display
+ * - Selected project title with initial letter icon
+ * - Dropdown menu showing all user projects
+ * - Click outside detection for closing dropdown
+ * - Theme-aware styling
+ * - Loading state handling
+ * - Smooth animations on hover
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays currently selected project in a pill format
+ * - Shows project initial letter in a colored circle
+ * - Opens dropdown menu when clicked
+ * - Lists all available user projects
+ * - Calls setSelectedProjectId when project selected
+ * - Closes dropdown when clicking outside
+ * - Handles loading state with 'Loading...' text
+ * - Shows 'No Project' when no projects available
+ * - Adapts colors based on light/dark theme
+ *
+ * Props / Parameters:\n * - None (uses context hooks internally)\n *
+ * Context Dependencies:\n * - useProject: For projects list and selection\n * - useTheme: For theme colors\n *
+ * ============================================================================
+ */
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useProject } from '../context/project-context';
@@ -47,7 +84,7 @@ export function ProjectSwitchPill() {
         text: isDark ? 'text-[#DDE7FF]' : 'text-[#120533]',
         dropdown: isDark ? 'bg-[#141446]/95' : 'bg-white',
     };
-    
+
   return (
     <div ref={rootRef} className="relative inline-flex font-[outfit] antialiased">
       <motion.button
@@ -116,7 +153,7 @@ export function ProjectSwitchPill() {
                     onClick={() => { setSelectedProjectId(String(project.id)); setOpen(false); }}
                     className={`
                       group w-full flex items-center gap-4 px-3 py-3 rounded-[16px] transition-all duration-300
-                      ${active 
+                      ${active
                         ? (isDark ? 'bg-[#FFCE00]/10 border border-[#FFCE00]/20' : 'bg-[#8B5CF6]/10 border border-[#8B5CF6]/25')
                         : (isDark ? 'hover:bg-white/5 border border-transparent' : 'hover:bg-[#8B5CF6]/5 border border-transparent')
                       }
@@ -144,7 +181,7 @@ export function ProjectSwitchPill() {
                   </button>
                 );
               })}
-            </div>   
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

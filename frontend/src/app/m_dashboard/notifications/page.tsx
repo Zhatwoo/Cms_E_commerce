@@ -1,5 +1,44 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Notifications Center Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the notifications center where users can view, manage, and delete
+ * notification items with filtering by status (all/unread/archive), pagination,
+ * and search functionality.
+ *
+ * The component provides:
+ * - Paginated notification list with 6 items per page
+ * - Status filtering (all/unread/archived)
+ * - Mark as read/unread functionality
+ * - Mark all as read functionality
+ * - Delete individual notifications
+ * - Delete all notifications
+ * - Search/filter notifications
+ * - Notification type icons and badges
+ * - Theme-aware styling
+ * - Smooth animations
+ * - Custom scrollbar styling
+ *
+ * What this Component Does:
+ * - Fetches notifications from API
+ * - Displays notifications in paginated list
+ * - Filters by read/unread/archived status
+ * - Allows marking notifications as read
+ * - Supports marking all as read
+ * - Allows deleting individual items
+ * - Supports bulk deletion
+ * - Shows notification badges and icons
+ * - Formats timestamps in local time
+ * - Adapts styling based on theme
+ * - Handles pagination navigation
+ *
+ * ============================================================================
+ */
+
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';

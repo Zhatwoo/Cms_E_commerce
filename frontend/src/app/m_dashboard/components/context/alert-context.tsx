@@ -1,5 +1,62 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Alert Context
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file provides a global alert context for displaying modal-based alerts,
+ * confirmation dialogs, and feedback messages throughout the application.
+ *
+ * The context provides:
+ * - Alert message display functionality
+ * - Confirmation dialog with yes/no responses
+ * - Message tone detection (success, error, warning, info)
+ * - Theme integration for dark/light modes
+ * - Promise-based confirmation handling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Context Does:
+ * ----------------------------------------------------------------------------
+ * - Displays global alert messages with titles and tones
+ * - Shows confirmation modals with custom button text
+ * - Returns promises from confirm operations for async handling
+ * - Automatically infers alert tone from title/message content
+ * - Integrates with FeedbackMessage component for display
+ * - Provides ModalButton components for user actions
+ * - Manages open/closed state of alerts
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters (AlertProvider):
+ * ----------------------------------------------------------------------------
+ *
+ * children: React.ReactNode
+ * - React components to be wrapped by the alert provider.
+ * - REQUIRED
+ *
+ * Context Values:
+ *
+ * showAlert: (message: string, title?: string, tone?: AlertTone) => void
+ * - Display an alert message modal.
+ * - Optional title and tone for customization.
+ *
+ * showConfirm: (message: string, title?: string, options?: ConfirmOptions) => Promise<boolean>
+ * - Display a confirmation dialog.
+ * - Returns promise that resolves to true (confirmed) or false (cancelled).
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * AlertTone\n * - Type for alert tones: 'success' | 'error' | 'warning' | 'info'\n *
+ * AlertState\n * - Internal state for alert modal.\n * - Contains message, title, tone, and variant.\n *
+ * ConfirmOptions\n * - Options for confirmation dialogs:\n *   - confirmText?: Custom text for confirm button\n *   - cancelText?: Custom text for cancel button\n *   - tone?: Alert tone for styling\n *
+ * AlertContextType\n * - Context type with showAlert and showConfirm methods.\n *
+ * ============================================================================
+ */
+
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { useThemeOptional } from './theme-context';
 import { THEMES } from './theme-context';

@@ -1,27 +1,45 @@
 "use client";
 
+/**
+ * ============================================================================
+ * Edit Project Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a modal component for editing existing project
+ * configuration including project name and subdomain.
+ *
+ * The component provides:
+ * - Animated modal transitions
+ * - Project name editing
+ * - Subdomain configuration
+ * - Error message display
+ * - Saving state handling
+ * - Theme-aware styling
+ * - Cancel and save actions
+ * - Editorial design aesthetic
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:\n * - Displays an edit modal for project settings\n * - Allows editing project title/name\n * - Allows editing project subdomain\n * - Shows validation errors\n * - Displays saving loading state\n * - Closes modal on cancel\n * - Calls onSave callback when confirmed\n * - Adapts styling based on light/dark theme\n * - Provides editorial, professional appearance\n *
+ * Props / Parameters:\n * ----------------------------------------------------------------------------\n *
+ * isOpen: boolean\n * - Controls modal visibility and animation state.\n * - REQUIRED\n *
+ * theme: DashboardTheme\n * - Current UI theme (light or dark).\n * - Determines modal styling.\n * - REQUIRED\n *
+ * projectName: string\n * - Original project name (for display only).\n * - REQUIRED\n *
+ * title: string\n * - Current value of project name input.\n * - REQUIRED\n *
+ * subdomain: string\n * - Current value of subdomain input.\n * - REQUIRED\n *
+ * error?: string\n * - Optional validation error message to display.\n *
+ * saving: boolean\n * - Whether form is currently submitting.\n * - Shows loading state on button.\n * - REQUIRED\n *
+ * onTitleChange: (value: string) => void\n * - Callback when project name input changes.\n * - REQUIRED\n *
+ * onSubdomainChange: (value: string) => void\n * - Callback when subdomain input changes.\n * - REQUIRED\n *
+ * onCancel: () => void\n * - Callback when user clicks cancel.\n * - REQUIRED\n *
+ * onSave: () => void\n * - Callback when user clicks save.\n * - REQUIRED\n *
+ * ============================================================================\n */
+
 import { useThemeOptional } from '../context/theme-context';
 import { ModalShell } from '@/components/ui/ModalShell';
 import { ModalCard } from '@/components/ui/ModalCard';
 import { ModalButton } from '@/components/ui/ModalButton';
-
-/// A high-end, editorial modal for editing project configuration.
-/// 
-/// Designed with a focus on typography and clean spacing, this component 
-/// adapts to Light and Dark modes while maintaining a professional SaaS aesthetic.
-///
-/// Parameters:
-/// - [isOpen]: Controls the animation lifecycle of the modal.
-/// - [theme]: Current UI mode ('light' | 'dark').
-/// - [projectName]: The original name of the project being edited.
-/// - [title]: The current value of the project name input.
-/// - [subdomain]: The current value of the subdomain input.
-/// - [error]: Optional validation message to display.
-/// - [saving]: Loading state for the primary action button.
-/// - [onTitleChange]: Callback for the name input.
-/// - [onSubdomainChange]: Callback for the subdomain input.
-/// - [onCancel]: Dismisses the modal.
-/// - [onSave]: Executes the update logic.
 
 type DashboardTheme = 'light' | 'dark';
 

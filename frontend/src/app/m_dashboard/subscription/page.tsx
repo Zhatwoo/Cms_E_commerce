@@ -386,14 +386,14 @@ export default function SubscriptionPage() {
         style={{
           backgroundColor: isDark ? 'rgba(17, 16, 88, 0.4)' : 'rgba(255, 255, 255, 0.8)',
           borderColor: isDark ? 'rgba(124, 58, 237, 0.2)' : 'rgba(18, 25, 58, 0.08)',
-          boxShadow: isDark 
-            ? '0 40px 80px -15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)' 
+          boxShadow: isDark
+            ? '0 40px 80px -15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)'
             : '0 40px 80px -15px rgba(18,25,58,0.03)',
         }}
       >
         {/* THE SPECTRUM STRIP: Gradient from your screenshot */}
-        <div 
-          className="absolute top-0 left-0 right-0 h-[4px] z-20" 
+        <div
+          className="absolute top-0 left-0 right-0 h-[4px] z-20"
           style={{ background: 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' }}
         />
 
@@ -411,7 +411,7 @@ export default function SubscriptionPage() {
               Compare Plans
             </h3>
           </div>
-          
+
           {currentPlan !== 'free' && (
             <button
               type="button"
@@ -443,13 +443,13 @@ export default function SubscriptionPage() {
                       {isCurrent && (
                         <div className="absolute inset-x-2 inset-y-4 bg-[#7C3AED]/[0.04] rounded-3xl z-0" />
                       )}
-                      
+
                       <div className="relative z-10 flex flex-col gap-2">
-                        <span className={`text-[15px] font-black uppercase tracking-[0.2em] 
+                        <span className={`text-[15px] font-black uppercase tracking-[0.2em]
                                         ${isCurrent ? 'bg-clip-text text-transparent' : 'opacity-40'}`}
-                              style={{ 
+                              style={{
                                 backgroundImage: isCurrent ? 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' : 'none',
-                                color: isCurrent ? 'transparent' : (isDark ? '#FFF' : '#12193A') 
+                                color: isCurrent ? 'transparent' : (isDark ? '#FFF' : '#12193A')
                               }}>
                           {plan.name}
                         </span>

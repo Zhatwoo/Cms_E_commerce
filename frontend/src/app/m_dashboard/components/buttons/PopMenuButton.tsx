@@ -1,3 +1,121 @@
+'use client';
+
+/**
+ * ============================================================================
+ * Pop Menu Button Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable pop menu (dropdown) button component for
+ * displaying contextual actions and options throughout the dashboard.
+ *
+ * The component provides:
+ * - Customizable menu options with icons and labels
+ * - Theme support for light and dark modes
+ * - Disabled and hidden state support for options
+ * - Per-option visual customization via className
+ * - Click handling with automatic menu closure
+ * - Accessible trigger button with ARIA labels
+ * - Responsive positioning and styling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders a trigger button (customizable icon or default three-dot)
+ * - Displays a dropdown menu with selectable options
+ * - Calls onSelect callback when an option is clicked
+ * - Supports disabled options that cannot be selected
+ * - Supports hidden options that are not displayed
+ * - Allows per-option custom styling
+ * - Filters hidden options before rendering
+ * - Closes menu after option selection
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * theme: DashboardTheme
+ * - The current UI theme mode (light or dark).
+ * - Determines menu styling and colors.
+ * - Values: 'light' | 'dark'
+ * - REQUIRED
+ *
+ * isOpen: boolean
+ * - Whether the pop menu is currently open/visible.
+ * - Used to control dropdown visibility state.
+ * - REQUIRED
+ *
+ * onToggle: () => void
+ * - Callback triggered when trigger button is clicked.
+ * - Should toggle the isOpen state.
+ * - REQUIRED
+ *
+ * options: PopMenuOption[]
+ * - Array of menu options to display.
+ * - Each option must contain key, label, and onSelect.
+ * - REQUIRED
+ *
+ * triggerAriaLabel?: string
+ * - Accessible label for screen readers.
+ * - Default: 'Open actions menu'
+ *
+ * triggerIcon?: ReactNode
+ * - Custom icon for the trigger button.
+ * - Falls back to vertical three-dot icon if not provided.
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * DashboardTheme
+ * - Type for theme modes: 'light' | 'dark'
+ *
+ * PopMenuOption
+ * - Represents a single menu option with:
+ *   - key: Stable identifier for rendering
+ *   - label: User-facing option text
+ *   - icon?: Optional icon node
+ *   - onSelect: Callback when option selected
+ *   - className?: Custom styling classes
+ *   - disabled?: Whether option is disabled
+ *   - hidden?: Whether option is hidden
+ *
+ * PopMenuButtonProps
+ * - Props interface for the component
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Example Usage:
+ *
+ * const [menuOpen, setMenuOpen] = useState(false);
+ *
+ * const options = [
+ *   {
+ *     key: 'edit',
+ *     label: 'Edit Project',
+ *     onSelect: () => handleEdit(),
+ *   },
+ *   {
+ *     key: 'delete',
+ *     label: 'Delete',
+ *     onSelect: () => handleDelete(),
+ *     className: 'text-red-500',
+ *   },
+ * ];
+ *
+ * <PopMenuButton
+ *   theme="dark"
+ *   isOpen={menuOpen}
+ *   onToggle={() => setMenuOpen(!menuOpen)}
+ *   options={options}
+ * />
+ *
+ * ============================================================================
+ */
+
 import type { ReactNode } from 'react';
 
 type DashboardTheme = 'light' | 'dark';
@@ -20,23 +138,15 @@ export type PopMenuOption = {
 };
 
 type PopMenuButtonProps = {
-  /** Theme mode used to render dark/light variants. */
   theme: DashboardTheme;
-  /** Whether the pop menu is currently open. */
   isOpen: boolean;
-  /** Accessible label for the trigger button. */
   triggerAriaLabel?: string;
-  /** Trigger icon node. Falls back to a vertical three-dot icon. */
   triggerIcon?: ReactNode;
-  /** Called when trigger button is clicked. */
   onToggle: () => void;
-  /** List of options rendered in the pop menu. */
   options: PopMenuOption[];
 };
 
-/**
- * Generic pop-menu trigger and dropdown options renderer.
- */
+
 export function PopMenuButton({
   theme,
   isOpen,

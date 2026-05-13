@@ -1,4 +1,40 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Domains Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the domains and custom domain management page where users can
+ * manage subdomains, connect custom domains, and view publishing history.
+ *
+ * The component provides:
+ * - Subdomain management for published projects
+ * - Custom domain addition and verification
+ * - Domain list display (tile and list views)
+ * - Domain details sidebar with DNS instructions
+ * - Publish history viewing
+ * - Domain unpublishing
+ * - Search and filtering
+ * - Statistics display
+ * - Theme-aware styling
+ *
+ * What this Component Does:
+ * - Fetches projects and domain data from API
+ * - Displays domains in tile or list view
+ * - Manages subdomain configuration
+ * - Handles custom domain addition
+ * - Verifies custom domains via DNS
+ * - Shows publishing history
+ * - Allows unpublishing domains
+ * - Provides domain details sidebar
+ * - Shows domain statistics
+ * - Handles loading and error states
+ *
+ * ============================================================================
+ */
+
 import { motion, AnimatePresence } from 'framer-motion';
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';

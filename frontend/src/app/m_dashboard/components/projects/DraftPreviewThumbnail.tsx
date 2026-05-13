@@ -1,5 +1,34 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Draft Preview Thumbnail Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a component that renders a thumbnail preview of a project
+ * draft document, showing a scaled-down version of the design for quick preview.
+ *
+ * The component provides:
+ * - Lazy loading of draft document from API
+ * - Responsive scaling and fitting to container
+ * - WebPreviewComponent dynamic import
+ * - Loading state handling
+ * - Error handling for missing drafts
+ * - Customizable border and background colors
+ * - Responsive container sizing
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:\n * - Fetches draft document for given project ID\n * - Parses document content for rendering\n * - Dynamically imports WebPreviewComponent\n * - Calculates optimal fit scale for thumbnail\n * - Renders scaled preview of design document\n * - Handles loading and error states\n * - Applies custom styling with border and background\n * - Respects container dimensions for scaling\n *
+ * Props / Parameters:\n * ----------------------------------------------------------------------------\n *
+ * projectId: string\n * - ID of the project whose draft should be previewed.\n * - REQUIRED\n *
+ * borderColor: string\n * - CSS color value for thumbnail border.\n * - REQUIRED\n *
+ * bgColor: string\n * - CSS color value for thumbnail background.\n * - REQUIRED\n *
+ * className?: string\n * - Optional additional Tailwind classes for styling.\n * - Default: empty string\n *
+ * ============================================================================
+ */
+
 import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
 import { getDraft } from '@/app/design/_lib/pageApi';
 import type { BuilderDocument } from '@/app/design/_types/schema';

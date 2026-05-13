@@ -1,6 +1,121 @@
 'use client';
-
-import React from 'react';
+/**
+ * ============================================================================
+ * EmptyState Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable Empty State UI component used to display
+ * meaningful feedback whenever there is no available data, content,
+ * search results, projects, records, or user activity.
+ *
+ * The component is highly customizable and supports:
+ * - Light and dark themes
+ * - Compact and default layouts
+ * - Primary and secondary action buttons
+ * - Optional badges and footer notes
+ * - Responsive design
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays a visually styled empty state section
+ * - Shows a title and optional description
+ * - Displays optional action buttons
+ * - Supports compact mode for smaller layouts
+ * - Adapts styling depending on theme (light/dark)
+ * - Provides reusable empty state behavior across the system
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * EmptyStateTone
+ * - Controls visual theme styling
+ * - Available values:
+ *    'light'
+ *    'dark'
+ *
+ * EmptyStateAction
+ * - Represents an action button configuration
+ *
+ * Structure:
+ * {
+ *   label: string;
+ *   onClick?: () => void;
+ *   disabled?: boolean;
+ * }
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * badgeText?: string
+ * - Small label displayed above the title
+ * - Usually used for section identifiers
+ *
+ * title: string
+ * - Main empty state heading
+ * - REQUIRED
+ *
+ * description?: string | null
+ * - Additional supporting text
+ * - Explains why the state is empty
+ *
+ * tone?: EmptyStateTone
+ * - Determines component color styling
+ * - Default: 'light'
+ *
+ * size?: 'default' | 'compact'
+ * - Controls spacing and text sizes
+ * - Default: 'default'
+ *
+ * primaryAction?: EmptyStateAction
+ * - Main CTA button configuration
+ *
+ * secondaryAction?: EmptyStateAction
+ * - Secondary button configuration
+ *
+ * footerNote?: string
+ * - Small footer helper text displayed below actions
+ *
+ * className?: string
+ * - Additional custom Tailwind classes
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Example:
+ *
+ * <EmptyState
+ *   title="No Orders Found"
+ *   description="There are currently no orders available."
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Actions:
+ * ----------------------------------------------------------------------------
+ *
+ * <EmptyState
+ *   badgeText="Inventory"
+ *   title="No Products Yet"
+ *   description="Start adding products to your inventory."
+ *   tone="dark"
+ *   primaryAction={{
+ *     label: "Add Product",
+ *     onClick: () => router.push('/products/create')
+ *   }}
+ *   secondaryAction={{
+ *     label: "Refresh",
+ *     onClick: handleRefresh
+ *   }}
+ *   footerNote="Waiting for new inventory updates"
+ * />
+ *
+ * ============================================================================
+ */
 
 export type EmptyStateTone = 'light' | 'dark';
 
@@ -39,7 +154,7 @@ export function EmptyState({
 
   return (
     <section className={`w-full max-w-5xl mx-auto transition-all duration-700 [font-family:var(--font-outfit),sans-serif] ${isCompact ? 'py-8 px-2' : 'py-24 px-4'} ${className}`}>
-      <div 
+      <div
         className={`
           flex flex-col border-t border-slate-500/10 transition-all duration-700
           ${isCompact ? 'pt-5' : 'pt-12'}

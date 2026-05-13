@@ -1,5 +1,40 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Domain Details Sidebar Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component displays detailed information about a selected domain in a
+ * sidebar panel including DNS instructions, publishing history, and controls.
+ *
+ * The component provides:
+ * - Domain name and URL display
+ * - Publish status with badge
+ * - DNS verification instructions
+ * - Copy DNS records functionality
+ * - Publishing history display
+ * - Domain unpublish button
+ * - Custom domain management
+ * - Theme-aware styling
+ * - Expandable sections
+ *
+ * What this Component Does:
+ * - Shows selected domain details
+ * - Displays DNS configuration instructions
+ * - Lists publishing history
+ * - Allows unpublishing domain
+ * - Provides DNS record copying
+ * - Shows domain verification status
+ * - Displays certificate status
+ * - Shows custom domain options
+ * - Handles unpublish operations
+ * - Adapts styling based on theme
+ *
+ * ============================================================================
+ */
+
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   AlertTriangle,
@@ -141,7 +176,7 @@ export function DomainDetailsSidebar({
   </div>
 
   <div className="flex-1 overflow-y-auto px-8 pb-8 space-y-10 custom-scrollbar">
-    
+
     {/* Identity Section */}
     <div className="space-y-6">
       <SidebarRow icon={<Globe size={10} />} label="Environment" theme={theme}
@@ -205,8 +240,8 @@ export function DomainDetailsSidebar({
           <button
             onClick={onOpenCustomDomainModal}
             className={`w-full py-4 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center gap-1
-              ${theme === 'dark' 
-                ? 'border-white/10 hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/5 text-white/40 hover:text-white' 
+              ${theme === 'dark'
+                ? 'border-white/10 hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/5 text-white/40 hover:text-white'
                 : 'border-[#12193A]/10 hover:border-[#7C3AED]/50 hover:bg-[#7C3AED]/5 text-[#12193A]/40 hover:text-[#7C3AED]'
               }`}
           >
@@ -229,7 +264,7 @@ export function DomainDetailsSidebar({
         </span>
         {historyExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
       </button>
-      
+
       <AnimatePresence>
         {historyExpanded && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-5 space-y-3">

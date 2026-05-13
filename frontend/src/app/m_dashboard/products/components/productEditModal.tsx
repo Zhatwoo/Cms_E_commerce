@@ -1,14 +1,54 @@
 'use client';
+
 /**
- * ProductEditModal Component
- * 
- * Modal for editing existing products. Loads product data on open and preserves
- * the product ID and creation timestamp. Supports all the same features as ProductAddModal
- * including variants, pricing, stock, and image management.
- * 
- * Reuses all types and utility functions exported from ProductAddModal to avoid
- * code duplication while maintaining separate component logic for add vs. edit flows.
+ * ============================================================================
+ * Product Edit Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the product editing modal that allows users to modify
+ * existing products while preserving their ID and creation timestamp. It
+ * reuses the same form interface as the add modal but in edit mode.
+ *
+ * The component provides:
+ * - Loading of existing product data into form
+ * - All editing capabilities of ProductAddModal
+ * - Preservation of product ID and createdAt timestamp
+ * - Variant modification and management
+ * - Pricing and stock updates
+ * - Image replacement and management
+ * - Theme-aware styling
+ * - Form validation and error handling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Opens modal with product data pre-loaded
+ * - Allows editing product name, SKU, description
+ * - Enables category and subcategory modification
+ * - Supports variant configuration changes
+ * - Allows pricing and cost updates
+ * - Enables stock quantity modification
+ * - Allows image replacement and addition
+ * - Preserves original product ID
+ * - Maintains creation timestamp
+ * - Validates form before submission
+ * - Calls onSave callback with updated data
+ * - Shows loading state during save
+ * - Displays validation errors
+ *
+ * Props / Parameters:
+ * ----\n *
+ * isOpen: boolean\n * - Controls modal visibility.\n * - REQUIRED\n *
+ * onClose: () => void\n * - Callback when modal is closed.\n * - REQUIRED\n *
+ * onSave: (p: Partial<Product> & Partial<FormData>) => Promise<boolean> | boolean\n * - Async callback to save product data.\n * - Should return true on success, false on failure.\n * - REQUIRED\n *
+ * product?: Product\n * - Product to edit. If provided, form is populated with data.\n *
+ * uploadSubdomain?: string | null\n * - Subdomain for image upload API calls.\n * - Optional, used for Firebase uploads.\n *
+ * projectIndustry?: string | null\n * - Industry type for locking category selection.\n * - Optional, pre-selects category based on project.\n *
+ * ============================================================================
  */
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ModalShell } from '@/components/ui/ModalShell';
@@ -40,11 +80,11 @@ import {
 
 /**
  * ProductEditModal Component
- * 
+ *
  * Edit mode for existing products. Loads product data into the form when opened
  * and preserves the original product ID and createdAt timestamp. Supports full
  * editing of variants, pricing, stock, images, and other product properties.
- * 
+ *
  * Props:
  * - `isOpen`: Controls modal visibility
  * - `onClose`: Callback to close the modal
@@ -939,7 +979,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
           {images.length} <span className="text-sm font-bold opacity-40 uppercase tracking-widest">of 5 slots</span>
         </h2>
       </div>
-      
+
       {variationImageGallery.length > 0 && (
         <div className="text-right">
           <p className="text-[11px] font-black uppercase tracking-widest opacity-40" style={{ color: labelColor }}>
@@ -976,8 +1016,8 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
       }`}
       style={{
         borderColor: dragging ? (isLight ? '#8B5CF6' : '#7E9CFF') : (isLight ? '#CFC4E5' : '#3A4473'),
-        backgroundColor: dragging 
-          ? (isLight ? '#F3EFFF' : '#2A3459') 
+        backgroundColor: dragging
+          ? (isLight ? '#F3EFFF' : '#2A3459')
           : (isLight ? '#F9F7FF' : '#1E2642'),
       }}
     >
@@ -999,7 +1039,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
             </AnimatePresence>
 
             {/* Pagination Badge */}
-            <div className="absolute left-6 bottom-6 px-4 py-2 rounded-2xl text-[12px] font-black tracking-widest backdrop-blur-xl border border-white/10" 
+            <div className="absolute left-6 bottom-6 px-4 py-2 rounded-2xl text-[12px] font-black tracking-widest backdrop-blur-xl border border-white/10"
                  style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: '#FFFFFF' }}>
               {slide + 1} / {images.length}
             </div>
@@ -1064,7 +1104,7 @@ export default function ProductEditModal({ isOpen, onClose, onSave, editingProdu
                   )}
                 </button>
               ))}
-              
+
               {images.length < 5 && (
                 <button
                   type="button"

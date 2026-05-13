@@ -1,3 +1,59 @@
+/**
+ * ============================================================================
+ * Security Settings Tab Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component displays security settings where users can change their
+ * password and manage other security-related options.
+ *
+ * The component provides:
+ * - Current password field
+ * - New password field
+ * - Confirm password field
+ * - Password visibility toggle
+ * - Password strength validation
+ * - Save button
+ * - Success feedback
+ * - Error messages
+ * - Theme-aware styling
+ *
+ * What this Component Does:
+ * - Renders password change form
+ * - Manages password field states
+ * - Validates password requirements
+ * - Toggles password visibility
+ * - Detects form changes
+ * - Saves password changes
+ * - Shows success/error feedback
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * colors: Record<string, any>
+ * - Theme color palette
+ *
+ * theme: string
+ * - Current theme mode
+ *
+ * showPassword: boolean
+ * - Whether password is visible
+ *
+ * setShowPassword: (value: boolean) => void
+ * - Toggle password visibility
+ *
+ * saveSuccess: boolean
+ * - Whether save succeeded
+ *
+ * onSave: () => void
+ * - Callback to save security changes
+ *
+ * setIsDirty?: (v: boolean) => void
+ * - Optional callback for form dirty state
+ *
+ * ============================================================================
+ */
+
 import React, { useEffect, useState } from 'react';
 import { Check, Eye, EyeOff, Lock, Save, ShieldCheck } from 'lucide-react';
 
@@ -79,11 +135,11 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
         <label className="block text-[10px] font-black uppercase tracking-[0.2em] mb-6 ml-1 opacity-50" style={{ color: colors.text.primary }}>
         Advanced Protection
         </label>
-        <div 
+        <div
         className="flex flex-col md:flex-row items-center justify-between p-8 rounded-[2.5rem] border transition-all duration-500"
-        style={{ 
-            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', 
-            borderColor: colors.border.faint 
+        style={{
+            backgroundColor: theme === 'dark' ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+            borderColor: colors.border.faint
         }}
         >
         <div className="flex flex-col md:flex-row items-center gap-6">
@@ -98,7 +154,7 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
             <p className="text-xs font-medium opacity-40 italic">Status: Disabled</p>
             </div>
         </div>
-        
+
         <button
             className="mt-6 md:mt-0 px-8 py-3 rounded-full text-[10px] font-black uppercase tracking-widest bg-[#803BED] text-white transition-all hover:opacity-80 active:scale-95"
         >
@@ -115,7 +171,7 @@ export function SecurityTab({ colors, theme, showPassword, setShowPassword, save
         >
         Discard Changes
         </button>
-        
+
         <button
         onClick={onSave}
         className="relative group flex items-center gap-3 px-10 py-4 rounded-full overflow-hidden transition-all active:scale-95 shadow-lg shadow-violet-500/20"

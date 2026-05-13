@@ -1,5 +1,66 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Dashboard Page Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file is the main dashboard landing page for the application, providing
+ * a comprehensive interface for users to manage their projects, browse templates,
+ * and create new designs.
+ *
+ * The component provides:
+ * - Tabbed interface switching between "Your Designs" and "Templates"
+ * - Featured project carousel with auto-rotation
+ * - Project grid display with search/filtering
+ * - Project CRUD operations (create, edit, delete, restore)
+ * - Template browsing by industry category
+ * - Template application to projects
+ * - Theme-aware styling throughout
+ * - Persistent tab selection via URL params
+ * - Real-time project synchronization
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders main dashboard layout with hero section
+ * - Displays tabbed interface for designs and templates
+ * - Shows search bar for filtering projects and templates
+ * - Manages featured project carousel with auto-advance
+ * - Displays grid of other user projects
+ * - Allows creating new projects
+ * - Opens edit modal for project name/subdomain changes
+ * - Handles project deletion with confirmation
+ * - Displays template library organized by industry
+ * - Allows applying templates to selected projects
+ * - Routes to design editor on project selection
+ * - Persists tab selection in URL search params
+ * - Refreshes project list on visibility/focus changes
+ * - Handles template application with backup creation
+ * - Manages all project state and operations
+ *
+ * Props / Parameters (DashboardContent):
+ * ----\n *
+ * userName?: string\n * - Current user's display name for greeting.\n * - Default: 'User'\n *
+ * State Management:\n *
+ * - activeTab: Current tab ('designs' or 'templates')\n * - searchQuery: Search/filter text from search bar\n * - loading: Whether projects are being loaded\n * - allProjects: Full list of user's projects\n * - recentProjects: Recently updated projects for carousel\n * - activeProjectIndex: Current carousel slide index\n * - isSliderTransitionEnabled: Whether carousel animations run\n * - showAllOtherProjects: Whether to show all projects or limited grid\n * - openProjectMenuId: Currently open project action menu\n * - renamingProject: Project being edited\n * - editTitle: New project title input\n * - editSubdomain: New project subdomain input\n * - editError: Validation error message\n * - applyingTemplateId: Template currently being applied\n *
+ * Key Functions:\n *
+ * formatLastEdited: (dateStr?: string) => string\n * - Formats date as human-readable "last activity X hours/days ago"\n *
+ * formatEditedDate: (dateStr?: string) => string\n * - Formats date as human-readable "edited X minutes/hours/days ago"\n *
+ * toWorkspaceLabel: (project?: Project | null) => string\n * - Converts project title to uppercase workspace identifier\n *
+ * handleEditActiveProject: (project: Project) => Promise<void>\n * - Opens edit modal for project\n *
+ * submitRenameProject: () => Promise<void>\n * - Submits project name/subdomain changes to API\n *
+ * handleDeleteActiveProject: (project: Project) => Promise<void>\n * - Moves project to trash with confirmation\n *
+ * handleApplyTemplate: (templateProjectId: string) => Promise<void>\n * - Applies selected template to current project\n *
+ * Context Dependencies:\n *
+ * - useProject: For projects list and selection management\n * - useTheme: For theme styling throughout\n * - useAlert: For confirmation dialogs and alerts\n * - useRouter: For navigation\n * - usePathname/useSearchParams: For tab persistence in URL\n *
+ * Type Definitions:\n *
+ * HeroTab\n * - Union type: 'designs' | 'templates'\n *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
@@ -496,13 +557,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             underlineLayoutId="dashboard-tab-underline"
           />
 
-          <div 
+          <div
             className={`
-              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
+              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border
               transition-all duration-500
-              
-              ${theme === 'dark' 
-                ? 'bg-[#141446] border-[#1F1F51]' 
+
+              ${theme === 'dark'
+                ? 'bg-[#141446] border-[#1F1F51]'
                 : 'admin-dashboard-panel-soft border-0'
               }
 
@@ -519,16 +580,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               {theme === 'light' && (
                 <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
               )}
-              
-              <svg 
-                viewBox="0 0 20 20" 
+
+              <svg
+                viewBox="0 0 20 20"
                 className={`
                   h-4 w-4 shrink-0 relative z-10 transition-all duration-300
-                  ${theme === 'dark' 
-                    ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' 
+                  ${theme === 'dark'
+                    ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]'
                     : 'text-[#8B5CF6]'
                   }
-                `} 
+                `}
                 fill="none"
               >
                 <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

@@ -1,3 +1,63 @@
+/**
+ * ============================================================================
+ * Project Card Container Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component renders an individual project card with thumbnail preview,
+ * metadata, and action menu for edit/delete/open operations.
+ *
+ * The component provides:
+ * - Draft preview thumbnail loading
+ * - Project metadata display (name, edit date)
+ * - Status badge showing publish state
+ * - Action menu with edit/delete/open options
+ * - Theme-aware styling
+ * - Customizable menu options via builder
+ * - Pop menu interactions
+ * - Formatted date display
+ *
+ * What this Component Does:
+ * - Renders project card with thumbnail
+ * - Shows project name and last edited date
+ * - Displays publish status badge
+ * - Provides action menu for operations
+ * - Calls callbacks for edit/delete/open
+ * - Manages menu open/closed state
+ * - Formats date information
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * theme: DashboardTheme
+ * - 'light' or 'dark' theme mode
+ *
+ * project: Project
+ * - Project data to display
+ *
+ * isMenuOpen: boolean
+ * - Whether the action menu is open
+ *
+ * onOpenDesign: (projectId?: string) => void
+ * - Open design editor for project
+ *
+ * onToggleMenu: (projectId: string) => void
+ * - Toggle menu open/closed
+ *
+ * onEditProject: (project: Project) => void
+ * - Trigger edit modal
+ *
+ * onDeleteProject: (project: Project) => void
+ * - Trigger delete confirmation
+ *
+ * menuOptionsBuilder?: (project: Project) => PopMenuOption[]
+ * - Custom menu options builder function
+ *
+ * Other styling and utility props
+ *
+ * ============================================================================
+ */
+
 import type { Project } from '@/lib/api';
 import type { ReactNode } from 'react';
 import { DraftPreviewThumbnail } from '../components/projects/DraftPreviewThumbnail';
@@ -107,7 +167,7 @@ export function ProjectCardContainer({
     bgColor="transparent"
     className="w-full h-full aspect-16/10! rounded-none!"
   />
-  
+
   {/* SCRIM OVERLAY: This ensures the badge is ALWAYS readable by adding a subtle shadow behind it */}
   <div className="absolute inset-0 z-10 bg-linear-to-t from-black/40 via-transparent to-transparent opacity-60 pointer-events-none" />
 

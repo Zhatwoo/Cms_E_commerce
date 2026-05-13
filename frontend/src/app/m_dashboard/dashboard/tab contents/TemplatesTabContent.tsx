@@ -1,5 +1,63 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Templates Tab Content Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the templates tab view component that displays available
+ * design templates organized by industry categories and saved templates for
+ * users to browse and apply to their projects.
+ *
+ * The component provides:
+ * - Industry category filtering and selection
+ * - Pre-built template deck display with descriptions
+ * - Saved templates gallery showing user's saved template projects
+ * - Template search functionality
+ * - Apply template with project selection
+ * - Loading and applying states
+ * - Empty state handling
+ * - Theme-aware styling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays hero template deck with featured templates by industry
+ * - Shows industry cards for browsing templates by category
+ * - Renders saved templates grid with preview thumbnails
+ * - Allows applying templates to existing projects
+ * - Filters templates by search query
+ * - Shows loading state while applying template
+ * - Provides empty state when no templates available
+ * - Allows reassigning saved templates to different projects
+ * - Routes to design editor for pre-built templates
+ * - Adapts layout and colors based on theme
+ *
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * theme: DashboardTheme\n * - Current UI theme mode (light or dark).\n * - Determines component styling and colors.\n * - Values: 'light' | 'dark'\n * - REQUIRED\n *
+ * industries: readonly IndustryCard[]\n * - Array of industry categories for template organization.\n * - Each card contains a label for the industry.\n * - REQUIRED\n *
+ * getIndustryIcon: (label: string) => ReactNode\n * - Function to get icon for industry category.\n * - Takes industry label and returns React node.\n * - REQUIRED\n *
+ * projects: Project[]\n * - Array of user's projects for applying templates.\n * - REQUIRED\n *
+ * selectedProject: Project | null\n * - Currently selected project for template application.\n * - REQUIRED\n *
+ * searchQuery: string\n * - Search filter for template names.\n * - REQUIRED\n *
+ * applyingTemplateId: string | null\n * - ID of template currently being applied.\n * - Used for loading state.\n * - REQUIRED\n *
+ * onApplyTemplate: (templateProjectId: string) => Promise<void>\n * - Callback to apply selected template to project.\n * - Should handle API call for template application.\n * - REQUIRED\n *
+ * onOpenPrebuiltTemplate?: (folder: string, label: string) => void\n * - Optional callback when pre-built template is clicked.\n * - Routes to design editor with template context.\n *
+ * onSelectTargetProject?: (projectId: string) => void\n * - Optional callback when target project is changed.\n * - Allows reassigning template to different project.\n *
+ * Type Definitions:
+ * ----------------------------------------\n *
+ * DashboardTheme\n * - Union type for theme modes: 'light' | 'dark'\n *
+ * IndustryCard\n * - Simple card type with label for industry category.\n *
+ * PrebuiltTemplateCard\n * - Pre-built template card with folder, label, description, preview.\n *
+ * TemplateCard\n * - Saved template card with project details and metadata.\n *
+ * TemplatesTabContentProps\n * - Props interface for the component.\n *
+ * ============================================================================
+ */
+
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import type { Project } from '@/lib/api';
@@ -195,7 +253,7 @@ function HeroTemplateDeck({
                 <div className="h-full w-full scale-90 transition-transform duration-700 group-hover:scale-95">
                   {template.preview}
                 </div>
-                
+
                 {/* Subtle Gradient to make the preview "pop" */}
                 <div className="absolute inset-0 bg-linear-to-tr from-[#15093E]/20 to-transparent pointer-events-none" />
               </div>
@@ -210,7 +268,7 @@ function HeroTemplateDeck({
                     {template.folder}
                   </p>
                 </div>
-                
+
                 <h4 className={`text-base font-bold tracking-tight transition-colors ${
                   theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#15093E]'
                 }`}>
@@ -478,7 +536,7 @@ export function TemplatesTabContent({
                         />
                       </div>
                     )}
-                    
+
                     {/* Subtle Gradient to make the preview "pop" */}
                     <div className="absolute inset-0 bg-linear-to-tr from-[#15093E]/20 to-transparent pointer-events-none" />
                   </div>
@@ -493,7 +551,7 @@ export function TemplatesTabContent({
                         {template.category}
                       </p>
                     </div>
-                    
+
                     <h4 className={`text-base font-bold tracking-tight transition-colors ${
                       theme === 'dark' ? 'text-white group-hover:text-[#FFCE00]' : 'text-[#15093E]'
                     }`}>

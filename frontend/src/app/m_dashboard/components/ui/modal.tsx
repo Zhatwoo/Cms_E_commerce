@@ -1,5 +1,203 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Modal Component System
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable modal/dialog component system used for
+ * displaying overlays, dialogs, confirmation windows, forms, alerts,
+ * and other focused UI interactions.
+ *
+ * The system includes:
+ * - Main Modal container
+ * - ModalCard wrapper
+ * - ModalHeader section
+ * - ModalBody section
+ * - ModalFooter section
+ * - ModalActionButton component
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays content inside an overlay dialog
+ * - Blocks background interaction
+ * - Supports animated open/close transitions
+ * - Uses React Portals for proper layering
+ * - Allows configurable modal sizes
+ * - Supports backdrop closing behavior
+ * - Provides reusable modal layout sections
+ *
+ * ----------------------------------------------------------------------------
+ * Main Features:
+ * ----------------------------------------------------------------------------
+ * ✓ Animated modal transitions
+ * ✓ Portal rendering
+ * ✓ Configurable modal sizes
+ * ✓ Backdrop closing support
+ * ✓ Disable close support
+ * ✓ Reusable layout sections
+ * ✓ Theme-aware action buttons
+ * ✓ Responsive design
+ * ✓ Accessibility support
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * ModalSize
+ * - Defines modal width sizing.
+ *
+ * Available values:
+ *   'sm'
+ *   'md'
+ *   'lg'
+ *   'xl'
+ *   'full'
+ *
+ * ModalTheme
+ * - Defines action button theme mode.
+ *
+ * Available values:
+ *   'light'
+ *   'dark'
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * ModalProps
+ * ----------------------------------------------------------------------------
+ *
+ * open: boolean
+ * - Controls modal visibility.
+ * - REQUIRED
+ *
+ * onClose: () => void
+ * - Function triggered when modal closes.
+ * - REQUIRED
+ *
+ * children: React.ReactNode
+ * - Modal content.
+ * - REQUIRED
+ *
+ * closeOnBackdrop?: boolean
+ * - Allows closing modal when clicking outside.
+ * - Default: true
+ *
+ * disableClose?: boolean
+ * - Completely disables modal closing.
+ * - Default: false
+ *
+ * size?: ModalSize
+ * - Controls modal width.
+ * - Default: 'md'
+ *
+ * className?: string
+ * - Additional wrapper classes.
+ *
+ * overlayClassName?: string
+ * - Additional overlay classes.
+ *
+ * panelClassName?: string
+ * - Additional modal panel classes.
+ *
+ * ----------------------------------------------------------------------------
+ * ModalCardProps
+ * ----------------------------------------------------------------------------
+ *
+ * children: React.ReactNode
+ * className?: string
+ * style?: React.CSSProperties
+ *
+ * ----------------------------------------------------------------------------
+ * ModalSectionProps
+ * ----------------------------------------------------------------------------
+ *
+ * Used by:
+ * - ModalHeader
+ * - ModalBody
+ * - ModalFooter
+ *
+ * children: React.ReactNode
+ * className?: string
+ * style?: React.CSSProperties
+ *
+ * ----------------------------------------------------------------------------
+ * ModalActionButtonProps
+ * ----------------------------------------------------------------------------
+ *
+ * Extends native HTML button props.
+ *
+ * Additional Props:
+ *
+ * theme: ModalTheme
+ * - Controls button theme styling.
+ *
+ * variant?: 'primary' | 'secondary'
+ * - Controls button appearance.
+ * - Default: 'primary'
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Example:
+ *
+ * <Modal
+ *   open={isOpen}
+ *   onClose={() => setIsOpen(false)}
+ * >
+ *   <ModalCard className="bg-white">
+ *     <ModalHeader>
+ *       <h2>Delete Item</h2>
+ *     </ModalHeader>
+ *
+ *     <ModalBody>
+ *       Are you sure you want to delete this item?
+ *     </ModalBody>
+ *
+ *     <ModalFooter>
+ *       <ModalActionButton
+ *         theme="light"
+ *         variant="secondary"
+ *         onClick={() => setIsOpen(false)}
+ *       >
+ *         Cancel
+ *       </ModalActionButton>
+ *
+ *       <ModalActionButton
+ *         theme="light"
+ *         variant="primary"
+ *         onClick={handleDelete}
+ *       >
+ *         Confirm
+ *       </ModalActionButton>
+ *     </ModalFooter>
+ *   </ModalCard>
+ * </Modal>
+ *
+ * ----------------------------------------------------------------------------
+ * Example Full Width Modal:
+ * ----------------------------------------------------------------------------
+ *
+ * <Modal
+ *   open={open}
+ *   onClose={closeModal}
+ *   size="full"
+ * >
+ *   <ModalCard className="bg-[#181A59]">
+ *     <ModalBody>
+ *       Dashboard Content
+ *     </ModalBody>
+ *   </ModalCard>
+ * </Modal>
+ *
+ * ============================================================================
+ */
+
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';

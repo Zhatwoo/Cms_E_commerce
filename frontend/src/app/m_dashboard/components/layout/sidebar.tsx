@@ -1,6 +1,47 @@
-// eto yung main navigation ni user
-
 'use client';
+
+/**
+ * ============================================================================
+ * Dashboard Sidebar Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the main left navigation sidebar component for the dashboard,
+ * providing links to different sections and functionality areas.
+ *
+ * The component provides:
+ * - Navigation menu with icon and label items
+ * - Dashboard, web builder, domains, settings, and more sections
+ * - Active route highlighting
+ * - Theme-aware styling
+ * - Smooth animations and transitions
+ * - Icon-based navigation visual
+ * - Responsive navigation items
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders vertical navigation menu on left side
+ * - Displays navigation items with icons and labels
+ * - Highlights active navigation item based on current path
+ * - Provides links to main dashboard sections:
+ *   - Home/Dashboard
+ *   - Web Builder
+ *   - Domains
+ *   - Settings
+ *   - Products
+ *   - Orders
+ *   - Analytics
+ * - Applies theme-specific colors and styles
+ * - Shows smooth transitions between states
+ * - Handles navigation with Next.js routing
+ *
+ * Props / Parameters:\n * - None (uses context and routing hooks internally)\n *
+ * Context Dependencies:\n * - useTheme: For theme styling\n * - usePathname: For active route detection\n *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -144,13 +185,13 @@ export function DashboardSidebar({ mobile = false, onClose, onNavigateStart }: D
   const EXPANDED_WIDTH = 280;  // full labels
 
   const isLightTheme = theme === 'light';
-  
+
   // Specific colors requested by user
   const sidebarBg = theme === 'dark' ? '#09002C' : '#EEEEFF';
   const sidebarPrimaryText = theme === 'dark' ? '#A78BFA' : '#14034A';
   const sidebarMutedText = theme === 'dark' ? '#A78BFA' : '#14034A';
   const sidebarSecondaryText = theme === 'dark' ? '#A78BFA' : '#14034A';
-  
+
   const sidebarBorderColor = isLightTheme ? 'rgba(20, 3, 74, 0.1)' : 'rgba(167, 139, 250, 0.1)';
   const accentYellow = (colors as { accent?: { yellow?: string } }).accent?.yellow ?? '#FFCE00';
   const inactiveIconOpacity = isLightTheme ? 0.6 : 0.6;
