@@ -30,7 +30,7 @@ import { Accordion } from "../../_designComponents/Accordion/Accordion";
 import { Banner } from "../../_designComponents/Banner/banner";
 import { Badge as BadgeComponent } from "../../_designComponents/Badge/badge";
 import { CRAFT_RESOLVER } from "../craftResolver";
-import { addElementToCanvas } from "../../_lib/addElementToCanvas";
+
 import { ImportedBlock } from "../../_designComponents/ImportedBlock/ImportedBlock";
 import { Spacer } from "../../_designComponents/Spacer/Spacer";
 import { Pagination } from "../../_designComponents/Pagination/Pagination";
@@ -196,15 +196,11 @@ export const ComponentsPanel = () => {
         const el = v.dragElement || v.element;
         if (el) connectors.create(ref, withFreePositionDefaults(el));
       }}
-      onClick={() => {
-        if (v.isNewPage) return;
-        const el = v.dragElement || v.element;
-        if (el) addElementToCanvas(query, actions, withFreePositionDefaults(el));
-      }}
+
       {...(v.isNewPage
         ? { "data-component-new-page": "true", "data-drag-source": "component" }
         : { "data-drag-source": "component" })}
-      className="builder-comp-card group relative flex flex-col gap-1.5 cursor-pointer transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
+      className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
     >
       {/* Icon tile */}
       <DesignTooltip content={COMPONENT_TOOLTIPS[v.label] || v.label} position="right">
@@ -253,8 +249,7 @@ export const ComponentsPanel = () => {
         <div key={v.id}
           data-drag-source="imported"
           ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, withFreePositionDefaults(v.element)); }}
-          onClick={() => addElementToCanvas(query, actions, withFreePositionDefaults(v.element))}
-          className="builder-comp-card group relative flex flex-col gap-1.5 cursor-pointer transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
+          className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
         >
           <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-(--builder-border) group-hover:border-(--builder-border-mid) bg-builder-surface-2 text-builder-text-muted transition-all duration-200 group-hover:scale-[1.03]">
             <FileCode className="w-5 h-5 builder-comp-icon transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_6px_var(--builder-icon-glow)]" />
@@ -267,8 +262,7 @@ export const ComponentsPanel = () => {
       <div key={v.id}
         data-drag-source="component"
         ref={(ref) => { if (!ref || activeTool === "hand") return; connectors.create(ref, v.element); }}
-        onClick={() => addElementToCanvas(query, actions, v.element)}
-        className="builder-comp-card group relative flex flex-col gap-1.5 cursor-pointer col-span-1 transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
+        className="builder-comp-card group relative flex flex-col gap-1.5 cursor-grab active:cursor-grabbing col-span-1 transition-transform duration-150 hover:scale-[1.01] active:scale-[0.985]"
       >
         <div className="relative h-16 w-full rounded-xl overflow-hidden flex flex-col items-center justify-center border border-(--builder-border) group-hover:border-(--builder-border-mid) bg-builder-surface-2 transition-all duration-200 group-hover:scale-[1.03]">
           {v.type === "block" ? (
@@ -460,8 +454,7 @@ export const ComponentsPanel = () => {
                         if (!ref || activeTool === "hand") return;
                         connectors.create(ref, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />));
                       }}
-                      onClick={() => addElementToCanvas(query, actions, withFreePositionDefaults(<Element is={ImportedBlock} blockName={item.name} blockCss={item.css} blockHtml={item.html} canvas />))}
-                      className="group p-2.5 rounded-xl cursor-pointer transition-all duration-200
+                      className="group p-2.5 rounded-xl cursor-grab active:cursor-grabbing transition-all duration-200
                         bg-builder-surface-2 hover:bg-builder-surface-3
                         border border-(--builder-border) hover:border-(--builder-border-mid)">
                       <div className="h-12 rounded-lg mb-2 flex items-center justify-center
