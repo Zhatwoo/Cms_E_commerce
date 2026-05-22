@@ -601,17 +601,13 @@ export function PanelDropFreePlacementHandler() {
                 }
                 return;
               }
-
-              const currentLeft = parsePxOrNumber(props.left);
-              const currentTop = parsePxOrNumber(props.top);
-              const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));
-              const nextTop = Math.round(currentTop + (finalTop - (nodeRect.top - parentRect.top)));
-
+              // Use the computed drop position directly (relative to parent).
+              // No delta correction needed — this is a fresh drop from the panel.
               props.position = parentIsFreeform
                 ? "absolute"
                 : (props.position && props.position !== "static" ? props.position : "relative");
-              props.left = `${nextLeft}px`;
-              props.top = `${nextTop}px`;
+              props.left = `${finalLeft}px`;
+              props.top = `${finalTop}px`;
               props.right = "auto";
               props.bottom = "auto";
               props.marginTop = 0;

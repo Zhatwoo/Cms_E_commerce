@@ -109,11 +109,13 @@ export const ComponentsPanel = () => {
   const withFreePositionDefaults = (element: React.ReactElement): React.ReactElement => {
     const maybeCraftComponent = (element.props as { is?: unknown } | undefined)?.is ?? element.type;
     if (FLOW_LAYOUT_COMPONENTS.has(maybeCraftComponent)) return element;
+    // Position off-screen initially so the node doesn't flash at (0,0) before
+    // PanelDropFreePlacementHandler repositions it to the actual drop point.
     return React.cloneElement<any>(element as React.ReactElement<any>, {
       ...(element.props ?? {}),
       position: "absolute",
-      top: "0px",
-      left: "0px",
+      top: "-9999px",
+      left: "-9999px",
     } as any);
   };
 
