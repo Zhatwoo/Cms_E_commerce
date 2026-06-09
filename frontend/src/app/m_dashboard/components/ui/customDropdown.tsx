@@ -1,5 +1,98 @@
 'use client';
 
+/**
+ * ============================================================================
+ * CustomDropdown Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable custom dropdown/select component designed
+ * for category selection or option picking inside the application.
+ *
+ * The component provides:
+ * - Animated dropdown interactions using Framer Motion
+ * - Dark mode support through Theme Context
+ * - Custom UI styling that matches the application's design system
+ * - Click outside detection to automatically close the dropdown
+ * - Fully customizable options and labels
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays a dropdown trigger button
+ * - Shows the currently selected option label
+ * - Opens a dropdown panel containing selectable options
+ * - Allows users to select an option
+ * - Calls the `onChange` callback when an option is selected
+ * - Automatically closes when clicking outside the component
+ * - Supports light and dark themes
+ * - Uses smooth animations for opening/closing interactions
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * value: string
+ * - The currently selected option ID.
+ * - Used to determine which option is active.
+ *
+ * onChange: (value: string) => void
+ * - Callback function triggered when the user selects an option.
+ * - Returns the selected option ID.
+ *
+ * options: readonly OrderCategoryOption[]
+ * - Array of dropdown options.
+ * - Each option must contain:
+ *    {
+ *      id: string;
+ *      label: string;
+ *    }
+ *
+ * title?: string
+ * - Optional dropdown title/placeholder.
+ * - Default value: "Category"
+ *
+ * className?: string
+ * - Optional additional Tailwind classes for styling customization.
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * OrderCategoryOption
+ * - Represents a single dropdown option.
+ *
+ * Example:
+ * {
+ *   id: "pending",
+ *   label: "Pending Orders"
+ * }
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Example Usage:
+ *
+ * const categoryOptions = [
+ *   { id: 'all', label: 'All Orders' },
+ *   { id: 'pending', label: 'Pending' },
+ *   { id: 'completed', label: 'Completed' },
+ * ];
+ *
+ * const [selectedCategory, setSelectedCategory] = useState('all');
+ *
+ * <CustomDropdown
+ *   value={selectedCategory}
+ *   onChange={setSelectedCategory}
+ *   options={categoryOptions}
+ *   title="Order Status"
+ * />
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/theme-context';
@@ -24,6 +117,7 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
   const isDark = theme === 'dark';
 
   const selected = options.find((opt: OrderCategoryOption) => opt.id === value);
+  const triggerLabel = selected?.label ?? `Select ${title}`;
 
   useEffect(() => {
     const handleOutside = (e: MouseEvent) => {
@@ -55,9 +149,9 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
         `}
       >
         <span className={`min-w-0 truncate text-sm font-medium tracking-tight ${isDark ? 'text-white' : 'text-[#120533]'}`}>
-          {`Select ${title}`}
+          {triggerLabel}
         </span>
-        
+
         <div className="relative flex items-center justify-center">
           {/* Subtle Glow behind the arrow */}
           {isDark ? (
@@ -95,8 +189,8 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
             transition={{ duration: 0.3 }}
             className={`
               absolute left-0 top-full mt-3 w-full rounded-2xl border p-2 z-50 backdrop-blur-xl
-              ${isDark 
-                ? 'bg-[#141446] border-[#1F1F51] shadow-[0_30px_60px_rgba(0,0,0,0.4)]' 
+              ${isDark
+                ? 'bg-[#141446] border-[#1F1F51] shadow-[0_30px_60px_rgba(0,0,0,0.4)]'
                 : 'bg-white border-slate-100 shadow-[0_25px_50px_rgba(139,92,246,0.15)]'
               }
             `}
@@ -107,11 +201,12 @@ export function CustomDropdown({ value, onChange, options, title = 'Category', c
                 return (
                   <button
                     key={option.id}
+                    type="button"
                     onClick={() => { onChange(option.id); setOpen(false); }}
                     className={`
                       w-full flex items-center justify-between px-4 py-3 rounded-xl text-[13px] font-bold transition-all duration-200
-                      ${isActive 
-                        ? (isDark ? 'bg-[#FFCE00]/10 text-[#FFCE00]' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]') 
+                      ${isActive
+                        ? (isDark ? 'bg-[#FFCE00]/10 text-[#FFCE00]' : 'bg-[#8B5CF6]/10 text-[#8B5CF6]')
                         : (isDark ? 'text-[#6F70A8] hover:text-white hover:bg-white/[0.03]' : 'text-slate-500 hover:bg-slate-50')
                       }
                     `}

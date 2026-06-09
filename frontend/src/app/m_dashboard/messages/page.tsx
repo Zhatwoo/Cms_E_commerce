@@ -1,5 +1,40 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Support Tickets / Messages Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the support ticket and messaging interface where users can view
+ * conversations, send/receive messages with support team, and manage
+ * support tickets.
+ *
+ * The component provides:
+ * - Conversation list with search functionality
+ * - Message thread viewing and composition
+ * - Real-time message fetching and sending
+ * - New ticket creation form
+ * - Admin and client user listing
+ * - Message scrolling with auto-scroll to latest
+ * - Theme-aware styling
+ * - Smooth animations for UI transitions
+ *
+ * What this Component Does:
+ * - Fetches user conversations from API
+ * - Displays conversation list with search filtering
+ * - Allows selecting conversations to view messages
+ * - Fetches and displays conversation messages
+ * - Sends new messages with error handling
+ * - Creates new support tickets
+ * - Manages current user context
+ * - Handles loading and error states
+ * - Auto-scrolls to latest message
+ * - Shows admin and client lists for selection
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getConversations, getConversationMessages, sendDirectMessage, getAdmins, getClients, getMe, type Conversation, type ChatMessage, type AdminUser, type ClientRow } from '@/lib/api';
@@ -69,7 +104,7 @@ export default function SupportTicketPage() {
             const res = await getConversations();
             if (res.success) {
                 // Filter only conversations with admins
-                const adminConvs = (res.data || []).filter(c => 
+                const adminConvs = (res.data || []).filter((c: Conversation) =>
                     c.otherUserRole === 'admin' || c.otherUserRole === 'super_admin'
                 );
                 setConversations(adminConvs);
@@ -126,7 +161,7 @@ export default function SupportTicketPage() {
     const handleCreateTicket = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!ticketSubject.trim() || !messageText.trim() || sending) return;
-        
+
         setSending(true);
         try {
             // Fetch admins to send to the first available admin if no conversation exists
@@ -171,7 +206,7 @@ export default function SupportTicketPage() {
                     <p className="text-sm opacity-60" style={{ color: colors.text.primary }}>Submit a ticket or view your support history</p>
                 </div>
                 {!showForm && (
-                    <button 
+                    <button
                         onClick={() => { setShowForm(true); setSelectedTicket(null); }}
                         className="px-6 py-2.5 bg-[#5C1D8F] text-white rounded-xl font-bold hover:opacity-90 transition-all flex items-center gap-2"
                     >
@@ -182,7 +217,7 @@ export default function SupportTicketPage() {
 
             <div className="flex-1 flex gap-6 overflow-hidden">
                 {/* Support History List */}
-                <motion.div 
+                <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     className={`flex flex-col w-full lg:w-80 overflow-hidden ${selectedTicket || showForm ? 'hidden lg:flex' : 'flex'}`}
@@ -238,7 +273,7 @@ export default function SupportTicketPage() {
                                     <form onSubmit={handleCreateTicket} className="space-y-6">
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold opacity-70" style={{ color: colors.text.primary }}>Subject</label>
-                                            <input 
+                                            <input
                                                 required
                                                 type="text"
                                                 placeholder="What do you need help with?"
@@ -250,7 +285,7 @@ export default function SupportTicketPage() {
                                         </div>
                                         <div className="space-y-2">
                                             <label className="text-sm font-bold opacity-70" style={{ color: colors.text.primary }}>Message Detail</label>
-                                            <textarea 
+                                            <textarea
                                                 required
                                                 rows={6}
                                                 placeholder="Provide as much detail as possible..."
@@ -261,14 +296,14 @@ export default function SupportTicketPage() {
                                             />
                                         </div>
                                         <div className="flex gap-3 pt-4">
-                                            <button 
+                                            <button
                                                 type="submit"
                                                 disabled={sending}
                                                 className="flex-1 py-3 bg-[#5C1D8F] text-white rounded-xl font-bold hover:opacity-90 transition-all disabled:opacity-50"
                                             >
                                                 {sending ? 'Submitting...' : 'Submit Ticket'}
                                             </button>
-                                            <button 
+                                            <button
                                                 type="button"
                                                 onClick={() => setShowForm(false)}
                                                 className="px-6 py-3 bg-black/5 dark:bg-white/5 rounded-xl font-bold hover:bg-black/10 transition-all"
@@ -285,7 +320,7 @@ export default function SupportTicketPage() {
                                 key="chat"
                                 initial={{ opacity: 0, x: 20 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                className="flex-1 flex flex-col overflow-hidden" 
+                                className="flex-1 flex flex-col overflow-hidden"
                                 style={glassStyle}
                             >
                                 <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: theme === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }}>
@@ -306,10 +341,10 @@ export default function SupportTicketPage() {
                                     {messages.map(msg => (
                                         <div key={msg.id} className={`flex ${msg.senderId === currentUser?.id ? 'justify-end' : 'justify-start'}`}>
                                             <div className={`flex flex-col ${msg.senderId === currentUser?.id ? 'items-end' : 'items-start'} max-w-[80%]`}>
-                                                <div 
+                                                <div
                                                     className={`p-4 rounded-2xl text-sm ${
-                                                        msg.senderId === currentUser?.id 
-                                                            ? 'bg-[#5C1D8F] text-white rounded-tr-none shadow-lg' 
+                                                        msg.senderId === currentUser?.id
+                                                            ? 'bg-[#5C1D8F] text-white rounded-tr-none shadow-lg'
                                                             : 'bg-black/10 dark:bg-white/10 rounded-tl-none'
                                                     }`}
                                                 >
@@ -344,10 +379,10 @@ export default function SupportTicketPage() {
                                 </div>
                             </motion.div>
                         ) : (
-                            <motion.div 
+                            <motion.div
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="hidden lg:flex flex-1 items-center justify-center flex-col text-center p-12" 
+                                className="hidden lg:flex flex-1 items-center justify-center flex-col text-center p-12"
                                 style={glassStyle}
                             >
                                 <div className="w-20 h-20 bg-[#5C1D8F]/10 rounded-full flex items-center justify-center text-4xl mb-6">🎫</div>

@@ -1,4 +1,38 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Dashboard Layout Root Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the root layout wrapper for the entire m_dashboard application. It
+ * provides the main structural container with sidebar, header, and content areas.
+ * Manages authentication checks, theme/context providers, and page transitions.
+ *
+ * The component provides:
+ * - Authentication gate (redirects unauthenticated users to home)
+ * - Global theme and context provider setup
+ * - Sidebar and header layout components
+ * - Animated page content transitions
+ * - Project loading and selection context
+ * - Alert system provider
+ * - Background gradient decoration
+ *
+ * What this Component Does:
+ * - Checks user authentication on mount
+ * - Wraps children with theme, auth, alert, and project providers
+ * - Renders sidebar for navigation
+ * - Renders header with user info and controls
+ * - Renders content area with page transitions
+ * - Handles sidebar open/close state
+ * - Manages route loading states
+ * - Scrolls content to top on dashboard home navigation
+ * - Prevents authentication redirects when data still loading
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -130,7 +164,7 @@ function DashboardLayoutContent({
             <div
                 ref={contentScrollRef}
                 className="no-scrollbar relative flex min-w-0 flex-1 basis-0 flex-col h-screen overflow-y-auto overflow-x-hidden"
-                style={{ 
+                style={{
                     backgroundImage: theme === 'dark' ? `linear-gradient(180deg, ${colors.bg.primary} 0%, ${colors.bg.primaryEnd} 100%)` : 'none',
                     backgroundColor: theme === 'dark' ? undefined : 'transparent'
                 }}
@@ -175,7 +209,7 @@ function DashboardLayoutContent({
                     </div>
                 </div>
             )}
-            
+
             {/* Support Widget Removed */}
         </div>
     );

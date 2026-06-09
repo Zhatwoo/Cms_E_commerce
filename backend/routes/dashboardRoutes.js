@@ -2,7 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const { getStats, getAnalytics, getDashboardSummary, getWebsiteAnalytics } = require('../controllers/dashboardController');
-const { protect, admin } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 router.get('/stats', protect, admin, getStats);
 router.get('/analytics', protect, admin, getAnalytics);

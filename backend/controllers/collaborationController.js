@@ -5,6 +5,7 @@ const User = require('../models/User');
 const nodemailer = require('nodemailer');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
 const { sendCollaborationInviteEmail } = require('../utils/emailService');
+const log = require('../utils/logger')('collaborationController');
 
 const COLLAB_COLORS = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -32,23 +33,23 @@ exports.invite = async (req, res) => {
         const role = (req.body.role || req.body.permission || 'editor').toString().toLowerCase().trim();
         const allowed = ['viewer', 'editor'];
 
-        console.log(`[Collab] Invite request by user ${userId} (${userEmail}) for project ${projectId}. Role: ${role}, Inviting: ${email}`);
+        log.debug(`[Collab] Invite request by user ${userId} (${userEmail}) for project ${projectId}. Role: ${role}, Inviting: ${email}`);
 
         if (!email) {
             return res.status(400).json({ success: false, message: 'Invite email is required.' });
         }
 
         if (!allowed.includes(role)) {
-            console.warn(`[Collab] Invalid role attempt: ${role}`);
+            log.warn(`[Collab] Invalid role attempt: ${role}`);
             return res.status(400).json({ success: false, message: 'Invalid role chosen. Use "viewer" or "editor".' });
         }
 
         // Check if the current user has permission to invite (Owner or Editor)
         const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        console.log(`[Collab] Requester permission for ${projectId}:`, resolved);
+        log.debug(`[Collab] Requester permission for ${projectId}:`, resolved);
 
         if (!resolved || (resolved.permission !== 'owner' && resolved.permission !== 'editor')) {
-            console.log(`[Collab] Permission denied for invite.`);
+            log.debug(`[Collab] Permission denied for invite.`);
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. Only the project owner or designated editors can invite collaborators.'
@@ -87,7 +88,7 @@ exports.invite = async (req, res) => {
                 ownerName = oData.displayName || oData.username || oData.name || ownerName;
                 ownerEmail = oData.email || '';
             }
-        } catch (e) { console.warn('[Collab] Owner fetch fail:', e.message); }
+        } catch (e) { log.warn('[Collab] Owner fetch fail:', e.message); }
 
         const collabData = {
             email: email.toLowerCase(),
@@ -122,7 +123,7 @@ exports.invite = async (req, res) => {
                 projectTitle = projectSnap.data().title || projectSnap.data().name || projectTitle;
             }
         } catch (pErr) {
-            console.warn('[Collab] Could not fetch project title:', pErr.message);
+            log.warn('[Collab] Could not fetch project title:', pErr.message);
         }
 
         // Send email invite using emailService (uses GMAIL_USER/GMAIL_APP_PASSWORD)
@@ -135,7 +136,7 @@ exports.invite = async (req, res) => {
                 permission
             });
         } catch (emailErr) {
-            console.warn('[Collab] Email send failed:', emailErr.message);
+            log.warn('[Collab] Email send failed:', emailErr.message);
         }
 
         res.status(200).json({
@@ -144,7 +145,7 @@ exports.invite = async (req, res) => {
             collaborator: { id: docId, ...collabData },
         });
     } catch (err) {
-        console.error('[collaborationController.invite]', err);
+        log.error('[collaborationController.invite]', err);
         res.status(500).json({ success: false, message: err.message || 'Server error' });
     }
 };
@@ -197,7 +198,7 @@ exports.list = async (req, res) => {
                 };
             }
         } catch (e) {
-            console.warn('[Collab] Owner detail fail:', e.message);
+            log.warn('[Collab] Owner detail fail:', e.message);
         }
 
         let generalAccess = "restricted";
@@ -213,12 +214,12 @@ exports.list = async (req, res) => {
                 }
             }
         } catch (e) {
-            console.warn('[Collab] Project general_access fetch fail:', e.message);
+            log.warn('[Collab] Project general_access fetch fail:', e.message);
         }
 
         res.status(200).json({ success: true, collaborators, owner, generalAccess, generalAccessRole });
     } catch (err) {
-        console.error('[collaborationController.list]', err);
+        log.error('[collaborationController.list]', err);
         res.status(500).json({ success: false, message: err.message || 'Server error' });
     }
 };
@@ -233,7 +234,7 @@ exports.updatePermission = async (req, res) => {
         const { projectId, collabId } = req.params;
         const { permission } = req.body || {};
 
-        console.log(`[Collab] Update permission request by user ${userId} for collab ${collabId} in project ${projectId}`);
+        log.debug(`[Collab] Update permission request by user ${userId} for collab ${collabId} in project ${projectId}`);
 
         const allowed = ['viewer', 'editor'];
         const role = req.body.role || req.body.permission; // Support both for now
@@ -242,10 +243,10 @@ exports.updatePermission = async (req, res) => {
         }
 
         const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        console.log(`[Collab] Update perm - Resolved permission for requester ${userId}:`, resolved);
+        log.debug(`[Collab] Update perm - Resolved permission for requester ${userId}:`, resolved);
 
         if (!resolved || resolved.permission !== 'owner') {
-            console.log(`[Collab] Denied: permission is ${resolved?.permission}`);
+            log.debug(`[Collab] Denied: permission is ${resolved?.permission}`);
             return res.status(403).json({ success: false, message: 'Only the project owner can change permissions.' });
         }
         const ownerId = resolved.ownerId;
@@ -263,7 +264,7 @@ exports.updatePermission = async (req, res) => {
 
         res.status(200).json({ success: true, message: 'Permission updated.' });
     } catch (err) {
-        console.error('[collaborationController.updatePermission]', err);
+        log.error('[collaborationController.updatePermission]', err);
         res.status(500).json({ success: false, message: err.message || 'Server error' });
     }
 };
@@ -277,10 +278,10 @@ exports.remove = async (req, res) => {
         const userEmail = (req.user.email || '').toLowerCase();
         const { projectId, collabId } = req.params;
 
-        console.log(`[Collab] Remove request by user ${userId} for collab ${collabId} in project ${projectId}`);
+        log.debug(`[Collab] Remove request by user ${userId} for collab ${collabId} in project ${projectId}`);
 
         const resolved = await resolveProjectOwner(userId, projectId, userEmail);
-        console.log(`[Collab] Remove - Resolved permission for requester ${userId}:`, resolved);
+        log.debug(`[Collab] Remove - Resolved permission for requester ${userId}:`, resolved);
 
         if (!resolved) {
             return res.status(403).json({ success: false, message: 'You do not have access to this project.' });
@@ -299,16 +300,16 @@ exports.remove = async (req, res) => {
         const isSelf = collabData.userId === userId || collabData.email.toLowerCase() === userEmail.toLowerCase();
 
         if (!isOwner && !isSelf) {
-            console.log(`[Collab] Denied remove: not owner and not self.`);
+            log.debug(`[Collab] Denied remove: not owner and not self.`);
             return res.status(403).json({ success: false, message: 'Only the project owner can remove others. You can only remove yourself.' });
         }
 
-        console.log(`[Collab] Deleting collaborator ${collabId} from owner ${ownerId} project ${projectId}. Reason: ${isOwner ? 'Owner action' : 'Self removal'}`);
+        log.debug(`[Collab] Deleting collaborator ${collabId} from owner ${ownerId} project ${projectId}. Reason: ${isOwner ? 'Owner action' : 'Self removal'}`);
         await getCollabRef(ownerId, projectId).doc(collabId).delete();
 
         res.status(200).json({ success: true, message: 'Collaborator removed.' });
     } catch (err) {
-        console.error('[collaborationController.remove]', err);
+        log.error('[collaborationController.remove]', err);
         res.status(500).json({ success: false, message: err.message || 'Server error' });
     }
 };
@@ -354,7 +355,7 @@ exports.sharedWithMe = async (req, res) => {
 
         res.status(200).json({ success: true, projects: sharedProjects });
     } catch (err) {
-        console.error('[collaborationController.sharedWithMe]', err);
+        log.error('[collaborationController.sharedWithMe]', err);
         res.status(500).json({ success: false, message: err.message || 'Server error' });
     }
 };

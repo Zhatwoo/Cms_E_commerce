@@ -121,12 +121,12 @@ export const BannerSettings = () => {
     <div className="flex flex-col pb-4">
       <DesignSection title="Banner" defaultOpen={true}>
         <div className="flex flex-col gap-1">
-          <label className="text-[10px] text-[var(--builder-text)]">Label</label>
+          <label className="text-[10px] text-builder-text">Label</label>
           <input
             type="text"
             value={typeof text === "string" ? text : ""}
             onChange={(e) => typedSetProp((props) => { props.text = e.target.value; })}
-            className="w-full bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md text-xs text-[var(--builder-text)] p-2 focus:outline-none focus:border-[var(--builder-accent)]"
+            className="w-full bg-builder-surface-2 border border-(--builder-border) rounded-md text-xs text-builder-text p-2 focus:outline-none focus:border-(--builder-accent)"
           />
         </div>
       </DesignSection>

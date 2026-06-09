@@ -1,213 +1,90 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Product Add Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the comprehensive product creation modal that allows
+ * users to add new products with full support for variants, pricing, stock
+ * management, and image uploads.
+ *
+ * The component provides:
+ * - Form inputs for product details (name, SKU, description)
+ * - Category and subcategory selection
+ * - Variant configuration with options and modifiers
+ * - Price and cost management with discount support
+ * - Stock management with per-variant stock tracking
+ * - Image upload to Firebase with preview
+ * - Auto-SKU generation
+ * - Variant combination calculation
+ * - Theme-aware styling
+ * - Form validation and error handling
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Opens modal dialog for creating new products
+ * - Renders form fields for product information
+ * - Handles image selection and upload
+ * - Configures product variants and options
+ * - Manages pricing with base/final/compare-at pricing
+ * - Calculates variant combinations for stock/price
+ * - Generates SKUs automatically based on product name
+ * - Validates form before submission
+ * - Calls onSave callback with product data
+ * - Shows loading state during save operation
+ * - Displays validation errors
+ * - Manages modal open/close states
+ *
+ * Props / Parameters:
+ * ----\n *
+ * isOpen: boolean\n * - Controls modal visibility.\n * - REQUIRED\n *
+ * onClose: () => void\n * - Callback when modal is closed.\n * - REQUIRED\n *
+ * onSave: (p: Partial<Product> & Partial<FormData>) => Promise<boolean> | boolean\n * - Async callback to save product data.\n * - Should return true on success, false on failure.\n * - REQUIRED\n *
+ * uploadSubdomain?: string | null\n * - Subdomain for image upload API calls.\n * - Optional, used for Firebase uploads.\n *
+ * projectIndustry?: string | null\n * - Industry type for locking category selection.\n * - Optional, pre-selects category based on project.\n *
+ * ============================================================================
+ */
+
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createPortal } from 'react-dom';
+import { ModalShell } from '@/components/ui/ModalShell';
 import { useTheme } from '../../components/context/theme-context';
 import { useAlert } from '../../components/context/alert-context';
 import { SaveProductButton } from './button';
 import { type Product } from '../../lib/productsData';
 import { uploadProductImageApi } from '@/lib/api';
 import { getIndustryCategories, INDUSTRY_OPTIONS, normalizeIndustryKey } from '@/lib/industryCatalog';
-
-// ============================================================================
-// TYPE DEFINITIONS
-// ============================================================================
-
-export interface VariantOption {
-  id: string;
-  name: string;
-  priceAdjustment: number;
-  image?: string;
-}
-
-export interface Variant {
-  id: string;
-  name: string;
-  pricingMode: 'modifier' | 'override';
-  options: VariantOption[];
-}
-
-export interface ProductImage {
-  id: string;
-  src: string;
-  file?: File;
-}
-
-export type VariantStockMap = Record<string, number>;
-export type VariantPriceMap = Record<string, number>;
-
-export interface FormData {
-  name: string;
-  sku: string;
-  category: string;
-  subcategory: string;
-  description: string;
-  status: 'active' | 'inactive' | 'draft';
-  price: number;
-  costPrice: number;
-  discount: number;
-  images: string[];
-  stock: number;
-  lowStockThreshold: number;
-  trackInventory: boolean;
-  inventoryStatus: 'in_stock' | 'out_of_stock';
-  hasVariants: boolean;
-  variants: Variant[];
-  variantStocks: VariantStockMap;
-  variantPrices: VariantPriceMap;
-}
-
-export const MAX_VARIANTS = 2;
-
-// ============================================================================
-// UTILITY FUNCTIONS
-// ============================================================================
-// Pure, side-effect-free utility functions for:
-// - ID generation and validation
-// - Image source validation (data URIs, https, blobs, relative paths)
-// - Variant combination generation (cartesian product)
-// - SKU auto-generation from product names
-// - HSV/Hex color conversion for the color picker
-// - Color name to hex mapping
-
-export const uid = () => Math.random().toString(36).substr(2, 9);
-
-export function isImageSource(value: string): boolean {
-  const v = (value || '').trim();
-  if (!v) return false;
-  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(v)) return true;
-  if (/^https?:\/\//i.test(v)) return true;
-  if (v.startsWith('blob:')) return true;
-  if (v.startsWith('/')) return true;
-  return false;
-}
-
-export function cartesian<T>(arrays: T[][]): T[][] {
-  return arrays.reduce<T[][]>(
-    (acc, curr) => acc.flatMap(a => curr.map(b => [...a, b])),
-    [[]]
-  );
-}
-
-export function buildVariantStockKey(parts: Array<{ variantId: string; optionId: string }>): string {
-  return parts
-    .map((part) => `${part.variantId}:${part.optionId}`)
-    .join('__');
-}
-
-export function generateAutoSku(name?: string): string {
-  const cleaned = String(name || '')
-    .toUpperCase()
-    .replace(/[^A-Z0-9\s-]/g, ' ')
-    .trim();
-  const prefix = cleaned
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 3)
-    .map((chunk) => chunk.slice(0, 3))
-    .join('')
-    .slice(0, 9) || 'ITEM';
-  const suffix = Math.floor(1000 + Math.random() * 9000);
-  return `${prefix}-${suffix}`;
-}
-
-export function hsvToHex(h: number, s: number, v: number, clamp: (value: number, min: number, max: number) => number): string {
-  const hh = ((h % 360) + 360) % 360;
-  const sat = clamp(s, 0, 100) / 100;
-  const val = clamp(v, 0, 100) / 100;
-
-  const chroma = val * sat;
-  const x = chroma * (1 - Math.abs(((hh / 60) % 2) - 1));
-  const m = val - chroma;
-
-  let r = 0;
-  let g = 0;
-  let b = 0;
-
-  if (hh < 60) {
-    r = chroma; g = x; b = 0;
-  } else if (hh < 120) {
-    r = x; g = chroma; b = 0;
-  } else if (hh < 180) {
-    r = 0; g = chroma; b = x;
-  } else if (hh < 240) {
-    r = 0; g = x; b = chroma;
-  } else if (hh < 300) {
-    r = x; g = 0; b = chroma;
-  } else {
-    r = chroma; g = 0; b = x;
-  }
-
-  const toHex = (channel: number) => Math.round((channel + m) * 255).toString(16).padStart(2, '0');
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`.toUpperCase();
-}
-
-export function hexToHsv(hex: string, normalizeHexFn: (value: string) => string | null): { h: number; s: number; v: number } | null {
-  const normalized = normalizeHexFn(hex);
-  if (!normalized) return null;
-
-  const r = parseInt(normalized.slice(1, 3), 16) / 255;
-  const g = parseInt(normalized.slice(3, 5), 16) / 255;
-  const b = parseInt(normalized.slice(5, 7), 16) / 255;
-
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  const delta = max - min;
-
-  let h = 0;
-  if (delta !== 0) {
-    if (max === r) h = 60 * (((g - b) / delta) % 6);
-    else if (max === g) h = 60 * ((b - r) / delta + 2);
-    else h = 60 * ((r - g) / delta + 4);
-  }
-  if (h < 0) h += 360;
-
-  const s = max === 0 ? 0 : (delta / max) * 100;
-  const v = max * 100;
-
-  return { h: Math.round(h), s: Math.round(s), v: Math.round(v) };
-}
-
-export function normalizeHex(value: string): string | null {
-  const v = value.trim();
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) {
-    if (v.length === 4) {
-      return `#${v[1]}${v[1]}${v[2]}${v[2]}${v[3]}${v[3]}`.toUpperCase();
-    }
-    return v.toUpperCase();
-  }
-  return null;
-}
-
-export function colorToBg(name: string): string {
-  const v = name.trim();
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(v)) return v;
-  const map: Record<string, string> = {
-    white: '#DBD5D5',
-    red: '#F62424',
-    black: '#1F2937',
-    blue: '#3B82F6',
-    green: '#22C55E',
-    yellow: '#FACC15',
-    pink: '#EC4899',
-    purple: '#A855F7',
-    gray: '#9CA3AF',
-  };
-  return map[v.toLowerCase()] || '#DBD5D5';
-}
-
-export function isTextOnlyVariantName(variantName: string): boolean {
-  const normalizedName = variantName.trim().toLowerCase();
-  return normalizedName === 'size' || normalizedName === 'frequency';
-}
+import {
+  uid,
+  isImageSource,
+  cartesian,
+  buildVariantStockKey,
+  generateAutoSku,
+  hsvToHex,
+  hexToHsv,
+  normalizeHex,
+  colorToBg,
+  isTextOnlyVariantName,
+  MAX_VARIANTS,
+  type VariantOption,
+  type Variant,
+  type ProductImage,
+  type VariantStockMap,
+  type VariantPriceMap,
+  type FormData,
+} from '../lib/productFormUtils';
 
 /**
  * ProductAddModal Component
- * 
+ *
  * Creates new products from scratch. Handles form state, image uploads, variant
  * configuration, and pricing calculations. Automatically generates SKUs and manages
  * variant combinations with stock and price overrides.
- * 
+ *
  * Props:
  * - `isOpen`: Controls modal visibility
  * - `onClose`: Callback to close the modal
@@ -235,7 +112,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
   const [thumbOver, setThumbOver] = useState<number | null>(null);
   const [removedVariantRows, setRemovedVariantRows] = useState<string[]>([]);
   const [showSubcategoryDropdown, setShowSubcategoryDropdown] = useState(false);
-  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const subcategoryDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -325,10 +201,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
     document.addEventListener('mousedown', onMouseDown);
     return () => document.removeEventListener('mousedown', onMouseDown);
   }, [showSubcategoryDropdown]);
-
-  useEffect(() => {
-    setPortalTarget(document.body);
-  }, []);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -836,8 +708,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
     }
   };
 
-  if (!portalTarget) return null;
-
   const isLight = theme === 'light';
   const shellBackground = isLight
     ? 'linear-gradient(135deg, #F9F7FF 0%, #F1ECFF 55%, #ECE6FF 100%)'
@@ -970,33 +840,25 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
     ? `In Stock - ${displayStock} ${displayStock === 1 ? 'unit' : 'units'}`
     : 'Out of Stock';
 
-  return createPortal(
-    <AnimatePresence>
-      {isOpen ? (
-        <motion.div
-          key="modal-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          className="fixed inset-0 z-[5000] backdrop-blur-[12px]"
-          style={{
-            backgroundColor: isLight ? 'rgba(18,5,51,0.26)' : 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-          }}
-          onClick={requestClose}
-        >
-          <div className="absolute inset-0 flex items-center justify-center p-6">
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={requestClose}
+      usePortal
+      className="fixed inset-0 z-[5000] flex items-center justify-center p-6 backdrop-blur-[12px]"
+      style={{
+        backgroundColor: isLight ? 'rgba(18,5,51,0.26)' : 'rgba(0,0,0,0.5)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+      }}
+    >
             <motion.div
-              onClick={e => e.stopPropagation()}
               onWheelCapture={handleNumberInputWheel}
               onKeyDownCapture={handleNumberKeyDownCapture}
               onInputCapture={handleNumberInputCapture}
               onPasteCapture={handleNumberPasteCapture}
               initial={{ opacity: 0, scale: 0.93, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.93, y: 24 }}
               transition={{ type: 'spring', damping: 26, stiffness: 280 }}
               className="product-modal-shell relative flex overflow-hidden w-full"
               style={{
@@ -1030,7 +892,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
           {images.length} <span className="text-sm font-bold opacity-40 uppercase tracking-widest">of 5 slots</span>
         </h2>
       </div>
-      
+
       {variationImageGallery.length > 0 && (
         <div className="text-right">
           <p className="text-[11px] font-black uppercase tracking-widest opacity-40" style={{ color: labelColor }}>
@@ -1067,8 +929,8 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
       }`}
       style={{
         borderColor: dragging ? (isLight ? '#8B5CF6' : '#7E9CFF') : (isLight ? '#CFC4E5' : '#3A4473'),
-        backgroundColor: dragging 
-          ? (isLight ? '#F3EFFF' : '#2A3459') 
+        backgroundColor: dragging
+          ? (isLight ? '#F3EFFF' : '#2A3459')
           : (isLight ? '#F9F7FF' : '#1E2642'),
       }}
     >
@@ -1090,7 +952,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
             </AnimatePresence>
 
             {/* Pagination Badge */}
-            <div className="absolute left-6 bottom-6 px-4 py-2 rounded-2xl text-[12px] font-black tracking-widest backdrop-blur-xl border border-white/10" 
+            <div className="absolute left-6 bottom-6 px-4 py-2 rounded-2xl text-[12px] font-black tracking-widest backdrop-blur-xl border border-white/10"
                  style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: '#FFFFFF' }}>
               {slide + 1} / {images.length}
             </div>
@@ -1155,7 +1017,7 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                   )}
                 </button>
               ))}
-              
+
               {images.length < 5 && (
                 <button
                   type="button"
@@ -1948,11 +1810,6 @@ export default function ProductAddModal({ isOpen, onClose, onSave, uploadSubdoma
                 }
               `}</style>
             </motion.div>
-          </div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
-    ,
-    portalTarget
+    </ModalShell>
   );
 }

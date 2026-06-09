@@ -8,6 +8,7 @@ import { Row } from "../../../design/_designComponents/Row/Row";
 import { Column } from "../../../design/_designComponents/Column/Column";
 import { Text } from "../../../design/_designComponents/Text/Text";
 import { TemplateEntry } from "../../_types";
+import { fonts } from "@/lib/theme";
 
 export const NeoFooter: TemplateEntry = {
   label: "Neo Footer",
@@ -220,7 +221,7 @@ export const NeoFooter: TemplateEntry = {
               React.createElement(Text as any, {
                 text: "FINDING NEO",
                 fontSize: 32,
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 fontWeight: "600",
                 letterSpacing: "5px",
                 color: "#ffffff",
@@ -238,7 +239,7 @@ export const NeoFooter: TemplateEntry = {
             React.createElement(Text as any, {
               text: "Empowering physicians with advanced multi-modal tools to improve treatment selection and patient outcomes.",
               fontSize: 22,
-              fontFamily: "Outfit",
+              fontFamily: fonts.uiRaw,
               lineHeight: 1.6,
               color: "#ffffff",
               position: "relative",
@@ -287,7 +288,7 @@ export const NeoFooter: TemplateEntry = {
                 React.createElement(Text as any, {
                   text: "𝕏",
                   fontSize: 24,
-                  fontFamily: "Outfit",
+                  fontFamily: fonts.uiRaw,
                   fontWeight: "500",
                   color: "#ffffff",
                   position: "relative",
@@ -323,7 +324,7 @@ export const NeoFooter: TemplateEntry = {
                 React.createElement(Text as any, {
                   text: "in",
                   fontSize: 24,
-                  fontFamily: "Outfit",
+                  fontFamily: fonts.uiRaw,
                   fontWeight: "500",
                   color: "#ffffff",
                   position: "relative",
@@ -359,7 +360,7 @@ export const NeoFooter: TemplateEntry = {
                 React.createElement(Text as any, {
                   text: "📷",
                   fontSize: 24,
-                  fontFamily: "Outfit",
+                  fontFamily: fonts.uiRaw,
                   fontWeight: "500",
                   color: "#ffffff",
                   position: "relative",
@@ -395,7 +396,7 @@ export const NeoFooter: TemplateEntry = {
                 React.createElement(Text as any, {
                   text: "fb",
                   fontSize: 24,
-                  fontFamily: "Outfit",
+                  fontFamily: fonts.uiRaw,
                   fontWeight: "500",
                   color: "#ffffff",
                   position: "relative",
@@ -445,7 +446,7 @@ export const NeoFooter: TemplateEntry = {
                 React.createElement(Text as any, {
                   text: "︿",
                   fontSize: 20,
-                  fontFamily: "Outfit",
+                  fontFamily: fonts.uiRaw,
                   fontWeight: "900",
                   color: "#ffffff",
                   position: "relative",
@@ -460,7 +461,7 @@ export const NeoFooter: TemplateEntry = {
                 React.createElement(Text as any, {
                   text: "BACK TO TOP",
                   fontSize: 14,
-                  fontFamily: "Outfit",
+                  fontFamily: fonts.uiRaw,
                   fontWeight: "700",
                   letterSpacing: "3px",
                   color: "#ffffff",
@@ -501,7 +502,7 @@ export const NeoFooter: TemplateEntry = {
               React.createElement(Text as any, {
                 text: "Site Map",
                 fontSize: 18,
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 fontWeight: "700",
                 letterSpacing: "1px",
                 color: "#ffffff",
@@ -517,7 +518,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Homepage",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -532,7 +533,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Technology",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -547,7 +548,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Techneo",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -562,7 +563,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Resources & news",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -577,7 +578,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Careers",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -592,7 +593,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Contact Us",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -607,7 +608,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Portal",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -634,7 +635,7 @@ export const NeoFooter: TemplateEntry = {
               React.createElement(Text as any, {
                 text: "Legal",
                 fontSize: 18,
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 fontWeight: "700",
                 letterSpacing: "1px",
                 color: "#ffffff",
@@ -650,7 +651,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Privacy Policy",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -665,7 +666,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Terms of Services",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -680,7 +681,7 @@ export const NeoFooter: TemplateEntry = {
               }),
               React.createElement(Text as any, {
                 text: "Lawyer's Corners",
-                fontFamily: "Outfit",
+                fontFamily: fonts.uiRaw,
                 lineHeight: 1.4,
                 color: "#cbd5e1",
                 position: "relative",
@@ -719,7 +720,7 @@ export const NeoFooter: TemplateEntry = {
         React.createElement(Text as any, {
           text: "Copyright © 2026, Finding Neo, All Rights Reserved.",
           fontSize: 14,
-          fontFamily: "Outfit",
+          fontFamily: fonts.uiRaw,
           fontWeight: "500",
           position: "relative",
           display: "block",

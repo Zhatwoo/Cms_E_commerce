@@ -1,12 +1,15 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
 import { useAlert } from '../components/context/alert-context';
 import { getStoredUser } from '@/lib/api';
 import { SUBSCRIPTION_LIMITS, type SubscriptionPlan } from '@/lib/subscriptionLimits';
 import { Check } from 'lucide-react';
+import { ModalShell } from '@/components/ui/ModalShell';
+import { ModalCard } from '@/components/ui/ModalCard';
+import { ModalButton } from '@/components/ui/ModalButton';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -383,14 +386,14 @@ export default function SubscriptionPage() {
         style={{
           backgroundColor: isDark ? 'rgba(17, 16, 88, 0.4)' : 'rgba(255, 255, 255, 0.8)',
           borderColor: isDark ? 'rgba(124, 58, 237, 0.2)' : 'rgba(18, 25, 58, 0.08)',
-          boxShadow: isDark 
-            ? '0 40px 80px -15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)' 
+          boxShadow: isDark
+            ? '0 40px 80px -15px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.05)'
             : '0 40px 80px -15px rgba(18,25,58,0.03)',
         }}
       >
         {/* THE SPECTRUM STRIP: Gradient from your screenshot */}
-        <div 
-          className="absolute top-0 left-0 right-0 h-[4px] z-20" 
+        <div
+          className="absolute top-0 left-0 right-0 h-[4px] z-20"
           style={{ background: 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' }}
         />
 
@@ -408,15 +411,16 @@ export default function SubscriptionPage() {
               Compare Plans
             </h3>
           </div>
-          
+
           {currentPlan !== 'free' && (
             <button
               type="button"
               onClick={handleCancel}
-              className="px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-full border transition-all hover:bg-red-500 hover:text-white"
+              className={`cursor-pointer px-5 py-2 text-xs font-black uppercase tracking-widest rounded-full border transition-all hover:bg-red-500 hover:text-white ${
+                isDark ? 'text-red-300' : 'text-red-600'
+              }`}
               style={{
                 borderColor: isDark ? 'rgba(239,68,68,0.3)' : 'rgba(220,38,38,0.2)',
-                color: isDark ? '#fca5a5' : '#dc2626',
               }}
             >
               Cancel Plan
@@ -439,13 +443,13 @@ export default function SubscriptionPage() {
                       {isCurrent && (
                         <div className="absolute inset-x-2 inset-y-4 bg-[#7C3AED]/[0.04] rounded-3xl z-0" />
                       )}
-                      
+
                       <div className="relative z-10 flex flex-col gap-2">
-                        <span className={`text-[15px] font-black uppercase tracking-[0.2em] 
+                        <span className={`text-[15px] font-black uppercase tracking-[0.2em]
                                         ${isCurrent ? 'bg-clip-text text-transparent' : 'opacity-40'}`}
-                              style={{ 
+                              style={{
                                 backgroundImage: isCurrent ? 'linear-gradient(90deg, #7C3AED 0%, #F472B6 50%, #FF9E4A 100%)' : 'none',
-                                color: isCurrent ? 'transparent' : (isDark ? '#FFF' : '#12193A') 
+                                color: isCurrent ? 'transparent' : (isDark ? '#FFF' : '#12193A')
                               }}>
                           {plan.name}
                         </span>
@@ -514,92 +518,50 @@ export default function SubscriptionPage() {
       </motion.section>
 
       {/* ── CONFIRM MODAL ──────────────────────────────────────────────────── */}
-      <AnimatePresence>
+      <ModalShell
+        isOpen={!!confirmTarget}
+        onClose={() => setConfirmTarget(null)}
+        usePortal
+        className="fixed inset-0 z-9999 flex items-center justify-center p-4"
+        style={{
+          backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)',
+          backdropFilter: 'blur(6px)',
+        }}
+      >
         {confirmTarget && (() => {
           const target = getPlan(confirmTarget);
           const action = actionFor(confirmTarget, currentPlan);
           const isDowngrade = action === 'downgrade';
 
           return (
-            <motion.div
-              key="modal-backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 flex items-center justify-center p-4"
-              style={{
-                backgroundColor: isDark ? 'rgba(0,0,0,0.72)' : 'rgba(15,23,42,0.24)',
-                backdropFilter: 'blur(6px)',
-              }}
-              onClick={() => setConfirmTarget(null)}
-            >
-              <motion.div
-                key="modal-card"
-                initial={{ opacity: 0, scale: 0.92, y: 16 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.92, y: 16 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                className="relative w-full max-w-sm rounded-[2rem] p-7"
-                style={{
-                  border: `3px solid ${target.accent}`,
-                  backgroundColor: isDark ? '#111058' : '#ffffff',
-                  boxShadow: isDark
-                    ? '0 30px 80px rgba(147,51,234,0.3)'
-                    : '8px 10px 40px rgba(20,20,50,0.12)',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <p
-                  className="text-[11px] font-bold uppercase tracking-widest mb-1"
-                  style={{ color: isDowngrade ? '#ca8a04' : target.accent }}
-                >
-                  {isDowngrade ? 'Confirm Downgrade' : 'Confirm Upgrade'}
-                </p>
-                <h4
-                  className="text-xl font-extrabold mb-1"
-                  style={{ color: isDark ? '#fff' : '#120533' }}
-                >
-                  Switch to {target.name}
-                </h4>
-                <p
-                  className="text-[13px] mb-6 leading-relaxed"
-                  style={{ color: isDark ? 'rgba(255,255,255,0.55)' : '#a6a0c0' }}
-                >
-                  {isDowngrade
-                    ? `Moving from ${getPlan(currentPlan).name} to ${target.name} will reduce your feature access. This takes effect at the end of your billing cycle.`
-                    : `You'll gain access to all ${target.name} features immediately after confirming.`}
-                </p>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
+            <ModalCard
+              className="max-w-xl"
+              title={`Switch to ${target.name}`}
+              subtitle={isDowngrade ? 'Confirm downgrade' : 'Confirm upgrade'}
+              footer={
+                <div className="flex w-full justify-end gap-3">
+                  <ModalButton
+                    label="Cancel"
                     onClick={() => setConfirmTarget(null)}
-                    className="flex-1 rounded-full px-4 py-3 text-[14px] font-extrabold transition-all hover:brightness-95"
-                    style={{
-                      backgroundColor: isDark ? 'rgba(255,255,255,0.07)' : '#f0f0f4',
-                      color: isDark ? 'rgba(255,255,255,0.6)' : '#616170',
-                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #c1c1cd',
-                    }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
+                    variant="secondary"
+                  />
+                  <ModalButton
+                    label={isDowngrade ? `Downgrade to ${target.name}` : `Upgrade to ${target.name}`}
                     onClick={confirmAction}
-                    className="flex-1 rounded-full px-4 py-3 text-[14px] font-extrabold transition-all hover:brightness-110"
-                    style={{
-                      background: 'linear-gradient(90deg, #9333ea 0%, #ec4899 100%)',
-                      color: '#fff',
-                    }}
-                  >
-                    {isDowngrade ? `Downgrade to ${target.name}` : `Upgrade to ${target.name}`}
-                  </button>
+                    variant="primary"
+                  />
                 </div>
-              </motion.div>
-            </motion.div>
+              }
+            >
+              <p className="text-[13px] leading-relaxed" style={{ color: isDark ? 'rgba(255,255,255,0.72)' : '#5b5676' }}>
+                {isDowngrade
+                  ? `Moving from ${getPlan(currentPlan).name} to ${target.name} will reduce your feature access. This takes effect at the end of your billing cycle.`
+                  : `You'll gain access to all ${target.name} features immediately after confirming.`}
+              </p>
+            </ModalCard>
           );
         })()}
-      </AnimatePresence>
+      </ModalShell>
     </div>
   );
 }

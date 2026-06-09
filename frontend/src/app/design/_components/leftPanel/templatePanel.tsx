@@ -635,6 +635,7 @@ export const TemplatePanel = () => {
                   <DesignTooltip key={`tooltip-${item.label || idx}`} content="Drag to apply this template to canvas" position="right">
                     <div
                       key={item.label || idx}
+                      data-drag-source="component"
                       ref={(ref) => {
                         if (!ref || !item.element) return;
                         connectors.create(ref, item.element);

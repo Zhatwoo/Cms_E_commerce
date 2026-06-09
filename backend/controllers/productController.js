@@ -5,6 +5,7 @@ const User = require('../models/User');
 const { uploadProductImage, deleteStorageFilesByUrls } = require('../utils/storageHelpers');
 const { sendAdminActionEmail } = require('../utils/emailService');
 const Notification = require('../models/Notification');
+const log = require('../utils/logger')('productController');
 
 async function resolveClientContact(userId) {
   let displayName = 'Client';
@@ -369,7 +370,7 @@ exports.create = async (req, res) => {
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
-      console.warn('Product creation notification failed:', e.message);
+      log.warn('Product creation notification failed:', e.message);
     }
 
     res.status(201).json({ success: true, message: 'Product created', data });
@@ -485,7 +486,7 @@ exports.update = async (req, res) => {
             allowedPrefixes: getAllowedProductImagePrefixes(req.user.id),
           });
         } catch (err) {
-          console.warn('[productController.update] image cleanup failed:', err.message);
+          log.warn('[productController.update] image cleanup failed:', err.message);
         }
       }
     }
@@ -502,7 +503,7 @@ exports.update = async (req, res) => {
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
-      console.warn('Product update notification failed:', e.message);
+      log.warn('Product update notification failed:', e.message);
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
@@ -588,7 +589,7 @@ exports.delete = async (req, res) => {
           allowedPrefixes: getAllowedProductImagePrefixes(req.user.id),
         });
       } catch (err) {
-        console.warn('[productController.delete] image cleanup failed:', err.message);
+        log.warn('[productController.delete] image cleanup failed:', err.message);
       }
     }
 
@@ -604,7 +605,7 @@ exports.delete = async (req, res) => {
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
-      console.warn('Product deletion notification failed:', e.message);
+      log.warn('Product deletion notification failed:', e.message);
     }
   } catch (error) {
     res.status(500).json({ success: false, message: error.message || 'Server error', error: error.message });
@@ -660,7 +661,7 @@ exports.adminDelete = async (req, res) => {
       });
       if (req.app.get('io')) req.app.get('io').emit('notification:added', notif);
     } catch (e) {
-      console.warn('Product removal notification failed:', e.message);
+      log.warn('Product removal notification failed:', e.message);
     }
 
     res.status(200).json({ success: true, message: 'Product deleted', data: { id: req.params.id } });

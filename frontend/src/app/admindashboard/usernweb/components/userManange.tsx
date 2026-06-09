@@ -1014,7 +1014,7 @@ export function UserManagement() {
                 <button
                   onClick={handleUpdateClientDetails}
                   disabled={actionLoadingId === editModal.client?.id}
-                  className="px-8 py-2.5 rounded-xl font-bold bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] text-white shadow-lg hover:shadow-[#B13BFF]/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-8 py-2.5 rounded-xl font-bold bg-linear-to-r from-[#B13BFF] to-[#6D28D9] text-white shadow-lg hover:shadow-[#B13BFF]/30 hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {actionLoadingId === editModal.client?.id ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -1355,7 +1355,7 @@ function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: {
       >
         {/* Left Panel: Profile */}
         <div className="w-full md:w-[320px] bg-[#fdfcff] p-8 border-r border-[#f0e5ff] flex flex-col items-center">
-            <div className="h-28 w-28 rounded-[28px] bg-gradient-to-br from-[#B13BFF] to-[#6D28D9] flex items-center justify-center text-white text-4xl font-black shadow-xl mb-6">
+            <div className="h-28 w-28 rounded-[28px] bg-linear-to-br from-[#B13BFF] to-[#6D28D9] flex items-center justify-center text-white text-4xl font-black shadow-xl mb-6">
               {(client.displayName || client.email).charAt(0).toUpperCase()}
             </div>
             <h3 className="text-xl font-black text-[#26155E] text-center mb-1">{client.displayName || 'Unnamed User'}</h3>
@@ -1469,7 +1469,7 @@ function UserDetailModal({ client, onClose, onEdit, onSuspend, onActivate }: {
           <div className="p-8 border-t border-[#f0e5ff] bg-white flex justify-end">
             <button 
               onClick={onClose}
-              className="px-10 py-3 rounded-2xl bg-gradient-to-r from-[#B13BFF] to-[#6D28D9] text-white font-black uppercase tracking-widest shadow-xl hover:shadow-[#B13BFF]/40 hover:scale-[1.03] transition-all"
+              className="px-10 py-3 rounded-2xl bg-linear-to-r from-[#B13BFF] to-[#6D28D9] text-white font-black uppercase tracking-widest shadow-xl hover:shadow-[#B13BFF]/40 hover:scale-[1.03] transition-all"
             >
               Done
             </button>

@@ -1,8 +1,51 @@
 'use client';
+
+/**
+ * ============================================================================
+ * Settings Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the main settings page where users can manage their profile,
+ * notifications, security, and billing information with organized tabs.
+ *
+ * The component provides:
+ * - Tabbed settings interface (general/notifications/security/billing)
+ * - User profile editing (name, email, username, bio, website)
+ * - Avatar upload and management
+ * - Theme toggle (light/dark mode)
+ * - Email notification preferences
+ * - Password management
+ * - Security settings
+ * - Payment method management
+ * - Bank account linking (Union Bank, PayPal)
+ * - Billing information display
+ * - Form validation and feedback messages
+ * - Theme-aware styling
+ *
+ * What this Component Does:
+ * - Fetches user profile information on mount
+ * - Manages general profile form state
+ * - Handles avatar upload to Firebase
+ * - Manages notification preferences
+ * - Handles password changes
+ * - Manages security settings
+ * - Displays payment methods
+ * - Links/unlinks bank accounts
+ * - Provides real-time form validation
+ * - Shows success/error feedback
+ * - Supports theme toggling
+ * - Tab-based section navigation
+ * - Handles loading states
+ *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useTheme } from '../components/context/theme-context';
+import { useAlert } from '../components/context/alert-context';
 import { getMe, updateProfile, uploadAvatarApi, type User as ApiUser, getUnionBankLink, getPayPalLink } from '@/lib/api';
 import { TabBar, type TabBarItem } from '../components/ui/tabbar';
 import { AddCardModal } from './components/AddCardModal';
@@ -48,6 +91,13 @@ export default function SettingsPage() {
     const [orderNotifications, setOrderNotifications] = useState(true);
     const [marketingEmails, setMarketingEmails] = useState(false);
     const [securityAlerts, setSecurityAlerts] = useState(true);
+    const initialNotificationsRef = React.useRef({
+        emailNotifications: true,
+        orderNotifications: true,
+        marketingEmails: false,
+        securityAlerts: true,
+    });
+    const [securityTabDirty, setSecurityTabDirty] = useState(false);
 
     // User & Billing state
     const [user, setUser] = useState<ApiUser | null>(null);
@@ -70,9 +120,34 @@ export default function SettingsPage() {
         const fetchUser = async () => {
             try {
                 const response = await getMe();
+                // Debug: log getMe response to investigate avatar fetching issues
+                // eslint-disable-next-line no-console
+                console.debug('[SettingsPage] getMe response:', response);
                 if (response && response.success && response.user) {
                     setUser(response.user);
                     setPaymentMethods(response.user.paymentMethods || []);
+                    // initialize notification defaults from user if present
+                    if (response.user.notificationPreferences) {
+                        const p: any = response.user.notificationPreferences;
+                        setEmailNotifications(Boolean(p.emailNotifications));
+                        setOrderNotifications(Boolean(p.orderNotifications));
+                        setMarketingEmails(Boolean(p.marketingEmails));
+                        setSecurityAlerts(Boolean(p.securityAlerts));
+                        initialNotificationsRef.current = {
+                            emailNotifications: Boolean(p.emailNotifications),
+                            orderNotifications: Boolean(p.orderNotifications),
+                            marketingEmails: Boolean(p.marketingEmails),
+                            securityAlerts: Boolean(p.securityAlerts),
+                        };
+                    } else {
+                        // capture current defaults
+                        initialNotificationsRef.current = {
+                            emailNotifications,
+                            orderNotifications,
+                            marketingEmails,
+                            securityAlerts,
+                        };
+                    }
                 }
             } catch (error) {
                 console.error('Failed to fetch user:', error);
@@ -82,6 +157,74 @@ export default function SettingsPage() {
         };
         fetchUser();
     }, []);
+
+    const { showAlert, showConfirm } = useAlert();
+
+    const isGeneralDirty = () => {
+        if (!user) return true;
+        if (pendingAvatarFile) return true;
+        if ((generalForm.name || '') !== (user.name || '')) return true;
+        if ((generalForm.email || '') !== (user.email || '')) return true;
+        if ((generalForm.username || '') !== (user.username || '')) return true;
+        if ((generalForm.website || '') !== (user.website || '')) return true;
+        if ((generalForm.bio || '') !== (user.bio || '')) return true;
+        return false;
+    };
+
+    const isNotificationsDirty = () => {
+        const init = initialNotificationsRef.current;
+        return (
+            emailNotifications !== init.emailNotifications ||
+            orderNotifications !== init.orderNotifications ||
+            marketingEmails !== init.marketingEmails ||
+            securityAlerts !== init.securityAlerts
+        );
+    };
+
+    const handleSaveWithConfirm = async (tab: SettingTab) => {
+        if (tab === 'general') {
+            if (!isGeneralDirty()) {
+                await showAlert('No changes to save');
+                return;
+            }
+            const ok = await showConfirm('Save the changes to your profile?', 'Save changes');
+            if (ok) await handleSaveGeneral();
+            return;
+        }
+
+        if (tab === 'notifications') {
+            if (!isNotificationsDirty()) {
+                await showAlert('No changes to save');
+                return;
+            }
+            const ok = await showConfirm('Save notification preference changes?', 'Save changes');
+            if (ok) {
+                await handleSave();
+                initialNotificationsRef.current = {
+                    emailNotifications,
+                    orderNotifications,
+                    marketingEmails,
+                    securityAlerts,
+                };
+                await showAlert('Notification preferences saved successfully.', 'Saved', 'success');
+            }
+            return;
+        }
+
+        if (tab === 'security') {
+            if (!securityTabDirty) {
+                await showAlert('No changes to save');
+                return;
+            }
+            const ok = await showConfirm('Save security changes (password)?', 'Save changes');
+            if (ok) await handleSave();
+            return;
+        }
+
+        // default fallback
+        const ok = await showConfirm('Save changes?', 'Save changes');
+        if (ok) await handleSave();
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -138,9 +281,6 @@ export default function SettingsPage() {
             const response = await updateProfile({ paymentMethods: updatedMethods });
             if (response && response.success && response.user) {
                 setPaymentMethods(response.user.paymentMethods || []);
-                // Success feedback na premium ang dating
-                console.log('✅ PayPal linked manually:', email);
-                // Optional: Pwede ring mag-reload o gumamit ng custom success toast kung mayroon
             } else {
                 alert('Hindi ma-save ang PayPal email. Pakisubukan muli.');
             }
@@ -153,7 +293,6 @@ export default function SettingsPage() {
     };
 
     const handleLinkUnionBank = async () => {
-        console.log('UnionBank link clicked');
         if (isLinking) return;
         setIsLinking(true);
         try {
@@ -172,34 +311,27 @@ export default function SettingsPage() {
     };
 
     const handleRemoveCard = async (id: string) => {
-        console.log('🗑️ handleRemoveCard triggered for id:', id);
         if (!window.confirm('Sigurado ka bang nais mong tanggalin ang payment method na ito?')) {
-            console.log('❌ Removal cancelled by user');
             return;
         }
-        
+
         setRemovingCardId(id);
-        console.log('🔄 Current paymentMethods:', paymentMethods);
-        
+
         try {
             const updatedMethods = paymentMethods.filter(card => card.id !== id);
-            console.log('✅ Filtered methods:', updatedMethods);
-            
             // Optimistically update local state
             setPaymentMethods(updatedMethods);
-            
+
             const response = await updateProfile({ paymentMethods: updatedMethods });
-            console.log('📡 updateProfile response:', response);
-            
+
             if (!response.success) {
                 // If failed, revert to original methods
-                console.error('❌ Failed to update profile on backend');
+                console.error('Failed to update profile on backend');
                 setPaymentMethods(paymentMethods);
                 alert('Hindi matanggal ang card. Pakisubukan muli.');
             }
         } catch (error) {
-            console.error('❌ Failed to remove card error:', error);
-            // Revert state if possible or reload
+            console.error('Failed to remove card:', error);
             alert('Nagkaroon ng problema. Pakisubukan muli.');
         } finally {
             setRemovingCardId(null);
@@ -299,7 +431,7 @@ export default function SettingsPage() {
     const renderActiveTab = () => {
         if (activeTab === 'general') {
             return (
-                <GeneralTab
+                    <GeneralTab
                     colors={colors}
                     theme={theme}
                     user={user}
@@ -313,7 +445,8 @@ export default function SettingsPage() {
                     onAvatarChange={handleGeneralAvatarChange}
                     onFieldChange={handleGeneralFieldChange}
                     onReset={handleGeneralReset}
-                    onSave={handleSaveGeneral}
+                    onSave={() => handleSaveWithConfirm('general')}
+                    onClearFeedback={() => setGeneralFeedback(null)}
                 />
             );
         }
@@ -332,7 +465,7 @@ export default function SettingsPage() {
                     setMarketingEmails={setMarketingEmails}
                     setSecurityAlerts={setSecurityAlerts}
                     saveSuccess={saveSuccess}
-                    onSave={handleSave}
+                    onSave={() => handleSaveWithConfirm('notifications')}
                 />
             );
         }
@@ -345,7 +478,8 @@ export default function SettingsPage() {
                     showPassword={showPassword}
                     setShowPassword={setShowPassword}
                     saveSuccess={saveSuccess}
-                    onSave={handleSave}
+                    onSave={() => handleSaveWithConfirm('security')}
+                    setIsDirty={setSecurityTabDirty}
                 />
             );
         }
@@ -393,7 +527,7 @@ export default function SettingsPage() {
                     >
                         Settings
                     </span>
-                </motion.h1>    
+                </motion.h1>
             </section>
 
             <div className="max-w-6xl mx-auto px-4">
@@ -413,22 +547,22 @@ export default function SettingsPage() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={`backdrop-blur-2xl rounded-[3rem] border overflow-hidden transition-colors duration-700 ${
-                            isDark 
-                                ? "bg-[#120533]/40 border-white/5" 
+                            isDark
+                                ? "bg-[#120533]/40 border-white/5"
                                 : "bg-white/70 border-white/50"
                         }`}
-                        style={{ 
-                            boxShadow: isDark 
-                                ? '0 40px 100px -20px rgba(0,0,0,0.5)' 
-                                : '0 40px 100px -20px rgba(0,0,0,0.03)' 
+                        style={{
+                            boxShadow: isDark
+                                ? '0 40px 100px -20px rgba(0,0,0,0.5)'
+                                : '0 40px 100px -20px rgba(0,0,0,0.03)'
                         }}
                     >
                         {/* Consistent Header Strip */}
                         <div
                     className="px-12 py-6 flex items-center justify-between"
-                    style={{ 
-                        background: isDark 
-                            ? 'linear-gradient(to right, #4C1D95, #1E1B4B)' 
+                    style={{
+                        background: isDark
+                            ? 'linear-gradient(to right, #4C1D95, #1E1B4B)'
                             : 'linear-gradient(to right, #803BED, #D946EF)',
                         borderBottom: isDark ? '1px solid rgba(255, 255, 255, 0.05)' : 'none'
                     }}
@@ -436,7 +570,7 @@ export default function SettingsPage() {
                     <h2 className="text-white font-black uppercase tracking-[0.3em] text-[10px] opacity-90">
                         Configuration / {SETTINGS_TABS.find((t) => t.id === activeTab)?.label}
                     </h2>
-                    
+
                     <div className="relative">
                         <div className={`w-2 h-2 rounded-full animate-pulse ${
                             isDark ? "bg-[#FFCC00]" : "bg-white/40"
@@ -453,8 +587,8 @@ export default function SettingsPage() {
                     </motion.div>
                 </main>
             </div>
-            
-            <AddCardModal 
+
+            <AddCardModal
                 isOpen={isAddCardModalOpen}
                 onClose={() => setIsAddCardModalOpen(false)}
                 onSuccess={handleAddCardSuccess}

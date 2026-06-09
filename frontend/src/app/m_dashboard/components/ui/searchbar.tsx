@@ -1,5 +1,148 @@
 'use client';
 
+/**
+ * ============================================================================
+ * SearchBar Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable themed Search Bar component used for
+ * searching, filtering, or querying data inside the application.
+ *
+ * The component is designed to support:
+ * - Light and dark themes
+ * - Controlled input behavior
+ * - Responsive layouts
+ * - Animated focus and hover effects
+ * - Reusable styling across dashboard pages
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays a styled search input field
+ * - Allows users to type search queries
+ * - Sends updated values back to parent components
+ * - Displays a decorative search icon
+ * - Applies dynamic styling based on theme
+ * - Supports customizable placeholder text
+ *
+ * ----------------------------------------------------------------------------
+ * Theme Modes:
+ * ----------------------------------------------------------------------------
+ *
+ * light
+ * - Uses purple accent colors
+ * - Soft shadow styling
+ *
+ * dark
+ * - Uses dark surface backgrounds
+ * - Gold accent icon styling
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * SearchBarTheme
+ * ----------------------------------------------------------------------------
+ * Defines available visual themes.
+ *
+ * Available values:
+ * - 'light'
+ * - 'dark'
+ *
+ * ----------------------------------------------------------------------------
+ * SearchBarProps
+ * ----------------------------------------------------------------------------
+ *
+ * value: string
+ * ----------------------------------------------------------------------------
+ * Current search query value.
+ *
+ * This component uses controlled input behavior,
+ * meaning the parent component controls the state.
+ *
+ * ----------------------------------------------------------------------------
+ * onChange: (value: string) => void
+ * ----------------------------------------------------------------------------
+ * Callback triggered whenever input value changes.
+ *
+ * Returns:
+ * - Updated search query string
+ *
+ * ----------------------------------------------------------------------------
+ * theme?: SearchBarTheme
+ * ----------------------------------------------------------------------------
+ * Controls component styling mode.
+ *
+ * Default:
+ * - 'light'
+ *
+ * ----------------------------------------------------------------------------
+ * placeholder?: string
+ * ----------------------------------------------------------------------------
+ * Placeholder text shown when input is empty.
+ *
+ * Default:
+ * - 'Search...'
+ *
+ * ----------------------------------------------------------------------------
+ * className?: string
+ * ----------------------------------------------------------------------------
+ * Additional custom Tailwind classes.
+ *
+ * Useful for:
+ * - Margin overrides
+ * - Width adjustments
+ * - Layout customization
+ *
+ * ----------------------------------------------------------------------------
+ * Controlled Component Behavior:
+ * ----------------------------------------------------------------------------
+ *
+ * This component does NOT manage internal state.
+ *
+ * Parent components must:
+ * - Store the search value
+ * - Update the value using onChange
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Example:
+ *
+ * const [query, setQuery] = useState('');
+ *
+ * <SearchBar
+ *   value={query}
+ *   onChange={setQuery}
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Dark Theme:
+ * ----------------------------------------------------------------------------
+ *
+ * <SearchBar
+ *   value={query}
+ *   onChange={setQuery}
+ *   theme="dark"
+ *   placeholder="Search products..."
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Custom Styling:
+ * ----------------------------------------------------------------------------
+ *
+ * <SearchBar
+ *   value={query}
+ *   onChange={setQuery}
+ *   className="mt-4 max-w-xl"
+ * />
+ *
+ * ============================================================================
+ */
+
 import type { ChangeEvent } from 'react';
 
 type SearchBarTheme = 'light' | 'dark';
@@ -17,16 +160,6 @@ export type SearchBarProps = {
   className?: string;
 };
 
-/**
- * A reusable themed search bar widget with icon, focus styles, and controlled input behavior.
- *
- * Parameters:
- * - `value`: Current query text displayed by the input.
- * - `onChange`: Callback triggered whenever the input value changes.
- * - `theme`: Optional visual mode (`light` or `dark`) used for colors and shadows.
- * - `placeholder`: Optional placeholder text shown when the input is empty.
- * - `className`: Optional wrapper class names for spacing and layout overrides.
- */
 export function SearchBar({
   value,
   onChange,
@@ -99,4 +232,3 @@ export function SearchBar({
   );
 }
 
-// push

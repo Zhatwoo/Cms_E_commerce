@@ -1,6 +1,73 @@
-/*
-Eto yung mukhang Line graph, ngayon ay optimized na with smooth curves and proper scaling.
-*/
+'use client';
+
+/**
+ * ============================================================================
+ * Area Chart Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable area chart/line graph component designed
+ * for visualizing revenue trends and other time-series data in the dashboard.
+ *
+ * The component provides:
+ * - Smooth curve rendering using SVG paths
+ * - Dynamic scaling based on data range
+ * - Interactive hover effects with data point highlighting
+ * - Responsive design that adapts to container width
+ * - Customizable colors for light and dark themes
+ * - Optimized performance with proper coordinate calculations
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Accepts an array of data points with month and revenue values
+ * - Calculates appropriate scaling based on max/min values
+ * - Renders an interactive SVG area chart with smooth curves
+ * - Displays data point circles with hover highlighting
+ * - Shows animated transitions when hovering over data points
+ * - Adapts color scheme based on the provided color parameter
+ * - Handles edge cases like empty data or single data point
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * data: Array<{ month: string; revenue: number }>
+ * - Array of data points to be displayed in the chart.
+ * - Each point must contain a month label and a revenue value.
+ * - REQUIRED
+ *
+ * color: string
+ * - Primary color for the area chart fill.
+ * - Used to determine the visual appearance of the chart.
+ * - REQUIRED
+ *
+ * colors: any
+ * - Theme color palette object for styling.
+ * - Provides color references for SVG rendering.
+ * - REQUIRED
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Example Usage:
+ *
+ * const chartData = [
+ *   { month: 'Jan', revenue: 4000 },
+ *   { month: 'Feb', revenue: 5200 },
+ *   { month: 'Mar', revenue: 4800 },
+ * ];
+ *
+ * <AreaChart
+ *   data={chartData}
+ *   color="#8B5CF6"
+ *   colors={themeColors}
+ * />
+ *
+ * ============================================================================
+ */
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';

@@ -1,3 +1,54 @@
+/**
+ * ============================================================================
+ * Billing Tab Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component displays payment methods and billing settings including
+ * saved cards and bank account linking options.
+ *
+ * The component provides:
+ * - Payment methods list (saved cards)
+ * - Add card button
+ * - Remove card functionality
+ * - Bank account linking (Union Bank, PayPal)
+ * - Loading states for linking
+ * - Removal confirmation
+ * - Theme-aware styling
+ * - Payment method icons
+ *
+ * What this Component Does:
+ * - Displays saved payment methods
+ * - Shows card details
+ * - Allows adding new cards
+ * - Allows removing saved cards
+ * - Provides bank account linking
+ * - Shows loading during operations
+ * - Displays removal status
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * colors: Record<string, any>
+ * - Theme color palette
+ *
+ * theme: string
+ * - Current theme mode
+ *
+ * paymentMethods: any[]
+ * - Array of saved payment methods
+ *
+ * isLinking: boolean
+ * - Loading state for bank linking
+ *
+ * removingCardId: string | null
+ * - ID of card being removed
+ *
+ * Callback props for actions (add/remove/link)
+ *
+ * ============================================================================
+ */
+
 import { ChevronRight, Plus, Trash2 } from 'lucide-react';
 
 type BillingTabProps = {

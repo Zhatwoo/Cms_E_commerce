@@ -2,17 +2,24 @@
 
 import React, { useState, useCallback } from "react";
 import { useNode } from "@craftjs/core";
-import type { Node, NodeHelper } from "@craftjs/core";
+import type { Node, NodeHelpersType } from "@craftjs/core";
 import { PageSettings } from "./PageSettings";
 import type { PageProps } from "../../_types";
 
 // Global mouse tracker for safe zone enforcement in Craft.js rules
+// Must track both mousemove AND dragover: during HTML5 drag operations
+// (which Craft.js uses internally), mousemove events stop firing and
+// only dragover fires. Without this, mousePos stays stale at the drag
+// start position (e.g. the left panel) and the safe zone check always
+// rejects drops on fixed-height pages.
 const mousePos = { x: 0, y: 0 };
 if (typeof window !== "undefined") {
-  window.addEventListener("mousemove", (e) => {
+  const updatePos = (e: MouseEvent) => {
     mousePos.x = e.clientX;
     mousePos.y = e.clientY;
-  }, { passive: true });
+  };
+  window.addEventListener("mousemove", updatePos, { passive: true });
+  window.addEventListener("dragover", updatePos as EventListener, { passive: true });
 }
 import { slugFromName } from "../../_lib/slug";
 
@@ -40,6 +47,13 @@ export const Page = ({
   editorVisibility = "auto",
   justifyItems = "stretch",
   alignContent = "flex-start",
+  gridTemplateColumns = "1fr 1fr",
+  gridTemplateRows = "auto",
+  gridGap = 0,
+  gridColumnGap,
+  gridRowGap,
+  gridAutoRows = "auto",
+  gridAutoFlow = "row",
 }: PageProps) => {
   const { id, connectors: { connect, drag }, actions: { setProp } } = useNode();
   const [editing, setEditing] = useState(false);
@@ -299,7 +313,7 @@ Page.craft = {
   props: PageDefaultProps,
   rules: {
     canDrag: () => true,
-    canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelper) => {
+    canMoveIn: (incomingNodes: Node[], currentNode: Node, helper: NodeHelpersType) => {
       // 1. SAFE ZONE ENFORCEMENT: Block insertion if mouse is outside the page (for fixed height)
       if (currentNode.data.props.height !== "auto") {
         try {

@@ -5,10 +5,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { EditorShell } from "./_components/editorShell";
 import { DesignProjectProvider, useDesignProject } from "./_context/DesignProjectContext";
 import { CollaborationProvider } from "./_context/CollaborationContext";
+import { Spinner, LoadingText } from "@/components/loading/LoadingBits";
 
 const LoadingPlaceholder = () => (
   <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] text-white">
-    <p>Loading...</p>
+    <div className="flex flex-col items-center gap-3">
+      <Spinner sizePx={36} borderPx={3} className="animate-spin rounded-full border-white/25 border-t-white" />
+      <LoadingText text="Loading..." className="text-sm text-white/70" />
+    </div>
   </div>
 );
 
@@ -62,7 +66,10 @@ export default function DesignPage() {
     <Suspense
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-[#0a0d14] text-white">
-          <p>Loading...</p>
+          <div className="flex flex-col items-center gap-3">
+            <Spinner sizePx={36} borderPx={3} className="animate-spin rounded-full border-white/25 border-t-white" />
+            <LoadingText text="Loading..." className="text-sm text-white/70" />
+          </div>
         </div>
       }
     >

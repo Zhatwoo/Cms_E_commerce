@@ -1,5 +1,42 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Orders Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the main orders management page where users can view and manage
+ * customer orders with filtering, searching, pagination, and status updates.
+ *
+ * The component provides:
+ * - Order list with search and filtering
+ * - Status-based filtering (pending/transit/completed)
+ * - Payment method tracking and display
+ * - Tile and list view modes
+ * - Pagination with configurable per-page count
+ * - Order status updates
+ * - Order details viewing
+ * - Theme-aware styling
+ * - Real-time order data fetching
+ * - Visual status indicators
+ *
+ * What this Component Does:
+ * - Fetches published orders from API
+ * - Displays orders in list or grid view
+ * - Filters orders by status (pending/transit/completed)
+ * - Searches orders by ID, buyer name, or email
+ * - Shows payment method with icons
+ * - Allows updating order status
+ * - Provides pagination navigation
+ * - Shows order details on row click
+ * - Handles loading and error states
+ * - Formats order IDs and timestamps
+ * - Displays buyer information
+ *
+ * ============================================================================
+ */
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from '../components/context/theme-context';
 import { useProject } from '../components/context/project-context';
@@ -8,7 +45,8 @@ import { SearchBar } from '../components/ui/searchbar';
 import { Pagination } from '../components/ui/Pagination';
 import { ViewModeToggle } from '../components/buttons/viewModeToggle';
 import { EmptyState } from '../components/ui/emptyState';
-import { listMyPublishedOrders, updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
+import { updatePublishedOrderStatus, type ApiPublishedOrder } from '@/lib/api';
+import { usePublishedOrders } from './hooks/usePublishedOrders';
 import { CustomDropdown } from '../components/ui/customDropdown';
 
 type OrderStatus = 'Pending' | 'Processing' | 'Paid' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
@@ -162,35 +200,25 @@ export default function OrdersPage() {
   const { colors, theme } = useTheme();
   const { selectedProject, loading: projectLoading } = useProject();
   const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
-  const [orders, setOrders] = useState<ApiPublishedOrder[]>([]);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<CheckoutTab>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [page, setPage] = useState(1);
   const [categoryFilter, setCategoryFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
   const [draftStatus, setDraftStatus] = useState<OrderStatus>('Pending');
 
-  const loadOrders = useCallback(async () => {
-    if (projectLoading) { setLoading(true); return; }
-    setLoading(true);
-    setError(null);
-    if (!selectedSubdomain) { setOrders([]); setLoading(false); return; }
-    try {
-      const res = await listMyPublishedOrders({ subdomain: selectedSubdomain || undefined, limit: 200, page: 1 });
-      setOrders(Array.isArray(res.items) ? res.items : []);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders');
-    } finally {
-      setLoading(false);
-    }
-  }, [projectLoading, selectedSubdomain]);
-
-  useEffect(() => { void loadOrders(); }, [loadOrders]);
+  const {
+    orders,
+    loading,
+    error,
+    reload: loadOrders,
+  } = usePublishedOrders({
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+  });
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -291,7 +319,7 @@ export default function OrdersPage() {
             <span className={theme === 'dark' ? 'text-white' : 'text-[#120533]'}>Track your buyer</span>
             <br />
             <span
-              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               order flow
@@ -331,18 +359,6 @@ export default function OrdersPage() {
             title="Category"
           />
         </div>
-
-        {/* Pagination */}
-        {/* <Pagination
-          theme={theme as 'light' | 'dark'}
-          colors={colors}
-          paginationItems={paginationItems}
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(value) => setPage(value)}
-          onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
-          onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
-        /> */}
 
         {/* View toggle */}
         <div className="w-full md:w-auto md:flex-none md:ml-auto">
@@ -744,6 +760,21 @@ export default function OrdersPage() {
             );
           })}
         </section>
+      )}
+
+      {!loading && !error && pagedOrders.length > 0 && totalPages > 1 && (
+        <div className="relative z-10 mt-6">
+          <Pagination
+            theme={theme as 'light' | 'dark'}
+            colors={colors}
+            paginationItems={paginationItems}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(value) => setPage(value)}
+            onPrevPage={() => setPage((p) => Math.max(1, p - 1))}
+            onNextPage={() => setPage((p) => Math.min(totalPages, p + 1))}
+          />
+        </div>
       )}
     </div>
   );

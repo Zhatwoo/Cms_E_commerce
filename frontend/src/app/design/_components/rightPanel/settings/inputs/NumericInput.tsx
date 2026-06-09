@@ -256,7 +256,7 @@ export const NumericInput = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onWheel={handleWheel}
-        className="flex items-center bg-[var(--builder-surface-2)] border border-[var(--builder-border)] rounded-md w-full h-full"
+        className="flex items-center bg-builder-surface-2 border border-(--builder-border) rounded-md w-full h-full"
       >
         {icon && (
           <div className="pl-2 cursor-ew-resize select-none" onPointerDown={handleScrubStart}>
@@ -270,11 +270,11 @@ export const NumericInput = ({
           onBlur={handleBlur}
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
-          className="w-full bg-transparent text-xs text-[var(--builder-text)] p-1.5 focus:outline-none min-w-[20px]"
+          className="w-full bg-transparent text-xs text-builder-text p-1.5 focus:outline-none min-w-[20px]"
         />
         {unit && (
           <span
-            className="text-[10px] text-[var(--builder-text)] font-base pr-2 select-none cursor-ew-resize"
+            className="text-[10px] text-builder-text font-base pr-2 select-none cursor-ew-resize"
             onPointerDown={handleScrubStart}
           >
             {unit}
@@ -286,7 +286,7 @@ export const NumericInput = ({
       {isFocused && presets && presets.length > 0 && dropdownRect && createPortal(
         <div
           data-preset-dropdown="true"
-          className="bg-[var(--builder-surface-2)] backdrop-blur-md border border-[var(--builder-border)] rounded-md shadow-2xl z-[99999] max-h-48 overflow-y-auto"
+          className="bg-builder-surface-2 backdrop-blur-md border border-(--builder-border) rounded-md shadow-2xl z-[99999] max-h-48 overflow-y-auto"
           style={{
             position: 'fixed',
             top: dropdownRect.top,
@@ -302,7 +302,7 @@ export const NumericInput = ({
             <button
               key={p}
               type="button"
-              className="w-full text-left px-2.5 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-hover)] transition-colors"
+              className="w-full text-left px-2.5 py-1.5 text-[11px] text-builder-text hover:bg-builder-surface-hover transition-colors"
               onMouseDown={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -317,7 +317,7 @@ export const NumericInput = ({
                 }, 0);
               }}
             >
-              {p}{unit && <span className="text-[var(--builder-text-faint)] ml-1">{unit}</span>}
+              {p}{unit && <span className="text-builder-text-faint ml-1">{unit}</span>}
             </button>
           ))}
         </div>,

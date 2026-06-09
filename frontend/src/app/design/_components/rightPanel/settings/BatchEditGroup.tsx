@@ -5,9 +5,9 @@ import { useEditor } from "@craftjs/core";
 import { DesignSection } from "./DesignSection";
 import { ColorPicker } from "./inputs/ColorPicker";
 
-const labelClass = "text-[12px] text-[var(--builder-text)] font-base";
-const inputClass = "w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none";
-const sliderClass = "w-full accent-[var(--builder-accent)] cursor-pointer";
+const labelClass = "text-[12px] text-builder-text font-base";
+const inputClass = "w-full bg-builder-surface-2 rounded-md text-xs text-builder-text px-2.5 py-1.5 focus:outline-none";
+const sliderClass = "w-full accent-builder-accent cursor-pointer";
 
 interface BatchEditGroupProps {
   selectedIds: string[];
@@ -60,7 +60,7 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
 
   return (
     <div className="flex flex-col pb-4 gap-2">
-      <p className="text-[10px] text-[var(--builder-text-muted)] mb-1">
+      <p className="text-[10px] text-builder-text-muted mb-1">
         Applying to {selectedIds.length} selected. Changes affect all.
       </p>
 
@@ -76,7 +76,7 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
                 { k: "paddingLeft", v: paddingLeft, l: "L" },
               ].map(({ k, v, l }) => (
                 <div key={k} className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-[var(--builder-text-muted)]">{l}</span>
+                  <span className="text-[10px] text-builder-text-muted">{l}</span>
                   <input
                     type="number"
                     value={typeof v === "number" ? v : ""}
@@ -100,7 +100,7 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
                 { k: "marginLeft", v: marginLeft, l: "L" },
               ].map(({ k, v, l }) => (
                 <div key={k} className="flex flex-col gap-0.5">
-                  <span className="text-[10px] text-[var(--builder-text-muted)]">{l}</span>
+                  <span className="text-[10px] text-builder-text-muted">{l}</span>
                   <input
                     type="number"
                     value={typeof v === "number" ? v : ""}
@@ -129,7 +129,7 @@ export const BatchEditGroup = ({ selectedIds }: BatchEditGroupProps) => {
           <div className="flex flex-col gap-1">
             <div className="flex justify-between">
               <label className={labelClass}>Border radius</label>
-              <span className="text-[10px] text-[var(--builder-text-muted)]">{borderRadius}px</span>
+              <span className="text-[10px] text-builder-text-muted">{borderRadius}px</span>
             </div>
             <input
               type="range"

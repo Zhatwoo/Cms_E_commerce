@@ -1,5 +1,54 @@
 'use client';
 
+'use client';
+
+/**
+ * ============================================================================
+ * Sidebar Row Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is a reusable sidebar row component that organizes labeled sections
+ * with icon, label, content, and optional action buttons.
+ *
+ * The component provides:
+ * - Icon display
+ * - Section label
+ * - Main content area
+ * - Optional action button area
+ * - Theme-aware text colors
+ * - Uppercase label formatting
+ * - Consistent spacing and layout
+ *
+ * What this Component Does:
+ * - Renders labeled sidebar section
+ * - Shows icon and label header
+ * - Displays content area
+ * - Shows optional action button
+ * - Applies theme-specific colors
+ * - Provides consistent styling
+ * - Supports flexible content
+ *
+ * Props / Parameters:
+ *
+ * icon: ReactNode
+ * - Icon to display next to label
+ *
+ * label: string
+ * - Section label text
+ *
+ * children: ReactNode
+ * - Main content
+ *
+ * action?: ReactNode
+ * - Optional action button/element
+ *
+ * theme: 'light' | 'dark'
+ * - Current theme
+ *
+ * ============================================================================
+ */
+
 import { type ReactNode } from 'react';
 
 type SidebarRowProps = {

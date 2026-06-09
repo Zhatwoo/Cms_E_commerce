@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useEditor } from "@craftjs/core";
+import { getDraggedElement, clearDraggedElement } from "../_lib/draggedElementStore";
 
 type Point = { x: number; y: number };
 type MoveMode = "absolute" | "page-canvas";
@@ -119,6 +120,7 @@ export function PanelDropFreePlacementHandler() {
       activeRef.current = false;
       movedRef.current = false;
       preDropNodeIdsRef.current.clear();
+      clearDraggedElement();
     };
 
     const begin = (point: Point) => {
@@ -152,6 +154,95 @@ export function PanelDropFreePlacementHandler() {
         if (attempt < MAX_RETRY_FRAMES) {
           requestAnimationFrame(() => placeNewNodesAtPointer(attempt + 1));
         } else {
+          // ── Fallback: Craft.js DnD didn't create the node ──────────────
+          // This happens when the user drags too fast and Craft.js never
+          // registers a valid hover target. Create the node programmatically.
+          const draggedEl = getDraggedElement();
+          if (draggedEl && movedRef.current) {
+            try {
+              const latestNodes = (query.getState()?.nodes ?? {}) as Record<string, { data?: { displayName?: string; isCanvas?: boolean; parent?: string; props?: Record<string, unknown> } }>;
+              let targetId: string | null = null;
+
+              // Find the deepest canvas node under the cursor
+              const elems = document.elementsFromPoint(pointerRef.current.x, pointerRef.current.y) as HTMLElement[];
+              for (const el of elems) {
+                if (el.closest?.("[data-panel]")) continue;
+                const nodeEl = el.closest("[data-node-id]") as HTMLElement | null;
+                if (!nodeEl) continue;
+                const id = nodeEl.getAttribute("data-node-id");
+                if (!id) continue;
+                const node = latestNodes[id];
+                const dname = node?.data?.displayName;
+                if (dname && DROP_TARGET_CANVAS_TYPES.has(dname)) {
+                  targetId = id;
+                  if (dname !== "Viewport" && dname !== "Page") break;
+                  if (dname === "Page") break;
+                }
+              }
+
+              // Fallback to first Page
+              if (!targetId) {
+                targetId = Object.keys(latestNodes).find(id => latestNodes[id]?.data?.displayName === "Page") ?? null;
+              }
+
+              if (targetId) {
+                const nodeTree = query.parseReactElement(draggedEl).toNodeTree() as { rootNodeId?: string; nodes?: Record<string, unknown> };
+                const newRootId = nodeTree.rootNodeId ?? Object.keys(nodeTree.nodes ?? {})[0];
+                const a = actions as any;
+                if (typeof a.addNodeTree === "function") {
+                  a.addNodeTree(nodeTree, targetId);
+                } else if (typeof a.add === "function") {
+                  a.add(nodeTree, targetId);
+                }
+
+                if (newRootId) {
+                  // Position the new node at the drop point
+                  requestAnimationFrame(() => {
+                    try {
+                      const parentDom = getNodeContentHost(query.node(targetId!).get()?.dom ?? null);
+                      if (parentDom) {
+                        const pRect = parentDom.getBoundingClientRect();
+                        const { scaleX, scaleY } = getRenderedScale(parentDom);
+                        const pW = parentDom.clientWidth || parentDom.offsetWidth || 0;
+                        const pH = parentDom.clientHeight || parentDom.offsetHeight || 0;
+                        const rawLeft = (pointerRef.current.x - pRect.left) / scaleX;
+                        const rawTop = (pointerRef.current.y - pRect.top) / scaleY;
+
+                        const tgtNode = (query.getState()?.nodes ?? {})[targetId!] as any;
+                        const tgtProps = tgtNode?.data?.props ?? {};
+                        const tgtDisplayName = tgtNode?.data?.displayName;
+                        const parentIsFreeform = tgtProps.isFreeform === true;
+                        const nodeDisplayName = ((query.getState()?.nodes ?? {})[newRootId] as any)?.data?.displayName;
+                        const isFlowType = nodeDisplayName && FLOW_LAYOUT_TYPES.has(nodeDisplayName);
+                        const useFlow = usesFlowPlacement(tgtDisplayName, tgtProps) || isFlowType;
+
+                        actions.setProp(newRootId, (props: Record<string, unknown>) => {
+                          if (useFlow) {
+                            props.position = "relative";
+                            props.left = "auto";
+                            props.top = "auto";
+                          } else if (parentIsFreeform) {
+                            props.position = "absolute";
+                            props.left = `${Math.round(clamp(rawLeft, 0, Math.max(0, pW)))}px`;
+                            props.top = `${Math.round(clamp(rawTop, 0, Math.max(0, pH)))}px`;
+                          } else {
+                            props.position = "relative";
+                            props.left = "auto";
+                            props.top = "auto";
+                          }
+                          props.right = "auto";
+                          props.bottom = "auto";
+                          props.marginTop = 0;
+                          props.marginLeft = 0;
+                        });
+                      }
+                      try { (actions as any).selectNode?.(newRootId); } catch { /* noop */ }
+                    } catch { /* ignore */ }
+                  });
+                }
+              }
+            } catch { /* ignore fallback errors */ }
+          }
           reset();
         }
         return;
@@ -601,17 +692,13 @@ export function PanelDropFreePlacementHandler() {
                 }
                 return;
               }
-
-              const currentLeft = parsePxOrNumber(props.left);
-              const currentTop = parsePxOrNumber(props.top);
-              const nextLeft = Math.round(currentLeft + (finalLeft - (nodeRect.left - parentRect.left)));
-              const nextTop = Math.round(currentTop + (finalTop - (nodeRect.top - parentRect.top)));
-
+              // Use the computed drop position directly (relative to parent).
+              // No delta correction needed — this is a fresh drop from the panel.
               props.position = parentIsFreeform
                 ? "absolute"
                 : (props.position && props.position !== "static" ? props.position : "relative");
-              props.left = `${nextLeft}px`;
-              props.top = `${nextTop}px`;
+              props.left = `${finalLeft}px`;
+              props.top = `${finalTop}px`;
               props.right = "auto";
               props.bottom = "auto";
               props.marginTop = 0;

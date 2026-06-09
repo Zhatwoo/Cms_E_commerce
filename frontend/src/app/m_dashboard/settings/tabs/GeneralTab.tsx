@@ -1,6 +1,59 @@
+/**
+ * ============================================================================
+ * General Settings Tab Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component displays general profile settings where users can edit
+ * personal information, bio, website, and avatar.
+ *
+ * The component provides:
+ * - Profile form fields (name, email, username, website, bio)
+ * - Avatar upload and preview
+ * - Form validation
+ * - Save functionality
+ * - Feedback messages (success/error)
+ * - Loading states
+ * - Success indicators
+ * - Theme-aware styling
+ *
+ * What this Component Does:
+ * - Renders profile form fields
+ * - Handles avatar file selection
+ * - Shows avatar preview
+ * - Validates form input
+ * - Saves profile changes
+ * - Shows success/error messages
+ * - Manages loading states
+ * - Resets form to original values
+ * - Displays save success indicator
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * colors: Record<string, any>
+ * - Theme color palette
+ *
+ * theme: 'light' | 'dark'
+ * - Current theme
+ *
+ * user: any
+ * - Current user data
+ *
+ * avatarUrl: string
+ * - Current avatar image URL
+ *
+ * generalForm: GeneralForm
+ * - Form field values
+ *
+ * Other state and callback props for form management
+ *
+ * ============================================================================
+ */
+
 import type React from 'react';
-import { motion } from 'framer-motion';
 import { AtSign, Camera, Check, FileText, Globe, Save, User } from 'lucide-react';
+import { FeedbackMessage } from '../../components/ui/feedbackMessage';
 
 type GeneralForm = {
   name: string;
@@ -27,6 +80,7 @@ type GeneralTabProps = {
   onFieldChange: (field: keyof GeneralForm, value: string) => void;
   onReset: () => void;
   onSave: () => void;
+  onClearFeedback: () => void;
 };
 
 export function GeneralTab({
@@ -44,6 +98,7 @@ export function GeneralTab({
   onFieldChange,
   onReset,
   onSave,
+  onClearFeedback,
 }: GeneralTabProps) {
   const isDark = theme === 'dark';
 
@@ -86,28 +141,20 @@ export function GeneralTab({
   </div>
 
   {/* FEEDBACK TOAST: Floating & Modern */}
-  {generalFeedback && (
-    <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="mb-8 p-4 rounded-2xl border backdrop-blur-md flex items-center gap-3 text-[13px] font-bold uppercase tracking-wider"
-      style={{
-        backgroundColor: generalFeedback.type === 'success' ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)',
-        borderColor: generalFeedback.type === 'success' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)',
-        color: generalFeedback.type === 'success' ? colors.status.good : colors.status.error,
-      }}
-    >
-      <div className={`w-2 h-2 rounded-full animate-pulse ${generalFeedback.type === 'success' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-      {generalFeedback.message}
-    </motion.div>
-  )}
+  <FeedbackMessage
+    open={Boolean(generalFeedback)}
+    tone={generalFeedback?.type ?? 'info'}
+    message={generalFeedback?.message ?? ''}
+    variant="toast"
+    onClose={onClearFeedback}
+  />
 
   {/* IDENTITY CARD: Glassmorphic Hub */}
   <div
     className="relative group flex flex-col md:flex-row items-center gap-8 p-8 mb-12 rounded-[2.5rem] border transition-all duration-500"
-    style={{ 
-      backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)', 
-      borderColor: colors.border.faint 
+    style={{
+      backgroundColor: isDark ? 'rgba(255,255,255,0.02)' : 'rgba(0,0,0,0.02)',
+      borderColor: colors.border.faint
     }}
   >
     <div className="relative">
@@ -198,13 +245,17 @@ export function GeneralTab({
       />
       <textarea
         rows={5}
+        wrap="soft"
         value={generalForm.bio}
         onChange={(e) => onFieldChange('bio', e.target.value)}
-        className="w-full pl-12 pr-14 py-4 rounded-[1.25rem] border outline-none transition-all font-medium text-sm focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30"
+        className="w-full pl-12 pr-14 py-4 rounded-[1.25rem] border outline-none transition-all font-medium text-sm focus:ring-4 focus:ring-violet-500/5 focus:border-violet-500/30 whitespace-pre-wrap wrap-break-word"
         style={{
           backgroundColor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.01)',
           borderColor: colors.border.faint,
           color: colors.text.primary,
+          overflowWrap: 'break-word',
+          wordBreak: 'break-word',
+          resize: 'vertical',
         }}
         placeholder="Brief professional summary..."
       />
@@ -226,7 +277,7 @@ export function GeneralTab({
     >
       Discard Changes
     </button>
-    
+
     <button
       onClick={onSave}
       disabled={generalSaving || !generalForm.name.trim() || !generalForm.email.trim()}
@@ -249,7 +300,7 @@ export function GeneralTab({
       <div className="relative z-10 flex items-center gap-3">
         {generalSaveSuccess && !generalSaving ? <Check className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} /> : <Save className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} />}
         <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#120533]' : 'text-white'}`}>
-          {generalSaving ? 'Syncing...' : generalSaveSuccess ? 'Identity Verified' : 'Publish Profile'}
+          {generalSaving ? 'Syncing...' : generalSaveSuccess ? 'Identity Verified' : 'Save Changes'}
         </span>
       </div>
     </button>
