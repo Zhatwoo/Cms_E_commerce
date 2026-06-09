@@ -1,17 +1,23 @@
+/**\n * ============================================================================\n * Create Project Form Component\n * ============================================================================\n *
+ * Purpose of this File:\n * ----------------------------------------------------------------------------\n * This file contains a comprehensive form component for creating new projects
+ * in the dashboard with project name, subdomain, and industry selection.
+ *
+ * The component provides:\n * - Form input fields for project configuration\n * - Industry category dropdown selection\n * - Subdomain validation and normalization\n * - Plan limit validation\n * - Theme-aware styling\n * - Error handling and display\n * - Loading state for form submission\n *\n * ----------------------------------------------------------------------------\n * What this Component Does:\n * ----------------------------------------------------------------------------\n * - Renders form with project name and subdomain fields\n * - Displays industry category dropdown\n * - Validates subdomain format and uniqueness\n * - Normalizes subdomain input (lowercase, alphanumeric, hyphens)\n * - Checks project plan limits before creation\n * - Calls createProject API on form submission\n * - Redirects to design editor after successful creation\n * - Shows loading state during submission\n * - Provides cancel action to return to projects list\n * - Calls optional onCreated callback with new project\n *\n * Props / Parameters:\n * ----------------------------------------------------------------------------\n *\n * cancelHref?: string\n * - Route to navigate to when user clicks cancel.\n * - Default: '/m_dashboard/projects'\n *
+ * onCreated?: (project: Project) => void\n * - Optional callback fired with created project.\n * - Called before redirecting to design editor.\n *
+ * Context Dependencies:\n * - useTheme: For theme styling\n * - useRouter: For navigation after creation\n * - useAuth: For current user context\n *
+ * ============================================================================\n */
+
 "use client";
 
 import React, { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createProject,
-  getStoredUser,
-  listProjects,
   type Project,
 } from "@/lib/api";
-import { ensureProjectStorageFolder } from "@/lib/firebaseStorage";
 import { INDUSTRY_OPTIONS } from "@/lib/industryCatalog";
-import { getLimits } from "@/lib/subscriptionLimits";
 import { useTheme } from "@/app/m_dashboard/components/context/theme-context";
+import { CustomDropdown } from "@/app/m_dashboard/components/ui/customDropdown";
 
 type CreateProjectFormProps = {
   /** Path used by the cancel action to return to the previous screen. */
@@ -41,6 +47,16 @@ export function CreateProjectForm({
   const router = useRouter();
   const { theme } = useTheme();
 
+  const industryDropdownOptions = INDUSTRY_OPTIONS.map((item) => ({
+    id: item.key,
+    label: item.label,
+  }));
+
+  const fieldInputStyles = `
+    w-full h-[52px] rounded-2xl px-6 border outline-none transition-all duration-500
+    text-sm font-medium tracking-tight shadow-[0_0_12px_rgba(31,31,81,0.08)]
+  `;
+
   const [title, setTitle] = useState("");
   const [industry, setIndustry] = useState("");
   const [subdomain, setSubdomain] = useState("");
@@ -68,7 +84,6 @@ export function CreateProjectForm({
 
       try {
         setCreating(true);
-        const user = getStoredUser();
 
         const response = await createProject({
           title: trimmedTitle,
@@ -84,8 +99,6 @@ export function CreateProjectForm({
 
         onCreated?.(response.project);
 
-        const clientName = (user?.name || user?.username || "client").trim() || "client";
-        ensureProjectStorageFolder(clientName, response.project.title || "website").catch(() => {});
         router.push(`/design?projectId=${response.project.id}`);
       } catch (submitError) {
         const message = submitError instanceof Error ? submitError.message : "";
@@ -135,7 +148,7 @@ export function CreateProjectForm({
       <div className="space-y-12">
         {/* Project Title: The High-Gloss Plate */}
         <div className="group">
-          <label className={`block text-[10px] font-black uppercase tracking-[0.4em] mb-4 ml-4 opacity-50
+          <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-3 ml-1 opacity-50 group-focus-within:opacity-100 transition-opacity
             ${theme === "dark" ? "text-[#C4C6E8]" : "text-[#120533]"}`}>
             Project Name
           </label>
@@ -144,45 +157,32 @@ export function CreateProjectForm({
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Name your masterpiece..."
-            className={`w-full px-8 py-5 rounded-2xl text-2xl font-black tracking-tight outline-none transition-all duration-500
-              ${theme === "dark"
-                ? "bg-white/5 border border-white/10 text-white focus:bg-white/10 focus:border-[#FFCE00]/50 shadow-[0_20px_50px_rgba(0,0,0,0.3)]"
-                : "bg-slate-50 border border-slate-100 text-slate-900 focus:bg-white focus:border-[#8B5CF6]/30 shadow-[0_15px_35px_rgba(0,0,0,0.02)] focus:shadow-[0_20px_50px_rgba(139,92,246,0.15)]"
-              }`}
+            className={`${fieldInputStyles} ${theme === "dark"
+              ? "bg-[#141446] border-[#1F1F51] text-white shadow-[0_0_12px_rgba(31,31,81,0.4)] hover:border-[#2a2a6e] focus:border-[#3b3b8a]"
+              : "bg-white border-slate-100 text-[#120533] shadow-[0_0_15px_rgba(139,92,246,0.1)] hover:border-[#8B5CF6]/40 focus:border-[#8B5CF6]"
+            }`}
           />
         </div>
 
         <div className="grid sm:grid-cols-2 gap-10">
           {/* Industry Field */}
           <div className="group">
-            <label className={`block text-[10px] font-black uppercase tracking-[0.4em] mb-4 ml-4 opacity-50
+            <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-3 ml-1 opacity-50 group-focus-within:opacity-100 transition-opacity
               ${theme === "dark" ? "text-[#C4C6E8]" : "text-[#120533]"}`}>
               Industry
             </label>
-            <div className="relative">
-              <select
-                value={industry}
-                onChange={(e) => setIndustry(e.target.value)}
-                className={`w-full px-8 py-5 rounded-xl text-sm font-bold outline-none appearance-none cursor-pointer transition-all duration-500
-                  ${theme === "dark"
-                    ? "bg-white/5 border border-white/10 text-white focus:border-[#6B72D8]"
-                    : "bg-slate-50 border border-slate-100 text-slate-900 focus:bg-white focus:border-[#8B5CF6]"
-                  }`}
-              >
-                <option value="" disabled>Select category</option>
-                {INDUSTRY_OPTIONS.map((item) => (
-                  <option key={item.key} value={item.key} className="text-black">{item.label}</option>
-                ))}
-              </select>
-              <div className="absolute right-6 top-1/2 -translate-y-1/2 pointer-events-none opacity-30">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
+            <CustomDropdown
+              value={industry}
+              onChange={setIndustry}
+              options={industryDropdownOptions}
+              title="Industry"
+              className="md:w-full"
+            />
           </div>
 
           {/* Subdomain Field */}
           <div className="group">
-            <label className={`block text-[10px] font-black uppercase tracking-[0.4em] mb-4 ml-4 opacity-50
+            <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-3 ml-1 opacity-50 group-focus-within:opacity-100 transition-opacity
               ${theme === "dark" ? "text-[#C4C6E8]" : "text-[#120533]"}`}>
               Subdomain
             </label>
@@ -191,11 +191,10 @@ export function CreateProjectForm({
               value={subdomain}
               onChange={(e) => setSubdomain(e.target.value)}
               placeholder="mystore"
-              className={`w-full px-8 py-5 rounded-xl text-sm font-bold outline-none transition-all duration-500
-                ${theme === "dark"
-                  ? "bg-white/5 border border-white/10 text-white focus:border-[#6B72D8]"
-                  : "bg-slate-50 border border-slate-100 text-slate-900 focus:bg-white focus:border-[#8B5CF6]"
-                }`}
+              className={`${fieldInputStyles} ${theme === "dark"
+                ? "bg-[#141446] border-[#1F1F51] text-white shadow-[0_0_12px_rgba(31,31,81,0.4)] hover:border-[#2a2a6e] focus:border-[#3b3b8a]"
+                : "bg-white border-slate-100 text-[#120533] shadow-[0_0_15px_rgba(139,92,246,0.1)] hover:border-[#8B5CF6]/40 focus:border-[#8B5CF6]"
+              }`}
             />
           </div>
         </div>
@@ -220,8 +219,11 @@ export function CreateProjectForm({
         <button
           type="button"
           onClick={() => router.push(cancelHref)}
-          className={`cursor-pointer mt-10 text-[9px] font-black uppercase tracking-[0.8em] transition-all opacity-20 hover:opacity-100
-            ${theme === "dark" ? "text-white" : "text-[#120533]"}`}
+          className={`cursor-pointer mt-10 inline-flex items-center justify-center rounded-full border px-6 py-3 text-[10px] font-black uppercase tracking-[0.35em] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg
+            ${theme === "dark"
+              ? "border-white/15 bg-white/5 text-white hover:bg-white/10 hover:border-white/25"
+              : "border-slate-200 bg-white text-[#120533] hover:bg-slate-50 hover:border-[#8B5CF6]/30 hover:text-[#8B5CF6]"
+            }`}
         >
           Back to Dashboard
         </button>

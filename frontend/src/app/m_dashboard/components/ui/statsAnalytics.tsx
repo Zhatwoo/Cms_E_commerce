@@ -1,19 +1,209 @@
 'use client';
 
+/**
+ * ============================================================================
+ * StatsAnalytics Component System
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable analytics/statistics card system used for
+ * displaying dashboard metrics, summaries, counters, and analytical data.
+ *
+ * It includes:
+ * - StatsAnalytics grid container
+ * - Internal StatCard component
+ *
+ * The component system is designed for:
+ * - Dashboard statistics
+ * - Admin analytics
+ * - Inventory summaries
+ * - Order counts
+ * - Revenue tracking
+ * - User statistics
+ * - KPI monitoring
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays animated metric cards
+ * - Renders statistics inside responsive grid layouts
+ * - Supports loading skeleton states
+ * - Uses configurable accent colors
+ * - Supports staggered card animations
+ * - Provides reusable dashboard analytics UI
+ *
+ * ----------------------------------------------------------------------------
+ * Dependencies:
+ * ----------------------------------------------------------------------------
+ *
+ * Required Packages:
+ * - react
+ * - framer-motion
+ * - lucide-react
+ *
+ * Installation:
+ *
+ * npm install framer-motion lucide-react
+ *
+ * ----------------------------------------------------------------------------
+ * Main Features:
+ * ----------------------------------------------------------------------------
+ * ✓ Animated stat cards
+ * ✓ Responsive grid layout
+ * ✓ Skeleton loading states
+ * ✓ Theme-aware styling
+ * ✓ Memoized card rendering
+ * ✓ Configurable grid columns
+ * ✓ Custom accent colors
+ * ✓ Hover animations
+ * ✓ Reusable dashboard UI
+ *
+ * ----------------------------------------------------------------------------
+ * Component Structure:
+ * ----------------------------------------------------------------------------
+ *
+ * StatsAnalytics
+ * └── StatCard (internal reusable card component)
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * StatCardProps
+ * ----------------------------------------------------------------------------
+ *
+ * id: string
+ * - Unique identifier for the card.
+ * - Used as React key.
+ *
+ * label: string
+ * - Metric title or label.
+ *
+ * Example:
+ * - "TOTAL PRODUCTS"
+ * - "TOTAL ORDERS"
+ * - "REVENUE"
+ *
+ * value: string | number
+ * - Main metric value displayed.
+ *
+ * icon: LucideIcon
+ * - Lucide React icon component.
+ *
+ * Example:
+ * - Package
+ * - ShoppingCart
+ * - DollarSign
+ *
+ * accent: string
+ * - Accent hex color used for:
+ *   - Icon
+ *   - Borders
+ *   - Glow effects
+ *
+ * Example:
+ * - "#86a8ff"
+ * - "#10B981"
+ *
+ * animationDelay?: number
+ * - Stagger animation delay in seconds.
+ * - Default: 0
+ *
+ * isSkeleton?: boolean
+ * - Enables loading skeleton UI.
+ * - Default: false
+ *
+ * ----------------------------------------------------------------------------
+ * StatsAnalyticsProps
+ * ----------------------------------------------------------------------------
+ *
+ * cards: StatCardProps[]
+ * - Array of card configurations.
+ * - REQUIRED
+ *
+ * gridCols?: string
+ * - Tailwind grid column classes.
+ *
+ * Default:
+ * - 'grid-cols-2'
+ *
+ * Example:
+ * - 'grid-cols-2 md:grid-cols-4'
+ *
+ * gap?: string
+ * - Tailwind gap utility class.
+ *
+ * Default:
+ * - 'gap-[10px]'
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Example:
+ *
+ * import {
+ *   Package,
+ *   ShoppingCart,
+ *   DollarSign,
+ * } from 'lucide-react';
+ *
+ * const statCards = [
+ *   {
+ *     id: 'products',
+ *     label: 'TOTAL PRODUCTS',
+ *     value: 125,
+ *     icon: Package,
+ *     accent: '#86a8ff',
+ *   },
+ *   {
+ *     id: 'orders',
+ *     label: 'TOTAL ORDERS',
+ *     value: 42,
+ *     icon: ShoppingCart,
+ *     accent: '#10B981',
+ *   },
+ * ];
+ *
+ * <StatsAnalytics
+ *   cards={statCards}
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example with Responsive Layout:
+ * ----------------------------------------------------------------------------
+ *
+ * <StatsAnalytics
+ *   cards={statCards}
+ *   gridCols="grid-cols-2 md:grid-cols-4"
+ *   gap="gap-4"
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example Skeleton Loading:
+ * ----------------------------------------------------------------------------
+ *
+ * const loadingCards = [
+ *   {
+ *     id: 'loading-1',
+ *     label: '',
+ *     value: '',
+ *     icon: Package,
+ *     accent: '#86a8ff',
+ *     isSkeleton: true,
+ *   },
+ * ];
+ *
+ * <StatsAnalytics cards={loadingCards} />
+ *
+ * ============================================================================
+ */
+
+
 import React from 'react';
 import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
-
-/**
- * @typedef {Object} StatCardProps
- * @property {string} id - Unique identifier for the stat card
- * @property {string} label - Display label (e.g., "TOTAL PRODUCTS")
- * @property {string | number} value - The metric value to display
- * @property {LucideIcon} icon - Lucide React icon component
- * @property {string} accent - Hex color for accents and highlights (e.g., "#86a8ff")
- * @property {number} [animationDelay=0] - Stagger animation delay in seconds
- * @property {boolean} [isSkeleton=false] - Show skeleton loading state
- */
 export interface StatCardProps {
   id: string;
   label: string;

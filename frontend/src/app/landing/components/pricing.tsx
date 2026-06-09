@@ -84,7 +84,7 @@ export function Pricing({ isDarkMode = false }: { isDarkMode?: boolean }) {
         <h2 className="text-[38px] font-black leading-[1.08] tracking-[-0.02em] md:text-[58px]">
           Take advantage of our
           <br />
-          <span className="bg-gradient-to-r from-[#8b3dff] to-[#c026d3] bg-clip-text text-transparent">
+          <span className="bg-linear-to-r from-[#8b3dff] to-[#c026d3] bg-clip-text text-transparent">
             1 month
           </span>{' '}
           free domain
@@ -111,7 +111,7 @@ export function Pricing({ isDarkMode = false }: { isDarkMode?: boolean }) {
             const buttonClass = isPremium
               ? isDarkMode 
                 ? 'bg-[#f5c400] text-[#1c1d2b] hover:brightness-105' 
-                : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white hover:brightness-110'
+                : 'bg-linear-to-r from-[#9333ea] to-[#ec4899] text-white hover:brightness-110'
               : isDarkMode 
                 ? 'bg-white/10 text-white hover:bg-white/20' 
                 : 'bg-[#f0f0f4] text-[#120533] hover:bg-[#d1d1dd]';

@@ -49,7 +49,7 @@ export function LoadingProvider({ children, forceLoading = false }: { children: 
         if (startRouteKey && routeKey !== startRouteKey) {
             const elapsed = Date.now() - startedAtRef.current;
             const delay = Math.max(0, MIN_VISIBLE_MS - elapsed);
-            stopTimerRef.current = window.setTimeout(() => {
+            stopTimerRef.current = setTimeout(() => {
                 stopLoading();
             }, delay);
         }
@@ -57,7 +57,7 @@ export function LoadingProvider({ children, forceLoading = false }: { children: 
 
     useEffect(() => {
         if (!isLoading) return;
-        const timer = window.setTimeout(() => {
+        const timer = setTimeout(() => {
             stopLoading();
         }, MAX_LOADING_MS);
         return () => window.clearTimeout(timer);

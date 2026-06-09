@@ -1,5 +1,57 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Product List View Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the product list display component that renders products
+ * in either tile grid or table list format with action menus and detailed
+ * product information.
+ *
+ * The component provides:
+ * - Dual view modes: tile (grid) and list (table)
+ * - Product card display with images and variants
+ * - Action menu for edit/delete/view operations
+ * - Status badge display
+ * - Price and variant information
+ * - Theme-aware styling
+ * - Responsive design for mobile and desktop
+ * - Action tooltips for accessibility
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders product cards in grid or list layout
+ * - Displays product image with variant selector
+ * - Shows product name, SKU, category, and status
+ * - Displays price and stock information
+ * - Renders action menu for product operations
+ * - Calls callbacks for edit/delete/view actions
+ * - Manages open/closed state of action menus
+ * - Applies theme-specific styling
+ * - Shows tooltips for action buttons
+ * - Handles variant selection changes
+ * - Shows low stock warnings
+ *
+ * Props / Parameters:
+ * ----\n *
+ * products: Product[]\n * - Array of products to display (typically paginated).\n * - REQUIRED\n *
+ * viewMode: 'tile' | 'list'\n * - View mode selection for grid or table layout.\n * - REQUIRED\n *
+ * colors: ColorConfig\n * - Theme color palette for styling.\n * - REQUIRED\n *
+ * theme: string\n * - Current theme ('dark' or 'light').\n * - REQUIRED\n *
+ * openMenuProductId: string | null\n * - ID of product with open action menu.\n * - REQUIRED\n *
+ * onView: (product: Product) => void\n * - Callback when product is clicked to view details.\n * - REQUIRED\n *
+ * onEdit: (product: Product) => void\n * - Callback for edit action.\n * - REQUIRED\n *
+ * onDelete: (product: Product) => void\n * - Callback for delete action.\n * - REQUIRED\n *
+ * onToggleMenu: (productId: string) => void\n * - Callback to toggle action menu.\n * - REQUIRED\n *
+ * onCloseMenu: () => void\n * - Callback to close action menu.\n * - REQUIRED\n *
+ * onSaveProduct?: (productData: Partial<Product> & Record<string, unknown>) => Promise<boolean>\n * - Optional callback for saving product from edit modal.\n *
+ * ============================================================================
+ */
+
 import { AnimatePresence } from 'framer-motion';
 import { Eye, Pencil, Trash2 } from 'lucide-react';
 import { type Product, type ProductVariant } from '../../lib/productsData';

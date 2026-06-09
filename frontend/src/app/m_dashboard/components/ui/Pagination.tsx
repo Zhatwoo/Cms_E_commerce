@@ -1,6 +1,155 @@
 'use client';
 
-import React from 'react';
+/**
+ * ============================================================================
+ * Pagination Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a reusable pagination navigation component used for
+ * navigating through paginated data such as:
+ *
+ * - Tables
+ * - Product lists
+ * - Orders
+ * - Search results
+ * - Dashboard records
+ * - Inventory items
+ *
+ * The component provides:
+ * - Previous/Next navigation
+ * - Dynamic page number rendering
+ * - Ellipsis support for large page sets
+ * - Theme-aware styling
+ * - Responsive pagination sizing
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays pagination controls
+ * - Highlights the currently active page
+ * - Allows navigation between pages
+ * - Handles previous and next page actions
+ * - Supports compact responsive layouts
+ * - Displays ellipsis (...) for skipped page ranges
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * theme: 'light' | 'dark'
+ * ----------------------------------------------------------------------------
+ * Determines visual theme styling.
+ *
+ * Available values:
+ * - 'light'
+ * - 'dark'
+ *
+ * ----------------------------------------------------------------------------
+ * colors
+ * ----------------------------------------------------------------------------
+ * Theme color configuration object.
+ *
+ * Structure:
+ *
+ * {
+ *   border: {
+ *     faint: string;
+ *   };
+ *   text: {
+ *     secondary: string;
+ *     muted: string;
+ *     primary: string;
+ *   };
+ * }
+ *
+ * ----------------------------------------------------------------------------
+ * paginationItems: Array<number | string>
+ * ----------------------------------------------------------------------------
+ * Array of page items to render.
+ *
+ * Can contain:
+ * - Page numbers
+ * - 'ellipsis'
+ *
+ * Example:
+ * [1, 2, 3, 'ellipsis', 10]
+ *
+ * ----------------------------------------------------------------------------
+ * currentPage: number
+ * ----------------------------------------------------------------------------
+ * Currently active page number.
+ *
+ * ----------------------------------------------------------------------------
+ * totalPages: number
+ * ----------------------------------------------------------------------------
+ * Total number of pages available.
+ *
+ * NOTE:
+ * - Currently not directly rendered
+ * - Useful for external pagination logic
+ *
+ * ----------------------------------------------------------------------------
+ * onPageChange: (page: number) => void
+ * ----------------------------------------------------------------------------
+ * Triggered when a page number is clicked.
+ *
+ * ----------------------------------------------------------------------------
+ * onPrevPage: () => void
+ * ----------------------------------------------------------------------------
+ * Triggered when Previous button is clicked.
+ *
+ * ----------------------------------------------------------------------------
+ * onNextPage: () => void
+ * ----------------------------------------------------------------------------
+ * Triggered when Next button is clicked.
+ *
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Basic Example:
+ *
+ * <Pagination
+ *   theme="dark"
+ *   colors={{
+ *     border: {
+ *       faint: 'rgba(255,255,255,0.1)',
+ *     },
+ *     text: {
+ *       secondary: '#A1A1AA',
+ *       muted: '#71717A',
+ *       primary: '#FFFFFF',
+ *     },
+ *   }}
+ *   paginationItems={[1, 2, 3, 'ellipsis', 10]}
+ *   currentPage={2}
+ *   totalPages={10}
+ *   onPageChange={(page) => setCurrentPage(page)}
+ *   onPrevPage={handlePrevPage}
+ *   onNextPage={handleNextPage}
+ * />
+ *
+ * ----------------------------------------------------------------------------
+ * Example Pagination Logic:
+ * ----------------------------------------------------------------------------
+ *
+ * const handlePrevPage = () => {
+ *   if (currentPage > 1) {
+ *     setCurrentPage(currentPage - 1);
+ *   }
+ * };
+ *
+ * const handleNextPage = () => {
+ *   if (currentPage < totalPages) {
+ *     setCurrentPage(currentPage + 1);
+ *   }
+ * };
+ *
+ * ============================================================================
+ */
 
 type PaginationProps = {
   theme: 'light' | 'dark';

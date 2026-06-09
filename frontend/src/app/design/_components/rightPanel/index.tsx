@@ -200,10 +200,10 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                               setActiveTab(tab.id);
                             }}
                             className={`relative flex-1 p-1.5 rounded-lg transition-all duration-200 flex flex-col items-center justify-center gap-1 min-w-0 ${isActive
-                              ? "bg-[var(--builder-surface-3)] text-[var(--builder-accent)] shadow-sm"
+                              ? "bg-builder-surface-3 text-builder-accent shadow-sm"
                               : isRestricted || (permission === "viewer" && tab.id === "code")
-                                ? "text-[var(--builder-text-faint)] cursor-not-allowed"
-                                : "text-[var(--builder-text-muted)] hover:text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]/50"
+                                ? "text-builder-text-faint cursor-not-allowed"
+                                : "text-builder-text-muted hover:text-builder-text hover:bg-builder-surface-3/50"
                               }`}
                           >
                             <div className="flex flex-col items-center gap-0.5 min-w-0 justify-center">
@@ -235,7 +235,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                     ) : primary?.settings ? (
                       React.createElement(primary.settings)
                     ) : (
-                      <div className="flex flex-col items-center justify-center py-8 text-[var(--builder-text-muted)]">
+                      <div className="flex flex-col items-center justify-center py-8 text-builder-text-muted">
                         <p className="text-sm">No design settings available</p>
                       </div>
                     ))}
@@ -269,7 +269,7 @@ const RightPanelInner = ({ projectId, width = RIGHT_PANEL_DEFAULT_WIDTH, activeT
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-[var(--builder-text-muted)]">
+              <div className="flex flex-col items-center justify-center h-64 text-builder-text-muted">
                 <p className="text-sm">Select a component to edit</p>
               </div>
             )}

@@ -170,12 +170,12 @@ export const AppearanceGroup = ({
       {/* Fill */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-[12px] text-[var(--builder-text)] font-base">Fill</label>
+          <label className="text-[12px] text-builder-text font-base">Fill</label>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setFillPickerToggleKey((prev) => prev + 1)}
-              className="h-6 w-6 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[#2f8cff] hover:bg-[var(--builder-surface-3)] flex items-center justify-center"
+              className="h-6 w-6 rounded-md border border-(--builder-border) bg-builder-surface-2 text-[#2f8cff] hover:bg-builder-surface-3 flex items-center justify-center"
               title="Apply styles and variables"
             >
               <span className="grid grid-cols-2 gap-0.5">
@@ -202,7 +202,7 @@ export const AppearanceGroup = ({
           <button
             type="button"
             onClick={toggleFillVisibility}
-            className="h-8 w-8 rounded-lg bg-[var(--builder-surface-2)] border border-[var(--builder-border)] text-[var(--builder-text-faint)] hover:text-[var(--builder-text)] flex items-center justify-center"
+            className="h-8 w-8 rounded-lg bg-builder-surface-2 border border-(--builder-border) text-builder-text-faint hover:text-builder-text flex items-center justify-center"
             title={isFillVisible || hasMedia ? "Hide fill" : "Show fill"}
           >
             {isFillVisible || hasMedia ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -212,7 +212,7 @@ export const AppearanceGroup = ({
 
       {/* Border */}
       <div className="flex flex-col gap-2">
-        <label className="text-[12px] text-[var(--builder-text)] font-base">Border</label>
+        <label className="text-[12px] text-builder-text font-base">Border</label>
         <div className="flex gap-2">
           {/* Color Picker */}
           <ColorPicker
@@ -221,7 +221,7 @@ export const AppearanceGroup = ({
             className="flex-1 min-w-0"
           />
           {/* Thickness Input */}
-          <div className="w-16 bg-[var(--builder-surface-2)] rounded-lg px-2.5">
+          <div className="w-16 bg-builder-surface-2 rounded-lg px-2.5">
             <NumericInput
               value={borderWidth}
               onChange={(val) => setProp((props) => { props.borderWidth = val; })}
@@ -233,7 +233,7 @@ export const AppearanceGroup = ({
           <select
             value={borderStyle}
             onChange={(e) => setProp((props) => { props.borderStyle = e.target.value; })}
-            className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
           >
             <option value="solid">Solid</option>
             <option value="dashed">Dashed</option>
@@ -242,7 +242,7 @@ export const AppearanceGroup = ({
           <select
             value={strokePlacement}
             onChange={(e) => setProp((props) => { props.strokePlacement = e.target.value as "mid" | "inside" | "outside"; })}
-            className="w-full bg-[var(--builder-surface-2)] rounded-lg text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none"
+            className="w-full bg-builder-surface-2 rounded-lg text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none"
             title="Border placement"
           >
             <option value="mid">Mid</option>
@@ -255,51 +255,51 @@ export const AppearanceGroup = ({
       {/* Corner Radius */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <label className="text-[12px] text-[var(--builder-text)]">Corners</label>
+          <label className="text-[12px] text-builder-text">Corners</label>
           <button
             onClick={() => setExpandRadius(!expandRadius)}
-            className={`p-0.5 rounded ${expandRadius ? "bg-[var(--builder-accent)] text-black" : "text-[var(--builder-text-faint)] hover:text-[var(--builder-text)]"}`}
+            className={`p-0.5 rounded ${expandRadius ? "bg-builder-accent text-black" : "text-builder-text-faint hover:text-builder-text"}`}
           >
-            <Scan strokeWidth={2} size={12} className={`text-[var(--builder-text)] hover:text-[var(--builder-text)] ${expandRadius ? "rotate-90" : "rotate-0"}`} />
+            <Scan strokeWidth={2} size={12} className={`text-builder-text hover:text-builder-text ${expandRadius ? "rotate-90" : "rotate-0"}`} />
           </button>
         </div>
 
         {expandRadius ? (
           <div className="grid grid-cols-2 gap-2">
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
 
               <NumericInput
                 value={radiusTopLeft}
                 onChange={(val) => handleRadiusChange("tl", val)}
-                icon={<div className="w-2 h-2 border-t border-l border-[var(--builder-text)] mr-2" />}
+                icon={<div className="w-2 h-2 border-t border-l border-(--builder-text) mr-2" />}
               />
             </div>
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusTopRight}
                 onChange={(val) => handleRadiusChange("tr", val)}
-                icon={<div className="w-2 h-2 border-t border-r border-[var(--builder-text)] mr-2" />}
+                icon={<div className="w-2 h-2 border-t border-r border-(--builder-text) mr-2" />}
               />
             </div>
 
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusBottomLeft}
                 onChange={(val) => handleRadiusChange("bl", val)}
-                icon={<div className="w-2 h-2 border-b border-l border-[var(--builder-text)] mr-2" />}
+                icon={<div className="w-2 h-2 border-b border-l border-(--builder-text) mr-2" />}
               />
             </div>
-            <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
+            <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
               <NumericInput
                 value={radiusBottomRight}
                 onChange={(val) => handleRadiusChange("br", val)}
-                icon={<div className="w-2 h-2 border-b border-r border-[var(--builder-text)] mr-2" />}
+                icon={<div className="w-2 h-2 border-b border-r border-(--builder-text) mr-2" />}
               />
             </div>
           </div>
         ) : (
-          <div className="flex bg-[var(--builder-surface-2)] rounded-lg px-2 items-center gap-2">
-            <SquareRoundCorner size={16} className="text-[var(--builder-text)] mx-2.5" />
+          <div className="flex bg-builder-surface-2 rounded-lg px-2 items-center gap-2">
+            <SquareRoundCorner size={16} className="text-builder-text mx-2.5" />
             <NumericInput
               value={radiusTopLeft}
               onChange={(val) => handleRadiusChange("all", val)}

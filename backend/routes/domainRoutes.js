@@ -3,7 +3,8 @@ const express = require('express');
 const router = express.Router();
 const { getMyDomains, getOne, create, delete: deleteDomain, getAll, updateStatus, syncPublicLookup, publish, unpublish, updateSubdomain, schedulePublish, getSchedule, getPublishHistory, getManagementList, setClientDomainStatus, adminWebsiteAction, adminUpdateClientSubdomain } = require('../controllers/domainController');
 const { listCustomDomains, addCustomDomain, verifyCustomDomain, removeCustomDomain } = require('../controllers/customDomainController');
-const { protect, admin } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 router.get('/my', protect, getMyDomains);
 router.get('/admin/management', protect, admin, getManagementList);

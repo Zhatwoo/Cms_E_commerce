@@ -1,5 +1,44 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Notifications Center Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This is the notifications center where users can view, manage, and delete
+ * notification items with filtering by status (all/unread/archive), pagination,
+ * and search functionality.
+ *
+ * The component provides:
+ * - Paginated notification list with 6 items per page
+ * - Status filtering (all/unread/archived)
+ * - Mark as read/unread functionality
+ * - Mark all as read functionality
+ * - Delete individual notifications
+ * - Delete all notifications
+ * - Search/filter notifications
+ * - Notification type icons and badges
+ * - Theme-aware styling
+ * - Smooth animations
+ * - Custom scrollbar styling
+ *
+ * What this Component Does:
+ * - Fetches notifications from API
+ * - Displays notifications in paginated list
+ * - Filters by read/unread/archived status
+ * - Allows marking notifications as read
+ * - Supports marking all as read
+ * - Allows deleting individual items
+ * - Supports bulk deletion
+ * - Shows notification badges and icons
+ * - Formats timestamps in local time
+ * - Adapts styling based on theme
+ * - Handles pagination navigation
+ *
+ * ============================================================================
+ */
+
 import React, { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -72,11 +111,11 @@ export default function NotificationsPage() {
     setIsLoading(false);
   };
 
-  // useEffect(() => {
-  //   loadData();
-  //   window.addEventListener('notificationsUpdate', loadData);
-  //   return () => window.removeEventListener('notificationsUpdate', loadData);
-  // }, []);
+  useEffect(() => {
+    loadData();
+    window.addEventListener('notificationsUpdate', loadData);
+    return () => window.removeEventListener('notificationsUpdate', loadData);
+  }, []);
 
   const filteredList = useMemo(() => {
     return notifications.filter((item) => {
@@ -204,7 +243,7 @@ export default function NotificationsPage() {
           >
             All{' '}
             <span
-              className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
               style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
             >
               Notifications

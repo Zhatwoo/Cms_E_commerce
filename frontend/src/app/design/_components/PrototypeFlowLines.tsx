@@ -312,7 +312,7 @@ export const PrototypeFlowLines = ({ scale = 1 }: { scale?: number }) => {
               />
               <foreignObject x={mx - 120} y={my - 14} width="240" height="28">
                 <div
-                  xmlns="http://www.w3.org/1999/xhtml"
+                  {...{ xmlns: "http://www.w3.org/1999/xhtml" } as React.HTMLAttributes<HTMLDivElement>}
                   className="mx-auto w-fit rounded-md border border-blue-400/60 bg-blue-500/15 px-2 py-0.5 text-blue-100 backdrop-blur-sm"
                   style={{ fontSize: `${edgeBadgeFontSize}px` }}
                 >

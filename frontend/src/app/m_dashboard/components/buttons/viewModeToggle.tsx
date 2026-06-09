@@ -1,5 +1,84 @@
 'use client';
 
+/**
+ * ============================================================================
+ * View Mode Toggle Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains a toggle component for switching between list and grid
+ * view modes in the dashboard projects display.
+ *
+ * The component provides:
+ * - Theme-aware styling for light and dark modes
+ * - Smooth animated transitions between modes
+ * - Visual feedback with gradient highlights in light mode
+ * - Glowing yellow highlight in dark mode
+ * - Accessible toggle interaction
+ * - Icon-based mode representation
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders a toggle rail with list and grid view options
+ * - Displays animated selection indicator
+ * - Calls onChange callback when view mode is toggled
+ * - Adapts colors based on light/dark theme
+ * - Shows smooth animations for mode switching
+ * - Provides distinct visual styling per theme
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters:
+ * ----------------------------------------------------------------------------
+ *
+ * value: ViewMode
+ * - The currently selected view mode.
+ * - Values: 'list' | 'grid'
+ * - REQUIRED
+ *
+ * onChange: (value: ViewMode) => void
+ * - Callback triggered when view mode changes.
+ * - Returns the new selected view mode.
+ * - REQUIRED
+ *
+ * theme: 'light' | 'dark'
+ * - The current application theme.
+ * - Determines button and background colors.
+ * - REQUIRED
+ *
+ * className?: string
+ * - Optional additional Tailwind classes for styling.
+ * - Default: empty string
+ *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------
+ *
+ * ViewMode
+ * - Union type for view modes.
+ * - Values: 'list' | 'grid'
+ *
+ * ViewModeToggleProps
+ * - Props interface for the component
+ *
+ * ----------------------------------------------------------------------------
+ * How to Use:
+ * ----------------------------------------------------------------------------
+ *
+ * Example Usage:
+ *
+ * const [viewMode, setViewMode] = useState<ViewMode>('grid');
+ *
+ * <ViewModeToggle
+ *   value={viewMode}
+ *   onChange={setViewMode}
+ *   theme="dark"
+ * />
+ *
+ * ============================================================================
+ */
+
 import React, { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -19,9 +98,9 @@ export function ViewModeToggle({ value, onChange, theme, className = '' }: ViewM
 
   // 1. Light Mode Active: Pink-to-Purple Gradient
   const lightGradient = 'linear-gradient(135deg, #BD34FE 0%, #F13797 100%)';
-  
+
   // 2. Dark Mode Active: Glowing Yellow
-  const darkYellow = '#FFCE00'; 
+  const darkYellow = '#FFCE00';
 
   // Container Styles
   const railBg = isDark ? 'rgba(20, 20, 70, 0.4)' : '#FFFFFF';
@@ -57,7 +136,7 @@ export function ViewModeToggle({ value, onChange, theme, className = '' }: ViewM
     >
       {modes.map((mode) => {
         const isActive = value === mode.id;
-        
+
         // Dynamic Icon Color
         let iconColor = isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.2)';
         if (isActive) {
@@ -79,12 +158,12 @@ export function ViewModeToggle({ value, onChange, theme, className = '' }: ViewM
                   className="absolute inset-0 rounded-[0.8rem]"
                   initial={false}
                   transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
-                  style={{ 
+                  style={{
                     // Light mode uses the purple/pink gradient
                     // Dark mode uses a subtle transparent glow to let the yellow icon pop
                     background: isDark ? 'rgba(255, 206, 0, 0.05)' : lightGradient,
-                    boxShadow: isDark 
-                      ? `0 0 15px rgba(255, 206, 0, 0.1)` 
+                    boxShadow: isDark
+                      ? `0 0 15px rgba(255, 206, 0, 0.1)`
                       : '0 4px 12px rgba(189, 52, 254, 0.2)',
                     border: isDark ? `1px solid rgba(255, 206, 0, 0.15)` : 'none'
                   }}

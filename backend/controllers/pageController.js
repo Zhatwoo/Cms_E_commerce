@@ -2,6 +2,7 @@
 const Page = require('../models/Page');
 const { db } = require('../config/firebase');
 const { resolveProjectOwner } = require('../utils/resolveProjectOwner');
+const log = require('../utils/logger')('pageController');
 
 const COLLAB_COLORS = [
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEAA7',
@@ -29,7 +30,7 @@ async function resolveTemplateLibraryAccess(projectId) {
 
     return { ownerId, permission: 'viewer', isTemplateLibrary: true };
   } catch (err) {
-    console.warn('[PageController] resolveTemplateLibraryAccess failed:', err.message);
+    log.warn('[PageController] resolveTemplateLibraryAccess failed:', err.message);
     return null;
   }
 }
@@ -81,9 +82,9 @@ async function ensurePublicCollaborator(ownerId, projectId, userId, userEmail, r
       joinedViaLink: true,
       createdAt: new Date().toISOString(),
     });
-    console.log(`[PageController] Auto-registered public user ${userId} (${userEmail}) as ${role} in project ${projectId}`);
+    log.debug(`[PageController] Auto-registered public user ${userId} (${userEmail}) as ${role} in project ${projectId}`);
   } catch (err) {
-    console.warn('[PageController] ensurePublicCollaborator failed:', err.message);
+    log.warn('[PageController] ensurePublicCollaborator failed:', err.message);
   }
 }
 
@@ -272,7 +273,7 @@ exports.autoSave = async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn('[pageController.getDraft] template library fallback failed:', err.message);
+        log.warn('[pageController.getDraft] template library fallback failed:', err.message);
       }
     }
 
@@ -377,7 +378,7 @@ exports.autoSave = async (req, res) => {
       data: updated
     });
   } catch (error) {
-    console.error('❌ Auto-save controller error:', error);
+    log.error('❌ Auto-save controller error:', error);
     res.status(500).json({
       success: false,
       message: 'Auto-save failed',
@@ -427,7 +428,7 @@ exports.getDraft = async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn('[pageController.getDraft] admin project lookup failed:', err.message);
+        log.warn('[pageController.getDraft] admin project lookup failed:', err.message);
       }
     }
 
@@ -461,7 +462,7 @@ exports.getDraft = async (req, res) => {
       data: draft
     });
   } catch (error) {
-    console.error('❌ Get draft error:', error);
+    log.error('❌ Get draft error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -510,7 +511,7 @@ exports.getAllDrafts = async (req, res) => {
           }
         }
       } catch (err) {
-        console.warn('[pageController.getAllDrafts] admin project lookup failed:', err.message);
+        log.warn('[pageController.getAllDrafts] admin project lookup failed:', err.message);
       }
     }
 
@@ -534,7 +535,7 @@ exports.getAllDrafts = async (req, res) => {
       data: allPages
     });
   } catch (error) {
-    console.error('❌ Get all drafts error:', error);
+    log.error('❌ Get all drafts error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -582,7 +583,7 @@ exports.deleteDraft = async (req, res) => {
       message: 'Draft deleted'
     });
   } catch (error) {
-    console.error('❌ Delete draft error:', error);
+    log.error('❌ Delete draft error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

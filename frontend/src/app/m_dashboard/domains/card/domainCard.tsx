@@ -1,5 +1,40 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Domain Card Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component renders a domain card that displays domain/subdomain
+ * information with preview thumbnail, status badge, and action links.
+ *
+ * The component provides:
+ * - Project preview thumbnail
+ * - Domain name and URL display
+ * - Publish status badge
+ * - External link to visit site
+ * - Download preview option
+ * - Copy URL button
+ * - Theme-aware styling
+ * - Formatted date display
+ * - Click handling for selection
+ *
+ * What this Component Does:
+ * - Displays domain information in card format
+ * - Shows project preview thumbnail
+ * - Displays domain/subdomain name
+ * - Shows publish status
+ * - Provides visit site link
+ * - Allows copying URL to clipboard
+ * - Allows downloading preview
+ * - Formats and displays URL
+ * - Handles card click events
+ * - Adapts styling based on theme
+ *
+ * ============================================================================
+ */
+
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { type MouseEvent } from 'react';
@@ -60,7 +95,7 @@ export function DomainCard({
   exit={{ opacity: 0 }}
   transition={{ duration: 0.4, ease: [0.23, 1, 0.32, 1] }}
   // REMOVED overflow-hidden here to allow the tooltip to break out
-  className="relative rounded-[2.2rem] cursor-pointer transition-all duration-500 group border"
+  className="group relative z-0 cursor-pointer rounded-[2.2rem] border transition-all duration-500 hover:z-10000"
   style={{
     background: theme === 'dark' ? '#15093E' : '#F6F7FB',
     borderColor: selected
@@ -81,7 +116,7 @@ export function DomainCard({
       borderColor="transparent"
       bgColor="transparent"
     />
-    
+
     <div className="absolute bottom-3 right-3 z-10 scale-90">
       <StatusBadge status={project.status} size="sm" />
     </div>
@@ -90,14 +125,14 @@ export function DomainCard({
   {/* 2. Metadata */}
   <div className="px-5 py-3">
     <div className="flex flex-col gap-0.5">
-      <h3 
-        className="font-black text-sm tracking-tight truncate" 
+      <h3
+        className="font-black text-sm tracking-tight truncate"
         style={{ color: theme === 'dark' ? '#FFFFFF' : '#15093E', fontFamily: 'var(--font-outfit)' }}
       >
         {project.title}
       </h3>
-      <p 
-        className="text-[10px] font-mono truncate opacity-30 italic" 
+      <p
+        className="text-[10px] font-mono truncate opacity-30 italic"
         style={{ color: theme === 'dark' ? '#FFFFFF' : '#15093E' }}
       >
         {displayUrl || 'no-domain-assigned'}
@@ -130,10 +165,10 @@ export function DomainCard({
           href={`/design?projectId=${project.id}`}
           onClick={(e) => e.stopPropagation()}
           className="flex-1 h-10 flex items-center justify-center gap-2 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all hover:brightness-105"
-          style={{ 
+          style={{
             // Solid purple in dark mode, gradient in light mode
-            background: theme === 'dark' 
-              ? '#7C3AED' 
+            background: theme === 'dark'
+              ? '#7C3AED'
               : 'linear-gradient(135deg, #7C3AED 0%, #D946EF 100%)',
             border: 'none',
             color: '#FFFFFF'
@@ -142,9 +177,9 @@ export function DomainCard({
           <ExternalLink size={12} /> Go Live
         </Link>
       )}
-      
+
       {published && (
-        <div className="relative group/tooltip">
+        <div className="group/tooltip relative z-0 hover:z-10000">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onUnpublish(project.id, e); }}
@@ -153,12 +188,10 @@ export function DomainCard({
           >
             <ArrowDownToLine size={14} className="rotate-180" />
           </button>
-          
-          {/* TOOLTIP FIX: Added z-50 and ensured parent doesn't clip */}
-          <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-3 py-2 bg-[#12193A] rounded-lg opacity-0 group-hover/tooltip:opacity-100 transition-all pointer-events-none whitespace-nowrap z-[100] shadow-2xl border border-white/10">
+
+          <div className="pointer-events-none absolute bottom-full left-1/2 z-10001 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-[#12193A] px-3 py-2 opacity-0 shadow-2xl transition-all group-hover/tooltip:opacity-100">
             <span className="text-[9px] font-black uppercase tracking-widest text-white">Take Down Site</span>
-            {/* Top Arrow */}
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-b-[#12193A]" />
+            <div className="absolute top-full left-1/2 -translate-x-1/2 border-[5px] border-transparent border-t-[#12193A]" />
           </div>
         </div>
       )}
