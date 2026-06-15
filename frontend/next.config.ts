@@ -21,7 +21,6 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: [
       'lucide-react',
-      'framer-motion',
     ],
   },
   transpilePackages: ['date-fns', 'firebase', '@firebase/app', '@firebase/auth', '@firebase/database', '@firebase/storage'],

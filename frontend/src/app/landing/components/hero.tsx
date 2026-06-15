@@ -122,6 +122,8 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
   const [visibleBlocks, setVisibleBlocks] = useState<string[]>([]);
   const [clickRipples, setClickRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const rippleId = useRef(0);
+  const trailThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trailTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Queue-based: each click reveals the next block
   const blockQueue = ['header', 'hero', 'card1', 'card2'];
@@ -169,16 +171,35 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
     cursor.x.set(e.clientX - rect.left);
     cursor.y.set(e.clientY - rect.top);
 
-    // Small sparkle trail
+    // Throttle sparkle trail updates to once per 30ms to prevent render loops
+    if (trailThrottleRef.current) return;
+    trailThrottleRef.current = setTimeout(() => {
+      trailThrottleRef.current = null;
+    }, 30);
+
     const id = ++cursor.trailId.current;
-    cursor.setTrail(prev => [...prev.slice(-8), { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
-    setTimeout(() => cursor.setTrail(prev => prev.filter(t => t.id !== id)), 350);
-  }, []);
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    cursor.setTrail(prev => [...prev.slice(-8), { id, x: cx, y: cy }]);
+
+    // Clean up this specific trail dot after 350ms
+    const cleanupTimeout = setTimeout(() => {
+      cursor.setTrail(prev => prev.filter(t => t.id !== id));
+    }, 350);
+    trailTimeoutsRef.current.push(cleanupTimeout);
+  }, [cursor.x, cursor.y, cursor.trailId, cursor.setTrail]);
 
   const handleMouseLeave = () => {
     cursor.x.set(-200);
     cursor.y.set(-200);
     cursor.setTrail([]);
+    // Clear pending throttle and trail timeouts on leave
+    if (trailThrottleRef.current) {
+      clearTimeout(trailThrottleRef.current);
+      trailThrottleRef.current = null;
+    }
+    trailTimeoutsRef.current.forEach(clearTimeout);
+    trailTimeoutsRef.current = [];
   };
 
   const allRevealed = visibleBlocks.length >= blockQueue.length;
