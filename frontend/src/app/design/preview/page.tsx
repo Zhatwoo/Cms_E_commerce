@@ -608,6 +608,7 @@ function PreviewContent() {
   const [templateCategory, setTemplateCategory] = useState("Landing Page");
   const [templateDescription, setTemplateDescription] = useState("");
   const [saving, setSaving] = useState(false);
+  const [templateVisibility, setTemplateVisibility] = useState<'public' | 'private'>('public');
   const [publishing, setPublishing] = useState(false);
   const [showPublishDialog, setShowPublishDialog] = useState(false);
   const [showPermissionModal, setShowPermissionModal] = useState(false);
@@ -1093,6 +1094,7 @@ function PreviewContent() {
         status: 'template',
         templateName: templateName.trim(),
         templateContent: rawJson,
+        templateVisibility,
         thumbnail: project?.thumbnail || null,
       });
 
@@ -1115,6 +1117,7 @@ function PreviewContent() {
       setShowSaveDialog(false);
       setTemplateName("");
       setTemplateDescription("");
+      setTemplateVisibility('public');
       router.push(projectId ? `/design?projectId=${projectId}` : "/design");
     } catch (error) {
       console.error("Error saving template:", error);
@@ -1734,6 +1737,42 @@ function PreviewContent() {
                   <option value="Portfolio">Portfolio</option>
                 </select>
                 <textarea value={templateDescription} onChange={(e) => setTemplateDescription(e.target.value)} className="w-full resize-none rounded-lg border border-white/10 bg-[#0a0a0a] px-3 py-2 text-white" rows={3} placeholder="Description" />
+
+                {/* Visibility Toggle */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-medium text-zinc-400">Visibility</label>
+                  <div className="flex rounded-lg overflow-hidden border border-white/10">
+                    <button
+                      type="button"
+                      onClick={() => setTemplateVisibility('public')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold transition-all ${
+                        templateVisibility === 'public'
+                          ? 'bg-emerald-500/20 text-emerald-400 border-r border-white/10'
+                          : 'bg-[#0a0a0a] text-zinc-500 hover:text-zinc-300 border-r border-white/10'
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                      Public
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setTemplateVisibility('private')}
+                      className={`flex-1 flex items-center justify-center gap-2 py-2 text-xs font-semibold transition-all ${
+                        templateVisibility === 'private'
+                          ? 'bg-amber-500/20 text-amber-400'
+                          : 'bg-[#0a0a0a] text-zinc-500 hover:text-zinc-300'
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      Private
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-zinc-600">
+                    {templateVisibility === 'public'
+                      ? 'All users can see and apply this template.'
+                      : 'Only you can see and apply this template.'}
+                  </p>
+                </div>
               </div>
             </ModalCard>
           </ModalShell>

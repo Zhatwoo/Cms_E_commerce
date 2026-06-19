@@ -66,6 +66,7 @@ async function update(userId, projectId, data) {
   if (data.status !== undefined) updates.status = data.status;
   if (data.templateName !== undefined) updates.template_name = (data.templateName || '').toString().trim() || null;
   if (data.templateContent !== undefined) updates.template_content = data.templateContent || null;
+  if (data.templateVisibility !== undefined) updates.template_visibility = data.templateVisibility === 'private' ? 'private' : 'public';
   if (data.industry !== undefined) updates.industry = (data.industry || '').toString().trim() || null;
   if (data.subdomain !== undefined) updates.subdomain = (data.subdomain || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '') || null;
   if (data.thumbnail !== undefined) updates.thumbnail = data.thumbnail || null;
@@ -370,7 +371,7 @@ async function countAll() {
  * List template projects across all users for the shared template library.
  * Uses collectionGroup so templates created by one user are visible to others.
  */
-async function listTemplateLibrary(limit = 60) {
+async function listTemplateLibrary(limit = 60, requestingUserId = null) {
   const t0 = Date.now();
 
   const normalizedLimit = Number.isFinite(Number(limit))
@@ -382,7 +383,15 @@ async function listTemplateLibrary(limit = 60) {
   const templateDocs = groupSnap.docs.filter((doc) => {
     const data = doc.data() || {};
     const status = String(data.status || '').trim().toLowerCase();
-    return status === 'template';
+    if (status !== 'template') return false;
+
+    // Visibility filter: private templates only visible to their owner
+    const visibility = String(data.template_visibility || 'public').trim().toLowerCase();
+    if (visibility === 'private') {
+      const ownerId = doc.ref.parent?.parent?.id || null;
+      return requestingUserId && ownerId === requestingUserId;
+    }
+    return true; // 'public' or unset → visible to all
   });
 
   const ownerIds = Array.from(new Set(templateDocs.map((doc) => doc.ref.parent?.parent?.id).filter(Boolean)));
@@ -404,10 +413,12 @@ async function listTemplateLibrary(limit = 60) {
     .map((doc) => {
       const ownerId = doc.ref.parent?.parent?.id || null;
       const base = sanitizeProject(docToObject(doc));
+      const rawData = doc.data() || {};
       return {
         ...base,
         ownerId,
         ownerName: ownerId ? ownerNameById.get(ownerId) || null : null,
+        templateVisibility: String(rawData.template_visibility || 'public').trim().toLowerCase(),
       };
     })
     .sort((a, b) => {
@@ -421,6 +432,7 @@ async function listTemplateLibrary(limit = 60) {
     total: groupSnap.size,
     templates: templateDocs.length,
     returned: items.length,
+    requestingUserId,
     ms: Date.now() - t0,
   });
 

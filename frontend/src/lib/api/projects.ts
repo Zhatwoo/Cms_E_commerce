@@ -15,6 +15,7 @@ export type Project = {
   title: string;
   templateName?: string | null;
   templateContent?: string | Record<string, unknown> | null;
+  templateVisibility?: 'public' | 'private';
   status: string;
   industry?: string | null;
   templateId?: string | null;
@@ -66,14 +67,19 @@ export async function updateProject(
     status?: string;
     templateName?: string | null;
     templateContent?: string | Record<string, unknown> | null;
+    templateVisibility?: 'public' | 'private';
     industry?: string | null;
     subdomain?: string | null;
     thumbnail?: string | null;
   }
 ): Promise<{ success: boolean; project: Project; message?: string }> {
+  // Map camelCase templateVisibility to snake_case template_visibility expected by the backend
+  const { templateVisibility, ...rest } = params;
+  const body: Record<string, unknown> = { ...rest };
+  if (templateVisibility !== undefined) body.template_visibility = templateVisibility;
   return apiFetch<{ success: boolean; project: Project; message?: string }>(`/api/projects/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(params),
+    body: JSON.stringify(body),
   });
 }
 

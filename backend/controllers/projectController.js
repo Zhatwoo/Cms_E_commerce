@@ -64,7 +64,11 @@ exports.list = async (req, res) => {
 exports.listTemplateLibrary = async (req, res) => {
   try {
     const requestedLimit = Number.parseInt(String(req.query.limit || ''), 10);
-    const items = await Project.listTemplateLibrary(Number.isFinite(requestedLimit) ? requestedLimit : 60);
+    const userId = req.user?.id || null;
+    const items = await Project.listTemplateLibrary(
+      Number.isFinite(requestedLimit) ? requestedLimit : 60,
+      userId
+    );
 
     res.status(200).json({
       success: true,
@@ -248,6 +252,7 @@ exports.update = async (req, res) => {
       general_access_role,
       templateName,
       templateContent,
+      template_visibility,
     } = req.body;
     const project = await Project.update(ownerId, req.params.id, {
       ...(title !== undefined && { title }),
@@ -257,6 +262,7 @@ exports.update = async (req, res) => {
       ...(thumbnail !== undefined && { thumbnail }),
       ...(templateName !== undefined && { templateName }),
       ...(templateContent !== undefined && { templateContent }),
+      ...(template_visibility !== undefined && { templateVisibility: template_visibility }),
       ...(general_access !== undefined && { general_access }),
       ...(general_access_role !== undefined && { general_access_role }),
     });
