@@ -5,7 +5,7 @@ const {
     addReply, deleteReply,
     addReaction, removeReaction,
 } = require('../controllers/commentController');
-const { protect } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
 
 router.use(protect);
 

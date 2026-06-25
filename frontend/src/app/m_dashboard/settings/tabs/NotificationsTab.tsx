@@ -1,3 +1,63 @@
+/**
+ * ============================================================================
+ * Notifications Tab Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component displays notification preferences where users can manage
+ * email notifications, order alerts, and marketing communications.
+ *
+ * The component provides:
+ * - Email notification toggle
+ * - Order notification toggle
+ * - Marketing email toggle
+ * - Security alerts toggle
+ * - Save preferences button
+ * - Success feedback
+ * - Theme-aware styling
+ * - Toggle switch UI
+ *
+ * What this Component Does:
+ * - Displays notification preference toggles
+ * - Manages email notification settings
+ * - Manages order notification settings
+ * - Manages marketing preference
+ * - Manages security alert settings
+ * - Saves preferences to backend
+ * - Shows save success indicator
+ * - Adapts styling based on theme
+ *
+ * Props / Parameters:
+ *
+ * colors: Record<string, any>
+ * - Theme color palette
+ *
+ * theme: string
+ * - Current theme mode
+ *
+ * emailNotifications: boolean
+ * - Email notifications enabled
+ *
+ * orderNotifications: boolean
+ * - Order notifications enabled
+ *
+ * marketingEmails: boolean
+ * - Marketing emails enabled
+ *
+ * securityAlerts: boolean
+ * - Security alerts enabled
+ *
+ * Setter functions for each preference
+ *
+ * saveSuccess: boolean
+ * - Whether save succeeded
+ *
+ * onSave: () => void
+ * - Callback to save preferences
+ *
+ * ============================================================================
+ */
+
 import { Check, Save } from 'lucide-react';
 
 type NotificationsTabProps = {
@@ -140,7 +200,7 @@ export function NotificationsTab({
           <div className="relative z-10 flex items-center gap-3">
             {saveSuccess ? <Check className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} /> : <Save className={`w-4 h-4 ${isDark ? 'text-[#120533]' : 'text-white'}`} />}
             <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isDark ? 'text-[#120533]' : 'text-white'}`}>
-              {saveSuccess ? 'Saved!' : 'Save Preferences'}
+              {saveSuccess ? 'Saved!' : 'Save Changes'}
             </span>
           </div>
         </button>

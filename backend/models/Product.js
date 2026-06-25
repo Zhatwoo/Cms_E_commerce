@@ -1,5 +1,6 @@
 const { db, admin } = require('../config/firebase');
 const { docToObject } = require('../utils/firestoreHelper');
+const log = require('../utils/logger')('Product');
 
 const ROOT_COLLECTION = 'published_subdomains';
 const PRODUCT_COLLECTION = 'products';
@@ -417,7 +418,7 @@ async function getAllSubdomains() {
     const snap = await db.collection(ROOT_COLLECTION).get();
     return snap.docs.map((d) => d.id);
   } catch (e) {
-    console.warn('[Product.getAllSubdomains] query failed:', e.message);
+    log.warn('getAllSubdomains query failed:', e.message);
     return [];
   }
 }

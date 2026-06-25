@@ -1,7 +1,68 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+/**
+ * ============================================================================
+ * Dashboard Page Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file is the main dashboard landing page for the application, providing
+ * a comprehensive interface for users to manage their projects, browse templates,
+ * and create new designs.
+ *
+ * The component provides:
+ * - Tabbed interface switching between "Your Designs" and "Templates"
+ * - Featured project carousel with auto-rotation
+ * - Project grid display with search/filtering
+ * - Project CRUD operations (create, edit, delete, restore)
+ * - Template browsing by industry category
+ * - Template application to projects
+ * - Theme-aware styling throughout
+ * - Persistent tab selection via URL params
+ * - Real-time project synchronization
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders main dashboard layout with hero section
+ * - Displays tabbed interface for designs and templates
+ * - Shows search bar for filtering projects and templates
+ * - Manages featured project carousel with auto-advance
+ * - Displays grid of other user projects
+ * - Allows creating new projects
+ * - Opens edit modal for project name/subdomain changes
+ * - Handles project deletion with confirmation
+ * - Displays template library organized by industry
+ * - Allows applying templates to selected projects
+ * - Routes to design editor on project selection
+ * - Persists tab selection in URL search params
+ * - Refreshes project list on visibility/focus changes
+ * - Handles template application with backup creation
+ * - Manages all project state and operations
+ *
+ * Props / Parameters (DashboardContent):
+ * ----\n *
+ * userName?: string\n * - Current user's display name for greeting.\n * - Default: 'User'\n *
+ * State Management:\n *
+ * - activeTab: Current tab ('designs' or 'templates')\n * - searchQuery: Search/filter text from search bar\n * - loading: Whether projects are being loaded\n * - allProjects: Full list of user's projects\n * - recentProjects: Recently updated projects for carousel\n * - activeProjectIndex: Current carousel slide index\n * - isSliderTransitionEnabled: Whether carousel animations run\n * - showAllOtherProjects: Whether to show all projects or limited grid\n * - openProjectMenuId: Currently open project action menu\n * - renamingProject: Project being edited\n * - editTitle: New project title input\n * - editSubdomain: New project subdomain input\n * - editError: Validation error message\n * - applyingTemplateId: Template currently being applied\n *
+ * Key Functions:\n *
+ * formatLastEdited: (dateStr?: string) => string\n * - Formats date as human-readable "last activity X hours/days ago"\n *
+ * formatEditedDate: (dateStr?: string) => string\n * - Formats date as human-readable "edited X minutes/hours/days ago"\n *
+ * toWorkspaceLabel: (project?: Project | null) => string\n * - Converts project title to uppercase workspace identifier\n *
+ * handleEditActiveProject: (project: Project) => Promise<void>\n * - Opens edit modal for project\n *
+ * submitRenameProject: () => Promise<void>\n * - Submits project name/subdomain changes to API\n *
+ * handleDeleteActiveProject: (project: Project) => Promise<void>\n * - Moves project to trash with confirmation\n *
+ * handleApplyTemplate: (templateProjectId: string) => Promise<void>\n * - Applies selected template to current project\n *
+ * Context Dependencies:\n *
+ * - useProject: For projects list and selection management\n * - useTheme: For theme styling throughout\n * - useAlert: For confirmation dialogs and alerts\n * - useRouter: For navigation\n * - usePathname/useSearchParams: For tab persistence in URL\n *
+ * Type Definitions:\n *
+ * HeroTab\n * - Union type: 'designs' | 'templates'\n *
+ * ============================================================================
+ */
+
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { AnimatePresence } from 'framer-motion';
 import {
   updateProject,
@@ -17,9 +78,11 @@ import { useAlert } from '../components/context/alert-context';
 import { autoSavePage, getDraft } from '@/app/design/_lib/pageApi';
 import { TEMPLATE_LIBRARY_CHANGED_EVENT } from '@/lib/templateService';
 import { TabBar, type TabBarItem } from '@/app/m_dashboard/components/ui/tabbar';
+import { EditProjectModal } from '@/app/m_dashboard/components/projects/EditProjectModal';
 import { SearchBar } from '@/app/m_dashboard/components/ui/searchbar';
 import { YourDesignsTabContent } from './tab contents/YourDesignsTabContent';
 import { TemplatesTabContent } from './tab contents/TemplatesTabContent';
+import { EmptyState } from '@/app/m_dashboard/components/ui/emptyState';
 
 const INDUSTRIES = [
   { label: 'Fashion &\nApparel', img: '/images/industries/Fashion & Apparel.png', bg: 'linear-gradient(135deg,#3A006D 0%,#1A1A6E 100%)' },
@@ -94,10 +157,27 @@ function isTemplateProject(project?: Project | null) {
 
 export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const router = useRouter();
-  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects } = useProject();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { selectedProject, projects: contextProjects, loading: contextLoading, refreshProjects, setSelectedProjectId } = useProject();
   const { theme } = useTheme();
   const { showAlert, showConfirm } = useAlert();
-  const [activeTab, setActiveTab] = useState<HeroTab>('designs');
+  // Persist activeTab in the URL so a remount (route refresh, parent re-render)
+  // doesn't kick the user back to "Your Designs" when they're browsing Templates.
+  const tabFromUrl = (searchParams?.get('tab') === 'templates' ? 'templates' : 'designs') as HeroTab;
+  const [activeTab, setActiveTabState] = useState<HeroTab>(tabFromUrl);
+  useEffect(() => {
+    if (tabFromUrl !== activeTab) setActiveTabState(tabFromUrl);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tabFromUrl]);
+  const setActiveTab = useCallback((next: HeroTab) => {
+    setActiveTabState(next);
+    const params = new URLSearchParams(searchParams?.toString() ?? '');
+    if (next === 'designs') params.delete('tab');
+    else params.set('tab', next);
+    const query = params.toString();
+    router.replace(`${pathname}${query ? `?${query}` : ''}`, { scroll: false });
+  }, [pathname, router, searchParams]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [allProjects, setAllProjects] = useState<Project[]>([]);
@@ -108,7 +188,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const [actioningProjectId, setActioningProjectId] = useState<string | null>(null);
   const [openProjectMenuId, setOpenProjectMenuId] = useState<string | null>(null);
   const [renamingProject, setRenamingProject] = useState<Project | null>(null);
-  const [renameTitle, setRenameTitle] = useState('');
+  const [editTitle, setEditTitle] = useState('');
+  const [editSubdomain, setEditSubdomain] = useState('');
+  const [editError, setEditError] = useState('');
   const [applyingTemplateId, setApplyingTemplateId] = useState<string | null>(null);
 
   const handleCardKeyDown = (event: React.KeyboardEvent<HTMLDivElement>, onActivate: () => void) => {
@@ -159,45 +241,75 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
     return () => document.removeEventListener('click', closeMenu);
   }, [openProjectMenuId]);
 
+  // Refresh project list on focus / visibility so changes from another tab
+  // surface here. The previous 15s setInterval ran a full project re-fetch
+  // every 15s on top of focus/visibility events, which contributed to the
+  // perceived lag — focus events alone cover the realistic stale-data
+  // window for a dashboard tab the user just came back to.
   useEffect(() => {
     const refreshFromLibrary = () => {
       void refreshProjects?.();
     };
-
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         refreshFromLibrary();
       }
     };
 
-    const intervalId = window.setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        refreshFromLibrary();
-      }
-    }, 15000);
-
     window.addEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
     window.addEventListener('focus', refreshFromLibrary);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
       window.removeEventListener(TEMPLATE_LIBRARY_CHANGED_EVENT, refreshFromLibrary);
       window.removeEventListener('focus', refreshFromLibrary);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [refreshProjects]);
 
-  const projectCount = recentProjects.length;
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+
+  // Hoist all derived collections into memos. Without these, every keystroke,
+  // carousel tick, or 15s poll re-runs every filter and rebuilds Sets — and
+  // every consumer of recentProjects/designProjects re-renders too.
+  const filteredRecentProjects = useMemo(() => {
+    if (!normalizedSearch) return recentProjects;
+    return recentProjects.filter((project) => {
+      const title = (project.title ?? '').toLowerCase();
+      const subdomain = (project.subdomain ?? '').toLowerCase();
+      return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+    });
+  }, [recentProjects, normalizedSearch]);
+
+  const projectCount = filteredRecentProjects.length;
   const displayProjectIndex = projectCount > 0 && activeProjectIndex >= projectCount ? 0 : activeProjectIndex;
-  const featuredProject = recentProjects[displayProjectIndex] ?? null;
-  const carouselProjects = projectCount > 1 ? [...recentProjects, recentProjects[0]] : recentProjects;
+  const featuredProject = filteredRecentProjects[displayProjectIndex] ?? null;
+  const carouselProjects = useMemo(
+    () => (projectCount > 1 ? [...filteredRecentProjects, filteredRecentProjects[0]] : filteredRecentProjects),
+    [filteredRecentProjects, projectCount]
+  );
   const indicatorCount = Math.max(1, Math.min(3, projectCount || 1));
-  const recentProjectIds = new Set(recentProjects.map((project) => project.id));
-  const designProjects = allProjects.filter((project) => !isTemplateProject(project));
-  const otherProjects = designProjects.length > 3 && !showAllOtherProjects
-    ? designProjects.filter((project) => !recentProjectIds.has(project.id))
-    : designProjects;
+
+  const designProjectsAll = useMemo(
+    () => allProjects.filter((project) => !isTemplateProject(project)),
+    [allProjects]
+  );
+  const designProjects = useMemo(() => {
+    if (!normalizedSearch) return designProjectsAll;
+    return designProjectsAll.filter((project) => {
+      const title = (project.title ?? '').toLowerCase();
+      const subdomain = (project.subdomain ?? '').toLowerCase();
+      return title.includes(normalizedSearch) || subdomain.includes(normalizedSearch);
+    });
+  }, [designProjectsAll, normalizedSearch]);
+
+  const otherProjects = useMemo(() => {
+    if (designProjects.length > 3 && !showAllOtherProjects) {
+      const recentIds = new Set(filteredRecentProjects.map((project) => project.id));
+      return designProjects.filter((project) => !recentIds.has(project.id));
+    }
+    return designProjects;
+  }, [designProjects, filteredRecentProjects, showAllOtherProjects]);
 
   const getTrackTranslateClass = () => {
     if (activeProjectIndex <= 0) return 'translate-x-0';
@@ -230,23 +342,30 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
 
   const handleEditActiveProject = async (project: Project) => {
     setRenamingProject(project);
-    setRenameTitle((project.title || 'Untitled Project').trim());
+    setEditTitle((project.title || 'Untitled Project').trim());
+    setEditSubdomain((project.subdomain || '').trim());
+    setEditError('');
     setOpenProjectMenuId(null);
   };
 
   const submitRenameProject = async () => {
     if (!renamingProject) return;
-    const trimmedTitle = renameTitle.trim();
+    const trimmedTitle = editTitle.trim();
+    const trimmedSubdomain = editSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
     if (!trimmedTitle) {
-      showAlert('Project title cannot be empty.');
+      setEditError('Project title cannot be empty.');
       return;
     }
 
     try {
       setActioningProjectId(renamingProject.id);
-      const res = await updateProject(renamingProject.id, { title: trimmedTitle });
+      setEditError('');
+      const res = await updateProject(renamingProject.id, {
+        title: trimmedTitle,
+        subdomain: trimmedSubdomain || null,
+      });
       if (!res.success) {
-        showAlert(res.message || 'Failed to rename project.');
+        setEditError(res.message || 'Failed to update project.');
         return;
       }
 
@@ -256,6 +375,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             ...item,
             ...(res.project || {}),
             title: res.project?.title || trimmedTitle,
+            subdomain: res.project?.subdomain ?? (trimmedSubdomain || null),
             updatedAt: res.project?.updatedAt || new Date().toISOString(),
           }
           : item
@@ -264,7 +384,9 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       setAllProjects(sorted);
       setRecentProjects(sorted.slice(0, 3));
       setRenamingProject(null);
-      setRenameTitle('');
+      setEditTitle('');
+      setEditSubdomain('');
+      setEditError('');
     } catch {
       showAlert('Backend is unreachable. Start the backend server and ensure API URL/port is correct.');
     } finally {
@@ -275,7 +397,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
   const handleDeleteActiveProject = async (project: Project) => {
     const normalizedStatus = String(project.status || '').trim().toLowerCase();
     if (normalizedStatus === 'published' || normalizedStatus === 'live') {
-      showAlert('This project is live. Take down (unpublish) the website first before moving it to trash.');
+      showAlert(
+        'This project is live. Take down (unpublish) the website first before moving it to trash.',
+        'Cannot Move To Trash',
+        'error'
+      );
       setOpenProjectMenuId(null);
       return;
     }
@@ -289,6 +415,11 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
       if (!res.success) return;
 
       await refreshProjects();
+      showAlert(
+        `"${project.title || 'Untitled Project'}" was moved to trash successfully.`,
+        'Project Deleted',
+        'success'
+      );
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to move project to trash.';
       showAlert(message);
@@ -400,7 +531,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               What{' '}
               <span
-                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
                 style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 website
@@ -410,7 +541,7 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             <span className={`block ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>
               you{' '}
               <span
-                className={`inline-block bg-clip-text text-transparent bg-gradient-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+                className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
                 style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
               >
                 build?
@@ -426,13 +557,13 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
             underlineLayoutId="dashboard-tab-underline"
           />
 
-          <div 
+          <div
             className={`
-              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border 
+              m-dashboard-search-shadow w-full max-w-4xl rounded-2xl px-5 py-3.5 flex items-center gap-3 border
               transition-all duration-500
-              
-              ${theme === 'dark' 
-                ? 'bg-[#141446] border-[#1F1F51]' 
+
+              ${theme === 'dark'
+                ? 'bg-[#141446] border-[#1F1F51]'
                 : 'admin-dashboard-panel-soft border-0'
               }
 
@@ -449,16 +580,16 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               {theme === 'light' && (
                 <div className="absolute inset-0 bg-[#8B5CF6] blur-md opacity-20 scale-150 rounded-full" />
               )}
-              
-              <svg 
-                viewBox="0 0 20 20" 
+
+              <svg
+                viewBox="0 0 20 20"
                 className={`
                   h-4 w-4 shrink-0 relative z-10 transition-all duration-300
-                  ${theme === 'dark' 
-                    ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]' 
+                  ${theme === 'dark'
+                    ? 'text-[#FFCE00] filter-[drop-shadow(0_0_5px_rgba(255,206,0,0.6))]'
                     : 'text-[#8B5CF6]'
                   }
-                `} 
+                `}
                 fill="none"
               >
                 <path d="M14.3 14.3L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -483,7 +614,17 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
-          {activeTab === 'designs' ? (
+          {activeTab === 'designs' && normalizedSearch && designProjects.length === 0 && designProjectsAll.length > 0 ? (
+            <EmptyState
+              key="designs-no-search-match"
+              tone={theme as 'light' | 'dark'}
+              size="compact"
+              badgeText="No matches"
+              title={`No designs match "${searchQuery.trim()}"`}
+              description="Try a different keyword, or clear the search to see all your projects."
+              secondaryAction={{ label: 'Clear search', onClick: () => setSearchQuery('') }}
+            />
+          ) : activeTab === 'designs' ? (
             <YourDesignsTabContent
               theme={theme}
               userName={userName}
@@ -528,71 +669,40 @@ export function DashboardContent({ userName = 'User' }: { userName?: string }) {
               searchQuery={searchQuery}
               applyingTemplateId={applyingTemplateId}
               onApplyTemplate={handleApplyTemplate}
+              onOpenPrebuiltTemplate={(folder, label) => {
+                const target = selectedProject?.id;
+                const query = new URLSearchParams();
+                if (target) query.set('projectId', target);
+                query.set('template', `${folder}:${label}`);
+                router.push(`/design?${query.toString()}`);
+              }}
+              onSelectTargetProject={(projectId) => {
+                setSelectedProjectId(projectId);
+              }}
             />
           )}
         </AnimatePresence>
       </div>
 
-      {renamingProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4" onClick={() => {
-          if (actioningProjectId === renamingProject.id) return;
+      <EditProjectModal
+        isOpen={!!renamingProject}
+        theme={theme}
+        projectName={renamingProject?.title || 'Untitled Project'}
+        title={editTitle}
+        subdomain={editSubdomain}
+        error={editError}
+        saving={!!(renamingProject && actioningProjectId === renamingProject.id)}
+        onTitleChange={setEditTitle}
+        onSubdomainChange={setEditSubdomain}
+        onCancel={() => {
+          if (renamingProject && actioningProjectId === renamingProject.id) return;
           setRenamingProject(null);
-          setRenameTitle('');
-        }}>
-          <div
-            className={`w-full max-w-md rounded-2xl border p-5 shadow-2xl ${theme === 'dark' ? 'border-[#2D3A90] bg-[#12145A]' : 'border-[#8B5CF6]/20 bg-white'}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-[#120533]'}`}>Rename project</h3>
-            <p className={`mt-1 text-xs ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#8B5CF6]/70'}`}>Update the project title.</p>
-
-            <input
-              type="text"
-              value={renameTitle}
-              onChange={(e) => setRenameTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  submitRenameProject();
-                }
-              }}
-              autoFocus
-              className={`mt-4 w-full rounded-lg border px-3 py-2 text-sm outline-none ${
-                theme === 'dark'
-                  ? 'border-[#2D3A90] bg-[#0E0D3D] text-white focus:border-[#6B72D8]'
-                  : 'border-[#8B5CF6]/20 bg-[#F8F9FF] text-[#120533] focus:border-[#8B5CF6] placeholder:text-gray-400'
-              }`}
-              placeholder="Untitled Project"
-            />
-
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setRenamingProject(null);
-                  setRenameTitle('');
-                }}
-                disabled={actioningProjectId === renamingProject.id}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium hover:text-white disabled:opacity-50 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-gray-500 hover:text-[#120533]'}`}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={submitRenameProject}
-                disabled={actioningProjectId === renamingProject.id}
-                className={`px-3 py-1.5 rounded-md text-xs font-semibold disabled:opacity-50 ${
-                  theme === 'dark' 
-                    ? 'bg-[#FFCE00] text-[#121241] hover:bg-[#FFD740]' 
-                    : 'bg-[#8B5CF6] text-white hover:bg-[#7C3AED]'
-                }`}
-              >
-                {actioningProjectId === renamingProject.id ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          setEditTitle('');
+          setEditSubdomain('');
+          setEditError('');
+        }}
+        onSave={submitRenameProject}
+      />
 
       <style jsx>{`
         .template-pan-img,

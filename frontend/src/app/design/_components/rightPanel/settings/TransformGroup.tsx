@@ -17,8 +17,8 @@ export const TransformGroup = ({
     <div className="flex flex-col gap-4">
       {/* Rotation */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text-muted)] font-base">Rotation</label>
-        <div className="flex items-center gap-2 bg-[var(--builder-surface-2)] rounded-lg px-2.5 border border-[var(--builder-border)]">
+        <label className="text-[12px] text-builder-text-muted font-base">Rotation</label>
+        <div className="flex items-center gap-2 bg-builder-surface-2 rounded-lg px-2.5 border border-(--builder-border)">
           <NumericInput
             value={rotation}
             onChange={(val) => setProp((props) => { props.rotation = val; })}
@@ -33,15 +33,15 @@ export const TransformGroup = ({
 
       {/* Flip H / Flip V */}
       <div className="flex flex-col gap-1">
-        <label className="text-[12px] text-[var(--builder-text-muted)] font-base">Flip</label>
+        <label className="text-[12px] text-builder-text-muted font-base">Flip</label>
         <div className="flex gap-2">
           <button
             type="button"
             onClick={() => setProp((props) => { props.flipHorizontal = !props.flipHorizontal; })}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-colors ${
               flipHorizontal
-                ? "bg-[var(--builder-accent)] text-black border-[var(--builder-accent)]"
-                : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] border-[var(--builder-border)] hover:bg-[var(--builder-surface-3)]"
+                ? "bg-builder-accent text-black border-(--builder-accent)"
+                : "bg-builder-surface-2 text-builder-text-muted border-(--builder-border) hover:bg-builder-surface-3"
             }`}
             title="Flip horizontal"
           >
@@ -53,8 +53,8 @@ export const TransformGroup = ({
             onClick={() => setProp((props) => { props.flipVertical = !props.flipVertical; })}
             className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border transition-colors ${
               flipVertical
-                ? "bg-[var(--builder-accent)] text-black border-[var(--builder-accent)]"
-                : "bg-[var(--builder-surface-2)] text-[var(--builder-text-muted)] border-[var(--builder-border)] hover:bg-[var(--builder-surface-3)]"
+                ? "bg-builder-accent text-black border-(--builder-accent)"
+                : "bg-builder-surface-2 text-builder-text-muted border-(--builder-border) hover:bg-builder-surface-3"
             }`}
             title="Flip vertical"
           >

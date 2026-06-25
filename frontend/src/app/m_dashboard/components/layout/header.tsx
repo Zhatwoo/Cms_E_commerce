@@ -1,12 +1,50 @@
-// wala header lang, laman lang neto is yung user name, profile, notif, dito ren pala nilagay yung theme toggle
-
 'use client';
+
+/**
+ * ============================================================================
+ * Dashboard Header Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the main header/navigation bar component for the dashboard,
+ * displaying user information, notifications, theme toggle, and profile access.
+ *
+ * The component provides:
+ * - User profile display with name and avatar
+ * - Theme toggle (light/dark mode switching)
+ * - Notification bell with dropdown menu
+ * - Project switcher pill for quick project selection
+ * - Settings menu with logout option
+ * - Notification timestamp formatting
+ * - Responsive design for mobile and desktop
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays current user's name and email
+ * - Renders theme toggle button (sun/moon icons)
+ * - Shows notification bell with unread count
+ * - Displays notification list with timestamps
+ * - Provides project switching dropdown
+ * - Includes settings menu with logout
+ * - Fetches and displays user notifications
+ * - Formats timestamps in Philippine time
+ * - Handles theme switching with context
+ * - Manages logout operations
+ *
+ * Props / Parameters:\n * - None (uses context hooks internally)\n *
+ * Context Dependencies:\n * - useTheme: For theme state and toggling\n * - useAuth: For user data and logout\n * - useAlert: For confirmation alerts\n * - useProject: For project switching\n *
+ * ============================================================================
+ */
+
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { getApiUrl, logout } from '@/lib/api';
 import { useTheme } from '../context/theme-context';
 import { useAuth } from '../context/auth-context';
+import { useAlert } from '../context/alert-context';
 import { ProjectSwitchPill } from './ProjectSwitchPill';
 import { AnimatePresence, motion } from 'framer-motion';
 import { fetchSharedNotifications, type NotificationItem } from '@/lib/notifications';
@@ -86,22 +124,6 @@ const UserIcon = () => (
     </svg>
 );
 
-const ProfileMenuIcon = () => (
-    <svg
-        viewBox="0 0 24 24"
-        aria-hidden="true"
-        className="h-4 w-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-    >
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
 const LogoutIcon = () => (
     <svg
         viewBox="0 0 24 24"
@@ -129,11 +151,11 @@ function HeaderScrollbarStyles() {
                 background: transparent;
             }
             .header-notifications-scrollbar::-webkit-scrollbar-thumb {
-                background: rgba(255, 206, 0, 0.3);
+                background: var(--notification-accent-30, rgba(255,206,0,0.3));
                 border-radius: 10px;
             }
             .header-notifications-scrollbar::-webkit-scrollbar-thumb:hover {
-                background: rgba(255, 206, 0, 0.5);
+                background: var(--notification-accent-50, rgba(255,206,0,0.5));
             }
             @keyframes pulse-notification {
                 0%, 100% {
@@ -152,6 +174,15 @@ function HeaderScrollbarStyles() {
     );
 }
 
+function hexToRgba(hex: string, alpha: number) {
+    const clean = String(hex || '').replace('#', '').trim();
+    const bigint = parseInt(clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 type DashboardHeaderProps = {
     onMenuToggle: () => void;
 };
@@ -161,6 +192,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const pathname = usePathname();
     const { user, setUser } = useAuth();
     const { theme, toggleTheme, colors } = useTheme();
+    const { showConfirm } = useAlert();
     const [showMenu, setShowMenu] = useState(false);
     const [showNotifications, setShowNotifications] = useState(false);
     const [scrolled, setScrolled] = useState(false);
@@ -173,6 +205,10 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
     const fallbackHandle = `@${usernameValue || 'user'}`;
     const headerIdentity = profileName || fallbackHandle;
     const avatarAlt = profileName || fallbackHandle || 'User avatar';
+    const notificationAccent = theme === 'dark' ? '#FFCE00' : '#8B5CF6';
+
+    const notificationAccent30 = hexToRgba(notificationAccent, 0.3);
+    const notificationAccent50 = hexToRgba(notificationAccent, 0.5);
 
     const resolveAvatarUrl = (raw?: string): string => {
         const value = String(raw || '').trim();
@@ -221,6 +257,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
         pathname?.startsWith('/m_dashboard/orders');
 
     const handleLogout = async () => {
+        const ok = await showConfirm(
+            'You will need to sign in again to access your dashboard.',
+            'Log out of your account?'
+        );
+        if (!ok) return;
         await logout();
         setUser(null);
         setShowMenu(false);
@@ -242,6 +283,8 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                 borderBottom: theme === 'dark'
                     ? scrolled ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.05)'
                     : scrolled ? '1px solid rgba(15,23,42,0.12)' : '1px solid rgba(15,23,42,0.08)',
+                ['--notification-accent-30' as any]: notificationAccent30,
+                ['--notification-accent-50' as any]: notificationAccent50,
             }}
         >
             <HeaderScrollbarStyles />
@@ -295,24 +338,42 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                 <div className="fixed inset-0 z-10" onClick={() => setShowNotifications(false)} />
                                 <div
                                     className="absolute right-0 mt-2 w-96 rounded-xl border shadow-xl z-20 backdrop-blur-md overflow-hidden"
-                                    style={{ backgroundColor: theme === 'dark' ? 'var(--builder-surface)' : 'rgba(255, 255, 255, 0.95)', borderColor: colors.border.faint }}
+                                    style={{
+                                        backgroundColor: theme === 'dark' ? '#15093E' : 'rgba(255, 255, 255, 0.95)',
+                                        borderColor: colors.border.faint,
+                                        boxShadow: theme === 'dark' ? '0 20px 60px rgba(0, 0, 0, 0.45)' : undefined,
+                                        fontFamily: 'var(--font-outfit), sans-serif',
+                                    }}
                                 >
-                                <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: colors.border.faint }}>
+                                <div
+                                    className="px-4 py-3 border-b flex items-center justify-between"
+                                    style={{
+                                        borderColor: colors.border.faint,
+                                        backgroundColor: theme === 'dark' ? '#15093E' : 'transparent',
+                                    }}
+                                >
                                         <p className="text-sm font-semibold" style={{ color: colors.text.primary }}>Recent Notifications</p>
-                                        <Link href="/m_dashboard/settings?tab=notifications" className="p-1 hover:opacity-80 transition-opacity" style={{ color: colors.accent.yellow }} title="Notification Settings" onClick={() => setShowNotifications(false)}>
+                                        <Link href="/m_dashboard/settings?tab=notifications" className="p-1 hover:opacity-80 transition-opacity" style={{ color: notificationAccent }} title="Notification Settings" onClick={() => setShowNotifications(false)}>
                                             <Settings size={18} />
                                         </Link>
                                     </div>
                                     <div className="max-h-96 overflow-y-auto header-notifications-scrollbar">
                                         {isLoadingNotifications ? (
                                             <div className="flex items-center justify-center py-8">
-                                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-[#FFCE00] border-t-transparent"></div>
+                                                <div className="h-5 w-5 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: notificationAccent }}></div>
                                             </div>
                                         ) : recentNotifications.length > 0 ? (
                                             recentNotifications.map(n => (
-                                                <div key={n.id} className={`px-4 py-3 border-b last:border-0 hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer relative ${!n.read ? 'bg-black/2 dark:bg-white/5' : ''}`} style={{ borderColor: colors.border.faint }}>
+                                                <div
+                                                    key={n.id}
+                                                    className={`px-4 py-3 border-b last:border-0 transition-colors cursor-pointer relative ${!n.read ? 'dark:bg-white/5' : ''}`}
+                                                    style={{
+                                                        borderColor: colors.border.faint,
+                                                        backgroundColor: theme === 'dark' && !n.read ? 'rgba(255, 255, 255, 0.04)' : 'transparent',
+                                                    }}
+                                                >
                                                     {!n.read && (
-                                                        <span className="absolute top-3 right-4 h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: colors.accent.yellow }} />
+                                                        <span className="absolute top-3 right-4 h-2 w-2 rounded-full animate-pulse" style={{ backgroundColor: notificationAccent }} />
                                                     )}
                                                     <p className="text-sm font-medium" style={{ color: colors.text.primary }}>{n.title}</p>
                                                     <p className="text-xs mt-1" style={{ color: colors.text.secondary }}>{n.message}</p>
@@ -328,7 +389,11 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                     <Link
                                         href="/m_dashboard/notifications"
                                         className="block w-full px-4 py-3 text-center text-sm font-semibold border-t transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                                        style={{ borderColor: colors.border.faint, color: colors.accent.yellow }}
+                                        style={{
+                                            borderColor: colors.border.faint,
+                                            color: notificationAccent,
+                                            backgroundColor: theme === 'dark' ? '#15093E' : 'transparent',
+                                        }}
                                         onClick={() => setShowNotifications(false)}
                                     >
                                         See All Notifications
@@ -347,7 +412,7 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                             <button
                                 type="button"
                                 onClick={() => setShowMenu((v) => !v)}
-                                className="relative h-10 w-10 rounded-full p-[2px] flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible cursor-pointer"
+                                className="relative h-10 w-10 rounded-full p-0.5 flex items-center justify-center shadow-sm hover:opacity-90 transition-opacity overflow-visible cursor-pointer"
                                 style={{
                                     background: 'linear-gradient(135deg, #FFCE00 0%, #A64CD9 50%, #5C1D8F 100%)',
                                     border: 'none',
@@ -407,15 +472,6 @@ export function DashboardHeader({ onMenuToggle }: DashboardHeaderProps) {
                                             exit={{ opacity: 0, y: -6, scale: 0.98 }}
                                             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
                                         >
-                                            <Link
-                                                href="/m_dashboard/settings"
-                                                className="flex items-center gap-2 px-4 py-2 text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/10"
-                                                style={{ color: colors.text.primary }}
-                                                onClick={() => setShowMenu(false)}
-                                            >
-                                                <ProfileMenuIcon />
-                                                Settings
-                                            </Link>
                                             <button
                                                 type="button"
                                                 onClick={handleLogout}

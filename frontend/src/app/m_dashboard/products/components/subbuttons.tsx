@@ -1,3 +1,43 @@
+/**
+ * ============================================================================
+ * Product Status Filter Button Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the status filter button component that provides a
+ * dropdown menu for filtering products by their status (active/inactive/all).
+ *
+ * The component provides:
+ * - Toggle button for opening/closing filter menu
+ * - Dropdown menu with status filter options
+ * - Visual indication of active filter
+ * - Theme-aware styling for light/dark modes
+ * - Smooth animations and transitions
+ * - Accessible button with ARIA labels
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders filter toggle button with icon
+ * - Shows dropdown menu with filter options
+ * - Displays currently selected filter
+ * - Calls callback when filter selection changes
+ * - Adapts styling based on selected state
+ * - Applies theme colors for background and text
+ * - Shows visual highlight when active
+ *
+ * Props / Parameters:
+ * ----\n *
+ * showStatusFilterMenu: boolean\n * - Whether the dropdown menu is open.\n * - REQUIRED\n *
+ * onToggle: () => void\n * - Callback to toggle menu open/closed.\n * - REQUIRED\n *
+ * statusFilter: 'all' | 'active' | 'inactive'\n * - Currently selected filter.\n * - REQUIRED\n *
+ * onFilterChange: (filter: 'all' | 'active' | 'inactive') => void\n * - Callback when filter selection changes.\n * - REQUIRED\n *
+ * theme: 'light' | 'dark'\n * - Current theme mode.\n * - REQUIRED\n *
+ * isLight: boolean\n * - Override for light mode styling.\n * - REQUIRED\n *
+ * ============================================================================
+ */
+
 import React from 'react';
 
 export interface StatusFilterButtonProps {
@@ -61,7 +101,7 @@ export function StatusFilterButton({
   {showStatusFilterMenu && (
     <div
       className="absolute right-0 top-full mt-2 w-48 rounded-2xl border shadow-xl z-30 p-1.5"
-      style={{ 
+      style={{
         backgroundColor: isDark ? 'rgba(20, 20, 70, 0.95)' : '#FFFFFF',
         borderColor: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(20, 3, 74, 0.05)',
         backdropFilter: 'blur(12px)'
@@ -79,7 +119,7 @@ export function StatusFilterButton({
             type="button"
             onClick={() => onFilterChange(item.value)}
             className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-bold transition-all"
-            style={{ 
+            style={{
               color: checked ? '#7c3aed' : (isDark ? '#EDEBFF' : '#14034A'),
               backgroundColor: checked
                 ? 'rgba(124, 58, 237, 0.08)'

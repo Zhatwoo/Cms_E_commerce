@@ -6,6 +6,7 @@ import {
   useStripe,
   useElements
 } from '@stripe/react-stripe-js';
+import { Spinner } from '@/components/loading/LoadingBits';
 
 interface StripePaymentFormProps {
   orderId: string;
@@ -72,7 +73,7 @@ export default function StripePaymentForm({ orderId, subdomain, onSuccess, onCan
         >
           {isLoading ? (
             <>
-              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <Spinner sizePx={20} borderPx={2} className="animate-spin rounded-full border-white/30 border-t-white" />
               Processing...
             </>
           ) : (

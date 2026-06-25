@@ -26,11 +26,11 @@ import type {
 } from "../../../_types/animation";
 
 const selectClass =
-  "w-full bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
-const labelClass = "text-[12px] text-[var(--builder-text)] font-base";
-const subLabelClass = "text-[10px] text-[var(--builder-text-muted)]";
-const sliderClass = "w-full accent-[var(--builder-accent)] cursor-pointer";
-const checkboxClass = "accent-[var(--builder-accent)] cursor-pointer";
+  "w-full bg-builder-surface-2 rounded-md text-xs text-builder-text px-2.5 py-1.5 focus:outline-none appearance-none cursor-pointer";
+const labelClass = "text-[12px] text-builder-text font-base";
+const subLabelClass = "text-[10px] text-builder-text-muted";
+const sliderClass = "w-full accent-builder-accent cursor-pointer";
+const checkboxClass = "accent-builder-accent cursor-pointer";
 
 function getAnimation(props: Record<string, unknown>): AnimationConfig {
   const raw = props.animation as AnimationConfig | undefined;
@@ -694,7 +694,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
               previewOnCanvas("scrollEffect");
             }
           }}
-          className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] hover:border-[var(--builder-border-mid)]/50 transition-colors"
+          className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-(--builder-border) bg-builder-surface-2 text-builder-text hover:bg-builder-surface-3 hover:border-(--builder-border-mid)/50 transition-colors"
         >
           <Play size={12} strokeWidth={2.2} />
         </button>
@@ -1056,7 +1056,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                       max="100"
                       value={animation.animateDuring.iterationCount as number}
                       onChange={(e) => update("animateDuring.iterationCount", Number(e.target.value))}
-                      className="w-14 bg-[var(--builder-surface-2)] rounded-md text-xs text-[var(--builder-text)] px-2 py-1 focus:outline-none"
+                      className="w-14 bg-builder-surface-2 rounded-md text-xs text-builder-text px-2 py-1 focus:outline-none"
                     />
                   )}
                 </div>
@@ -1135,7 +1135,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                   </div>
 
                   {animation.scrollEffect.type === "freeMove" && (
-                    <div className="rounded-md border border-[var(--builder-border)] bg-[var(--builder-surface-2)] p-2.5">
+                    <div className="rounded-md border border-(--builder-border) bg-builder-surface-2 p-2.5">
                       <div className="mb-2 flex items-center justify-between">
                         <label className={labelClass}>Free Move Keyframes</label>
                         <span className={subLabelClass}>Mid Frames: {freeMoveStatus.midCount}</span>
@@ -1145,7 +1145,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                         <button
                           type="button"
                           onClick={() => captureFreeMovePoint("start")}
-                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)]"
+                          className="rounded-md border border-(--builder-border) px-2 py-1.5 text-[11px] text-builder-text hover:bg-builder-surface-3"
                         >
                           Capture Start
                         </button>
@@ -1153,7 +1153,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                           type="button"
                           onClick={() => captureFreeMovePoint("mid")}
                           disabled={!freeMoveStatus.hasStart}
-                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-md border border-(--builder-border) px-2 py-1.5 text-[11px] text-builder-text hover:bg-builder-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Add Mid
                         </button>
@@ -1161,7 +1161,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                           type="button"
                           onClick={() => captureFreeMovePoint("end")}
                           disabled={!freeMoveStatus.hasStart}
-                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-md border border-(--builder-border) px-2 py-1.5 text-[11px] text-builder-text hover:bg-builder-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Capture End
                         </button>
@@ -1169,7 +1169,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                           type="button"
                           onClick={removeLastMidPoint}
                           disabled={freeMoveStatus.midCount === 0}
-                          className="rounded-md border border-[var(--builder-border)] px-2 py-1.5 text-[11px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                          className="rounded-md border border-(--builder-border) px-2 py-1.5 text-[11px] text-builder-text hover:bg-builder-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                           Remove Last Mid
                         </button>
@@ -1185,14 +1185,14 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                             type="button"
                             onClick={() => previewOnCanvas("scrollEffect", "freeMove")}
                             disabled={!freeMoveStatus.hasStart || !freeMoveStatus.hasEnd}
-                            className="rounded-md border border-[var(--builder-border)] px-2 py-1 text-[10px] text-[var(--builder-text)] hover:bg-[var(--builder-surface-3)] disabled:cursor-not-allowed disabled:opacity-50"
+                            className="rounded-md border border-(--builder-border) px-2 py-1 text-[10px] text-builder-text hover:bg-builder-surface-3 disabled:cursor-not-allowed disabled:opacity-50"
                           >
                             Preview Movement
                           </button>
                           <button
                             type="button"
                             onClick={clearFreeMovePath}
-                            className="rounded-md border border-[var(--builder-border)] px-2 py-1 text-[10px] text-[var(--builder-text-muted)] hover:bg-[var(--builder-surface-3)]"
+                            className="rounded-md border border-(--builder-border) px-2 py-1 text-[10px] text-builder-text-muted hover:bg-builder-surface-3"
                           >
                             Clear Path
                           </button>
@@ -1242,7 +1242,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                         type="text"
                         value={animation.scrollEffect.start}
                         onChange={(e) => update("scrollEffect.start", e.target.value)}
-                        className="w-full bg-[var(--builder-surface-2)] rounded-md text-[10px] text-[var(--builder-text)] px-2 py-1.5 focus:outline-none border border-transparent focus:border-[var(--builder-accent)]/50"
+                        className="w-full bg-builder-surface-2 rounded-md text-[10px] text-builder-text px-2 py-1.5 focus:outline-none border border-transparent focus:border-(--builder-accent)/50"
                         placeholder="top bottom"
                       />
                     </div>
@@ -1252,7 +1252,7 @@ export const AnimationGroup = ({ selectedIds }: AnimationGroupProps) => {
                         type="text"
                         value={animation.scrollEffect.end}
                         onChange={(e) => update("scrollEffect.end", e.target.value)}
-                        className="w-full bg-[var(--builder-surface-2)] rounded-md text-[10px] text-[var(--builder-text)] px-2 py-1.5 focus:outline-none border border-transparent focus:border-[var(--builder-accent)]/50"
+                        className="w-full bg-builder-surface-2 rounded-md text-[10px] text-builder-text px-2 py-1.5 focus:outline-none border border-transparent focus:border-(--builder-accent)/50"
                         placeholder="bottom top"
                       />
                     </div>

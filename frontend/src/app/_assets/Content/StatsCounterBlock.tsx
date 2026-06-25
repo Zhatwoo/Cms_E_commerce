@@ -7,6 +7,7 @@ import { ColorPicker } from "../../design/_components/rightPanel/settings/inputs
 import { NumericInput } from "../../design/_components/rightPanel/settings/inputs/NumericInput";
 
 export interface StatsCounterBlockProps {
+  nodeId?: string;
   stat1Value?: string;
   stat1Label?: string;
   stat2Value?: string;
@@ -22,7 +23,7 @@ export interface StatsCounterBlockProps {
   layoutStyle?: "row" | "two-by-two" | "stacked" | "compact";
 }
 
-const defaults: Required<StatsCounterBlockProps> = {
+const defaults: Required<Omit<StatsCounterBlockProps, "nodeId">> = {
   stat1Value: "10K+",
   stat1Label: "Products",
   stat2Value: "500+",
@@ -40,8 +41,8 @@ const defaults: Required<StatsCounterBlockProps> = {
 
 const LayoutThumb = ({ style, active, onClick, label }: { style: string; active: boolean; onClick: () => void; label: string }) => {
   const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
-    active ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+    active ? "border-(--builder-accent) bg-builder-accent/10"
+      : "border-(--builder-border) bg-builder-surface-2 hover:border-(--builder-border-mid)"
   }`;
 
   let inner: React.ReactNode = null;

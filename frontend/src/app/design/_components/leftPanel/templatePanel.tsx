@@ -3,7 +3,7 @@ import { useEditor, Element } from "@craftjs/core";
 import { createPortal } from "react-dom";
 import { GROUPED_TEMPLATES } from "../../../_templates";
 import { DesignTooltip } from "../DesignTooltip";
-import { listTemplateLibrary, type Project } from "@/lib/api";
+import { listTemplateLibrary, getMe, type Project } from "@/lib/api";
 import { templateService } from "@/lib/templateService";
 import { listTemplateProjectEntries } from "@/lib/templateProjectRegistry";
 import { getDraft, getAllDrafts } from "../../_lib/pageApi";
@@ -22,6 +22,8 @@ type SavedTemplateItem = {
   thumbnail?: string | null;
   content?: string | Record<string, unknown> | null;
   savedAt?: string;
+  templateVisibility?: 'public' | 'private';
+  ownerId?: string | null;
 };
 
 type ApplyModalState = {
@@ -257,6 +259,13 @@ export const TemplatePanel = () => {
     busy: false,
     tone: "neutral",
   });
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    getMe().then((res: any) => {
+      if (res.success && res.user?.id) setCurrentUserId(res.user.id);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     setCanPortal(true);
@@ -323,6 +332,8 @@ export const TemplatePanel = () => {
               thumbnail: project.thumbnail || null,
               content: project.templateContent || null,
               savedAt: project.updatedAt || project.createdAt,
+              templateVisibility: project.templateVisibility || 'public',
+              ownerId: project.ownerId || null,
             });
           });
 
@@ -559,7 +570,14 @@ export const TemplatePanel = () => {
                     )}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-xs font-semibold text-brand-light truncate">{template.title}</div>
+                    <div className="flex items-center gap-1">
+                      <div className="text-xs font-semibold text-brand-light truncate">{template.title}</div>
+                      {template.templateVisibility === 'private' && (
+                        <span title="Private – only visible to you" className="flex-shrink-0 ml-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-brand-medium truncate">{template.category}</div>
                     <div className="text-[10px] text-brand-medium mt-0.5 line-clamp-2">{template.description}</div>
                   </div>
@@ -635,6 +653,7 @@ export const TemplatePanel = () => {
                   <DesignTooltip key={`tooltip-${item.label || idx}`} content="Drag to apply this template to canvas" position="right">
                     <div
                       key={item.label || idx}
+                      data-drag-source="component"
                       ref={(ref) => {
                         if (!ref || !item.element) return;
                         connectors.create(ref, item.element);

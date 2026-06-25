@@ -124,6 +124,7 @@ app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
 // Domain & Subdomain detection middleware
 const domainDetector = require('./middleware/domainDetector');
+const errorHandler = require('./middleware/errorHandler');
 app.use(domainDetector);
 
 // Rate limit for auth (stricter in production; relaxed in dev so you can retry)
@@ -284,21 +285,8 @@ app.get('/', (req, res) => {
   });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  if (err && (err.type === 'entity.too.large' || err.name === 'PayloadTooLargeError')) {
-    return res.status(413).json({
-      success: false,
-      message: 'Payload too large. Reduce image size/count and try again.'
-    });
-  }
-  console.error(err.stack);
-  res.status(500).json({
-    success: false,
-    message: 'Something went wrong!',
-    error: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
-});
+// Central error handler — see middleware/errorHandler.js
+app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {

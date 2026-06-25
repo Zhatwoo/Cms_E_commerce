@@ -3,6 +3,7 @@ import { useNode } from "@craftjs/core";
 import { Star } from "lucide-react";
 import { RatingSettings } from "./RatingSettings";
 import type { RatingProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
@@ -244,7 +245,7 @@ export const RatingDefaultProps: Partial<RatingProps> = {
   height: "auto",
   padding: 0,
   margin: 0,
-  fontFamily: "Outfit",
+  fontFamily: fonts.uiRaw,
   fontWeight: "500",
   fontSize: 12,
   lineHeight: 1.2,

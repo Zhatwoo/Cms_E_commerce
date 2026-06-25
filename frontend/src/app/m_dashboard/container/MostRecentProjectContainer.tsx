@@ -1,3 +1,56 @@
+/**
+ * ============================================================================
+ * Most Recent Project Container Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component renders a featured project carousel/hero section that
+ * displays the most recently accessed or featured project with navigation.
+ *
+ * The component provides:
+ * - Featured project display with large thumbnail
+ * - Carousel navigation for recent projects
+ * - Indicator dots for slide selection
+ * - Open design button for featured project
+ * - Workspace label display
+ * - Theme-aware styling
+ * - Animated transitions
+ * - Loop carousel functionality
+ *
+ * What this Component Does:
+ * - Displays featured project information
+ * - Shows carousel indicators
+ * - Handles carousel slide navigation
+ * - Manages transition animations
+ * - Formats project metadata
+ * - Calls callbacks for design editor launch
+ * - Updates active carousel index
+ *
+ * Props / Parameters:
+ *
+ * theme: DashboardTheme
+ * - 'light' or 'dark' theme mode
+ *
+ * featuredProject: Project | null
+ * - Project currently featured in hero
+ *
+ * carouselProjects: Project[]
+ * - Array of projects for carousel (includes loop item)
+ *
+ * displayProjectIndex: number
+ * - Current active carousel slide index
+ *
+ * indicatorCount: number
+ * - Number of carousel indicators to show
+ *
+ * isSliderTransitionEnabled: boolean
+ * - Whether carousel animations are enabled
+ *
+ * Other callback and utility props for carousel control
+ *
+ * ============================================================================
+ */
+
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import type { Project } from '@/lib/api';
 

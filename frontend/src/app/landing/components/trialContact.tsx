@@ -123,7 +123,7 @@ export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?:
     <section className={`-mt-[10px] w-full ${isDarkMode ? 'bg-[#120456] text-white' : 'bg-white text-[#120533]'}`}>
 
       {/* Top gold rule */}
-      <div className={`h-[2px] w-full bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
+      <div className={`h-[2px] w-full bg-linear-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
 
       <div className="relative overflow-hidden px-4 pb-24 pt-14 sm:px-6 md:px-10 md:pb-28 md:pt-20 lg:px-16 xl:px-20">
 
@@ -170,7 +170,7 @@ export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?:
                 className={`rounded-full px-[clamp(1.75rem,3.5vw,3rem)] py-[clamp(0.55rem,1vw,0.75rem)] text-[clamp(0.75rem,1vw,0.875rem)] font-extrabold transition hover:brightness-105 ${
                   isDarkMode 
                     ? 'bg-[#f5c400] text-[#140d3d] shadow-[0_4px_20px_rgba(245,196,0,0.4)]' 
-                    : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_4px_20px_rgba(217,70,239,0.3)]'
+                    : 'bg-linear-to-r from-[#9333ea] to-[#ec4899] text-white shadow-[0_4px_20px_rgba(217,70,239,0.3)]'
                 }`}
               >
                 Get Started
@@ -180,8 +180,8 @@ export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?:
 
           {/* ── Gold divider ── */}
           <Reveal delay={0.08} className="relative mt-[clamp(3rem,6vw,5rem)]">
-            <div className={`relative left-1/2 h-[2px] w-screen -translate-x-1/2 bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
-            <div className={`relative left-1/2 h-8 w-screen -translate-x-1/2 bg-gradient-to-b ${isDarkMode ? 'from-[#f4bf1a]/14 via-[#f4bf1a]/5' : 'from-[#9333ea]/5 via-[#9333ea]/2'} to-transparent blur-[1px]`} />
+            <div className={`relative left-1/2 h-[2px] w-screen -translate-x-1/2 bg-linear-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]' : 'via-[#9333ea]/30'} to-transparent`} />
+            <div className={`relative left-1/2 h-8 w-screen -translate-x-1/2 bg-linear-to-b ${isDarkMode ? 'from-[#f4bf1a]/14 via-[#f4bf1a]/5' : 'from-[#9333ea]/5 via-[#9333ea]/2'} to-transparent blur-[1px]`} />
           </Reveal>
 
           {/* ── Contact heading ── */}
@@ -196,7 +196,7 @@ export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?:
               <span className="relative inline-block">
                 Us
                 <span
-                  className={`absolute -bottom-1 left-0 h-[3px] w-full rounded-full bg-gradient-to-r ${isDarkMode ? 'from-[#a855f7] to-[#c026d3]' : 'from-[#9333ea] to-[#ec4899]'}`}
+                  className={`absolute -bottom-1 left-0 h-[3px] w-full rounded-full bg-linear-to-r ${isDarkMode ? 'from-[#a855f7] to-[#c026d3]' : 'from-[#9333ea] to-[#ec4899]'}`}
                   aria-hidden
                 />
               </span>
@@ -276,7 +276,7 @@ export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?:
                   whileTap={{ scale: 0.97 }}
                   type="submit"
                   className={`mt-6 h-[clamp(2.5rem,3.5vw,3rem)] w-full rounded-xl text-[clamp(0.85rem,1.1vw,1rem)] font-extrabold leading-none text-white shadow-[0_4px_20px_rgba(139,61,255,0.4)] transition hover:brightness-110 ${
-                    isDarkMode ? 'bg-gradient-to-r from-[#8b3dff] to-[#c026d3]' : 'bg-gradient-to-r from-[#9333ea] to-[#ec4899]'
+                    isDarkMode ? 'bg-linear-to-r from-[#8b3dff] to-[#c026d3]' : 'bg-linear-to-r from-[#9333ea] to-[#ec4899]'
                   }`}
                   suppressHydrationWarning
                 >
@@ -299,7 +299,7 @@ export function TrialContact({ isDarkMode = false, onAuthClick }: { isDarkMode?:
       </div>
 
       {/* Bottom gold rule */}
-      <div className={`h-[2px] w-full bg-gradient-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]/50' : 'via-[#9333ea]/20'} to-transparent`} />
+      <div className={`h-[2px] w-full bg-linear-to-r from-transparent ${isDarkMode ? 'via-[#f4bf1a]/50' : 'via-[#9333ea]/20'} to-transparent`} />
     </section>
   );
 }

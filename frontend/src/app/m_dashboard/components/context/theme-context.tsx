@@ -1,9 +1,55 @@
-/*
-Etong theme-context.tsx naman na to eh yung sa theme ng application. 
-*/
-
 'use client';
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+/**
+ * ============================================================================
+ * Theme Context
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file provides a global theme context for managing the application's
+ * light and dark mode throughout the dashboard, with color palette definitions
+ * and theme persistence.
+ *
+ * The context provides:
+ * - Global theme state management (light/dark mode)
+ * - Persistent theme selection in local storage
+ * - Comprehensive color palette for both themes
+ * - Theme colors object with categorized color values
+ * - Theme toggle functionality
+ *
+ * ----------------------------------------------------------------------------
+ * What this Context Does:
+ * ----------------------------------------------------------------------------
+ * - Manages current application theme (light or dark)
+ * - Loads saved theme preference from local storage on mount
+ * - Persists theme selection across sessions
+ * - Provides color palette for current theme
+ * - Allows toggling between light and dark modes
+ * - Syncs theme with localStorage changes
+ * - Provides useTheme hook for easy access
+ *
+ * ----------------------------------------------------------------------------
+ * Props / Parameters (ThemeProvider):
+ * ----------------------------------------------------------------------------
+ *
+ * children: React.ReactNode\n * - React components to be wrapped by the theme provider.\n * - REQUIRED\n *
+ * Context Values:\n *
+ * theme: 'light' | 'dark'\n * - The currently active theme mode.\n * - Defaults to 'dark'.\n *
+ * colors: ThemeColors\n * - Color palette object for the current theme.\n * - Includes background, text, border, accent, and status colors.\n *
+ * toggleTheme: () => void\n * - Function to toggle between light and dark modes.\n * - Persists selection to localStorage.\n *
+ * setTheme: (theme: 'light' | 'dark') => void\n * - Function to set a specific theme.\n * - Persists selection to localStorage.\n *
+ * ----------------------------------------------------------------------------
+ * Type Definitions:
+ * ----------------------------------------------------------------------------\n *
+ * THEMES Object\n * - Contains complete color definitions for both light and dark modes.\n *
+ * ThemeColors\n * - Color palette for a specific theme with categories:\n *   - bg: Background colors (primary, dark, card, etc.)\n *   - text: Text colors (primary, secondary, muted)\n *   - border: Border colors (default, faint)\n *   - accent: Accent colors (yellow, purple variants)\n *   - status: Status colors (good, warning, error, info)\n *
+ * ThemeContextType\n * - Context type with theme, colors, and setter functions.\n *
+ * useThemeOptional\n * - Hook that returns theme context or null if not wrapped.\n *
+ * useTheme\n * - Hook that requires theme context (throws if not wrapped).\n *
+ * ============================================================================\n */
+
+import React, { createContext, useContext, useMemo, useState, useEffect, useCallback } from 'react';
 
 const THEME_STORAGE_KEY = 'm_dashboard_theme';
 
@@ -191,8 +237,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       });
   }, [theme]);
 
+  const value = useMemo(
+    () => ({ theme, toggleTheme, colors: THEMES[theme] }),
+    [theme, toggleTheme]
+  );
+
   return (
-    <ThemeContext.Provider value={{ theme, toggleTheme, colors: THEMES[theme] }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

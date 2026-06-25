@@ -1,3 +1,34 @@
+/**
+ * ============================================================================
+ * Product Action Buttons Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains reusable button components for product management actions
+ * including adding new products and saving product changes with loading states.
+ *
+ * The component provides:
+ * - Add Product button with icon and theme styling
+ * - Save Product button with loading state handling
+ * - Disabled and loading state indicators
+ * - Theme-aware color schemes for dark/light modes
+ * - Customizable button text and callbacks
+ * - Accessibility support with titles
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders action buttons for product operations
+ * - Displays loading spinner during async operations
+ * - Applies theme-specific styling and colors
+ * - Handles disabled states for button interactions
+ * - Shows visual feedback on hover and active states
+ * - Provides smooth transitions and animations
+ *
+ * ============================================================================
+ */
+
 import React from 'react';
 import { useTheme } from '../../components/context/theme-context';
 import { Plus } from 'lucide-react';

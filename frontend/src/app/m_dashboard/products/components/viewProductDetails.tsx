@@ -1,4 +1,51 @@
 'use client';
+
+/**
+ * ============================================================================
+ * View Product Details Modal Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the product details modal that displays comprehensive
+ * information about a selected product including images, variants, pricing,
+ * stock, and specifications in a read-only view.
+ *
+ * The component provides:
+ * - Product image gallery with variant images
+ * - Product information display (name, SKU, category)
+ * - Variant selector with option switching
+ * - Price and stock display
+ * - Variant combinations display
+ * - Product description viewing
+ * - Status badge display
+ * - Theme-aware styling
+ * - Portal-based modal rendering
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Displays product details in a modal overlay
+ * - Shows product image with variant selection
+ * - Displays variant option images
+ * - Shows product name, SKU, category, description
+ * - Displays pricing with variant-specific prices
+ * - Shows stock levels for variants
+ * - Lists variant combinations
+ * - Shows status badge
+ * - Allows closing modal with backdrop click
+ * - Adapts styling based on theme
+ * - Handles variant selection changes
+ *
+ * Props / Parameters:
+ * ----\n *
+ * isOpen: boolean\n * - Controls modal visibility.\n * - REQUIRED\n *
+ * onClose: () => void\n * - Callback when modal is closed.\n * - REQUIRED\n *
+ * product: Product | undefined\n * - Product to display. Undefined closes modal.\n * - REQUIRED\n *
+ * colors: ThemeColors\n * - Theme color palette for styling.\n * - REQUIRED\n *
+ * ============================================================================
+ */
+
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';

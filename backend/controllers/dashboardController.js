@@ -9,6 +9,7 @@ const Project = require('../models/Project');
 const Audit = require('../models/Audit');
 const WebsiteAnalytics = require('../models/WebsiteAnalytics');
 const cache = require('../utils/cache');
+const log = require('../utils/logger')('dashboardController');
 
 // @desc    Get dashboard summary (unified endpoint with aggregate stats)
 // @route   GET /api/dashboard/summary
@@ -115,7 +116,7 @@ exports.getStats = async (req, res) => {
 // @route   GET /api/dashboard/analytics?period=7days|30days|3months
 // @access  Private/Admin
 exports.getAnalytics = async (req, res) => {
-  console.log('📊 [DashboardController] getAnalytics called with fallback resilience active.');
+  log.debug('getAnalytics called with fallback resilience active.');
   const period = req.query.period || '7days';
   const cacheKey = `analytics_${period}`;
   
@@ -131,7 +132,7 @@ exports.getAnalytics = async (req, res) => {
         const result = await task;
         return result === undefined ? defaultValue : result;
       } catch (err) {
-        console.warn(`[getAnalytics] ${name} failed:`, err.message);
+        log.warn(`[getAnalytics] ${name} failed:`, err.message);
         return defaultValue;
       }
     };
@@ -235,7 +236,7 @@ exports.getAnalytics = async (req, res) => {
     cache.set(cacheKey, responseData, 60); // 1 min cache for detailed analytics
     res.status(200).json(responseData);
   } catch (error) {
-    console.error('getAnalytics Error:', error);
+    log.error('getAnalytics Error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',
@@ -303,7 +304,7 @@ exports.getWebsiteAnalytics = async (req, res) => {
       analytics: formattedData
     });
   } catch (error) {
-    console.error('getWebsiteAnalytics Error:', error);
+    log.error('getWebsiteAnalytics Error:', error);
     res.status(500).json({
       success: false,
       message: 'Server error',

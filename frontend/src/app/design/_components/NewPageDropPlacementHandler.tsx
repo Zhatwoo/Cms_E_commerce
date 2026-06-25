@@ -234,7 +234,7 @@ export const NewPageDropPlacementHandler = () => {
 
       // 2. Look for new Pages in the viewport first
       const currentViewportPageIds = viewportChildren.filter((id) => {
-        const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+        const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
         return canonicalResolvedName(dname) === "Page";
       });
       const preDrop = preDropPageIdsRef.current;
@@ -244,7 +244,7 @@ export const NewPageDropPlacementHandler = () => {
       // (Sometimes Craft.js might add it to ROOT or elsewhere temporarily)
       if (newPageIds.length === 0) {
         const allPageIds = Object.keys(nodes).filter((id) => {
-          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
           return canonicalResolvedName(dname) === "Page";
         });
         newPageIds = allPageIds.filter((id) => !preDrop.has(id));
@@ -278,10 +278,45 @@ export const NewPageDropPlacementHandler = () => {
         lastDropPointRef.current = null;
         // Update baseline to include all current pages
         const latestPageIds = Object.keys(nodes).filter((id) => {
-          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
           return canonicalResolvedName(dname) === "Page";
         });
         preDropPageIdsRef.current = new Set(latestPageIds);
+
+        // After placement, scroll/zoom the canvas to show the newly dropped template page.
+        // We give the DOM a couple of frames to reflect the new canvasX/canvasY before centering.
+        const scrollToNewPage = (pageId: string, attempt = 0) => {
+          requestAnimationFrame(() => {
+            const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
+            if (!canvasContainer) return;
+
+            const pageEl = document.querySelector<HTMLElement>(
+              `[data-viewport-desktop] [data-node-id="${pageId}"]`
+            ) ?? document.querySelector<HTMLElement>(`[data-node-id="${pageId}"]`);
+
+            if (!pageEl) {
+              // Retry a few more times while DOM catches up
+              if (attempt < 12) scrollToNewPage(pageId, attempt + 1);
+              return;
+            }
+
+            // Dispatch center-on-node to scroll the camera to the new page
+            canvasContainer.dispatchEvent(
+              new CustomEvent("center-on-node", { detail: { nodeId: pageId } })
+            );
+
+            // Also dispatch fit-to-page so tall landing page templates are visible at a good zoom level
+            canvasContainer.dispatchEvent(
+              new CustomEvent("fit-to-page", { detail: { nodeId: pageId } })
+            );
+          });
+        };
+
+        // Target the first new page for centering
+        if (newPageIds.length > 0) {
+          scrollToNewPage(newPageIds[0]);
+        }
+
         return true;
       }
 
@@ -336,14 +371,14 @@ export const NewPageDropPlacementHandler = () => {
         : [];
       
       let pageIds = viewportChildren.filter((id) => {
-        const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+        const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
         return canonicalResolvedName(dname) === "Page";
       });
       
       // If no viewport found yet, capture ALL pages currently in state as baseline
       if (!viewportId || pageIds.length === 0) {
         pageIds = Object.keys(nodes).filter((id) => {
-          const dname = nodes[id]?.data?.displayName || nodes[id]?.data?.type?.resolvedName;
+          const dname = nodes[id]?.data?.displayName || (nodes[id]?.data?.type as { resolvedName?: string } | undefined)?.resolvedName;
           return canonicalResolvedName(dname) === "Page";
         });
       }

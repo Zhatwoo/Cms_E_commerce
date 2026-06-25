@@ -44,12 +44,31 @@ export interface ProductBindingProps {
 // ─── Settings Group Prop Interfaces ──────────────────────────────────────────
 // Each interface below corresponds to a settings group in the right panel.
 
+/**
+ * Shared alignItems values. Includes both the flex keywords
+ * (flex-start/flex-end) and the grid keywords (start/end) so a
+ * type can extend both LayoutProps and GridProps without conflict.
+ */
+export type SharedAlignItems = "flex-start" | "center" | "flex-end" | "stretch" | "start" | "end";
+
+/**
+ * Shared justifyContent values. Mirrors the grid superset so the
+ * same identifier is valid in flex and grid contexts.
+ */
+export type SharedJustifyContent =
+  | "flex-start"
+  | "center"
+  | "flex-end"
+  | "space-between"
+  | "space-around"
+  | "space-evenly";
+
 /** Layout / Auto-layout properties → AutoLayoutGroup */
 export interface LayoutProps {
   flexDirection?: "row" | "column";
   flexWrap?: "nowrap" | "wrap";
-  alignItems?: "flex-start" | "center" | "flex-end" | "stretch";
-  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around";
+  alignItems?: SharedAlignItems;
+  justifyContent?: SharedJustifyContent;
   gap?: number;
 }
 
@@ -120,8 +139,8 @@ export interface GridProps {
   gridAutoRows?: string;
   gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
   justifyItems?: "start" | "center" | "end" | "stretch";
-  alignItems?: "start" | "center" | "end" | "stretch";
-  justifyContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
+  alignItems?: SharedAlignItems;
+  justifyContent?: SharedJustifyContent;
   alignContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
 }
 
@@ -238,6 +257,7 @@ export interface VideoProps extends SpacingProps, SizeProps, EffectsProps, Trans
   radiusTopRight?: number;
   radiusBottomRight?: number;
   radiusBottomLeft?: number;
+  _autoFitInTabs?: boolean;
   _isDraggingSource?: boolean;
 }
 
@@ -272,6 +292,16 @@ export interface PageProps extends LayoutProps, PositionProps, AnimatableProps, 
   pageName?: string;
   /** URL slug for navigation (e.g. "about-us"). Auto-derived from pageName if not set. */
   pageSlug?: string;
+  /** Grid layout properties applied when display === "grid". */
+  gridTemplateColumns?: string;
+  gridTemplateRows?: string;
+  gridGap?: number;
+  gridColumnGap?: number;
+  gridRowGap?: number;
+  gridAutoRows?: string;
+  gridAutoFlow?: "row" | "column" | "dense" | "row dense" | "column dense";
+  justifyItems?: "start" | "center" | "end" | "stretch";
+  alignContent?: "flex-start" | "center" | "flex-end" | "space-between" | "space-around" | "space-evenly";
   children?: ReactNode;
 }
 

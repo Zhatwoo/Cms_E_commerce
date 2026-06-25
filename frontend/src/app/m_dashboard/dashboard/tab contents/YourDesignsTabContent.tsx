@@ -1,3 +1,73 @@
+/**
+ * ============================================================================
+ * Your Designs Tab Content Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file contains the "Your Designs" tab view component that displays the
+ * user's projects including a featured project carousel and a grid of other
+ * projects with quick access to create new designs.
+ *
+ * The component provides:
+ * - Featured project carousel with smooth transitions
+ * - Grid display of user's other projects
+ * - Project cards with thumbnails and metadata
+ * - New project creation button
+ * - Project action menus (edit, delete, etc.)
+ * - Search and filtering capabilities
+ * - Empty state when no projects exist
+ * - Loading state handling
+ * - Theme-aware styling
+ * - Responsive layout for mobile and desktop
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Renders hero section with featured project carousel
+ * - Displays carousel indicators and navigation
+ * - Shows project cards with preview thumbnails
+ * - Displays last edited dates and workspace info
+ * - Provides quick access to create new project
+ * - Opens design editor when project is clicked
+ * - Shows action menu for project operations
+ * - Filters/searches projects by name
+ * - Expands to show all projects with \"See All\" toggle
+ * - Handles carousel looping and transitions
+ * - Adapts styling based on light/dark theme
+ *
+ * Props / Parameters:
+ * ----\n * theme: DashboardTheme\n * - Current UI theme mode (light or dark).\n * - Determines component styling and colors.\n * - Values: 'light' | 'dark'\n * - REQUIRED\n *
+ * userName: string\n * - Current user's display name.\n * - Used in empty-state greeting.\n * - REQUIRED\n *
+ * loading: boolean\n * - Whether projects are being loaded.\n * - Shows loading skeleton when true.\n * - REQUIRED\n *
+ * featuredProject: Project | null\n * - Currently featured project in carousel.\n * - null if no projects available.\n * - REQUIRED\n *
+ * indicatorCount: number\n * - Total number of carousel indicator dots.\n * - REQUIRED\n *
+ * displayProjectIndex: number\n * - Current active carousel indicator index.\n * - REQUIRED\n *
+ * carouselProjects: Project[]\n * - Projects shown in the hero carousel.\n * - REQUIRED\n *
+ * otherProjects: Project[]\n * - Projects shown in the grid below carousel.\n * - REQUIRED\n *
+ * allProjectsCount: number\n * - Total project count for \"See All\" functionality.\n * - REQUIRED\n *
+ * showAllOtherProjects: boolean\n * - Whether to display all projects or limited grid.\n * - REQUIRED\n *
+ * openProjectMenuId: string | null\n * - Currently open project action menu ID.\n * - REQUIRED\n *
+ * isSliderTransitionEnabled: boolean\n * - Whether carousel transitions are animated.\n * - REQUIRED\n *
+ * formatLastEdited: (dateStr?: string) => string\n * - Function to format last edited timestamp.\n * - REQUIRED\n *
+ * formatEditedDate: (dateStr?: string) => string\n * - Function to format edited date for cards.\n * - REQUIRED\n *
+ * toWorkspaceLabel: (project?: Project | null) => string\n * - Function to convert project to workspace label.\n * - REQUIRED\n *
+ * getTrackTranslateClass: () => string\n * - Function returning translate class for carousel.\n * - REQUIRED\n *
+ * onTrackTransitionEnd: () => void\n * - Callback when carousel transition completes.\n * - Handles looping reset.\n * - REQUIRED\n *
+ * onOpenDesign: (projectId?: string) => void\n * - Callback to open design editor.\n * - Opens new design if projectId not provided.\n * - REQUIRED\n *
+ * setActiveProjectIndex: Dispatch<SetStateAction<number>>\n * - State setter for active carousel indicator.\n * - REQUIRED\n *
+ * setIsSliderTransitionEnabled: Dispatch<SetStateAction<boolean>>\n * - State setter for carousel transition animation.\n * - REQUIRED\n *
+ * setShowAllOtherProjects: Dispatch<SetStateAction<boolean>>\n * - State setter for \"show all\" toggle.\n * - REQUIRED\n *
+ * onCreateProject: () => void\n * - Callback to navigate to create project page.\n * - REQUIRED\n *
+ * onOpenProjectMenu: (projectId: string) => void\n * - Callback when project action menu is opened.\n * - REQUIRED\n *
+ * onCloseProjectMenu: () => void\n * - Callback when project action menu is closed.\n * - REQUIRED\n *
+ * Type Definitions:
+ * ----\n *
+ * DashboardTheme\n * - Union type for theme modes: 'light' | 'dark'\n *
+ * YourDesignsTabContentProps\n * - Complete props interface for the component.\n *
+ * ============================================================================
+ */
+
 import type { Dispatch, ReactNode, SetStateAction } from 'react';
 import { motion } from 'framer-motion';
 import type { Project } from '@/lib/api';
@@ -207,7 +277,7 @@ export function YourDesignsTabContent({
             View Project
           </button>
         </div>
-        
+
         {/* Most Recent Project Container */}
         <MostRecentProjectContainer
           theme={theme}
@@ -255,16 +325,16 @@ export function YourDesignsTabContent({
             )}
           </div>
         </div>
-        
+
         {/* Other Projects Section */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
-            
+
          {/* New Project BButton */}
           <NewProjectButton
             theme={theme}
             onCreateProject={onCreateProject}
           />
-         
+
          {/* Project Container */}
           {otherProjects.map((project) => (
             <ProjectCardContainer

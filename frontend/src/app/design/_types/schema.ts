@@ -35,6 +35,8 @@ export interface BuilderDocument {
   nodes: Record<string, CleanNode>;
   /** Optional project-wide files (assets, custom components, global styles). */
   files?: CodeFile[];
+  /** Slug of the page treated as the home page when rendering previews. */
+  homePageSlug?: string;
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
@@ -115,7 +117,22 @@ export type ComponentType =
   | "Nonagon"
   | "Decagon"
   | "Parallelogram"
-  | "Kite";
+  | "Kite"
+  // Legacy aliases tolerated by webRenderer for backward compatibility with older saved documents.
+  | "Categories Card Canvas"
+  | "CATEGORIESCARDCANVAS"
+  | "CategoriesCard"
+  | "Categories Card"
+  | "CATEGORIESCARD"
+  | "Category Tile"
+  | "CATEGORYTILE"
+  | "Featured Product"
+  | "Product Description Section"
+  | "Product Card"
+  | "PRODUCTCARD"
+  | "Product Slider"
+  | "PRODUCTSLIDER"
+  | "FooterCanvas";
 
 /** A single node in the document. */
 export interface CleanNode {
@@ -125,6 +142,8 @@ export interface CleanNode {
   props: Record<string, unknown>;
   /** Ordered array of direct child node IDs. Empty array for leaf nodes. */
   children: string[];
+  /** Parent node id; "ROOT" for top-level nodes. Optional for legacy data. */
+  parent?: string;
 }
 
 // ─── Constants ──────────────────────────────────────────────────────────────

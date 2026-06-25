@@ -5,7 +5,7 @@ import { PanelLeft, PanelRight } from "lucide-react";
 import { RenderBlocks } from "../_designComponents";
 import { LeftPanel } from "./leftPanel";
 import { RightPanel } from "./rightPanel";
-import { TopPanel, type DevicePreset } from "./TopPanel";
+import { TopPanel } from "./TopPanel";
 import { BottomPanel, type CanvasTool } from "./BottomPanel";
 import { FloatingMobilePreview } from "./FloatingMobilePreview";
 import { CanvasToolProvider } from "./CanvasToolContext";
@@ -1473,7 +1473,7 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
         // Ensure unique, sequential names
         const usedNames = new Set<string>();
         const pageTabs = (parsed.pages as Array<{ id: string; name?: string }>).map((p, idx) => {
-          let base = 'Page ';
+          const base = 'Page ';
           let num = idx + 1;
           let name = p.name && !usedNames.has(p.name) ? p.name : `${base}${num}`;
           // If name is duplicate, find next available
@@ -1923,6 +1923,65 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     return () => container.removeEventListener("center-on-node", handleCenterOnNode);
   }, []);
 
+  // Listen for fit-to-page events dispatched after a template is dropped onto the canvas.
+  // Zooms and scrolls so the full page is visible in the viewport.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleFitToPage = (e: Event) => {
+      const { nodeId } = (e as CustomEvent<{ nodeId: string }>).detail;
+      if (!nodeId) return;
+
+      // Give the DOM one more tick to settle after center-on-node scroll
+      requestAnimationFrame(() => {
+        const pageEl = document.querySelector<HTMLElement>(
+          `[data-viewport-desktop] [data-node-id="${nodeId}"]`
+        ) ?? document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
+        if (!pageEl) return;
+
+        const contRect = container.getBoundingClientRect();
+        const pageRect = pageEl.getBoundingClientRect();
+
+        if (pageRect.width <= 0 || pageRect.height <= 0) return;
+
+        // Current scale so we can compute the logical (unscaled) page size
+        const currentContainerScale = pageRect.width / (pageEl.offsetWidth || pageRect.width) || scale;
+
+        const logicalPageWidth = pageEl.offsetWidth || pageRect.width / currentContainerScale;
+        const logicalPageHeight = pageEl.offsetHeight || pageRect.height / currentContainerScale;
+
+        // Calculate the scale that fits the full page with an 8% margin
+        const MARGIN = 0.92;
+        const scaleForWidth = (contRect.width * MARGIN) / logicalPageWidth;
+        const scaleForHeight = (contRect.height * MARGIN) / logicalPageHeight;
+        const newScale = clampScale(Math.min(scaleForWidth, scaleForHeight, 1));
+
+        setScale(newScale);
+
+        // After scale is applied, re-center on the page
+        setTimeout(() => {
+          const cont = containerRef.current;
+          if (!cont) return;
+          const freshPageEl = document.querySelector<HTMLElement>(
+            `[data-viewport-desktop] [data-node-id="${nodeId}"]`
+          ) ?? document.querySelector<HTMLElement>(`[data-node-id="${nodeId}"]`);
+          if (!freshPageEl) return;
+
+          const cRect = cont.getBoundingClientRect();
+          const pRect = freshPageEl.getBoundingClientRect();
+          const centerX = cont.scrollLeft + (pRect.left - cRect.left) + pRect.width / 2;
+          const centerY = cont.scrollTop + (pRect.top - cRect.top) + pRect.height / 2;
+          cont.scrollLeft = centerX - cont.clientWidth / 2;
+          cont.scrollTop = centerY - cont.clientHeight / 2;
+        }, 60);
+      });
+    };
+
+    container.addEventListener("fit-to-page", handleFitToPage);
+    return () => container.removeEventListener("fit-to-page", handleFitToPage);
+  }, [scale]);
+
   const handleRotateCanvas = useCallback(() => { }, []);
 
   // Handle fit to canvas: zoom so page fits with 10% margin, then center
@@ -1955,8 +2014,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
       container.querySelector<HTMLElement>('[data-viewport-desktop] [data-page-node="true"]') ??
       container.querySelector<HTMLElement>('[data-page-node="true"]');
 
-    let worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
-    let worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
+    const worldCX = PAGE_GRID_ORIGIN_X + PAGE_BASE_WIDTH / 2;
+    const worldCY = PAGE_GRID_ORIGIN_Y + PAGE_BASE_HEIGHT / 2;
 
     if (pageEl) {
       const contRect = container.getBoundingClientRect();
@@ -2746,8 +2805,8 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     let clearTimer: number | null = null;
 
     const toElement = (target: EventTarget | null): Element | null => {
-      if (target instanceof Element) return target;
-      if (target instanceof Node) return target.parentElement;
+      if (target instanceof Element) return target as Element;
+      if (target instanceof Node) return (target as Node).parentElement;
       return null;
     };
 
@@ -2826,11 +2885,9 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     const confirmed = await showConfirm("Are you sure you want to delete your progress? This cannot be undone.");
     if (!confirmed) return;
 
-    console.log('🗑️ Deleting draft...');
     const result = await deleteDraft(projectId);
 
     if (result.success) {
-      console.log('✅ Draft deleted');
       safeSessionRemove(getStorageKey(projectId));
       location.reload(); // Reload to reset editorstate
     } else {

@@ -1,5 +1,39 @@
 'use client';
 
+/**
+ * ============================================================================
+ * Domain List Row Component
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * This component renders a domain as a table row in list view with domain
+ * information, status, and action links.
+ *
+ * The component provides:
+ * - Domain/subdomain name display
+ * - Publish status badge
+ * - Project preview thumbnail
+ * - External link to visit site
+ * - Copy URL functionality
+ * - Download preview option
+ * - Action links and buttons
+ * - Theme-aware styling
+ * - Click handling for row selection
+ *
+ * What this Component Does:
+ * - Displays domain in list row format
+ * - Shows domain name and status
+ * - Displays project thumbnail
+ * - Provides visit site link
+ * - Allows copying URL
+ * - Allows downloading preview
+ * - Formats domain URL
+ * - Handles row click selection
+ * - Adapts styling based on theme
+ *
+ * ============================================================================
+ */
+
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 import { type MouseEvent, type ReactNode } from 'react';
@@ -29,9 +63,9 @@ function getDisplayUrl(subdomain: string, origin: string | null) {
 
 function ActionTooltip({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="group/tooltip relative inline-flex items-center justify-center">
+    <div className="group/tooltip relative z-0 inline-flex items-center justify-center hover:z-10000">
       {children}
-      <div className="pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 rounded-lg border border-white/10 bg-[#12193A] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white opacity-0 shadow-2xl transition-all group-hover/tooltip:opacity-100 whitespace-nowrap z-20">
+      <div className="pointer-events-none absolute bottom-full left-1/2 z-10001 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-white/10 bg-[#12193A] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-widest text-white opacity-0 shadow-2xl transition-all group-hover/tooltip:opacity-100">
         {label}
       </div>
     </div>
@@ -77,7 +111,7 @@ export function DomainListRow({
     <motion.tr
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="cursor-pointer transition-colors"
+      className="relative z-0 cursor-pointer transition-colors hover:z-10000"
       style={{
         background: rowBackground,
         borderBottom: `1px solid ${selected ? (theme === 'dark' ? 'rgba(96,165,250,0.35)' : colors.accent.purple) : (theme === 'dark' ? 'rgba(148,163,184,0.12)' : colors.border.faint)}`,

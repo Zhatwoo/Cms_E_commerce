@@ -122,6 +122,8 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
   const [visibleBlocks, setVisibleBlocks] = useState<string[]>([]);
   const [clickRipples, setClickRipples] = useState<{ id: number; x: number; y: number }[]>([]);
   const rippleId = useRef(0);
+  const trailThrottleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trailTimeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Queue-based: each click reveals the next block
   const blockQueue = ['header', 'hero', 'card1', 'card2'];
@@ -169,16 +171,35 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
     cursor.x.set(e.clientX - rect.left);
     cursor.y.set(e.clientY - rect.top);
 
-    // Small sparkle trail
+    // Throttle sparkle trail updates to once per 30ms to prevent render loops
+    if (trailThrottleRef.current) return;
+    trailThrottleRef.current = setTimeout(() => {
+      trailThrottleRef.current = null;
+    }, 30);
+
     const id = ++cursor.trailId.current;
-    cursor.setTrail(prev => [...prev.slice(-8), { id, x: e.clientX - rect.left, y: e.clientY - rect.top }]);
-    setTimeout(() => cursor.setTrail(prev => prev.filter(t => t.id !== id)), 350);
-  }, []);
+    const cx = e.clientX - rect.left;
+    const cy = e.clientY - rect.top;
+    cursor.setTrail(prev => [...prev.slice(-8), { id, x: cx, y: cy }]);
+
+    // Clean up this specific trail dot after 350ms
+    const cleanupTimeout = setTimeout(() => {
+      cursor.setTrail(prev => prev.filter(t => t.id !== id));
+    }, 350);
+    trailTimeoutsRef.current.push(cleanupTimeout);
+  }, [cursor.x, cursor.y, cursor.trailId, cursor.setTrail]);
 
   const handleMouseLeave = () => {
     cursor.x.set(-200);
     cursor.y.set(-200);
     cursor.setTrail([]);
+    // Clear pending throttle and trail timeouts on leave
+    if (trailThrottleRef.current) {
+      clearTimeout(trailThrottleRef.current);
+      trailThrottleRef.current = null;
+    }
+    trailTimeoutsRef.current.forEach(clearTimeout);
+    trailTimeoutsRef.current = [];
   };
 
   const allRevealed = visibleBlocks.length >= blockQueue.length;
@@ -195,7 +216,7 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
       <div className={`pointer-events-none absolute right-[-5%] top-[40%] h-80 w-80 rounded-full blur-[100px] ${isDarkMode ? 'bg-[#d946ef]/8' : 'bg-[#fbcfe8]/40'}`} />
       <div className={`pointer-events-none absolute -bottom-36 left-1/2 h-80 w-[92%] -translate-x-1/2 rounded-[100%] border blur-2xl ${isDarkMode ? 'border-[#6b4ee6]/20 bg-[#14065f]/28' : 'border-[#e5e7eb] bg-[#f8fafc]'}`} />
       {isDarkMode && (
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-28 bg-gradient-to-b from-transparent via-[#0a0141]/80 to-[#0a0141]" />
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-28 bg-linear-to-b from-transparent via-[#0a0141]/80 to-[#0a0141]" />
       )}
 
       {/* Stable star field — seeded so SSR & client match */}
@@ -246,11 +267,11 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
         >
           <span className="block">Your Store,</span>
           <span className="inline-flex items-baseline">
-            <span className={`bg-clip-text text-transparent bg-gradient-to-r ${isDarkMode ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}>
+            <span className={`bg-clip-text text-transparent bg-linear-to-r ${isDarkMode ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}>
               {typedText}
             </span>
             <span
-              className={`ml-1.5 inline-block h-[0.85em] w-[0.12em] rounded-sm animate-pulse bg-gradient-to-b ${isDarkMode ? 'from-[#ffcc00] via-[#d946ef] to-[#7c3aed]' : 'from-[#f5a213] via-[#d946ef] to-[#7c3aed]'}`}
+              className={`ml-1.5 inline-block h-[0.85em] w-[0.12em] rounded-sm animate-pulse bg-linear-to-b ${isDarkMode ? 'from-[#ffcc00] via-[#d946ef] to-[#7c3aed]' : 'from-[#f5a213] via-[#d946ef] to-[#7c3aed]'}`}
               aria-hidden
             />
           </span>
@@ -287,7 +308,7 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
             <button
               onClick={() => onAuthClick?.('register')}
               suppressHydrationWarning
-              className="relative overflow-hidden rounded-full px-8 py-3 text-base font-extrabold text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)] active:scale-95 sm:px-10 sm:text-lg bg-gradient-to-r from-[#9333ea] to-[#ec4899]"
+              className="relative overflow-hidden rounded-full px-8 py-3 text-base font-extrabold text-white shadow-[0_8px_24px_rgba(217,70,239,0.4)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(217,70,239,0.5)] active:scale-95 sm:px-10 sm:text-lg bg-linear-to-r from-[#9333ea] to-[#ec4899]"
             >
               <span className="relative z-10">Start for Free</span>
             </button>
@@ -429,7 +450,7 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
                     transition={{ type: 'spring', stiffness: 320, damping: 26 }}
                     className={`relative grid h-24 place-items-center rounded-xl border md:h-32 xl:h-36 ${
                       isDarkMode 
-                        ? 'border-[#5a42bf] bg-gradient-to-br from-[#1a0f78] to-[#0f0551] shadow-[0_0_30px_rgba(90,66,191,0.3),_inset_0_1px_0_rgba(255,255,255,0.08)]' 
+                        ? 'border-[#5a42bf] bg-linear-to-br from-[#1a0f78] to-[#0f0551] shadow-[0_0_30px_rgba(90,66,191,0.3),_inset_0_1px_0_rgba(255,255,255,0.08)]' 
                         : 'border-[#dfbdf8]/50 bg-white shadow-[0_0_30px_rgba(217,70,239,0.05)]'
                     }`}
                   >
@@ -458,7 +479,7 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
                       transition={{ type: 'spring', stiffness: 360, damping: 28 }}
                       className={`h-16 rounded-xl border md:h-24 xl:h-28 ${
                         isDarkMode 
-                          ? 'border-[#5a42bf] bg-gradient-to-br from-[#15096a] to-[#0f0551] shadow-[0_0_20px_rgba(90,66,191,0.2)]'
+                          ? 'border-[#5a42bf] bg-linear-to-br from-[#15096a] to-[#0f0551] shadow-[0_0_20px_rgba(90,66,191,0.2)]'
                           : 'border-[#c1c1cd] bg-white shadow-sm'
                       }`}
                     >
@@ -477,7 +498,7 @@ export function Hero({ isDarkMode = false, onAuthClick }: { isDarkMode?: boolean
                       transition={{ type: 'spring', stiffness: 360, damping: 28 }}
                       className={`h-16 rounded-xl border md:h-24 xl:h-28 ${
                         isDarkMode 
-                          ? 'border-[#5a42bf] bg-gradient-to-br from-[#15096a] to-[#0f0551] shadow-[0_0_20px_rgba(90,66,191,0.2)]'
+                          ? 'border-[#5a42bf] bg-linear-to-br from-[#15096a] to-[#0f0551] shadow-[0_0_20px_rgba(90,66,191,0.2)]'
                           : 'border-[#c1c1cd] bg-white shadow-sm'
                       }`}
                     >

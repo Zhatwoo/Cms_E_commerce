@@ -2,6 +2,7 @@ import React, { useEffect, useId, useMemo, useState } from "react";
 import { useNode } from "@craftjs/core";
 import { BooleanFieldSettings } from "./BooleanFieldSettings";
 import type { BooleanFieldProps } from "../../_types/components";
+import { fonts } from "@/lib/theme";
 
 function ensureOptions(props: Pick<BooleanFieldProps, "options" | "label" | "checked">): NonNullable<BooleanFieldProps["options"]> {
   if (Array.isArray(props.options) && props.options.length > 0) return props.options;
@@ -250,7 +251,7 @@ export const BooleanFieldDefaultProps: Partial<BooleanFieldProps> = {
   gap: 10,
   itemGap: 10,
   fontSize: 14,
-  fontFamily: "Outfit",
+  fontFamily: fonts.uiRaw,
   fontWeight: "500",
   showLabels: true,
   options: [

@@ -52,6 +52,7 @@ import { SplitScreenHeroBlock } from "../../_assets/Hero/SplitScreenHeroBlock";
 import { MinimalTypeHeroBlock } from "../../_assets/Hero/MinimalTypeHeroBlock";
 import { VideoStyleHeroBlock } from "../../_assets/Hero/VideoStyleHeroBlock";
 import { CollectionHeroBlock } from "../../_assets/Hero/CollectionHeroBlock";
+import { BeautyCosmeticsLandingBlock } from "../../_assets/Hero/BeautyCosmeticsLandingBlock";
 import { FeaturesGridBlock } from "../../_assets/Content/FeaturesGridBlock";
 import { TestimonialBlock } from "../../_assets/Content/TestimonialBlock";
 import { StatsCounterBlock } from "../../_assets/Content/StatsCounterBlock";
@@ -199,6 +200,7 @@ export function buildCraftResolver(): Resolver {
   const MinimalTypeHeroBlockComp = asComponent(MinimalTypeHeroBlock, ContainerComp);
   const VideoStyleHeroBlockComp = asComponent(VideoStyleHeroBlock, ContainerComp);
   const CollectionHeroBlockComp = asComponent(CollectionHeroBlock, ContainerComp);
+  const BeautyCosmeticsLandingBlockComp = asComponent(BeautyCosmeticsLandingBlock, ContainerComp);
   const FeaturesGridBlockComp = asComponent(FeaturesGridBlock, ContainerComp);
   const TestimonialBlockComp = asComponent(TestimonialBlock, ContainerComp);
   const StatsCounterBlockComp = asComponent(StatsCounterBlock, ContainerComp);
@@ -349,6 +351,9 @@ export function buildCraftResolver(): Resolver {
     CollectionHeroBlock: CollectionHeroBlockComp,
     collectionheroblock: CollectionHeroBlockComp,
     "Collection Hero Block": CollectionHeroBlockComp,
+    BeautyCosmeticsLandingBlock: BeautyCosmeticsLandingBlockComp,
+    beautycosmeticlandingblock: BeautyCosmeticsLandingBlockComp,
+    "Beauty Cosmetics Landing Block": BeautyCosmeticsLandingBlockComp,
     CategoryTile: CategoryTileComp,
     categorytile: CategoryTileComp,
     "Category Tile": CategoryTileComp,
@@ -434,6 +439,7 @@ export function buildCraftResolver(): Resolver {
   addAliases(base, "MinimalTypeHeroBlock", MinimalTypeHeroBlockComp, ["Minimal Type Hero Block", "minimaltypeheroblock"]);
   addAliases(base, "VideoStyleHeroBlock", VideoStyleHeroBlockComp, ["Video Style Hero Block", "videostyleheroblock"]);
   addAliases(base, "CollectionHeroBlock", CollectionHeroBlockComp, ["Collection Hero Block", "collectionheroblock"]);
+  addAliases(base, "BeautyCosmeticsLandingBlock", BeautyCosmeticsLandingBlockComp, ["Beauty Cosmetics Landing Block", "beautycosmeticlandingblock"]);
   addAliases(base, "FeaturesGridBlock", FeaturesGridBlockComp, ["Features Grid Block", "featuresgridblock"]);
   addAliases(base, "TestimonialBlock", TestimonialBlockComp, ["Testimonial Block", "testimonialblock"]);
   addAliases(base, "StatsCounterBlock", StatsCounterBlockComp, ["Stats Counter Block", "statscounterblock"]);

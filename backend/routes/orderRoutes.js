@@ -16,7 +16,8 @@ const {
   getMyPublishedOrders,
   updatePublishedOrderStatus,
 } = require('../controllers/orderController');
-const { protect, admin } = require('../middleware/auth');
+const protect = require('../middleware/protectMiddleware');
+const admin = require('../middleware/adminMiddleware');
 
 router.get('/paymongo-public-key', getPaymongoPublicKey);
 router.get('/stripe-public-key', getStripePublicKey);

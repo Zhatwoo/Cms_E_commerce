@@ -38,8 +38,8 @@ export interface CollectionHeroBlockProps {
 const LayoutThumb = ({ style, active, onClick, label }: { style: CollectionLayoutStyle; active: boolean; onClick: () => void; label: string }) => {
   const box = `w-full aspect-[4/3] rounded-lg border-2 overflow-hidden flex transition-all ${
     active
-      ? "border-[var(--builder-accent)] bg-[var(--builder-accent)]/10"
-      : "border-[var(--builder-border)] bg-[var(--builder-surface-2)] hover:border-[var(--builder-border-mid)]"
+      ? "border-(--builder-accent) bg-builder-accent/10"
+      : "border-(--builder-border) bg-builder-surface-2 hover:border-(--builder-border-mid)"
   }`;
   const imgBlock = (w: string, h = "100%") => (
     <div style={{ width: w, height: h, background: active ? "var(--builder-accent)" : "#94a3b8", opacity: active ? 0.7 : 0.5, flexShrink: 0 }} />
@@ -77,10 +77,10 @@ const LayoutThumb = ({ style, active, onClick, label }: { style: CollectionLayou
 };
 
 const COLLECTION_IMAGE_SLOTS = [
-  { key: "collectionImage1", label: "Image 1", tint: "rgba(234,88,12,0.12)", stroke: "#ea580c" },
-  { key: "collectionImage2", label: "Image 2", tint: "rgba(168,85,247,0.10)", stroke: "#a855f7" },
-  { key: "collectionImage3", label: "Image 3", tint: "rgba(14,165,233,0.10)", stroke: "#0ea5e9" },
-  { key: "collectionImage4", label: "Image 4", tint: "rgba(34,197,94,0.10)", stroke: "#22c55e" },
+  { key: "collectionImage1", label: "Image 1", tint: "rgba(252,231,243,0.85)", stroke: "#c2185b" },
+  { key: "collectionImage2", label: "Image 2", tint: "rgba(248,187,208,0.70)", stroke: "#ad1457" },
+  { key: "collectionImage3", label: "Image 3", tint: "rgba(243,229,245,0.75)", stroke: "#8e24aa" },
+  { key: "collectionImage4", label: "Image 4", tint: "rgba(255,205,220,0.80)", stroke: "#e91e8c" },
 ] as const;
 
 export const CollectionHeroBlockSettings = () => {
