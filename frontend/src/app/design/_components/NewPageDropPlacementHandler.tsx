@@ -282,6 +282,41 @@ export const NewPageDropPlacementHandler = () => {
           return canonicalResolvedName(dname) === "Page";
         });
         preDropPageIdsRef.current = new Set(latestPageIds);
+
+        // After placement, scroll/zoom the canvas to show the newly dropped template page.
+        // We give the DOM a couple of frames to reflect the new canvasX/canvasY before centering.
+        const scrollToNewPage = (pageId: string, attempt = 0) => {
+          requestAnimationFrame(() => {
+            const canvasContainer = document.querySelector("[data-canvas-container]") as HTMLElement | null;
+            if (!canvasContainer) return;
+
+            const pageEl = document.querySelector<HTMLElement>(
+              `[data-viewport-desktop] [data-node-id="${pageId}"]`
+            ) ?? document.querySelector<HTMLElement>(`[data-node-id="${pageId}"]`);
+
+            if (!pageEl) {
+              // Retry a few more times while DOM catches up
+              if (attempt < 12) scrollToNewPage(pageId, attempt + 1);
+              return;
+            }
+
+            // Dispatch center-on-node to scroll the camera to the new page
+            canvasContainer.dispatchEvent(
+              new CustomEvent("center-on-node", { detail: { nodeId: pageId } })
+            );
+
+            // Also dispatch fit-to-page so tall landing page templates are visible at a good zoom level
+            canvasContainer.dispatchEvent(
+              new CustomEvent("fit-to-page", { detail: { nodeId: pageId } })
+            );
+          });
+        };
+
+        // Target the first new page for centering
+        if (newPageIds.length > 0) {
+          scrollToNewPage(newPageIds[0]);
+        }
+
         return true;
       }
 
