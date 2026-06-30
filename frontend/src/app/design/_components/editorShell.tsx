@@ -3298,6 +3298,14 @@ export const EditorShell = ({ projectId, pageId: initialPageId, permission = "ed
     base.featuredproduct = featuredProductComp;
     base["Featured Product"] = featuredProductComp;
 
+    const productDescCanvasComp = asComponent(CRAFT_RESOLVER.ProductDescriptionCanvas ?? CRAFT_RESOLVER.ProductDescription ?? SAFE_CONTAINER);
+    base.ProductDescriptionCanvas = productDescCanvasComp;
+    base.productdescriptioncanvas = productDescCanvasComp;
+    base["Product Description Canvas"] = productDescCanvasComp;
+    base.ProductDescription = productDescCanvasComp;
+    base.productdescription = productDescCanvasComp;
+    base["Product Description"] = productDescCanvasComp;
+
     return withResolverFallback(base);
   }, []);
 
