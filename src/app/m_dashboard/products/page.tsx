@@ -1,0 +1,1075 @@
+'use client';
+
+/**
+ * ============================================================================
+ * Products Management Page
+ * ============================================================================
+ *
+ * Purpose of this File:
+ * ----------------------------------------------------------------------------
+ * This file is the main products inventory management page where users can
+ * view, create, edit, and delete products for their e-commerce store with
+ * support for variants, pricing, stock management, and image uploads.
+ *
+ * The component provides:
+ * - Product listing with search, filtering, and pagination
+ * - Tile and list view modes for products
+ * - Product CRUD operations (create, read, update, delete)
+ * - Variant management with stock and price overrides
+ * - Image upload and management
+ * - Status filtering (active, inactive, draft)
+ * - Category and subcategory filtering
+ * - Real-time product statistics
+ * - Theme-aware styling throughout
+ * - Product detail viewing modal
+ *
+ * ----------------------------------------------------------------------------
+ * What this Component Does:
+ * ----------------------------------------------------------------------------
+ * - Fetches and displays paginated product list
+ * - Shows product statistics cards (active/inactive count)
+ * - Provides search bar for filtering by name or SKU
+ * - Filters products by category, subcategory, and status
+ * - Supports tile and list view modes for displaying products
+ * - Handles pagination with configurable items per page
+ * - Opens add product modal for creating new products
+ * - Opens edit product modal for modifying existing products
+ * - Allows viewing detailed product information
+ * - Handles product deletion with confirmation
+ * - Manages variant configuration including stock and pricing
+ * - Handles image uploads to Firebase storage
+ * - Auto-generates SKUs for new products
+ * - Calculates variant combinations and prices
+ * - Shows empty states for no products or no search matches
+ * - Displays toast notifications for product operations
+ * - Refreshes product list on focus/visibility changes
+ *
+ * Props / Parameters:
+ * - userName?: string - For future user context
+ *
+ * State Management:
+ *
+ * - products: Array of products fetched from API
+ * - searchTerm: Current search filter text
+ * - selectedCategory: Currently selected category filter
+ * - statusFilter: Currently selected status filter
+ * - viewMode: Current view mode (tile or list)
+ * - currentPage: Current pagination page
+ * - perPage: Number of items per page
+ * - showAddModal: Whether add product modal is open
+ * - editingProduct: Product being edited (if any)
+ * - viewingProduct: Product being viewed (if any)
+ * - openMenuProductId: Currently open product action menu
+ * - productPopup: Toast notification state
+ *
+ * Key Functions:
+ *
+ * handleSaveProduct: Saves new or edited product to API
+ * handleDelete: Deletes product with confirmation
+ * handleEdit: Opens edit modal for product
+ * handleView: Opens detail view for product
+ * toDashboardProduct: Transforms API product to dashboard format
+ * normalizeImageSource: Validates and normalizes image URLs
+ * formatProductPrice: Formats price with currency
+ * getVariantGroups: Extracts valid variant groups
+ * getLowStockThreshold: Gets stock threshold for product
+ * isLowStock: Checks if product is low on stock
+ *
+ * Context Dependencies:
+ *
+ * - useTheme: For theme colors and styling
+ * - useAlert: For confirmation dialogs and alerts
+ * - useProject: For selected project context
+ *
+ * Type Definitions:
+ *
+ * Product
+ * - Product data structure with all fields
+ *
+ * ProductUpsertPayload
+ * - Payload structure for create/update operations
+ *
+ * ProductStatTile
+ * - Statistics card configuration
+ *
+ * ============================================================================
+ */
+
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { AlertTriangle, CheckCircle, LucideIcon } from 'lucide-react';
+import { useTheme } from '../components/context/theme-context';
+import { useAlert } from '../components/context/alert-context';
+import { useProject } from '../components/context/project-context';
+import { FeedbackMessage } from '../components/ui/feedbackMessage';
+import { type Product, type ProductVariant } from '../lib/productsData';
+import { createProduct, deleteProduct, updateProduct, type ApiProduct } from '@/lib/api';
+import { useProducts } from './hooks/useProducts';
+import { SearchBar } from '../components/ui/searchbar';
+import { EmptyState, type EmptyStateTone } from '../components/ui/emptyState';
+import ProductAddModal from './components/productAddModal';
+import ProductEditModal from './components/productEditModal';
+import { CustomDropdown } from '../components/ui/customDropdown';
+import { ProductCard } from './components/productContainer';
+import { ProductDetailsModal } from './components/viewProductDetails';
+import { PaginationControls } from './components/paginationControls';
+import { ProductListView } from './components/productListView';
+import { AddProductButton } from './components/button';
+import { StatusFilterButton } from './components/subbuttons';
+import { ViewModeToggle } from '../components/buttons/viewModeToggle';
+
+type ProductUpsertPayload = Omit<Parameters<typeof createProduct>[0], 'subdomain' | 'projectId'>;
+const DEFAULT_LOW_STOCK_THRESHOLD = 5;
+
+type ProductPopupState = {
+  open: boolean;
+  message: string;
+  tone: 'success' | 'error';
+};
+
+type ProductStatTile = {
+  id: 'active' | 'inactive';
+  label: string;
+  value: number;
+  icon: LucideIcon;
+  accent: string;
+  animationDelay?: number;
+  isSkeleton?: boolean;
+};
+
+const PRODUCT_STAT_ACCENT_COLORS = {
+  active: '#22d3a4',
+  inactive: '#ff4f8c',
+} as const;
+
+type EmptyStatesProps = {
+  variant: 'no-products' | 'no-results';
+  canAddProducts: boolean;
+  blockedAddProductMessage?: string | null;
+  onAddProduct: () => void;
+  onClearFilters?: () => void;
+  theme?: EmptyStateTone;
+};
+
+function EmptyStates({
+  variant,
+  canAddProducts,
+  blockedAddProductMessage,
+  onAddProduct,
+  onClearFilters,
+  theme = 'light',
+}: EmptyStatesProps) {
+  const isNoProducts = variant === 'no-products';
+
+  return isNoProducts ? (
+    <EmptyState
+      tone={theme}
+      badgeText="Fresh Start"
+      title="No products here yet."
+      description={canAddProducts
+        ? "Ready to grow your inventory? Add your first item to see how it looks in your new workspace."
+        : blockedAddProductMessage || "You're almost there! Complete your store setup to unlock product creation."}
+      primaryAction={{
+        label: canAddProducts ? "Start Creating" : "Complete Setup",
+        onClick: onAddProduct,
+        disabled: !canAddProducts,
+      }}
+      footerNote={!canAddProducts ? "Configuration in progress" : undefined}
+    />
+  ) : (
+    <EmptyState
+      tone={theme}
+      badgeText="No matches found"
+      title="We couldn't find that."
+      description="It looks like nothing matches your current search."
+      secondaryAction={{
+        label: 'Show all products',
+        onClick: onClearFilters,
+        disabled: !onClearFilters,
+      }}
+    />
+  );
+}
+
+const ProductStatTileCard = React.memo(({
+  id,
+  label,
+  value,
+  icon: Icon,
+  accent,
+  animationDelay = 0,
+  isSkeleton = false,
+}: ProductStatTile) => (
+  <motion.div
+    key={id}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay: animationDelay, ease: [0.23, 1, 0.32, 1], duration: 0.5 }}
+    className="relative overflow-hidden rounded-3xl border transition-all duration-500 hover:shadow-xl group"
+    style={{
+      backgroundColor: 'var(--dashboard-light-surface, #141446)',
+      borderColor: `${accent}25`,
+      minHeight: 100,
+      padding: '20px 24px',
+      boxShadow: '0 4px 20px -12px rgba(0,0,0,0.5)',
+    }}
+  >
+    <div
+      className="absolute -right-4 -top-4 w-20 h-20 opacity-[0.05] blur-2xl rounded-full transition-opacity duration-500 group-hover:opacity-[0.08]"
+      style={{ backgroundColor: accent }}
+    />
+
+    <div className="flex items-center gap-5 relative z-10">
+      <div
+        className="flex items-center justify-center shrink-0 w-12 h-12 rounded-2xl transition-all duration-300 group-hover:scale-110"
+        style={{
+          backgroundColor: `${accent}10`,
+          border: `1px solid ${accent}20`,
+        }}
+      >
+        {isSkeleton ? (
+          <div className="w-6 h-6 rounded bg-linear-to-r from-gray-700 to-gray-800 animate-pulse" />
+        ) : (
+          <Icon className="w-6 h-6 transition-colors duration-300" style={{ color: accent }} />
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1 flex-1">
+        {isSkeleton ? (
+          <div className="h-3 w-24 rounded bg-gray-700 animate-pulse" />
+        ) : (
+          <span
+            className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 transition-opacity duration-300 group-hover:opacity-80"
+            style={{
+              color: 'var(--dashboard-light-muted, rgba(219,212,255,0.45))',
+              fontFamily: 'var(--font-outfit), sans-serif',
+            }}
+          >
+            {label}
+          </span>
+        )}
+
+        {isSkeleton ? (
+          <div className="h-7 w-20 rounded bg-gray-700 animate-pulse" />
+        ) : (
+          <span
+            className="text-2xl font-black leading-none transition-colors duration-300"
+            style={{
+              color: 'var(--dashboard-light-text, #ffffff)',
+              letterSpacing: '-1px',
+              fontFamily: 'var(--font-outfit), sans-serif',
+            }}
+          >
+            {String(value)}
+          </span>
+        )}
+      </div>
+    </div>
+  </motion.div>
+));
+
+ProductStatTileCard.displayName = 'ProductStatTileCard';
+
+function getLowStockThreshold(product: Product): number {
+  const threshold = Number(product.lowStockThreshold);
+  if (!Number.isFinite(threshold) || threshold < 0) return DEFAULT_LOW_STOCK_THRESHOLD;
+  return threshold;
+}
+
+function isLowStock(product: Product): boolean {
+  return product.stock > 0 && product.stock < getLowStockThreshold(product);
+}
+
+function formatProductPrice(product: Product): string {
+  const priceRangeMin = Number(product.priceRangeMin);
+  const priceRangeMax = Number(product.priceRangeMax);
+  const hasPriceRange = Number.isFinite(priceRangeMin)
+    && Number.isFinite(priceRangeMax)
+    && priceRangeMin >= 0
+    && priceRangeMax >= 0
+    && priceRangeMax >= priceRangeMin;
+
+  if (hasPriceRange) {
+    if (priceRangeMin === priceRangeMax) return `P${Math.round(priceRangeMin).toLocaleString()}.00`;
+    return `P${Math.round(priceRangeMin).toLocaleString()} - P${Math.round(priceRangeMax).toLocaleString()}`;
+  }
+
+  return `P${Math.round(Number(product.price || 0)).toLocaleString()}.00`;
+}
+
+function getVariantLabelsForList(product: Product): string[] {
+  const groups = getVariantGroups(product);
+  if (groups.length === 0) return ['NO VARIANT'];
+
+  if (groups.length === 1) {
+    const options = groups[0]?.options?.map((o) => String(o.name || '').trim()).filter(Boolean) || [];
+    if (options.length <= 3) return options;
+    return [...options.slice(0, 2), `+${options.length - 2}`];
+  }
+
+  const firstGroup = groups[0];
+  const options = firstGroup?.options?.map((o) => String(o.name || '').trim()).filter(Boolean) || [];
+  if (options.length === 0) return [`${groups.length} VARIANTS`];
+  if (options.length <= 2) return options;
+  return [...options.slice(0, 1), `+${options.length - 1}`];
+}
+
+function isImageSource(value: string): boolean {
+  const v = (value || '').trim();
+  if (!v) return false;
+  if (/^data:image\/[a-zA-Z0-9.+-]+;base64,/i.test(v)) return true;
+  if (/^https?:\/\//i.test(v)) return true;
+  if (v.startsWith('blob:')) return true;
+  if (v.startsWith('/')) return true;
+  return false;
+}
+
+function normalizeImageSource(value: unknown): string {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+
+  const repaired = raw
+    .replace(/ImageProducts_img%2F/gi, 'Products_img%2F')
+    .replace(/ImageProducts_img\//gi, 'Products_img/');
+
+  if (isImageSource(repaired)) return repaired;
+
+  const bucket = String(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '').trim();
+  const looksLikeStoragePath = /^Products_img(?:\/|%2F)/i.test(repaired);
+  if (!bucket || !looksLikeStoragePath) return '';
+
+  const [pathPartRaw, queryRaw = ''] = repaired.split('?');
+  const pathPart = pathPartRaw.includes('%2F') ? pathPartRaw : encodeURIComponent(pathPartRaw);
+  const query = queryRaw.trim();
+  const suffix = query ? `?${query}` : '?alt=media';
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${pathPart}${suffix}`;
+}
+
+function getVariantGroups(product: Product): ProductVariant[] {
+  return Array.isArray(product.variants)
+    ? product.variants.filter((variant) => Array.isArray(variant.options) && variant.options.length > 0)
+    : [];
+}
+
+function buildVariantStockKey(variants: ProductVariant[], selectedOptions: Record<string, string>): string | null {
+  if (variants.length === 0) return null;
+  const keyParts: string[] = [];
+  for (const variant of variants) {
+    const selectedOptionId = selectedOptions[variant.id];
+    if (!selectedOptionId) return null;
+    keyParts.push(`${variant.id}:${selectedOptionId}`);
+  }
+  return keyParts.join('__');
+}
+
+function getInitialVariantSelection(product: Product): Record<string, string> {
+  const groups = getVariantGroups(product);
+  return groups.reduce<Record<string, string>>((acc, variant) => {
+    const firstOption = variant.options[0];
+    if (firstOption?.id) {
+      acc[variant.id] = firstOption.id;
+    }
+    return acc;
+  }, {});
+}
+
+function getCombinationStock(product: Product, selectedOptions: Record<string, string>): number | null {
+  if (!product.hasVariants || !product.variantStocks) return null;
+  const groups = getVariantGroups(product);
+  if (groups.length === 0) return null;
+  const stockKey = buildVariantStockKey(groups, selectedOptions);
+  if (!stockKey) return null;
+  const value = Number(product.variantStocks[stockKey]);
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+function getCombinationPrice(product: Product, selectedOptions: Record<string, string>): number | null {
+  if (!product.hasVariants || !product.variantPrices) return null;
+  const groups = getVariantGroups(product);
+  if (groups.length === 0) return null;
+  const stockKey = buildVariantStockKey(groups, selectedOptions);
+  if (!stockKey) return null;
+  const value = Number(product.variantPrices[stockKey]);
+  return Number.isFinite(value) && value >= 0 ? value : null;
+}
+
+function getSelectedVariantImage(product: Product, selectedOptions: Record<string, string>): string | null {
+  const groups = getVariantGroups(product);
+  for (const variant of groups) {
+    if (variant.name.trim().toLowerCase() === 'size') continue;
+    const selectedOptionId = selectedOptions[variant.id];
+    if (!selectedOptionId) continue;
+    const selectedOption = variant.options.find((option) => option.id === selectedOptionId);
+    const image = String(selectedOption?.image || '').trim();
+    if (isImageSource(image)) return image;
+  }
+  return null;
+}
+
+function getVariantOptionImages(product: Product): string[] {
+  const seen = new Set<string>();
+  const images: string[] = [];
+
+  for (const variant of getVariantGroups(product)) {
+    for (const option of variant.options) {
+      const image = String(option?.image || '').trim();
+      if (!isImageSource(image) || seen.has(image)) continue;
+      seen.add(image);
+      images.push(image);
+    }
+  }
+
+  return images;
+}
+
+function colorFromName(value: string): string {
+  const trimmed = value.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) return trimmed;
+  const palette = ['#EAE3F9', '#F23939', '#2F49D8', '#D81CBF', '#22c55e', '#f59e0b', '#14b8a6'];
+  const hash = Array.from(trimmed.toLowerCase()).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+  return palette[hash % palette.length];
+}
+
+type ThemeColors = ReturnType<typeof useTheme>['colors'];
+
+function toDashboardStatus(status?: string): Product['status'] {
+  const normalized = (status || '').toString().toLowerCase();
+  if (normalized === 'active' || normalized === 'published') return 'active';
+  if (normalized === 'inactive' || normalized === 'suspended') return 'inactive';
+  return 'draft';
+}
+
+function toDashboardProduct(product: ApiProduct): Product {
+  const productRecord = product as ApiProduct & {
+    subCategory?: unknown;
+    sub_category?: unknown;
+    details?: { subcategory?: unknown; subCategory?: unknown; sub_category?: unknown };
+    specifications?: { subcategory?: unknown; subCategory?: unknown; sub_category?: unknown };
+  };
+  const normalizedSubcategory = String(
+    product.subcategory
+    ?? productRecord.subCategory
+    ?? productRecord.sub_category
+    ?? productRecord.details?.subcategory
+    ?? productRecord.details?.subCategory
+    ?? productRecord.details?.sub_category
+    ?? productRecord.specifications?.subcategory
+    ?? productRecord.specifications?.subCategory
+    ?? productRecord.specifications?.sub_category
+    ?? ''
+  ).trim();
+  const imageCandidates: unknown[] = Array.isArray(product.images) ? product.images : [];
+  if (typeof (product as { image?: unknown }).image === 'string') {
+    imageCandidates.push((product as { image?: string }).image);
+  }
+  const images = imageCandidates
+    .map((img) => normalizeImageSource(img))
+    .filter((img, index, arr): img is string => Boolean(img) && arr.indexOf(img) === index);
+  const variants: ProductVariant[] = Array.isArray(product.variants)
+    ? product.variants
+      .map((variant): ProductVariant => ({
+        id: String(variant?.id || ''),
+        name: String(variant?.name || ''),
+        pricingMode: variant?.pricingMode === 'override' ? 'override' : 'modifier',
+        options: Array.isArray(variant?.options)
+          ? variant.options.map((option) => {
+            const optionRecord = option as {
+              id?: unknown;
+              name?: unknown;
+              priceAdjustment?: unknown;
+              image?: unknown;
+              imageUrl?: unknown;
+              image_url?: unknown;
+              imgUrl?: unknown;
+              img_url?: unknown;
+            };
+            return {
+              id: String(optionRecord?.id || ''),
+              name: String(optionRecord?.name || ''),
+              priceAdjustment: Number(optionRecord?.priceAdjustment || 0),
+              image: String(
+                optionRecord?.image
+                ?? optionRecord?.imageUrl
+                ?? optionRecord?.image_url
+                ?? optionRecord?.imgUrl
+                ?? optionRecord?.img_url
+                ?? ''
+              ).trim(),
+            };
+          })
+          : [],
+      }))
+      .filter((variant) => variant.id || variant.name || variant.options.length > 0)
+    : [];
+  const basePrice = typeof product.basePrice === 'number'
+    ? product.basePrice
+    : (typeof product.compareAtPrice === 'number' && product.compareAtPrice > 0
+      ? product.compareAtPrice
+      : (typeof product.price === 'number' ? product.price : 0));
+  const finalPrice = typeof product.finalPrice === 'number'
+    ? product.finalPrice
+    : (typeof product.price === 'number' ? product.price : 0);
+  const costPrice = typeof product.costPrice === 'number' ? product.costPrice : null;
+  const priceRangeMin = typeof product.priceRangeMin === 'number' ? product.priceRangeMin : null;
+  const priceRangeMax = typeof product.priceRangeMax === 'number' ? product.priceRangeMax : null;
+  const discount = typeof product.discount === 'number' ? product.discount : 0;
+  const discountType = product.discountType === 'fixed' ? 'fixed' : 'percentage';
+  const hasVariants = typeof product.hasVariants === 'boolean' ? product.hasVariants : variants.length > 0;
+  const variantStocks = product.variantStocks && typeof product.variantStocks === 'object'
+    ? Object.entries(product.variantStocks).reduce<Record<string, number>>((acc, [key, value]) => {
+      const parsed = Number(value);
+      acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+      return acc;
+    }, {})
+    : {};
+  const variantPrices = product.variantPrices && typeof product.variantPrices === 'object'
+    ? Object.entries(product.variantPrices).reduce<Record<string, number>>((acc, [key, value]) => {
+      const parsed = Number(value);
+      acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+      return acc;
+    }, {})
+    : {};
+    const normalizedStock = typeof product.onHandStock === 'number'
+      ? product.onHandStock
+      : (typeof product.stock === 'number' ? product.stock : 0);
+
+  return {
+    id: product.id,
+    name: product.name || 'Untitled Product',
+    sku: product.sku || '',
+    category: product.category || 'General',
+    subcategory: normalizedSubcategory,
+    description: product.description || '',
+    price: finalPrice,
+    basePrice,
+    costPrice,
+    finalPrice,
+    compareAtPrice: typeof product.compareAtPrice === 'number' ? product.compareAtPrice : null,
+    discount,
+    discountType,
+    hasVariants,
+    variants,
+    variantStocks,
+    variantPrices,
+    priceRangeMin,
+    priceRangeMax,
+    stock: normalizedStock,
+    lowStockThreshold: typeof product.lowStockThreshold === 'number' ? product.lowStockThreshold : DEFAULT_LOW_STOCK_THRESHOLD,
+    status: toDashboardStatus(product.status),
+    image: images.length > 0 ? images[0] : '[product]',
+    images,
+    createdAt: product.createdAt || new Date().toISOString(),
+    sales: 0,
+    revenue: 0,
+  };
+}
+
+function normalizeSubdomain(value?: string | null): string {
+  return (value || '').toString().trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+}
+
+export default function ProductsPage() {
+  const { colors, theme } = useTheme();
+  const { showConfirm, showAlert } = useAlert();
+  const { selectedProject, selectedProjectId, loading: projectLoading } = useProject();
+  const selectedSubdomain = normalizeSubdomain(selectedProject?.subdomain);
+  const blockedAddProductMessage = !selectedProjectId
+    ? 'Select a website project first to manage products.'
+    : null;
+  const canAddProducts = Boolean(selectedProjectId) && !projectLoading;
+  const addProductHelperMessage = selectedProjectId && !selectedSubdomain
+    ? "This website isn't published yet — you can still add products now."
+    : null;
+  const handleProductLoadError = useCallback(
+    (msg: string) => showAlert(msg, 'error'),
+    [showAlert]
+  );
+  const {
+    products,
+    loading: loadingProducts,
+    reload: loadProducts,
+  } = useProducts<Product>({
+    enabled: canAddProducts,
+    pending: projectLoading,
+    subdomain: selectedSubdomain || null,
+    transform: toDashboardProduct,
+    onError: handleProductLoadError,
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [viewMode, setViewMode] = useState<'tile' | 'list'>('tile');
+  const [showStatusFilterMenu, setShowStatusFilterMenu] = useState(false);
+  const statusMenuRef = useRef<HTMLDivElement | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | undefined>();
+  const [viewingProduct, setViewingProduct] = useState<Product | undefined>();
+  const [openMenuProductId, setOpenMenuProductId] = useState<string | null>(null);
+  const [perPage, setPerPage] = useState<number>(10);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [productPopup, setProductPopup] = useState<ProductPopupState>({
+    open: false,
+    message: '',
+    tone: 'success',
+  });
+
+  const showProductPopup = useCallback((message: string, tone: 'success' | 'error' = 'success') => {
+    setProductPopup({ open: true, message, tone });
+  }, []);
+
+  useEffect(() => {
+    if (!showStatusFilterMenu) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+      if (statusMenuRef.current?.contains(target)) return;
+      setShowStatusFilterMenu(false);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [showStatusFilterMenu]);
+
+  useEffect(() => {
+    if (!openMenuProductId) return;
+    const onMouseDown = (event: MouseEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target) return;
+      if (target.closest('[data-product-menu-root="true"]')) return;
+      setOpenMenuProductId(null);
+    };
+    document.addEventListener('mousedown', onMouseDown);
+    return () => document.removeEventListener('mousedown', onMouseDown);
+  }, [openMenuProductId]);
+
+  const handleRefreshOnFocus = useCallback(() => {
+    if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
+    void loadProducts();
+  }, [showAddModal, editingProduct, viewingProduct, loadProducts]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (showAddModal || Boolean(editingProduct) || Boolean(viewingProduct)) return;
+      if (document.visibilityState === 'visible') {
+        void loadProducts();
+      }
+    };
+
+    window.addEventListener('focus', handleRefreshOnFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', handleRefreshOnFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [loadProducts, handleRefreshOnFocus, showAddModal, editingProduct, viewingProduct]);
+
+  const subcategoryCounts = products.reduce<Record<string, number>>((acc, product) => {
+    const subcategory = String(product.subcategory || '').trim();
+    if (!subcategory) return acc;
+    acc[subcategory] = (acc[subcategory] || 0) + 1;
+    return acc;
+  }, {});
+
+  const subcategoryOptions = Object.keys(subcategoryCounts).sort();
+
+  const filterOptions = [
+    { value: 'all', label: `All (${products.length})` },
+    ...subcategoryOptions.map((subcategory) => ({
+      value: `subcategory:${subcategory}`,
+      label: `${subcategory} (${subcategoryCounts[subcategory]})`,
+    })),
+  ];
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      product.sku.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all'
+      || (selectedCategory.startsWith('subcategory:')
+        && String(product.subcategory || '').trim() === selectedCategory.slice('subcategory:'.length));
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'active' && product.status === 'active') ||
+      (statusFilter === 'inactive' && product.status === 'inactive');
+    return matchesSearch && matchesCategory && matchesStatus;
+  });
+
+  const sortedFilteredProducts = [...filteredProducts];
+
+  const totalPages = Math.max(1, Math.ceil(sortedFilteredProducts.length / perPage));
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [totalPages, currentPage]);
+
+  const startIndex = (currentPage - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const paginatedProducts = sortedFilteredProducts.slice(startIndex, endIndex);
+
+  const handleEdit = (product: Product) => {
+    setEditingProduct(product);
+    setShowAddModal(false);
+  };
+
+  const handleView = (product: Product) => {
+    setViewingProduct(product);
+  };
+
+  const handleDelete = async (product: Product) => {
+    const confirmed = await showConfirm(`Are you sure you want to delete ${product.name}?`);
+    if (!confirmed) return;
+    try {
+      await deleteProduct(product.id);
+      await loadProducts();
+      showProductPopup('Product deleted successfully!', 'success');
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to delete product', 'error');
+    }
+  };
+
+
+  const handleSaveProduct = async (productData: Partial<Product> & Record<string, unknown>): Promise<boolean> => {
+    try {
+      let successMessage: string | null = null;
+      const rawVariants = Array.isArray(productData.variants) ? productData.variants : [];
+      const variants: ProductVariant[] = rawVariants
+        .map((variant): ProductVariant => {
+          const optionsRaw = Array.isArray((variant as { options?: unknown[] })?.options)
+            ? (variant as { options: unknown[] }).options
+            : [];
+          const options = optionsRaw
+            .map((option) => ({
+              id: String((option as { id?: string })?.id || ''),
+              name: String((option as { name?: string })?.name || '').trim(),
+              priceAdjustment: Number((option as { priceAdjustment?: number })?.priceAdjustment || 0),
+              image: String((option as { image?: string })?.image || '').trim(),
+            }))
+            .filter((option) => option.name || option.priceAdjustment !== 0 || option.image);
+          return {
+            id: String((variant as { id?: string })?.id || ''),
+            name: String((variant as { name?: string })?.name || '').trim(),
+            pricingMode: (variant as { pricingMode?: string })?.pricingMode === 'override' ? 'override' : 'modifier',
+            options,
+          };
+        })
+        .filter((variant) => variant.name || variant.options.length > 0);
+
+      const basePrice = Number(productData.basePrice ?? productData.price ?? 0);
+      const finalPrice = Number(productData.finalPrice ?? productData.price ?? 0);
+      const discount = Number(productData.discount || 0);
+      const compareAtPriceRaw = productData.compareAtPrice;
+      const compareAtPrice = compareAtPriceRaw === null || compareAtPriceRaw === undefined
+        ? null
+        : (() => {
+          const parsed = Number(compareAtPriceRaw);
+          return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+        })();
+      const discountType = String(productData.discountType || 'percentage') === 'fixed' ? 'fixed' : 'percentage';
+      const hasVariants = Boolean(productData.hasVariants) && variants.length > 0;
+      const variantStocks = hasVariants && productData.variantStocks && typeof productData.variantStocks === 'object'
+        ? Object.entries(productData.variantStocks as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : 0;
+          return acc;
+        }, {})
+        : {};
+      const variantPrices = hasVariants && productData.variantPrices && typeof productData.variantPrices === 'object'
+        ? Object.entries(productData.variantPrices as Record<string, unknown>).reduce<Record<string, number>>((acc, [key, value]) => {
+          const parsed = Number(value);
+          acc[key] = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+          return acc;
+        }, {})
+        : {};
+      const priceRangeMin = hasVariants
+        ? Number(productData.priceRangeMin ?? finalPrice)
+        : finalPrice;
+      const priceRangeMax = hasVariants
+        ? Number(productData.priceRangeMax ?? finalPrice)
+        : finalPrice;
+      const computedStock = hasVariants
+        ? Object.values(variantStocks).reduce((sum, amount) => sum + amount, 0)
+        : Number(productData.stock || 0);
+      const normalizedLowStockThreshold = Math.max(
+        0,
+        Number.isFinite(Number(productData.lowStockThreshold))
+          ? Number(productData.lowStockThreshold)
+          : DEFAULT_LOW_STOCK_THRESHOLD
+      );
+
+      const payload: ProductUpsertPayload = {
+        name: String(productData.name || ''),
+        sku: String(productData.sku || ''),
+        category: String(productData.category || ''),
+        subcategory: String(productData.subcategory || ''),
+        subCategory: String(productData.subcategory || ''),
+        sub_category: String(productData.subcategory || ''),
+        description: String(productData.description || ''),
+        price: finalPrice,
+        basePrice,
+        costPrice: productData.costPrice !== undefined ? Number(productData.costPrice || 0) : null,
+        finalPrice,
+        compareAtPrice,
+        discount,
+        discountType,
+        hasVariants,
+        variants: hasVariants ? variants : [],
+        variantStocks: hasVariants ? variantStocks : {},
+        variantPrices: hasVariants ? variantPrices : {},
+        priceRangeMin,
+        priceRangeMax,
+        stock: computedStock,
+        lowStockThreshold: normalizedLowStockThreshold,
+        status: toDashboardStatus(String(productData.status || 'draft')),
+        images: Array.isArray(productData.images) ? (productData.images as string[]) : [],
+      };
+
+      const providedId = typeof (productData as { id?: unknown })?.id === 'string'
+        ? String((productData as { id?: unknown }).id)
+        : undefined;
+      const providedIdMatchesExisting = !!providedId && products.some((p) => p.id === providedId);
+      const targetProductId =
+        (editingProduct && typeof editingProduct.id === 'string' ? editingProduct.id : undefined) ||
+        (providedIdMatchesExisting ? providedId : undefined);
+
+      if (targetProductId) {
+        await updateProduct(targetProductId, payload);
+        successMessage = 'Product updated successfully!';
+      } else {
+        if (!selectedSubdomain && !selectedProjectId) {
+          showAlert('Select a website project first to manage products.', 'error');
+          return false;
+        }
+        await createProduct({
+          ...(selectedSubdomain ? { subdomain: selectedSubdomain } : { projectId: selectedProjectId || undefined }),
+          ...payload,
+          slug: payload.name.toLowerCase().replace(/\s+/g, '-'),
+        });
+        successMessage = 'Product added successfully!';
+      }
+
+      await loadProducts();
+      setShowAddModal(false);
+      setEditingProduct(undefined);
+      if (successMessage) {
+        showProductPopup(successMessage, 'success');
+      }
+      return true;
+    } catch (error) {
+      showAlert(error instanceof Error ? error.message : 'Failed to save product', 'error');
+      return false;
+    }
+  };
+
+  const hasProducts = products.length > 0;
+  const productInsights = {
+    active: products.filter((product) => product.status === 'active').length,
+    inactive: products.filter((product) => product.status === 'inactive').length,
+  };
+  const statCards: ProductStatTile[] = useMemo(() => [
+    {
+      id: 'active',
+      label: 'Active',
+      value: productInsights.active,
+      icon: CheckCircle,
+      accent: PRODUCT_STAT_ACCENT_COLORS.active,
+      animationDelay: 0,
+      isSkeleton: loadingProducts,
+    },
+    {
+      id: 'inactive',
+      label: 'Inactive',
+      value: productInsights.inactive,
+      icon: AlertTriangle,
+      accent: PRODUCT_STAT_ACCENT_COLORS.inactive,
+      animationDelay: 0.06,
+      isSkeleton: loadingProducts,
+    },
+  ], [productInsights, loadingProducts]);
+
+  return (
+    <div className="dashboard-landing-light space-y-6">
+      <FeedbackMessage
+        open={productPopup.open}
+        tone={productPopup.tone}
+        message={productPopup.message}
+        variant="toast"
+        onClose={() => setProductPopup((prev) => ({ ...prev, open: false }))}
+      />
+
+      <section className="max-w-[1090px] mx-auto pt-6 pb-2">
+
+        {/* Header */}
+        <div className="text-center">
+          {/* Title */}
+          <h1
+            className="text-4xl sm:text-6xl lg:text-[76px] font-black tracking-[-1.8px] leading-[1.2] [font-family:var(--font-outfit),sans-serif]"
+            style={{ color: colors.text.primary }}
+          >
+            My{' '}
+            <span
+              className={`inline-block bg-clip-text text-transparent bg-linear-to-r ${theme === 'dark' ? 'from-[#7c3aed] via-[#d946ef] to-[#ffcc00]' : 'from-[#7c3aed] via-[#d946ef] to-[#f5a213]'}`}
+              style={{ paddingBottom: '0.1em', marginBottom: '-0.1em' }}
+            >
+              Products
+            </span>
+          </h1>
+          {/* Subtitle */}
+          <p className={`text-base sm:text-lg mt-2 ${theme === 'dark' ? 'text-[#8A8FC4]' : 'text-[#120533]/70'}`}>
+            Track stock performance and catalog details.
+          </p>
+        </div>
+
+        {/* Search Box */}
+        <SearchBar
+          value={searchTerm}
+          onChange={(value) => { setSearchTerm(value); setCurrentPage(1); }}
+          theme={theme}
+          placeholder="Search templates, designs, or actions"
+          className="mt-6 mb-7 max-w-[860px] mx-auto"
+        />
+
+        {(blockedAddProductMessage || addProductHelperMessage) && (
+          <p className="mt-2 text-center text-xs" style={{ color: '#8A8FC4' }}>
+            {blockedAddProductMessage || addProductHelperMessage}
+          </p>
+        )}
+
+        <div className="w-full grid grid-cols-2 gap-[10px]">
+          {statCards.map((card) => (
+            <ProductStatTileCard key={card.id} {...card} />
+          ))}
+        </div>
+      </section>
+
+      {loadingProducts ? (
+        <section className="max-w-[1090px] mx-auto text-center py-16 rounded-2xl border" style={{ backgroundColor: colors.bg.card, borderColor: colors.border.faint }}>
+          <p style={{ color: colors.text.secondary }}>Loading products...</p>
+        </section>
+      ) : hasProducts ? (
+        <>
+          <div id="inventory-section" className="max-w-[1090px] mx-auto mb-5">
+            <div className="flex items-center justify-between gap-[10px] flex-wrap">
+              <div className="flex items-center gap-2 justify-start">
+                <CustomDropdown
+                  value={selectedCategory}
+                  onChange={(category) => {
+                    setSelectedCategory(category);
+                    setCurrentPage(1);
+                  }}
+                  options={filterOptions.map((option) => ({ id: option.value, label: option.label }))}
+                  title="Category"
+                  className="md:w-40 lg:w-45"
+                />
+
+                <AddProductButton
+                  onClick={() => setShowAddModal(true)}
+                  disabled={!canAddProducts}
+                  title={blockedAddProductMessage || addProductHelperMessage || 'Add product'}
+                />
+              </div>
+
+              <div className="flex items-center gap-2 justify-end">
+                <div ref={statusMenuRef}>
+                  <StatusFilterButton
+                    showStatusFilterMenu={showStatusFilterMenu}
+                    onToggle={() => setShowStatusFilterMenu((prev) => !prev)}
+                    statusFilter={statusFilter}
+                    onFilterChange={(value) => {
+                      setStatusFilter(value);
+                      setCurrentPage(1);
+                      setShowStatusFilterMenu(false);
+                    }}
+                    theme={theme}
+                    isLight={theme === 'light'}
+                  />
+                </div>
+
+                <ViewModeToggle
+                  value={viewMode === 'tile' ? 'grid' : 'list'}
+                  onChange={(mode) => setViewMode(mode === 'grid' ? 'tile' : 'list')}
+                  theme={theme as 'light' | 'dark'}
+                />
+              </div>
+            </div>
+          </div>
+
+          {filteredProducts.length > 0 ? (
+            <>
+              <ProductListView
+                products={paginatedProducts}
+                viewMode={viewMode}
+                colors={colors}
+                theme={theme}
+                openMenuProductId={openMenuProductId}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onToggleMenu={(productId) => setOpenMenuProductId((prev) => (prev === productId ? null : productId))}
+                onCloseMenu={() => setOpenMenuProductId(null)}
+                onSaveProduct={handleSaveProduct}
+              />
+              <PaginationControls currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+            </>
+          ) : (
+            <EmptyStates
+              variant="no-results"
+              canAddProducts={canAddProducts}
+              onAddProduct={() => setShowAddModal(true)}
+              onClearFilters={() => {
+                setSearchTerm('');
+                setSelectedCategory('all');
+                setStatusFilter('all');
+                setCurrentPage(1);
+              }}
+              theme={theme}
+            />
+          )}
+        </>
+      ) : (
+        <EmptyStates
+          variant="no-products"
+          canAddProducts={canAddProducts}
+          blockedAddProductMessage={blockedAddProductMessage}
+          onAddProduct={() => setShowAddModal(true)}
+          theme={theme}
+        />
+      )}
+
+      <ProductAddModal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setEditingProduct(undefined);
+        }}
+        onSave={handleSaveProduct}
+        uploadSubdomain={selectedSubdomain}
+        projectIndustry={selectedProject?.industry || null}
+      />
+
+      <AnimatePresence>
+        {editingProduct && (
+          <ProductEditModal
+            isOpen={true}
+            onClose={() => setEditingProduct(undefined)}
+            onSave={handleSaveProduct}
+            editingProduct={editingProduct}
+            uploadSubdomain={selectedSubdomain}
+            projectIndustry={selectedProject?.industry || null}
+          />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {viewingProduct && (
+          <ProductDetailsModal
+            key={viewingProduct.id}
+            product={viewingProduct}
+            onClose={() => setViewingProduct(undefined)}
+            colors={colors}
+            onEditProduct={(productToEdit) => {
+              setViewingProduct(undefined);
+              handleEdit(productToEdit);
+            }}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
