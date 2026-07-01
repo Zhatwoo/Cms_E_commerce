@@ -45,19 +45,18 @@ function safeHostname(url: string): string | null {
 export function getApiBase(raw: string | undefined | null, fallback = "http://127.0.0.1:6000"): string {
   const envBases = parseApiBaseList(raw);
   
-  // 1. Merge with dynamic LAN IP if provided by next-dev.js
-  // We infer the port from the first entry in raw or default to 5000
+  // Infer port from env or default to 6000 (Docker host port)
   const dynamicIp = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_DEV_LAN_IP : undefined;
   const bases = [...envBases];
-  
+
   const lanIp = (dynamicIp || "").trim().replace(/\r$/, "");
   if (lanIp && lanIp !== "127.0.0.1" && lanIp !== "localhost") {
-    let port = "5000";
+    let port = "6000";
     if (envBases.length > 0) {
       try {
-        port = new URL(envBases[0]).port || "5000";
+        port = new URL(envBases[0]).port || "6000";
       } catch {
-        port = "5000";
+        port = "6000";
       }
     }
     const dynamicUrl = `http://${hostForUrl(lanIp)}:${port}`;
@@ -113,8 +112,53 @@ export function getApiBase(raw: string | undefined | null, fallback = "http://12
   return firstValid;
 }
 
+function isLocalApiHost(url: string): boolean {
+  const host = safeHostname(url);
+  return host === "localhost" || host === "127.0.0.1";
+}
+
+/**
+ * Ordered backend URLs for server-side proxy (tries local first, then LAN IPs).
+ * Use with fetchBackend() so remote developers can reach a shared backend host.
+ */
+export function getBackendCandidates(
+  raw: string | undefined | null = process.env.NEXT_PUBLIC_API_URL,
+  fallback = "http://127.0.0.1:6000"
+): string[] {
+  const single = getApiBase(raw, fallback);
+  const envBases = parseApiBaseList(raw);
+  const dynamicIp = typeof process !== "undefined" ? process.env.NEXT_PUBLIC_DEV_LAN_IP : undefined;
+  const merged = new Set<string>();
+
+  for (const base of envBases) {
+    if (isValidApiBase(base) && safeHostname(base)) merged.add(base);
+  }
+  if (isValidApiBase(single) && safeHostname(single)) merged.add(single);
+
+  const lanIp = (dynamicIp || "").trim().replace(/\r$/, "");
+  if (lanIp && lanIp !== "127.0.0.1" && lanIp !== "localhost") {
+    let port = "6000";
+    if (envBases.length > 0) {
+      try {
+        port = new URL(envBases[0]).port || "6000";
+      } catch {
+        port = "6000";
+      }
+    }
+    const dynamicUrl = `http://${hostForUrl(lanIp)}:${port}`;
+    if (isValidApiBase(dynamicUrl)) merged.add(dynamicUrl);
+  }
+
+  const valid = Array.from(merged);
+  if (valid.length === 0) return [fallback];
+
+  const locals = valid.filter(isLocalApiHost);
+  const remotes = valid.filter((url) => !isLocalApiHost(url));
+  return [...locals, ...remotes];
+}
+
 /** Backend base URL for Next.js API proxy routes (resolved per request). */
 export function resolveBackendBase(fallback = "http://127.0.0.1:6000"): string {
-  return getApiBase(process.env.NEXT_PUBLIC_API_URL, fallback);
+  return getBackendCandidates(process.env.NEXT_PUBLIC_API_URL, fallback)[0] ?? fallback;
 }
 

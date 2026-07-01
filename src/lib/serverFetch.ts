@@ -1,5 +1,6 @@
 import http from 'node:http';
 import https from 'node:https';
+import { getBackendCandidates } from './apiBase';
 
 /** Node fetch/undici blocks port 6000 (X11). Use http/https for server-side backend proxy calls. */
 export async function serverFetch(url: string, init: RequestInit = {}): Promise<Response> {
@@ -80,4 +81,22 @@ async function readBody(body: BodyInit | null | undefined): Promise<Buffer | nul
     return Buffer.concat(chunks);
   }
   return null;
+}
+
+/** Try each configured backend base until one responds (multi-developer / LAN setups). */
+export async function fetchBackend(apiPath: string, init: RequestInit = {}): Promise<Response> {
+  const path = apiPath.startsWith('/') ? apiPath : `/${apiPath}`;
+  const candidates = getBackendCandidates();
+  let lastError: unknown;
+
+  for (const base of candidates) {
+    const url = `${base.replace(/\/$/, '')}${path}`;
+    try {
+      return await serverFetch(url, init);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Backend unreachable');
 }
