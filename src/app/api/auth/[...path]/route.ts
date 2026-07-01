@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiBase } from '@/lib/apiBase';
-
-const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
+import { resolveBackendBase } from '@/lib/apiBase';
+import { serverFetch } from '@/lib/serverFetch';
 
 function buildBackendUrl(path: string[]) {
+  const backend = resolveBackendBase();
   const safePath = Array.isArray(path) ? path.map((part) => encodeURIComponent(part)).join('/') : '';
-  return `${BACKEND.replace(/\/$/, '')}/api/auth/${safePath}`;
+  return `${backend.replace(/\/$/, '')}/api/auth/${safePath}`;
 }
 
 async function proxy(request: NextRequest, method: string, params: { path?: string[] }) {
@@ -27,10 +27,10 @@ async function proxy(request: NextRequest, method: string, params: { path?: stri
     };
 
     if (!['GET', 'HEAD'].includes(method)) {
-      init.body = await request.text();
+      init.body = await request.arrayBuffer();
     }
 
-    const res = await fetch(`${target}${search}`, init);
+    const res = await serverFetch(`${target}${search}`, init);
     const body = await res.arrayBuffer();
     const nextRes = new NextResponse(body, {
       status: res.status,
@@ -57,6 +57,7 @@ async function proxy(request: NextRequest, method: string, params: { path?: stri
 
     return nextRes;
   } catch (e) {
+    console.error('[Auth Proxy Error]', { target: buildBackendUrl(params.path || []), error: e });
     return NextResponse.json(
       { success: false, message: e instanceof Error ? e.message : 'Proxy error' },
       { status: 500 }
