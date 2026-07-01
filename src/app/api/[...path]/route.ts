@@ -1,39 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveBackendBase } from '@/lib/apiBase';
-import { serverFetch } from '@/lib/serverFetch';
+import { fetchBackend } from '@/lib/serverFetch';
 
-function buildBackendUrl(path: string[]) {
-  const backend = resolveBackendBase();
+function buildApiPath(path: string[], search: string) {
   const safePath = Array.isArray(path) ? path.map((part) => encodeURIComponent(part)).join('/') : '';
-  return `${backend.replace(/\/$/, '')}/api/${safePath}`;
-}
-
-async function fetchWithLocalFallback(target: string, search: string, init: RequestInit) {
-  try {
-    return await serverFetch(`${target}${search}`, init);
-  } catch (err) {
-    const fallbacks: string[] = [];
-    if (target.includes('localhost:6000')) fallbacks.push(target.replace('localhost:6000', '127.0.0.1:6000'));
-    if (target.includes('127.0.0.1:6000')) fallbacks.push(target.replace('127.0.0.1:6000', 'localhost:6000'));
-    if (target.includes('localhost:5000')) fallbacks.push(target.replace(':5000/', ':5001/'));
-    if (target.includes('127.0.0.1:5000')) fallbacks.push(target.replace(':5000/', ':5001/'));
-
-    for (const alt of fallbacks) {
-       try {
-        return await serverFetch(`${alt}${search}`, init);
-      } catch {
-        // try next fallback
-      }
-    }
-    throw err;
-  }
+  return `/api/${safePath}${search}`;
 }
 
 async function proxy(request: NextRequest, method: string, pathArray: string[]) {
   try {
-    const target = buildBackendUrl(pathArray || []);
     const url = new URL(request.url);
     const search = url.search || '';
+    const apiPath = buildApiPath(pathArray || [], search);
     const cookie = request.headers.get('cookie') || '';
     const contentType = request.headers.get('content-type') || '';
     const authorization = request.headers.get('authorization') || '';
@@ -57,7 +34,7 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
       init.body = await request.arrayBuffer();
     }
 
-    const res = await fetchWithLocalFallback(target, search, init);
+    const res = await fetchBackend(apiPath, init);
     const body = await res.arrayBuffer();
     const nextRes = new NextResponse(body, {
       status: res.status,
@@ -81,7 +58,7 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
 
     return nextRes;
   } catch (error) {
-    console.error('[API Proxy Error]', { target: buildBackendUrl(pathArray || []), error });
+    console.error('[API Proxy Error]', { path: buildApiPath(pathArray || [], ''), error });
     return NextResponse.json({ success: false, message: 'Backend connection failed' }, { status: 502 });
   }
 }
