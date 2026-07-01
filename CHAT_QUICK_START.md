@@ -13,7 +13,7 @@ A complete admin-to-admin messaging system integrated into your dashboard with:
 
 ### Step 1: Start Your Backend
 ```bash
-cd backend
+cd ../CMS_backend
 npm start
 ```
 ✅ Endpoints are ready:
@@ -24,7 +24,6 @@ npm start
 
 ### Step 2: Start Your Frontend
 ```bash
-cd frontend
 npm run dev
 ```
 
@@ -156,6 +155,6 @@ npm run dev
 ---
 
 **Need Help?** Check the files:
-- Backend API: `backend/controllers/messageController.js`
-- Frontend Chat: `frontend/src/app/admindashboard/messages/page.tsx`
-- API Types: `frontend/src/lib/api.ts`
+- Backend API: `../CMS_backend/controllers/messageController.js`
+- Frontend Chat: `src/app/admindashboard/messages/page.tsx`
+- API Types: `src/lib/api.ts`

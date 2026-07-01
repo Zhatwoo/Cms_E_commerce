@@ -26,18 +26,18 @@ Express app without binding to a port — fast and isolated.
 **Install (devDeps only):**
 
 ```bash
-cd backend
+cd ../CMS_backend
 npm install --save-dev jest supertest jest-mock-extended
 ```
 
-**Add to `backend/package.json` scripts:**
+**Add to `CMS_backend/package.json` scripts:**
 
 ```json
 "test": "jest",
 "test:watch": "jest --watch"
 ```
 
-**Create `backend/jest.config.js`:**
+**Create `CMS_backend/jest.config.js`:**
 
 ```js
 module.exports = {
@@ -54,7 +54,7 @@ module.exports = {
 };
 ```
 
-**Create `backend/tests/setup.js`** (silences logger noise):
+**Create `CMS_backend/tests/setup.js`** (silences logger noise):
 
 ```js
 process.env.NODE_ENV = 'test';
@@ -151,19 +151,18 @@ real browser so the test exercises what users actually do.
 **Install (devDeps only):**
 
 ```bash
-cd frontend
 npm install --save-dev @playwright/test
 npx playwright install chromium  # one-time browser download
 ```
 
-**Add to `frontend/package.json` scripts:**
+**Add to `package.json` scripts:**
 
 ```json
 "test:e2e": "playwright test",
 "test:e2e:ui": "playwright test --ui"
 ```
 
-**Create `frontend/playwright.config.ts`:**
+**Create `playwright.config.ts`:**
 
 ```ts
 import { defineConfig } from '@playwright/test';
@@ -190,7 +189,7 @@ export default defineConfig({
 });
 ```
 
-### Example: `frontend/e2e/landing.spec.ts`
+### Example: `e2e/landing.spec.ts`
 
 ```ts
 import { test, expect } from '@playwright/test';
@@ -211,7 +210,7 @@ test('auth modal opens', async ({ page }) => {
 });
 ```
 
-### Example: `frontend/e2e/editor-smoke.spec.ts` (skeleton)
+### Example: `e2e/editor-smoke.spec.ts` (skeleton)
 
 ```ts
 import { test, expect } from '@playwright/test';
@@ -254,15 +253,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm', cache-dependency-path: backend/package-lock.json }
-      - run: cd backend && npm ci && npm test
+        with: { node-version: '20', cache: 'npm', cache-dependency-path: CMS_backend/package-lock.json }
+      - run: cd CMS_backend && npm ci && npm test
   frontend:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm', cache-dependency-path: frontend/package-lock.json }
-      - run: cd frontend && npm ci && npx playwright install --with-deps chromium && npm run test:e2e
+        with: { node-version: '20', cache: 'npm', cache-dependency-path: Cms_E_commerce/package-lock.json }
+      - run: cd Cms_E_commerce && npm ci && npx playwright install --with-deps chromium && npm run test:e2e
 ```
 
 ---

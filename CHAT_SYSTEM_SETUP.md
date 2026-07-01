@@ -33,16 +33,16 @@ You now have a fully functional real-time chat system that allows admins to mess
 
 ## Files Modified
 
-### Backend
-- `backend/models/Message.js` - Added conversation support
-- `backend/controllers/messageController.js` - New conversation endpoints
-- `backend/controllers/userController.js` - Admin list endpoint (getAdmins)
-- `backend/routes/messageRoutes.js` - New routes for conversations
-- `backend/routes/userRoutes.js` - New admin list route
+### Backend (CMS_backend)
+- `../CMS_backend/models/Message.js` - Added conversation support
+- `../CMS_backend/controllers/messageController.js` - New conversation endpoints
+- `../CMS_backend/controllers/userController.js` - Admin list endpoint (getAdmins)
+- `../CMS_backend/routes/messageRoutes.js` - New routes for conversations
+- `../CMS_backend/routes/userRoutes.js` - New admin list route
 
 ### Frontend
-- `frontend/src/lib/api.ts` - Added chat API functions
-- `frontend/src/app/admindashboard/messages/page.tsx` - Complete chat UI rewrite
+- `src/lib/api.ts` - Added chat API functions
+- `src/app/admindashboard/messages/page.tsx` - Complete chat UI rewrite
 
 ## API Endpoints
 
