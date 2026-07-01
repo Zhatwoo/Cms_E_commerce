@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiBase } from '@/lib/apiBase';
-
-const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
+import { resolveBackendBase } from '@/lib/apiBase';
+import { serverFetch } from '@/lib/serverFetch';
 
 /** Proxy GET /api/domains/management to backend so same-origin requests work. */
 export async function GET(request: NextRequest) {
   try {
+    const backend = resolveBackendBase();
     const cookie = request.headers.get('cookie') || '';
-    const res = await fetch(`${BACKEND.replace(/\/$/, '')}/api/domains/admin/management`, {
+    const res = await serverFetch(`${backend.replace(/\/$/, '')}/api/domains/admin/management`, {
       method: 'GET',
       headers: { cookie },
       cache: 'no-store',

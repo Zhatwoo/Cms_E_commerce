@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiBase } from '@/lib/apiBase';
-
-const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
+import { resolveBackendBase } from '@/lib/apiBase';
+import { serverFetch } from '@/lib/serverFetch';
 
 /** Proxy POST /api/domains/admin/set-client-status to backend (same-origin so cookies are sent). */
 export async function POST(request: NextRequest) {
   try {
+    const backend = resolveBackendBase();
     const cookie = request.headers.get('cookie') || '';
     const body = await request.json().catch(() => ({}));
-    const res = await fetch(`${BACKEND.replace(/\/$/, '')}/api/domains/admin/set-client-status`, {
+    const res = await serverFetch(`${backend.replace(/\/$/, '')}/api/domains/admin/set-client-status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
