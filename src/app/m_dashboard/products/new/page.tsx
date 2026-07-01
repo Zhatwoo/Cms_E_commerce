@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
-import ProductAddModal, { type FormData } from '../components/productAddModal';
+import ProductAddModal from '../components/productAddModal';
+import { type FormData } from '../lib/productFormUtils';
 import { useAlert } from '../../components/context/alert-context';
 import { useProject } from '../../components/context/project-context';
 import { type Product } from '../../lib/productsData';
