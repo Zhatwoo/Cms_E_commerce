@@ -255,8 +255,13 @@ export function getApiCandidates(): string[] {
   envApis.forEach((v) => candidates.add(v));
   candidates.add(activeApiBase);
 
-  // Local DX fallback: backend may auto-switch to 5001 when 5000 is busy.
+  // Local DX fallback: Docker exposes backend on 6000; native dev may use 5000/5001.
+  const hasLocal6000 = envApis.some((v) => /^https?:\/\/(localhost|127\.0\.0\.1):6000$/i.test(v));
   const hasLocal5000 = envApis.some((v) => /^https?:\/\/(localhost|127\.0\.0\.1):5000$/i.test(v));
+  if (envApis.length === 0 || hasLocal6000) {
+    candidates.add("http://localhost:6000");
+    candidates.add("http://127.0.0.1:6000");
+  }
   if (envApis.length === 0 || hasLocal5000) {
     candidates.add("http://localhost:5000");
     candidates.add("http://127.0.0.1:5000");
@@ -268,11 +273,24 @@ export function getApiCandidates(): string[] {
     const protocol = window.location.protocol === "https:" ? "https" : "http";
     const host = (window.location.hostname || "").trim();
     if (host && host !== "localhost" && host !== "127.0.0.1") {
-      candidates.add(`${protocol}://${host}:5000`);
-      candidates.add(`${protocol}://${host}:5001`);
+      const portFromEnv = envApis.find((v) => {
+        try {
+          return !!new URL(v).port;
+        } catch {
+          return false;
+        }
+      });
+      let port = "6000";
+      if (portFromEnv) {
+        try {
+          port = new URL(portFromEnv).port || "6000";
+        } catch {
+          port = "6000";
+        }
+      }
+      candidates.add(`${protocol}://${host}:${port}`);
       if (protocol === "https") {
-        candidates.add(`http://${host}:5000`);
-        candidates.add(`http://${host}:5001`);
+        candidates.add(`http://${host}:${port}`);
       }
     }
   }

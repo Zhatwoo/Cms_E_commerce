@@ -1,18 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveBackendBase } from '@/lib/apiBase';
-import { serverFetch } from '@/lib/serverFetch';
+import { fetchBackend } from '@/lib/serverFetch';
 
-function buildBackendUrl(path: string[]) {
-  const backend = resolveBackendBase();
+function buildApiPath(path: string[], search: string) {
   const safePath = Array.isArray(path) ? path.map((part) => encodeURIComponent(part)).join('/') : '';
-  return `${backend.replace(/\/$/, '')}/api/published-auth/${safePath}`;
+  return `/api/published-auth/${safePath}${search}`;
 }
 
 async function proxy(request: NextRequest, method: string, params: { path?: string[] }) {
   try {
-    const target = buildBackendUrl(params.path || []);
     const url = new URL(request.url);
     const search = url.search || '';
+    const apiPath = buildApiPath(params.path || [], search);
     const cookie = request.headers.get('cookie') || '';
     const contentType = request.headers.get('content-type') || '';
     const siteIdentifier = request.headers.get('x-site-identifier') || '';
@@ -32,7 +30,7 @@ async function proxy(request: NextRequest, method: string, params: { path?: stri
       init.body = await request.arrayBuffer();
     }
 
-    const res = await serverFetch(`${target}${search}`, init);
+    const res = await fetchBackend(apiPath, init);
     const body = await res.arrayBuffer();
     const nextRes = new NextResponse(body, {
       status: res.status,
@@ -59,7 +57,7 @@ async function proxy(request: NextRequest, method: string, params: { path?: stri
 
     return nextRes;
   } catch (e) {
-    console.error('[Published Auth Proxy Error]', { target: buildBackendUrl(params.path || []), error: e });
+    console.error('[Published Auth Proxy Error]', { path: buildApiPath(params.path || [], ''), error: e });
     return NextResponse.json(
       { success: false, message: e instanceof Error ? e.message : 'Proxy error' },
       { status: 500 }
