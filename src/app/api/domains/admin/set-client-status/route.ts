@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { resolveBackendBase } from '@/lib/apiBase';
-import { serverFetch } from '@/lib/serverFetch';
+import { fetchBackend } from '@/lib/serverFetch';
 
 /** Proxy POST /api/domains/admin/set-client-status to backend (same-origin so cookies are sent). */
 export async function POST(request: NextRequest) {
   try {
-    const backend = resolveBackendBase();
     const cookie = request.headers.get('cookie') || '';
     const body = await request.json().catch(() => ({}));
-    const res = await serverFetch(`${backend.replace(/\/$/, '')}/api/domains/admin/set-client-status`, {
+    const res = await fetchBackend('/api/domains/admin/set-client-status', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
