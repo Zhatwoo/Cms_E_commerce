@@ -1,11 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiBase } from '@/lib/apiBase';
-
-const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
+import { resolveBackendBase } from '@/lib/apiBase';
+import { serverFetch } from '@/lib/serverFetch';
 
 function buildBackendUrl(path: string[]) {
+  const backend = resolveBackendBase();
   const safePath = Array.isArray(path) ? path.map((part) => encodeURIComponent(part)).join('/') : '';
-  return `${BACKEND.replace(/\/$/, '')}/api/${safePath}`;
+  return `${backend.replace(/\/$/, '')}/api/${safePath}`;
+}
+
+async function fetchWithLocalFallback(target: string, search: string, init: RequestInit) {
+  try {
+    return await serverFetch(`${target}${search}`, init);
+  } catch (err) {
+    const fallbacks: string[] = [];
+    if (target.includes('localhost:6000')) fallbacks.push(target.replace('localhost:6000', '127.0.0.1:6000'));
+    if (target.includes('127.0.0.1:6000')) fallbacks.push(target.replace('127.0.0.1:6000', 'localhost:6000'));
+    if (target.includes('localhost:5000')) fallbacks.push(target.replace(':5000/', ':5001/'));
+    if (target.includes('127.0.0.1:5000')) fallbacks.push(target.replace(':5000/', ':5001/'));
+
+    for (const alt of fallbacks) {
+       try {
+        return await serverFetch(`${alt}${search}`, init);
+      } catch {
+        // try next fallback
+      }
+    }
+    throw err;
+  }
 }
 
 async function proxy(request: NextRequest, method: string, pathArray: string[]) {
@@ -36,14 +57,7 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
       init.body = await request.arrayBuffer();
     }
 
-    const res = await fetch(`${target}${search}`, init).catch(async (err) => {
-      // Local fallback: try 5001 if 5000 fails (standard port switch behavior in this project)
-      if (target.includes('localhost:5000') || target.includes('127.0.0.1:5000')) {
-        const fallbackTarget = target.replace(/:5000\//, ':5001/');
-        return fetch(`${fallbackTarget}${search}`, init);
-      }
-      throw err;
-    });
+    const res = await fetchWithLocalFallback(target, search, init);
     const body = await res.arrayBuffer();
     const nextRes = new NextResponse(body, {
       status: res.status,
@@ -67,7 +81,7 @@ async function proxy(request: NextRequest, method: string, pathArray: string[]) 
 
     return nextRes;
   } catch (error) {
-    console.error('[API Proxy Error]', error);
+    console.error('[API Proxy Error]', { target: buildBackendUrl(pathArray || []), error });
     return NextResponse.json({ success: false, message: 'Backend connection failed' }, { status: 502 });
   }
 }

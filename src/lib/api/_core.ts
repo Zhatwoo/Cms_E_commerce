@@ -12,7 +12,7 @@
 
 import { getApiBase, parseApiBaseList } from "../apiBase";
 
-const DEFAULT_API_BASE = "http://localhost:5000";
+const DEFAULT_API_BASE = "http://127.0.0.1:6000";
 let activeApiBase = getApiBase(process.env.NEXT_PUBLIC_API_URL, DEFAULT_API_BASE);
 let activeProjectId: string | null = null;
 

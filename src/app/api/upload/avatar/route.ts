@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiBase } from '@/lib/apiBase';
-
-const BACKEND = getApiBase(process.env.NEXT_PUBLIC_API_URL);
+import { resolveBackendBase } from '@/lib/apiBase';
+import { serverFetch } from '@/lib/serverFetch';
 
 /** Proxy POST /api/upload/avatar (multipart) to backend POST /api/auth/avatar so cookies are sent. */
 export async function POST(request: NextRequest) {
   try {
-    const formData = await request.formData();
-    const file = formData.get('avatar');
-    if (!file || typeof file === 'string') {
-      return NextResponse.json(
-        { success: false, message: 'No file uploaded. Use field name "avatar".' },
-        { status: 400 }
-      );
-    }
+    const backend = resolveBackendBase();
     const cookie = request.headers.get('cookie') || '';
-    const body = new FormData();
-    body.append('avatar', file);
-    const res = await fetch(`${BACKEND.replace(/\/$/, '')}/api/auth/avatar`, {
+    const contentType = request.headers.get('content-type') || '';
+    const body = await request.arrayBuffer();
+
+    const res = await serverFetch(`${backend.replace(/\/$/, '')}/api/auth/avatar`, {
       method: 'POST',
-      headers: { cookie },
+      headers: {
+        cookie,
+        ...(contentType ? { 'content-type': contentType } : {}),
+      },
       body,
     });
     const data = await res.json().catch(() => ({}));
